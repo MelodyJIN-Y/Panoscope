@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Annotation confidence — panel grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F4F6;--paper:#FFFFFF;--ink:#161B20;--muted:#606A73;--faint:#9AA3AB;
+    --hair:#E4E7EA;--hair2:#EEF0F2;--accent:#0F7B87;
+    --support:#1F6FEB;--absent:#BE7A1E;--offpanel:#98A0A7;
+    --cVH:#0F5B65;--cH:#2E8C97;--cM:#A9C7CB;--cL:#E2E6E7;
+    --sans:"Space Grotesk",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .mono{font-family:var(--mono)}
+  header{display:flex;align-items:center;gap:14px;padding:0 20px;height:52px;background:var(--paper);border-bottom:1px solid var(--hair)}
+  .brand{font-weight:700;font-size:15px}.brand .d{color:var(--accent)}
+  .ctx{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .lkbtn{margin-left:auto;font-family:var(--mono);font-size:12px;border:1px solid var(--hair);background:#fff;border-radius:7px;padding:6px 11px;cursor:pointer;color:var(--ink)}
+  .lkbtn b{color:var(--accent)}
+  .shell{display:grid;grid-template-columns:222px 1fr 372px;height:calc(100vh - 52px)}
+  .rail{background:var(--paper);border-right:1px solid var(--hair);padding:16px 12px;overflow:auto}
+  .eyebrow{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);margin:0 6px 12px;font-weight:500}
+  .clu{display:grid;grid-template-columns:22px 1fr auto;gap:9px;align-items:center;padding:9px 8px;border-radius:8px;cursor:pointer}
+  .clu:hover{background:var(--hair2)}.clu.sel{background:#EBF5F6}
+  .cid{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .cname{font-weight:600;font-size:13px}.csub{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .cdot{width:9px;height:9px;border-radius:50%}
+  .flag{color:var(--absent);font-size:10px;margin-left:4px}
+  .center{overflow:auto;padding:24px 28px}
+  .idline{font-family:var(--mono);font-size:11px;color:var(--faint);margin-bottom:6px}
+  .verdict{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+  .verdict h1{font-size:25px;font-weight:600;letter-spacing:-.02em;margin:0}
+  .cf{font-family:var(--mono);font-size:11px;font-weight:600;padding:4px 9px;border-radius:6px;color:#fff;background:var(--cH)}
+  .rat{color:var(--muted);max-width:60ch;margin-bottom:6px}
+  .decide{display:flex;gap:12px;margin:13px 0 26px}
+  .decide button{font-family:var(--sans);font-size:13px;cursor:pointer;border-radius:7px;padding:7px 14px;border:1px solid var(--hair);background:#fff}
+  .decide .go{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .sect{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:500;margin:0 0 13px;display:flex;align-items:center;gap:10px}
+  .sect .r{margin-left:auto;text-transform:none;letter-spacing:0;color:var(--faint)}
+  .sect .fit{margin-left:auto;text-transform:none;letter-spacing:0}
+  .fitchip{font-weight:600;padding:3px 9px;border-radius:6px}
+  .fit-strong{background:#EBF5F6;color:var(--accent)}.fit-uncertain{background:#FAF1E1;color:var(--absent)}.fit-weak{background:#F4E9E9;color:#9a4b4b}
+  table{width:100%;border-collapse:collapse}
+  th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);text-align:left;font-weight:500;padding:0 10px 10px}
+  th.r,td.r{text-align:right}
+  td{padding:10px}
+  tr.mrow{cursor:pointer;border-top:1px solid var(--hair2)}
+  tr.mrow:hover td{background:#F6FAFB}
+  tr.mrow.pinned td{background:#EBF5F6}
+  .gene{font-family:var(--mono);font-weight:600;font-size:14px}
+  .pin{color:var(--accent);margin-left:7px;font-size:11px}
+  .num{font-family:var(--mono);font-size:13px}.num.dim{color:var(--faint)}
+  .onp{font-family:var(--mono);font-size:12px}.yes{color:var(--accent)}.no{color:var(--faint)}
+  .role{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .r-sup{background:#EAF1FE;color:var(--support)}.r-abs{background:#FAF1E1;color:var(--absent)}.r-off{background:#F0F2F3;color:var(--offpanel)}
+  .strip{display:inline-flex;gap:3px}
+  .sc{width:15px;height:15px;border-radius:3px}.sc.sel{box-shadow:0 0 0 2px var(--ink)}
+  .toolbar{display:flex;align-items:center;gap:16px;margin:16px 0 30px;font-family:var(--mono);font-size:11px;color:var(--muted);flex-wrap:wrap}
+  .toolbar select,.toolbar input{font-family:var(--mono);font-size:11px;border:1px solid var(--hair);border-radius:6px;padding:5px 8px;background:#fff;color:var(--ink)}
+  .toolbar input{width:92px}
+  .toolbar .grp{display:flex;align-items:center;gap:7px}
+  .toolbar .fil{cursor:pointer;color:var(--faint)}.toolbar .fil.on{color:var(--accent)}
+  .toolbar .sep{color:var(--hair)}
+  #searchres{font-family:var(--mono);font-size:11px}
+
+  /* spatial panel grid */
+  .colhd{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}
+  .colhd span{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);text-align:center}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{background:var(--paper);border:1px solid var(--hair);border-radius:9px;padding:10px 11px}
+  .panel .ph{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+  .panel .ph .pdot{width:8px;height:8px;border-radius:50%}
+  .panel .ph .pt{font-family:var(--mono);font-size:11px;color:var(--ink);font-weight:500}
+  .panel .ph .ps{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .panel .ph .bin{margin-left:auto;display:inline-flex;border:1px solid var(--hair);border-radius:6px;overflow:hidden}
+  .panel .ph .bin button{border:none;background:#fff;font-family:var(--mono);font-size:9px;padding:3px 6px;cursor:pointer;color:var(--muted)}
+  .panel .ph .bin button.on{background:var(--accent);color:#fff}
+  .panel svg{width:100%;display:block;border-radius:5px}
+  .pempty{height:150px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-family:var(--mono);font-size:11px;text-align:center;background:#FAFBFC;border-radius:5px}
+  .violinpanel{margin-top:12px}
+  .pinbar{margin:0 0 12px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .pinbar .g{color:var(--accent);font-weight:600}
+  .pinbar .unpin{cursor:pointer;color:var(--absent);border:none;background:none;font-family:var(--mono);font-size:11px}
+  .plegend{font-family:var(--mono);font-size:9px;color:var(--faint);margin-top:6px;display:flex;align-items:center;gap:6px}
+  .grad{width:70px;height:8px;border-radius:3px;background:linear-gradient(90deg,#EAF3F4,#0F5B65)}
+
+  .conv{background:var(--paper);border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+  .convhead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--hair2)}
+  .convhead .t{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .scope{margin-left:auto;font-family:var(--mono);font-size:10px;border:1px solid var(--hair);border-radius:20px;display:flex;overflow:hidden}
+  .scope button{border:none;background:#fff;padding:3px 9px;font-family:var(--mono);font-size:10px;cursor:pointer;color:var(--muted)}
+  .scope button.on{background:#EBF5F6;color:var(--accent)}
+  .thread{flex:1;overflow:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:14px}
+  .msg{max-width:88%}.msg.u{align-self:flex-end}
+  .who{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin-bottom:4px}
+  .bubble{padding:11px 13px;border-radius:11px;font-size:13px;line-height:1.5}
+  .msg.a .bubble{background:#F5FAFB}.msg.u .bubble{background:#EAF1FE}
+  .msg.sys .bubble{background:#FAF1E1;font-family:var(--mono);font-size:11px;color:#7a5b1e;border-radius:8px}
+  .src{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .srcchip{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:5px;cursor:default}
+  .sc-jz{background:#EBF5F6;color:var(--accent)}.sc-lit{background:#F0F2F3;color:var(--muted)}.sc-mem{background:#FAF1E1;color:var(--absent)}
+  .foot{border-top:1px solid var(--hair2);padding:12px 16px}
+  .sugg{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .sugg button{font-family:var(--mono);font-size:11px;border:none;background:none;color:var(--accent);cursor:pointer;padding:0}
+  .sugg button:hover{text-decoration:underline}.sugg .add{color:var(--muted)}
+  .askrow{display:flex;gap:8px;align-items:center}
+  .askrow input{flex:1;font-family:var(--sans);font-size:13px;border:1px solid var(--hair);border-radius:9px;padding:10px 12px;background:#fff}
+  .askrow .go{font-family:var(--sans);font-size:13px;border:none;background:var(--accent);color:#fff;border-radius:9px;padding:10px 14px;cursor:pointer}
+  .capture{display:none;margin-bottom:10px;background:#FCF7EC;border:1px solid #EFE3C9;border-radius:9px;padding:10px}
+  .capture.open{display:block}
+  .capture input{width:100%;font-family:var(--sans);font-size:13px;border:1px solid var(--hair);border-radius:7px;padding:8px 10px;margin-bottom:8px}
+  .capture .row{display:flex;align-items:center;gap:8px}
+  .capture .sco{font-family:var(--mono);font-size:10px;border:1px solid var(--hair);border-radius:20px;display:flex;overflow:hidden}
+  .capture .sco button{border:none;background:#fff;padding:3px 8px;font-family:var(--mono);font-size:10px;cursor:pointer;color:var(--muted)}
+  .capture .sco button.on{background:#EBF5F6;color:var(--accent)}
+  .capture .save{margin-left:auto;font-family:var(--sans);font-size:12px;border:none;background:var(--accent);color:#fff;border-radius:7px;padding:6px 12px;cursor:pointer}
+  .capture .cx{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px}
+  #tip{position:fixed;pointer-events:none;background:#161B20;color:#fff;font-family:var(--mono);font-size:11px;padding:6px 9px;border-radius:6px;opacity:0;transition:.1s;z-index:60;white-space:nowrap}
+  .lk{position:fixed;top:0;right:0;width:340px;height:100vh;background:#fff;border-left:1px solid var(--hair);transform:translateX(100%);transition:.2s;z-index:70;padding:18px;overflow:auto;box-shadow:-8px 0 24px rgba(0,0,0,.06)}
+  .lk.open{transform:none}
+  .lk h4{margin:0 0 3px;font-size:15px}.lk .s{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .lk .cx{position:absolute;top:15px;right:15px;background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted)}
+  .lki{border:1px solid var(--hair);border-radius:9px;padding:11px;margin-bottom:9px;font-size:13px}
+  .lki .m{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .lki .sco{background:#EBF5F6;color:var(--accent);padding:2px 7px;border-radius:5px}
+  .lki .del{margin-left:auto;background:none;border:none;color:var(--absent);cursor:pointer;font-family:var(--mono);font-size:10px}
+  .lke{font-size:12px;color:var(--muted);border:1px dashed var(--hair);border-radius:9px;padding:16px;text-align:center}
+  .pcite{color:var(--accent);cursor:pointer;border-bottom:1px dotted var(--accent);white-space:nowrap}
+  .pcite:hover{background:#EBF5F6}
+  .missed{margin-top:9px;background:#FCF7EC;border:1px solid #EFE3C9;border-radius:8px;padding:8px 10px;font-size:12px;color:#7a5b1e}
+  .missed b{color:#8a5b0e}
+  .tension{margin-top:8px;border-left:2px solid var(--absent);padding:4px 0 4px 10px;font-size:12px;color:var(--muted)}
+  .paper{position:fixed;top:0;right:0;width:380px;height:100vh;background:#fff;border-left:1px solid var(--hair);transform:translateX(100%);transition:.2s;z-index:80;padding:20px;overflow:auto;box-shadow:-8px 0 24px rgba(0,0,0,.08)}
+  .paper.open{transform:none}
+  .paper .cx{position:absolute;top:15px;right:15px;background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted)}
+  .paper .j{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:8px}
+  .paper h4{margin:0 0 8px;font-size:16px;line-height:1.35}
+  .paper .au{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .paper .ab{font-size:13px;color:var(--ink);line-height:1.55;border-top:1px solid var(--hair2);padding-top:12px}
+  .paper .lnk{display:inline-block;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--hair);border-radius:7px;padding:7px 12px}
+  .paper .mocknote{margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .capsel{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-family:var(--mono);font-size:10px;color:var(--faint)}
+  @media (max-width:1120px){.shell{grid-template-columns:200px 1fr 330px}.pgrid,.colhd{grid-template-columns:1fr}}
+  @media (max-width:860px){.shell{grid-template-columns:1fr;height:auto}.conv{border-left:none;border-top:1px solid var(--hair);height:70vh}}
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<header>
+  <div class="brand">Pano<span class="d">·</span>scope</div>
+  <div class="ctx">Xenium breast · 280 genes · 6 clusters</div>
+  <button class="lkbtn" onclick="toggleLK()">Lab knowledge <b id="lkcount">0</b></button>
+</header>
+
+<div class="shell">
+  <aside class="rail">
+    <p class="eyebrow">Clusters</p>
+    <div class="clu sel"><span class="cid">3</span><div><div class="cname">T cells</div><div class="csub">CD3D CD3E CD8A</div></div><span class="cdot" style="background:#0F7B87"></span></div>
+    <div class="clu"><span class="cid">0</span><div><div class="cname">Tumor epithelial</div><div class="csub">EPCAM KRT8</div></div><span class="cdot" style="background:#E08A1E"></span></div>
+    <div class="clu"><span class="cid">1</span><div><div class="cname">B cells</div><div class="csub">MS4A1 CD79A</div></div><span class="cdot" style="background:#2F6FEB"></span></div>
+    <div class="clu"><span class="cid">4</span><div><div class="cname">Fibroblasts</div><div class="csub">PDGFRB COL1A1</div></div><span class="cdot" style="background:#4C9A2A"></span></div>
+    <div class="clu"><span class="cid">2</span><div><div class="cname">Myeloid?<span class="flag">⚑</span></div><div class="csub">mixed signal</div></div><span class="cdot" style="background:#8A6D3B"></span></div>
+    <div class="clu"><span class="cid">5</span><div><div class="cname">Endothelial<span class="flag">⚑</span></div><div class="csub">PECAM1</div></div><span class="cdot" style="background:#B255A0"></span></div>
+  </aside>
+
+  <section class="center">
+    <div class="idline">CLUSTER 3 · 4,812 cells</div>
+    <div class="verdict"><h1>T cells</h1><span class="cf">HIGH confidence</span></div>
+    <div class="rat">Three on-panel T cell markers with strong spatial signal. CD4 is off-panel, so its absence does not count against the call.</div>
+    <div class="decide"><button class="go">Confirm annotation</button><button>Override…</button></div>
+
+    <p class="sect">Marker evidence <span class="fit" id="fitwrap"></span></p>
+    <table><thead><tr><th>Gene</th><th class="r">Signal</th><th>Specificity across clusters</th><th>Role</th></tr></thead><tbody id="evbody"></tbody></table>
+    <div id="offnote" class="mono" style="font-size:11px;color:var(--faint);margin-top:9px"></div>
+    <div class="toolbar">
+      <div class="grp"><span>test cell type</span><select id="hypo" onchange="renderEvidence()"><option>T cells</option><option>B cells</option><option>Myeloid</option><option>NK cells</option></select></div>
+      <div class="grp"><input id="gsearch" placeholder="add gene" onkeydown="if(event.key==='Enter')searchGene()"><span id="searchres"></span></div>
+      <span class="sep">|</span>
+      <div class="grp">show <span class="fil on" data-f="all" onclick="setFilter('all',this)">all</span><span class="fil" data-f="sup" onclick="setFilter('sup',this)">supporting</span></div>
+    </div>
+
+    <p class="sect" style="margin-top:28px">Spatial evidence <span class="r">click a marker to drive the bottom row</span></p>
+    <div class="pinbar" id="pinbar"></div>
+    <div class="colhd"><span>expression space · UMAP</span><span>physical space · coordinates</span></div>
+    <div class="pgrid">
+      <div class="panel"><div class="ph"><span class="pdot" style="background:#0F7B87"></span><span class="pt">Clusters</span><span class="ps">UMAP</span></div><svg id="pUC" viewBox="0 0 220 150"></svg><div class="plegend" id="lUC"></div></div>
+      <div class="panel"><div class="ph"><span class="pdot" style="background:#0F7B87"></span><span class="pt">Clusters</span><span class="ps">tissue</span></div><svg id="pTC" viewBox="0 0 220 150"></svg><div class="plegend">cells coloured by cluster · c3 outlined</div></div>
+      <div class="panel"><div class="ph"><span class="pt" id="tUF">pinned marker</span><span class="ps">UMAP · feature</span></div><div id="wUF"></div><div class="plegend" id="lUF"></div></div>
+      <div class="panel"><div class="ph"><span class="pt" id="tTD">pinned marker</span><span class="ps">tissue · density</span><span class="bin" id="binctl"></span></div><div id="wTD"></div><div class="plegend" id="lTD"></div></div>
+    </div>
+    <div class="panel violinpanel"><div class="ph"><span class="pt" id="tV">pinned marker</span><span class="ps">distribution across clusters</span></div><div id="wV"></div><div class="plegend">signal per cluster · c3 highlighted · overlaps the specificity strip above</div></div>
+    <div style="height:22px"></div>
+  </section>
+
+  <aside class="conv">
+    <div class="convhead"><span class="t">Conversation</span><div class="scope"><button class="on" onclick="setScope(this)">cluster 3</button><button onclick="setScope(this)">all</button></div></div>
+    <div class="thread" id="thread"></div>
+    <div class="foot">
+      <div class="capture" id="capture">
+        <input id="noteinput" placeholder="e.g. In our breast TME this exhausted-CD8 signature is established">
+        <div class="capsel">scope <div class="sco"><button class="on" data-s="dataset" onclick="pickNoteScope(this)">dataset</button><button data-s="cluster" onclick="pickNoteScope(this)">cluster</button><button data-s="lab" onclick="pickNoteScope(this)">lab-wide</button></div></div>
+        <div class="capsel">basis <div class="sco"><button class="on" data-b="paper" onclick="pickBasis(this)">a paper</button><button data-b="own" onclick="pickBasis(this)">our own data</button><button data-b="conv" onclick="pickBasis(this)">convention</button></div></div>
+        <div class="capsel">status <div class="sco"><button class="on" data-t="firm" onclick="pickStatus(this)">firm rule</button><button data-t="tent" onclick="pickStatus(this)">tentative</button></div></div>
+        <div class="row"><button class="save" onclick="saveNote()">Save note</button><button class="cx" onclick="closeCapture()">cancel</button></div>
+      </div>
+      <div class="sugg" id="sugg"></div>
+      <div class="askrow"><input id="ask" placeholder="Ask about cluster 3…" onkeydown="if(event.key==='Enter')send(this.value)"><button class="go" onclick="send(document.getElementById('ask').value)">Ask</button></div>
+    </div>
+  </aside>
+</div>
+
+<div class="lk" id="lk"><button class="cx" onclick="toggleLK()">✕</button><h4>What this tool knows about your lab</h4><div class="s">Notes the agent can cite. Each carries its basis and any literature tension.</div><div id="lklist"></div></div>
+<div class="paper" id="paper"><button class="cx" onclick="closePaper()">✕</button><div id="papercontent"></div></div>
+
+<script>
+const CL=['c0','c1','c2','c3','c4','c5'],SEL=3;
+const CLC={0:'#E08A1E',1:'#2F6FEB',2:'#8A6D3B',3:'#0F7B87',4:'#4C9A2A',5:'#B255A0'};
+const G={
+  CD3D:{p:1,sig:[.15,.10,.18,.91,.12,.16],gc:3},CD3E:{p:1,sig:[.12,.14,.11,.88,.13,.10],gc:3},
+  CD8A:{p:1,sig:[.09,.10,.16,.74,.11,.20],gc:3},IL7R:{p:1,sig:[.20,.18,.15,.12,.22,.14],gc:null},
+  CD4:{p:0},MS4A1:{p:1,sig:[.10,.90,.11,.09,.10,.08],gc:1},CD79A:{p:1,sig:[.08,.82,.10,.07,.09,.06],gc:1},CD79B:{p:0},
+  LYZ:{p:1,sig:[.14,.12,.86,.10,.30,.12],gc:2},CD68:{p:1,sig:[.11,.10,.79,.08,.20,.10],gc:2},ITGAM:{p:0},
+  EPCAM:{p:1,sig:[.94,.10,.09,.08,.20,.09],gc:0},KRT8:{p:1,sig:[.88,.09,.08,.07,.18,.08],gc:0},
+  PDGFRB:{p:1,sig:[.10,.09,.20,.10,.72,.11],gc:4},COL1A1:{p:1,sig:[.12,.08,.22,.09,.80,.10],gc:4},
+  PECAM1:{p:1,sig:[.09,.08,.15,.10,.14,.68],gc:5},NKG7:{p:1,sig:[.10,.09,.14,.30,.10,.12],gc:3},KLRD1:{p:0},NCAM1:{p:0}
+};
+const TYPES={'T cells':['CD3D','CD3E','CD8A','IL7R','CD4'],'B cells':['MS4A1','CD79A','CD79B'],'Myeloid':['LYZ','CD68','ITGAM'],'NK cells':['NKG7','KLRD1','NCAM1']};
+// compact coords in a 220x150 box
+const UM={0:[48,50],1:[112,38],3:[176,58],4:[80,112],2:[138,112],5:[168,116]};   // 2&5 close = overlap
+const TI={0:[58,78],1:[70,46],2:[86,112],3:[162,72],4:[186,40],5:[196,116]};
+let extra=[],FILTER='all',memory=[],noteScope='dataset',noteBasis='paper',noteStatus='firm';
+let pinned=null,hover=null,binUm=50;
+const tip=document.getElementById('tip'),NS='http://www.w3.org/2000/svg';
+
+// illustrative citation library (mock metadata; in the build these come live from PubMed/bioRxiv)
+const CITES={
+  c1:{pmid:'29942094',title:'A single-cell reference map of human T cell markers',au:'Szabo et al.',year:2019,jr:'Nature Communications',ab:'Defines CD3D, CD3E and CD8A as robust pan-T and cytotoxic markers across tissues, with expression validated in independent cohorts.'},
+  c2:{pmid:'30388456',title:'Tumor-infiltrating lymphocytes in breast cancer',au:'Savas et al.',year:2018,jr:'Nature Medicine',ab:'Characterises CD8+ tumor-infiltrating lymphocytes in the breast tumor microenvironment and their prognostic associations.'},
+  c3:{pmid:'37890123',title:'Exhausted CD8 states in breast TME (2024)',au:'Lin et al.',year:2024,jr:'Cell (illustrative)',ab:'Recent single-cell atlas describing an established exhausted-CD8 program specific to breast tumor microenvironment. The paper you may have missed.'},
+  c4:{pmid:'35123456',title:'PDGFRB marks pericytes in breast stroma',au:'Rivera et al.',year:2022,jr:'J Pathology (illustrative)',ab:'Reports PDGFRB as pericyte-associated in breast stroma, in tension with CAF assignments.'}
+};
+function pcite(id){const c=CITES[id];return `<span class="pcite" onclick="openPaper('${id}')">📄 ${c.au.split(' ')[0]} ${c.year}</span>`;}
+function openPaper(id){const c=CITES[id];document.getElementById('papercontent').innerHTML=
+  `<div class="j">${c.jr} · PMID ${c.pmid}</div><h4>${c.title}</h4><div class="au">${c.au} · ${c.year}</div><div class="ab">${c.ab}</div>
+   <a class="lnk" href="https://pubmed.ncbi.nlm.nih.gov/${c.pmid}/" target="_blank" rel="noopener">view on PubMed →</a>
+   <div class="mocknote">Mockup metadata. In the build this is fetched live through the PubMed / bioRxiv connector, and the agent never writes a PMID from memory.</div>`;
+  document.getElementById('paper').classList.add('open');}
+function closePaper(){document.getElementById('paper').classList.remove('open');}
+
+function teal(v){return v<.22?'#DCE3E5':v<.4?'#B7CDD0':v<.6?'#7FB0B6':v<.8?'#3C8F99':'#0F5B65';}
+function dcol(v){v=Math.max(0,Math.min(1,v));const a=[234,243,244],b=[15,91,101];return `rgb(${a.map((x,i)=>Math.round(x+(b[i]-x)*v)).join(',')})`;}
+function stateFor(g){const d=G[g];if(!d||!d.p)return 'off';return d.sig[SEL]>=.5?'sup':'abs';}
+function role(s){return s==='sup'?'<span class="role r-sup">● supports</span>':s==='abs'?'<span class="role r-abs">▲ expected, absent</span>':'<span class="role r-off">⊘ off-panel</span>';}
+function strip(g){const d=G[g];if(!d||!d.p)return '<span class="mono" style="color:var(--faint);font-size:11px">not measured</span>';
+  let h='<span class="strip">';d.sig.forEach((v,i)=>{h+=`<span class="sc${i===SEL?' sel':''}" style="background:${teal(v)}" data-g="${g}" data-c="${CL[i]}" data-v="${v.toFixed(2)}"></span>`;});return h+'</span>';}
+function renderEvidence(){
+  const type=document.getElementById('hypo').value;
+  const all=[...TYPES[type],...extra.filter(g=>!TYPES[type].includes(g))];
+  const onpanel=all.filter(g=>G[g]&&G[g].p);
+  const dropped=all.filter(g=>!(G[g]&&G[g].p));
+  let sup=0;const b=document.getElementById('evbody');b.innerHTML='';
+  onpanel.forEach(g=>{const d=G[g],s=stateFor(g);if(s==='sup')sup++;
+    if(FILTER==='sup'&&s!=='sup')return;
+    const sig=d.sig[SEL].toFixed(2);const dim=s!=='sup'?'dim':'';
+    const pinmark=(pinned===g)?'<span class="pin">📌</span>':'';
+    const tr=document.createElement('tr');tr.className='mrow'+(pinned===g?' pinned':'');tr.dataset.gene=g;
+    tr.innerHTML=`<td class="gene">${g}${pinmark}</td><td class="r num ${dim}">${sig}</td><td>${strip(g)}</td><td>${role(s)}</td>`;
+    tr.onmouseenter=()=>{hover=g;renderMarker();};tr.onmouseleave=()=>{hover=null;renderMarker();};
+    tr.onclick=()=>{pinned=(pinned===g?null:g);renderEvidence();renderMarker();};
+    b.appendChild(tr);});
+  b.querySelectorAll('.sc').forEach(c=>{c.onmousemove=e=>showTip(e,`${c.dataset.g} · ${c.dataset.c}<br>signal ${c.dataset.v}`);c.onmouseleave=hideTip;});
+  document.getElementById('offnote').textContent = dropped.length?`Off this panel, not assessable here: ${dropped.join(', ')}`:'';
+  const fit=sup>=2?['fit-strong','strong fit']:sup===1?['fit-uncertain','uncertain fit']:['fit-weak','weak fit'];
+  document.getElementById('fitwrap').innerHTML=`<span class="fitchip ${fit[0]}">${type}: ${fit[1]}</span>`;
+}
+function setFilter(f,el){FILTER=f;el.parentNode.querySelectorAll('.fil').forEach(x=>x.classList.remove('on'));el.classList.add('on');renderEvidence();}
+function searchGene(){const inp=document.getElementById('gsearch'),g=inp.value.trim().toUpperCase(),r=document.getElementById('searchres');if(!g)return;const d=G[g];
+  if(d&&d.p){if(!extra.includes(g)&&!TYPES[document.getElementById('hypo').value].includes(g))extra.push(g);r.innerHTML=`<span style="color:var(--accent)">${g}</span> on panel · ${d.sig[SEL].toFixed(2)}`;renderEvidence();}
+  else{r.innerHTML=`<span style="color:var(--absent)">${g}</span> not on panel`;}inp.value='';}
+function showTip(e,h){tip.innerHTML=h;tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY+12)+'px';tip.style.opacity=1;}
+function hideTip(){tip.style.opacity=0;}
+
+/* generate point clouds once */
+const umPts=[];for(let c=0;c<6;c++){const[x,y]=UM[c];for(let i=0;i<52;i++)umPts.push({x:x+(Math.random()-.5)*30,y:y+(Math.random()-.5)*30,cl:c});}
+const tiPts=[];for(let i=0;i<420;i++){const c=Math.floor(Math.random()*6);const[x,y]=TI[c];tiPts.push({x:x+(Math.random()-.5)*44,y:y+(Math.random()-.5)*44,cl:c});}
+function gDensT(g,x,y){const d=G[g];if(!d||!d.p)return 0;if(d.gc==null)return .1;const[hx,hy]=TI[d.gc];const s=d.sig[d.gc];const dist=Math.hypot(x-hx,y-hy);return s*Math.exp(-(dist*dist)/(2*24*24));}
+function circle(svg,x,y,r,fill,op){const c=document.createElementNS(NS,'circle');c.setAttribute('cx',x.toFixed(1));c.setAttribute('cy',y.toFixed(1));c.setAttribute('r',r);c.setAttribute('fill',fill);c.setAttribute('opacity',op);svg.appendChild(c);}
+
+function drawUC(){const s=document.getElementById('pUC');s.innerHTML='';umPts.forEach(p=>circle(s,p.x,p.y,2.2,CLC[p.cl],.85));
+  const[rx,ry]=UM[3];const r=document.createElementNS(NS,'circle');r.setAttribute('cx',rx);r.setAttribute('cy',ry);r.setAttribute('r',22);r.setAttribute('fill','none');r.setAttribute('stroke','#0F7B87');r.setAttribute('stroke-dasharray','3 3');s.appendChild(r);
+  document.getElementById('lUC').innerHTML='clusters coloured · c3 clean, separated island';}
+function drawTC(){const s=document.getElementById('pTC');s.innerHTML='';tiPts.forEach(p=>circle(s,p.x,p.y,1.9,CLC[p.cl],.85));
+  const[rx,ry]=TI[3];const r=document.createElementNS(NS,'circle');r.setAttribute('cx',rx);r.setAttribute('cy',ry);r.setAttribute('r',26);r.setAttribute('fill','none');r.setAttribute('stroke','#0F7B87');r.setAttribute('stroke-dasharray','3 3');s.appendChild(r);}
+function activeGene(){return hover||pinned;}
+function markerPanel(id,label,html){document.getElementById(id).innerHTML=html;}
+function emptyPanel(){return '<div class="pempty">pin a marker</div>';}
+function renderMarker(){
+  const g=activeGene();
+  document.getElementById('pinbar').innerHTML = pinned?`showing <span class="g">${pinned}</span> across the bottom row <button class="unpin" onclick="pinned=null;renderEvidence();renderMarker()">unpin</button>`:(hover?`preview <span class="g">${hover}</span>`:'<span style="color:var(--faint)">hover a marker to preview · click to pin</span>');
+  const tUF=document.getElementById('tUF'),tTD=document.getElementById('tTD'),tV=document.getElementById('tV');
+  tUF.textContent=g||'pinned marker';tTD.textContent=g||'pinned marker';tV.textContent=g||'pinned marker';
+  // feature UMAP
+  if(!g||!G[g].p){markerPanel('wUF','<svg viewBox="0 0 220 150"></svg>');document.getElementById('wUF').innerHTML=emptyPanel();document.getElementById('lUF').textContent='';}
+  else{const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 220 150');const gc=G[g].gc;
+    umPts.forEach(p=>{let fill='#DCE0E3',r=2,op=.55;if(gc!=null&&p.cl===gc){const v=Math.min(1,G[g].sig[gc]*(0.6+Math.random()*0.8));fill=dcol(v);r=2.4;op=.95;}circle(s,p.x,p.y,r,fill,op);});
+    document.getElementById('wUF').innerHTML='';document.getElementById('wUF').appendChild(s);
+    document.getElementById('lUF').innerHTML=`${g} expression · low <span class="grad"></span> high`;}
+  // tissue density
+  if(!g||!G[g].p){document.getElementById('wTD').innerHTML=emptyPanel();document.getElementById('binctl').innerHTML='';document.getElementById('lTD').textContent='';}
+  else{const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 220 150');const R={25:7,50:11,100:17}[binUm];const hh=R*Math.sqrt(3);let html='';
+    for(let col=0;col*1.5*R<228;col++)for(let row=0;row*hh<156;row++){const cx=col*1.5*R,cy=row*hh+(col%2?hh/2:0);if(cx>224||cy>152)continue;const v=gDensT(g,cx,cy);const pts=[0,60,120,180,240,300].map(a=>{const rr=a*Math.PI/180;return `${(cx+R*Math.cos(rr)).toFixed(1)},${(cy+R*Math.sin(rr)).toFixed(1)}`;}).join(' ');html+=`<polygon points="${pts}" fill="${dcol(v)}" stroke="#fff" stroke-width="0.4"/>`;}
+    s.innerHTML=html;document.getElementById('wTD').innerHTML='';document.getElementById('wTD').appendChild(s);
+    document.getElementById('binctl').innerHTML=[25,50,100].map(b=>`<button class="${b===binUm?'on':''}" onclick="binUm=${b};renderMarker()">${b}µm</button>`).join('');
+    document.getElementById('lTD').innerHTML=`transcripts · area-normalized · low <span class="grad"></span> high`;}
+  // violin
+  if(!g||!G[g].p){document.getElementById('wV').innerHTML=emptyPanel();}
+  else{const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 520 130');const W=520,H=130,pad=14,cw=(W-pad*2)/6;
+    for(let c=0;c<6;c++){const cx=pad+cw*c+cw/2;const mean=G[g].sig[c];const samp=[];for(let i=0;i<50;i++){let v=mean+(Math.random()-.5)*0.22+(Math.random()-.5)*0.1;samp.push(Math.max(0,Math.min(1,v)));}
+      const bins=14,dens=new Array(bins).fill(0);samp.forEach(v=>{dens[Math.min(bins-1,Math.floor(v*bins))]++;});const mx=Math.max(...dens,1);
+      let up='',dn='';for(let bi=0;bi<bins;bi++){const y=H-pad-(bi/(bins-1))*(H-pad*2);const w=(dens[bi]/mx)*(cw*0.42);up+=`${(cx+w).toFixed(1)},${y.toFixed(1)} `;dn=`${(cx-w).toFixed(1)},${y.toFixed(1)} `+dn;}
+      const fill=(c===SEL)?'#0F7B87':'#C8D0D4';const poly=document.createElementNS(NS,'polygon');poly.setAttribute('points',up+dn);poly.setAttribute('fill',fill);poly.setAttribute('opacity',c===SEL?.9:.7);s.appendChild(poly);
+      const lab=document.createElementNS(NS,'text');lab.setAttribute('x',cx);lab.setAttribute('y',H-2);lab.setAttribute('text-anchor','middle');lab.setAttribute('font-family','var(--mono)');lab.setAttribute('font-size','9');lab.setAttribute('fill',c===SEL?'#0F7B87':'#9AA3AB');lab.textContent='c'+c;s.appendChild(lab);}
+    document.getElementById('wV').innerHTML='';document.getElementById('wV').appendChild(s);}
+}
+
+/* chat + memory (unchanged core) */
+const thread=document.getElementById('thread');
+function chips(a){return a&&a.length?`<div class="src">${a.map(c=>`<span class="srcchip sc-${c.t}">${c.l}</span>`).join('')}</div>`:'';}
+function addMsg(role,html,src){const d=document.createElement('div');d.className='msg '+role;const who=role==='a'?'agent':role==='u'?'you':'';d.innerHTML=(who?`<div class="who">${who}</div>`:'')+`<div class="bubble">${html}${chips(src)}</div>`;thread.appendChild(d);thread.scrollTop=thread.scrollHeight;}
+function respond(q){const s=q.toLowerCase();const qw=s.split(/\W+/).filter(w=>w.length>4);const hit=memory.find(m=>m.text.toLowerCase().split(/\W+/).some(w=>w.length>4&&qw.includes(w)));
+  if(hit){addMsg('a',`Two grounded sources point the same way. From jazzPanda, CD8A is the strongest lineage signal at <b>0.74 (rank 11 / 280)</b>. And your lab recorded this (basis: ${hit.basis}), which the literature supports ${pcite('c3')}, though one paper reports the opposite context ${pcite('c4')}, a tension I am keeping visible rather than smoothing over.`,[{t:'jz',l:'jazzPanda CD8A 0.74'},{t:'mem',l:`lab note · ${hit.who} · ${hit.date}`}]);return;}
+  if(/define|top marker|characteri|what.*(this )?cluster|drives/.test(s)){addMsg('a',`Strongest spatial markers here: <b>CD3D 0.91</b> (rank 2), <b>CD3E 0.88</b> (rank 4), <b>CD8A 0.74</b> (rank 11), then NKG7 0.30. The top three are canonical T cell markers ${pcite('c1')}. Pinned CD3D on the panels.`,[{t:'jz',l:'jazzPanda markers.csv'}]);pinned='CD3D';renderEvidence();renderMarker();return;}
+  if(/subtype|cd8|cd4|exhaust/.test(s)){addMsg('a',`Reads as <b>CD8 T cells</b>: CD8A is strong at 0.74, and CD4 is off-panel, so I cannot resolve a CD4 fraction. CD8-leaning, CD4 flagged as unmeasured, not absent.`,[{t:'jz',l:'jazzPanda CD8A 0.74'},{t:'lit',l:'panel: CD4 off'}]);return;}
+  if(/doublet|contam|mixed|tumor|tumour/.test(s)){addMsg('a',`Unlikely to be a doublet with tumor. Pinned EPCAM: its transcripts and UMAP signal sit in the tumor cluster, not here, so the two populations are not mixing.`,[{t:'jz',l:'jazzPanda EPCAM 0.08'}]);pinned='EPCAM';renderEvidence();renderMarker();return;}
+  addMsg('a',`I answer against what is grounded here: jazzPanda's per-cluster signals, the panel list, and your lab's notes. Point me at a marker or a cell type, or try a suggestion.`,[]);}
+function send(v){const q=(v||'').trim();if(!q)return;document.getElementById('ask').value='';addMsg('u',q);setTimeout(()=>respond(q),240);}
+function sBtn(t,cls){const b=document.createElement('button');b.textContent=t;if(cls)b.className=cls;b.onclick=()=>{if(t.indexOf('lab note')>-1){openCapture();return;}send(t);};return b;}
+function renderSugg(){const s=document.getElementById('sugg');s.innerHTML='';['What defines this cluster?','Could this be a doublet?'].forEach(t=>s.appendChild(sBtn(t)));if(memory.length)s.appendChild(sBtn('Is this signature real?'));s.appendChild(sBtn('＋ add a lab note','add'));}
+function openCapture(){document.getElementById('capture').classList.add('open');document.getElementById('noteinput').focus();}
+function closeCapture(){document.getElementById('capture').classList.remove('open');}
+function pickNoteScope(b){b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');noteScope=b.dataset.s;}
+function pickBasis(b){b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');noteBasis=b.dataset.b;}
+function pickStatus(b){b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');noteStatus=b.dataset.t;}
+function saveNote(){const inp=document.getElementById('noteinput'),t=inp.value.trim();if(!t)return;
+  const scopeLab={dataset:'this dataset',cluster:'cluster 3',lab:'lab-wide'}[noteScope];
+  const basisLab={paper:'a paper',own:'our own data',conv:'convention'}[noteBasis];
+  // literature cross-check (mock): find agreement + dissent
+  const tension=[{stance:'agrees',id:'c3'},{stance:'dissents',id:'c4'}];
+  memory.push({text:t,scope:scopeLab,basis:basisLab,status:noteStatus,tension,who:'you',date:'2026-07-10'});
+  inp.value='';closeCapture();updateLK();renderSugg();
+  addMsg('sys',`Saved · ${scopeLab} · basis: ${basisLab} · ${noteStatus==='firm'?'firm rule':'tentative'}.`);
+  addMsg('a',`I cross-checked the literature. One 2024 breast-TME atlas agrees with you ${pcite('c3')}. I also found a paper reporting the opposite context ${pcite('c4')}, so there is some tension. I am keeping your call and will carry the tension with the note, not bury it.`,[{t:'mem',l:'reconciled with lab note'}]);}
+function updateLK(){document.getElementById('lkcount').textContent=memory.length;const l=document.getElementById('lklist');
+  l.innerHTML=memory.length?memory.map((m,i)=>{
+    const ten=(m.tension&&m.tension.length)?`<div class="tension">literature tension: ${m.tension.map(x=>`${x.stance} ${pcite(x.id)}`).join(' · ')}</div>`:'';
+    return `<div class="lki">${m.text}<div class="m"><span class="sco">${m.scope}</span> basis: ${m.basis} · ${m.status==='firm'?'firm':'tentative'} · ${m.who} · ${m.date}<button class="del" onclick="delNote(${i})">delete</button></div>${ten}</div>`;
+  }).join(''):'<div class="lke">No notes yet. Override or confirm something in the chat and it is saved here with its basis and any literature tension.</div>';}
+function delNote(i){memory.splice(i,1);updateLK();renderSugg();}
+function toggleLK(){document.getElementById('lk').classList.toggle('open');}
+function setScope(b){b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
+
+renderEvidence();drawUC();drawTC();renderMarker();updateLK();renderSugg();
+addMsg('a',`<b>T cells, HIGH confidence.</b> Driven by three on-panel markers with strong spatial signal: CD3D 0.91 (rank 2), CD3E 0.88, CD8A 0.74. These are canonical pan-T and cytotoxic markers ${pcite('c1')}, and in the breast tumor microenvironment they mark tumor-infiltrating lymphocytes ${pcite('c2')}. CD4 is off-panel, so its absence is uninformative and was not used against the call.`,
+  [{t:'jz',l:'jazzPanda markers.csv'}]);
+</script>
+</body>
+</html>

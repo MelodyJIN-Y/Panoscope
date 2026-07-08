@@ -1,0 +1,584 @@
+{
+  "density": {
+    "generated_at": "2026-07-08T23:08:43",
+    "source": "Raw_data_Xenium_hbreast_sample1/transcripts.csv.gz",
+    "qv_min": 20.0,
+    "n_files": 78,
+    "per_gene_transcript_counts": {
+      "ERBB2": 2164898,
+      "KRT7": 1077455,
+      "SCD": 878700,
+      "LUM": 1087247,
+      "POSTN": 972805,
+      "CCDC80": 424344,
+      "LYZ": 245251,
+      "FCER1G": 164324,
+      "CD68": 151221,
+      "SERPINA3": 264411,
+      "DST": 312203,
+      "SFRP1": 142794,
+      "IL7R": 151259,
+      "PTPRC": 172241,
+      "TRAC": 121564,
+      "MS4A1": 20875,
+      "BANK1": 19121,
+      "MZB1": 63381,
+      "AQP1": 131864,
+      "PECAM1": 129969,
+      "VWF": 89369,
+      "TCL1A": 3624,
+      "LILRA4": 6051,
+      "SPIB": 8600,
+      "CPA3": 14150,
+      "CTSG": 6269
+    },
+    "files": {
+      "data/density/ERBB2_25um.parquet": {
+        "gene": "ERBB2",
+        "bin_um": 25,
+        "n_bins": 64521,
+        "n_transcripts": 2164898,
+        "sha256": "b3aaede5a17b0e9e61fec0c3fdbe0acc568b3440c4a7a10ddc2901b4c7e9dd4f"
+      },
+      "data/density/ERBB2_50um.parquet": {
+        "gene": "ERBB2",
+        "bin_um": 50,
+        "n_bins": 16455,
+        "n_transcripts": 2164898,
+        "sha256": "f99a4278c0a980c56f9aa2f46f18161e04e6bd6ce12e78697bc5e41fc1e6fd51"
+      },
+      "data/density/ERBB2_100um.parquet": {
+        "gene": "ERBB2",
+        "bin_um": 100,
+        "n_bins": 4159,
+        "n_transcripts": 2164898,
+        "sha256": "b8f91bf175e5ffa4132fc2a2490c5485c33112d160223e90517c1370077c4547"
+      },
+      "data/density/KRT7_25um.parquet": {
+        "gene": "KRT7",
+        "bin_um": 25,
+        "n_bins": 51302,
+        "n_transcripts": 1077455,
+        "sha256": "387245d567c4bcf33ae8faa19b20c84295006be52dc220aa8a3438a7876e72cc"
+      },
+      "data/density/KRT7_50um.parquet": {
+        "gene": "KRT7",
+        "bin_um": 50,
+        "n_bins": 15888,
+        "n_transcripts": 1077455,
+        "sha256": "ba3ccae293b4b111bf4932305b5fa4f406a551c903e3f91ed2be413b02f0d344"
+      },
+      "data/density/KRT7_100um.parquet": {
+        "gene": "KRT7",
+        "bin_um": 100,
+        "n_bins": 4144,
+        "n_transcripts": 1077455,
+        "sha256": "f6d491438831a4119aff5fa9f32b74e2e8f568c0e6a32b2001de64f8fc455824"
+      },
+      "data/density/SCD_25um.parquet": {
+        "gene": "SCD",
+        "bin_um": 25,
+        "n_bins": 52443,
+        "n_transcripts": 878700,
+        "sha256": "4027399084f0aa62985c5e89668c9c5fd68a9dffeed59eef17c7c765c663f55d"
+      },
+      "data/density/SCD_50um.parquet": {
+        "gene": "SCD",
+        "bin_um": 50,
+        "n_bins": 15940,
+        "n_transcripts": 878700,
+        "sha256": "31c0f3e9401cd03e6782ce792a9cfb9ba58ac92ba7d17bd2c15375236bda73f7"
+      },
+      "data/density/SCD_100um.parquet": {
+        "gene": "SCD",
+        "bin_um": 100,
+        "n_bins": 4133,
+        "n_transcripts": 878700,
+        "sha256": "e1ab5a928acfc75a8f6324c38da58df849ddc2b1b1aecdb9657b1ac84ea4e0ba"
+      },
+      "data/density/LUM_25um.parquet": {
+        "gene": "LUM",
+        "bin_um": 25,
+        "n_bins": 59993,
+        "n_transcripts": 1087247,
+        "sha256": "f84a26bbc30c9c0fe6d631fb78dbccbba81d49f03e3acfc37fd20f8180479037"
+      },
+      "data/density/LUM_50um.parquet": {
+        "gene": "LUM",
+        "bin_um": 50,
+        "n_bins": 16251,
+        "n_transcripts": 1087247,
+        "sha256": "819dab913f77ea9c2e2162c853375b96e6c8181a33a95bcd33a4a1d7ec7d94b7"
+      },
+      "data/density/LUM_100um.parquet": {
+        "gene": "LUM",
+        "bin_um": 100,
+        "n_bins": 4136,
+        "n_transcripts": 1087247,
+        "sha256": "3086511bfcf3ea17a91c4a99885888084627da1afcac80339b19bbf117de6c77"
+      },
+      "data/density/POSTN_25um.parquet": {
+        "gene": "POSTN",
+        "bin_um": 25,
+        "n_bins": 58429,
+        "n_transcripts": 972805,
+        "sha256": "d82a6de29553e024425aebe2ff158c63b61c3ad1e6b53b76514fe21efbfbe55f"
+      },
+      "data/density/POSTN_50um.parquet": {
+        "gene": "POSTN",
+        "bin_um": 50,
+        "n_bins": 16099,
+        "n_transcripts": 972805,
+        "sha256": "a3084762a805e143f9bc97869d4f52a167d837634da7dc72b91fa8812bd943aa"
+      },
+      "data/density/POSTN_100um.parquet": {
+        "gene": "POSTN",
+        "bin_um": 100,
+        "n_bins": 4136,
+        "n_transcripts": 972805,
+        "sha256": "83fd8d9236b5ae2879656a43525fe5199d962dbd8064175d89a86dd59b6b4e89"
+      },
+      "data/density/CCDC80_25um.parquet": {
+        "gene": "CCDC80",
+        "bin_um": 25,
+        "n_bins": 50445,
+        "n_transcripts": 424344,
+        "sha256": "a3d506a0d6699aa5ddcb76f5b302915f30e1bd6723e48dd1eec20f4cf044385d"
+      },
+      "data/density/CCDC80_50um.parquet": {
+        "gene": "CCDC80",
+        "bin_um": 50,
+        "n_bins": 15147,
+        "n_transcripts": 424344,
+        "sha256": "5b716f457683f46232ecb31711526a735039dd6ee840aaf5664ad1ec7df9f6e6"
+      },
+      "data/density/CCDC80_100um.parquet": {
+        "gene": "CCDC80",
+        "bin_um": 100,
+        "n_bins": 4078,
+        "n_transcripts": 424344,
+        "sha256": "81d5f01a926773d7b2a14de6497c86794c260ecccd99b02bb45d73b30bffd2dc"
+      },
+      "data/density/LYZ_25um.parquet": {
+        "gene": "LYZ",
+        "bin_um": 25,
+        "n_bins": 44188,
+        "n_transcripts": 245251,
+        "sha256": "76d590d00837ab0499a819e606ea4c5c58be5c28903791097366263d8833f534"
+      },
+      "data/density/LYZ_50um.parquet": {
+        "gene": "LYZ",
+        "bin_um": 50,
+        "n_bins": 15457,
+        "n_transcripts": 245251,
+        "sha256": "7bbc10eec6705413035143393188489e6d156f86c6a03b30ac57c00b1c0e0fcf"
+      },
+      "data/density/LYZ_100um.parquet": {
+        "gene": "LYZ",
+        "bin_um": 100,
+        "n_bins": 4125,
+        "n_transcripts": 245251,
+        "sha256": "c5b2b63c0240ff2bb653bdd726ff4e540cb79a80161580e6d3fb2774d8e8c3b8"
+      },
+      "data/density/FCER1G_25um.parquet": {
+        "gene": "FCER1G",
+        "bin_um": 25,
+        "n_bins": 40466,
+        "n_transcripts": 164324,
+        "sha256": "264501ae887f1cbcc11097c2da7e2b57e161e1961453ebfffef0cb945dd7e939"
+      },
+      "data/density/FCER1G_50um.parquet": {
+        "gene": "FCER1G",
+        "bin_um": 50,
+        "n_bins": 15218,
+        "n_transcripts": 164324,
+        "sha256": "9fc9f6d618fa38a76d08ed116c07dde1d2aba0db22c810f3f32775c7316a1d3a"
+      },
+      "data/density/FCER1G_100um.parquet": {
+        "gene": "FCER1G",
+        "bin_um": 100,
+        "n_bins": 4103,
+        "n_transcripts": 164324,
+        "sha256": "fe015eb0afe67e0ea1bd849cb26ab68a361dccb8361daccc8f0e5f4c69240218"
+      },
+      "data/density/CD68_25um.parquet": {
+        "gene": "CD68",
+        "bin_um": 25,
+        "n_bins": 41176,
+        "n_transcripts": 151221,
+        "sha256": "aaa4626cfbd4ee0b52ba1eb6f0335117fe8ded825b1190e40466665ce1f5c3a1"
+      },
+      "data/density/CD68_50um.parquet": {
+        "gene": "CD68",
+        "bin_um": 50,
+        "n_bins": 15353,
+        "n_transcripts": 151221,
+        "sha256": "6072fe61df48bebcd8824284b35de609019962ec69f820d13f306bc68239be9c"
+      },
+      "data/density/CD68_100um.parquet": {
+        "gene": "CD68",
+        "bin_um": 100,
+        "n_bins": 4124,
+        "n_transcripts": 151221,
+        "sha256": "0c4d92d347cbc23159f9e62df1dba7132ab3c19dc4981a0ca7389505a4b2899a"
+      },
+      "data/density/SERPINA3_25um.parquet": {
+        "gene": "SERPINA3",
+        "bin_um": 25,
+        "n_bins": 37480,
+        "n_transcripts": 264411,
+        "sha256": "d2001d45e5ebff76b9e1abd8d15419fba40b0c78e332830dfb8d0fa384c19d73"
+      },
+      "data/density/SERPINA3_50um.parquet": {
+        "gene": "SERPINA3",
+        "bin_um": 50,
+        "n_bins": 14636,
+        "n_transcripts": 264411,
+        "sha256": "75cdce38f423b5fe3892250facc66afa9da3b506140817b1c3bf354ba8482f2c"
+      },
+      "data/density/SERPINA3_100um.parquet": {
+        "gene": "SERPINA3",
+        "bin_um": 100,
+        "n_bins": 4079,
+        "n_transcripts": 264411,
+        "sha256": "679d45430b097afd784cd18c0b4a1b68610d598ebacb8ee9dc3ac204ca8fe0c0"
+      },
+      "data/density/DST_25um.parquet": {
+        "gene": "DST",
+        "bin_um": 25,
+        "n_bins": 50089,
+        "n_transcripts": 312203,
+        "sha256": "e735d9c128927c060897930e2860e047b0b5f85a9f1bf83d7893a0bb5e0b9669"
+      },
+      "data/density/DST_50um.parquet": {
+        "gene": "DST",
+        "bin_um": 50,
+        "n_bins": 15880,
+        "n_transcripts": 312203,
+        "sha256": "6ca0b5e93bffddb4fda56a8a3fffaf7c4c53c10d09838584b59555dcc733dd88"
+      },
+      "data/density/DST_100um.parquet": {
+        "gene": "DST",
+        "bin_um": 100,
+        "n_bins": 4134,
+        "n_transcripts": 312203,
+        "sha256": "2f03e0a5bdaf1dfc2b7ad1c25d0dfa365f9c10d0a2caab5d2761c0bef2372467"
+      },
+      "data/density/SFRP1_25um.parquet": {
+        "gene": "SFRP1",
+        "bin_um": 25,
+        "n_bins": 31906,
+        "n_transcripts": 142794,
+        "sha256": "f22b3b562eff232527378e242d92161d19da701f65a7b6a539909075234c72b0"
+      },
+      "data/density/SFRP1_50um.parquet": {
+        "gene": "SFRP1",
+        "bin_um": 50,
+        "n_bins": 12846,
+        "n_transcripts": 142794,
+        "sha256": "8734002f77545e03db4278786ebf86e88b797e38a18ce02bb2b31fa74de92051"
+      },
+      "data/density/SFRP1_100um.parquet": {
+        "gene": "SFRP1",
+        "bin_um": 100,
+        "n_bins": 3947,
+        "n_transcripts": 142794,
+        "sha256": "0f03a51ec96f8e95e3b52fa4faf4f511cac33cfe582bb569a1a416c69e83022a"
+      },
+      "data/density/IL7R_25um.parquet": {
+        "gene": "IL7R",
+        "bin_um": 25,
+        "n_bins": 27923,
+        "n_transcripts": 151259,
+        "sha256": "96db2cd6678a966c432b1094c24d1585ea9570d4a5003090d7003873290c51f3"
+      },
+      "data/density/IL7R_50um.parquet": {
+        "gene": "IL7R",
+        "bin_um": 50,
+        "n_bins": 12512,
+        "n_transcripts": 151259,
+        "sha256": "ce1a29c06f5dc2ea5d47beea01f6c75b4a0ee0f33560dcb736e3916147f97314"
+      },
+      "data/density/IL7R_100um.parquet": {
+        "gene": "IL7R",
+        "bin_um": 100,
+        "n_bins": 4010,
+        "n_transcripts": 151259,
+        "sha256": "f1dcd6ec74e6af3363076063eaac42036c10f160b47bae94d39c9f4675dc5017"
+      },
+      "data/density/PTPRC_25um.parquet": {
+        "gene": "PTPRC",
+        "bin_um": 25,
+        "n_bins": 34841,
+        "n_transcripts": 172241,
+        "sha256": "e3464e9c308bb376689e71bda55c994ccaa0f77c98cc5dd14567622b0164a90d"
+      },
+      "data/density/PTPRC_50um.parquet": {
+        "gene": "PTPRC",
+        "bin_um": 50,
+        "n_bins": 14242,
+        "n_transcripts": 172241,
+        "sha256": "993d1c30c0f87394f0d69b0afd8f0e99c47679666760f97dbd970c896c0b5fd8"
+      },
+      "data/density/PTPRC_100um.parquet": {
+        "gene": "PTPRC",
+        "bin_um": 100,
+        "n_bins": 4102,
+        "n_transcripts": 172241,
+        "sha256": "f817facc48bfb9fe60888054547c3bd935b8a638c223a24d70aad6afda4ce1b6"
+      },
+      "data/density/TRAC_25um.parquet": {
+        "gene": "TRAC",
+        "bin_um": 25,
+        "n_bins": 31147,
+        "n_transcripts": 121564,
+        "sha256": "2850091d54172f1c8b475bdd12f4787185f50ae57d092f0c445b0eb08478b0e4"
+      },
+      "data/density/TRAC_50um.parquet": {
+        "gene": "TRAC",
+        "bin_um": 50,
+        "n_bins": 13398,
+        "n_transcripts": 121564,
+        "sha256": "8cb846ec9f90f83c5b5ac01a2b319377126a5da906cf11df25fb7165f107e5b1"
+      },
+      "data/density/TRAC_100um.parquet": {
+        "gene": "TRAC",
+        "bin_um": 100,
+        "n_bins": 4058,
+        "n_transcripts": 121564,
+        "sha256": "9caf4eec648ac9bec8e9978af3799d78fdf29dc54b89c545787a2d8fa0cba073"
+      },
+      "data/density/MS4A1_25um.parquet": {
+        "gene": "MS4A1",
+        "bin_um": 25,
+        "n_bins": 6846,
+        "n_transcripts": 20875,
+        "sha256": "bade0b73c14182f5dcccd51e66e0fe20bc368bc24b387f00e34a823180230e51"
+      },
+      "data/density/MS4A1_50um.parquet": {
+        "gene": "MS4A1",
+        "bin_um": 50,
+        "n_bins": 4477,
+        "n_transcripts": 20875,
+        "sha256": "6f5d8f02453f90bceb743b4ba2f5b740b8962f352fbc5067b2492a0146e12a96"
+      },
+      "data/density/MS4A1_100um.parquet": {
+        "gene": "MS4A1",
+        "bin_um": 100,
+        "n_bins": 2388,
+        "n_transcripts": 20875,
+        "sha256": "5b60d4066c8bc3727e62c21a7ad49dc5e6c3a16e294a8dbbb1579bfaf59a1670"
+      },
+      "data/density/BANK1_25um.parquet": {
+        "gene": "BANK1",
+        "bin_um": 25,
+        "n_bins": 7909,
+        "n_transcripts": 19121,
+        "sha256": "ba80c3cbd648052b3ac8ab5c5b9a8619a3e865df557546f3db3c64b9900ea022"
+      },
+      "data/density/BANK1_50um.parquet": {
+        "gene": "BANK1",
+        "bin_um": 50,
+        "n_bins": 5327,
+        "n_transcripts": 19121,
+        "sha256": "7a53ca7b610c76cdcebe6281e21f1fb23fcad334661ef200ee9a6d8c35a77087"
+      },
+      "data/density/BANK1_100um.parquet": {
+        "gene": "BANK1",
+        "bin_um": 100,
+        "n_bins": 2838,
+        "n_transcripts": 19121,
+        "sha256": "daf54c564fc9f3ca7be079b2d0b60e57aa8e96a631d3fb63f5f62aaf4f80a4c6"
+      },
+      "data/density/MZB1_25um.parquet": {
+        "gene": "MZB1",
+        "bin_um": 25,
+        "n_bins": 19834,
+        "n_transcripts": 63381,
+        "sha256": "9c49b5f8711693859383aea8ef99010d5c70dcab6ef13db4cc8360ae367e53ab"
+      },
+      "data/density/MZB1_50um.parquet": {
+        "gene": "MZB1",
+        "bin_um": 50,
+        "n_bins": 10441,
+        "n_transcripts": 63381,
+        "sha256": "51efd09408a406f1c21553bb151516f2d04cc170aa4dfb1363d7ac1abde81904"
+      },
+      "data/density/MZB1_100um.parquet": {
+        "gene": "MZB1",
+        "bin_um": 100,
+        "n_bins": 3848,
+        "n_transcripts": 63381,
+        "sha256": "fa68ef9a9184a6041e8bca83bd0d0f29d7e51686aacb4e4b1689069794e27416"
+      },
+      "data/density/AQP1_25um.parquet": {
+        "gene": "AQP1",
+        "bin_um": 25,
+        "n_bins": 28620,
+        "n_transcripts": 131864,
+        "sha256": "fcbcac6604708f7464cf98c03da11ce295c36bf9873a016afe1efc91d6d851ec"
+      },
+      "data/density/AQP1_50um.parquet": {
+        "gene": "AQP1",
+        "bin_um": 50,
+        "n_bins": 12954,
+        "n_transcripts": 131864,
+        "sha256": "f34fd0596a86d03ea8a8a267ddcbd4ba82d96ce5aae4522c5881bebc00c04790"
+      },
+      "data/density/AQP1_100um.parquet": {
+        "gene": "AQP1",
+        "bin_um": 100,
+        "n_bins": 4036,
+        "n_transcripts": 131864,
+        "sha256": "a50c5289eb88d57b1320205c86c67a2abb555332a59d67a97c68f6933bcd5e64"
+      },
+      "data/density/PECAM1_25um.parquet": {
+        "gene": "PECAM1",
+        "bin_um": 25,
+        "n_bins": 33658,
+        "n_transcripts": 129969,
+        "sha256": "95a7122ea01ec580898c8e9979a494d4172e31228275b440b285faa88018bab1"
+      },
+      "data/density/PECAM1_50um.parquet": {
+        "gene": "PECAM1",
+        "bin_um": 50,
+        "n_bins": 14012,
+        "n_transcripts": 129969,
+        "sha256": "51090f649d1b300b970bcdde604101073d47984f4e8d6c4281835201a34d7af4"
+      },
+      "data/density/PECAM1_100um.parquet": {
+        "gene": "PECAM1",
+        "bin_um": 100,
+        "n_bins": 4063,
+        "n_transcripts": 129969,
+        "sha256": "2d4ed562de1f78ec8260ce59dba05b36d990720a508b53aef2c4102377152692"
+      },
+      "data/density/VWF_25um.parquet": {
+        "gene": "VWF",
+        "bin_um": 25,
+        "n_bins": 23873,
+        "n_transcripts": 89369,
+        "sha256": "071cce4a3fb1b488babfa12d097091694213d8cc24becab696766d1d60beb915"
+      },
+      "data/density/VWF_50um.parquet": {
+        "gene": "VWF",
+        "bin_um": 50,
+        "n_bins": 12378,
+        "n_transcripts": 89369,
+        "sha256": "bf7cd44f9439eda7c8aea0e97d8e80476148cc498781e1be0dd0fca7a36ed333"
+      },
+      "data/density/VWF_100um.parquet": {
+        "gene": "VWF",
+        "bin_um": 100,
+        "n_bins": 4015,
+        "n_transcripts": 89369,
+        "sha256": "ca329265031afc2906b86be7b1fa95b9c7930eac5c7afa2e71de566a4e95fbe3"
+      },
+      "data/density/TCL1A_25um.parquet": {
+        "gene": "TCL1A",
+        "bin_um": 25,
+        "n_bins": 2320,
+        "n_transcripts": 3624,
+        "sha256": "a25c0a805baf2fbe6142b6240e71407e0596774b5db2cf349d37c92f5f38f1cc"
+      },
+      "data/density/TCL1A_50um.parquet": {
+        "gene": "TCL1A",
+        "bin_um": 50,
+        "n_bins": 2042,
+        "n_transcripts": 3624,
+        "sha256": "4cd05d7f2157d755fd908c84cbc0012c62b9d353b36cb08ab0663022761502f1"
+      },
+      "data/density/TCL1A_100um.parquet": {
+        "gene": "TCL1A",
+        "bin_um": 100,
+        "n_bins": 1545,
+        "n_transcripts": 3624,
+        "sha256": "ba870f4f9c2bc630ca6bb06c5b26b322ca252e0ffe084bf2e939737e2a7af411"
+      },
+      "data/density/LILRA4_25um.parquet": {
+        "gene": "LILRA4",
+        "bin_um": 25,
+        "n_bins": 3172,
+        "n_transcripts": 6051,
+        "sha256": "be55ff73073ecb289b6860658158065ab17fb653bdbfcd3784629bd93eb4aed4"
+      },
+      "data/density/LILRA4_50um.parquet": {
+        "gene": "LILRA4",
+        "bin_um": 50,
+        "n_bins": 2632,
+        "n_transcripts": 6051,
+        "sha256": "f1e11ebe65ac8897a512e863b3e5c2a70f1a5ba91cb5bdcacfefcde8b62eeb5f"
+      },
+      "data/density/LILRA4_100um.parquet": {
+        "gene": "LILRA4",
+        "bin_um": 100,
+        "n_bins": 1842,
+        "n_transcripts": 6051,
+        "sha256": "9c4cd0a374bfce365cfef6ff005b5594f1b050ee82be12a200425fe55047a490"
+      },
+      "data/density/SPIB_25um.parquet": {
+        "gene": "SPIB",
+        "bin_um": 25,
+        "n_bins": 5497,
+        "n_transcripts": 8600,
+        "sha256": "39fd964bee1dbc88a2647d9d90ecd1b49c970eaf56a78ccb71a54c9ff774075e"
+      },
+      "data/density/SPIB_50um.parquet": {
+        "gene": "SPIB",
+        "bin_um": 50,
+        "n_bins": 3995,
+        "n_transcripts": 8600,
+        "sha256": "9c91c934909f5814050871cb05d78128d5bc336bcd54d56c887b059e5f2683f6"
+      },
+      "data/density/SPIB_100um.parquet": {
+        "gene": "SPIB",
+        "bin_um": 100,
+        "n_bins": 2402,
+        "n_transcripts": 8600,
+        "sha256": "0b8e6995e302c70f1cb4e188be1ca3d1b6c1394a3bc034e201ef770ae2c70e66"
+      },
+      "data/density/CPA3_25um.parquet": {
+        "gene": "CPA3",
+        "bin_um": 25,
+        "n_bins": 6132,
+        "n_transcripts": 14150,
+        "sha256": "e289ccaa778b44e7455af194f780bdc0dc36ffa060561445d747db36e230e95f"
+      },
+      "data/density/CPA3_50um.parquet": {
+        "gene": "CPA3",
+        "bin_um": 50,
+        "n_bins": 4679,
+        "n_transcripts": 14150,
+        "sha256": "b1747eaea59c04522236ea11370d91344cde1dab5a76b280ed98fa6efc065a6a"
+      },
+      "data/density/CPA3_100um.parquet": {
+        "gene": "CPA3",
+        "bin_um": 100,
+        "n_bins": 2658,
+        "n_transcripts": 14150,
+        "sha256": "ea8649c9d515dd1577111f7d68a92e230fb92c146292b3518d9099d236b4b535"
+      },
+      "data/density/CTSG_25um.parquet": {
+        "gene": "CTSG",
+        "bin_um": 25,
+        "n_bins": 2985,
+        "n_transcripts": 6269,
+        "sha256": "ac1eb13f927a9fc5af6b57231d5837162c5c6a2bf4366a977652b259e579fd26"
+      },
+      "data/density/CTSG_50um.parquet": {
+        "gene": "CTSG",
+        "bin_um": 50,
+        "n_bins": 2513,
+        "n_transcripts": 6269,
+        "sha256": "34bb7d38aae843516af37a6f8a3188181353b79f8d2e358b663bea3c0f9cc5b7"
+      },
+      "data/density/CTSG_100um.parquet": {
+        "gene": "CTSG",
+        "bin_um": 100,
+        "n_bins": 1775,
+        "n_transcripts": 6269,
+        "sha256": "7b87f2cd095454dfc0e46d7b3f263a64828921f7955bc0af4c2a75acd2f4e0fa"
+      }
+    }
+  }
+}

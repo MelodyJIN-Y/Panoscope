@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "pubmed": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cyanheads/pubmed-mcp-server@latest"
+      ],
+      "env": {
+        "NCBI_ADMIN_EMAIL": "${NCBI_ADMIN_EMAIL}",
+        "NCBI_API_KEY": "${NCBI_API_KEY}"
+      }
+    }
+  }
+}

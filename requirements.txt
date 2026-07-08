@@ -1,0 +1,10 @@
+anthropic
+mcp
+python-dotenv
+pandas
+pyarrow
+plotly
+streamlit
+pytest
+pyyaml
+numpy
