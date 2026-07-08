@@ -42,6 +42,11 @@ TRANSCRIPTS_CSV_GZ: Path = RAW_XEN_DIR / "transcripts.csv.gz"
 DATA_DIR: str = "data"
 DATA_DIR_PATH: Path = PROJECT_ROOT / DATA_DIR
 
+# Committed tidy files the app reads at runtime (incl. DEMO_MARKERS / panel-set
+# derivation) — so a fresh clone or CI works WITHOUT the raw (gitignored) inputs.
+TIDY_MARKERS_CSV: Path = DATA_DIR_PATH / "jazzpanda" / "markers_top.csv"
+TIDY_PANEL_PARQUET: Path = DATA_DIR_PATH / "panels" / "panel.parquet"
+
 # --------------------------------------------------------------------------- #
 # Model
 # --------------------------------------------------------------------------- #
@@ -120,49 +125,45 @@ DEMO_MARKERS_PER_CLUSTER: int = 3
 
 
 def _load_panel_gene_set() -> frozenset[str]:
-    """Read the panel TSV and return the frozenset of gene names.
+    """Return the analyzed-panel gene set from the committed tidy panel file.
 
-    Raises FileNotFoundError (named) if the panel file is absent.
+    Reads data/panels/panel.parquet (committed) rather than the raw, gitignored
+    TSV, so the app / DEMO_MARKERS derivation works from a fresh clone or in CI.
+    The 33 "Custom" add-on genes are already excluded when the tidy panel is built,
+    and panel size is dataset-dependent (dynamic), so no fixed count is asserted.
     """
-    if not PANEL_TSV.exists():
+    if not TIDY_PANEL_PARQUET.exists():
         raise FileNotFoundError(
-            f"[config] panel file missing: {PANEL_TSV} — cannot derive the panel "
-            f"gene set or DEMO_MARKERS. Check RAW_XEN path."
+            f"[config] tidy panel missing: {TIDY_PANEL_PARQUET} — produced by the data "
+            f"prep (data/panels/panel.parquet). Run the prep before importing."
         )
-    panel = pd.read_csv(PANEL_TSV, sep="\t")
-    for _col in ("Name", "Annotation"):
-        if _col not in panel.columns:
-            raise ValueError(
-                f"[config] panel file {PANEL_TSV} has no {_col!r} column; got {list(panel.columns)}"
-            )
-    # The analyzed panel is the 280 standard genes. The 33 "Custom" add-on genes
-    # were physically measured but excluded from the jazzPanda/Seurat analysis, so
-    # they are NOT part of the panel-absence set (a gene jazzPanda never modeled
-    # cannot be judged present or absent).
-    # Panel size is dataset-dependent (dynamic across spatial platforms), so we do
-    # NOT assert a fixed count — derive the set from whatever the file lists.
-    panel = panel[panel["Annotation"].astype(str) != "Custom"]
-    return frozenset(panel["Name"].astype(str))
+    panel = pd.read_parquet(TIDY_PANEL_PARQUET)
+    if "gene" not in panel.columns:
+        raise ValueError(
+            f"[config] tidy panel {TIDY_PANEL_PARQUET} has no 'gene' column; got {list(panel.columns)}"
+        )
+    return frozenset(panel["gene"].astype(str))
 
 
 def _derive_demo_markers() -> list[str]:
     """Top-3 on-panel markers per cluster (c1..c9) by glm_coef, in cluster order.
 
-    Reads the ALREADY-thresholded jazzPanda top-marker CSV straight (index_col=0
-    drops the blank index column). NoSig rows and off-panel genes are excluded.
+    Reads the committed tidy top-marker table (data/jazzpanda/markers_top.csv,
+    already thresholded, proper columns) so DEMO_MARKERS derives from committed
+    data on a fresh clone / CI. NoSig rows and off-panel genes are excluded.
     Order within a cluster is glm_coef descending; clusters are emitted c1..c9.
     """
-    if not MARKERS_TOP_CSV.exists():
+    if not TIDY_MARKERS_CSV.exists():
         raise FileNotFoundError(
-            f"[config] jazzPanda top-marker file missing: {MARKERS_TOP_CSV} — "
-            f"cannot derive DEMO_MARKERS. Check RAW_JZ path."
+            f"[config] tidy top-marker file missing: {TIDY_MARKERS_CSV} — produced by "
+            f"the data prep (data/jazzpanda/markers_top.csv). Run the prep before importing."
         )
-    markers = pd.read_csv(MARKERS_TOP_CSV, index_col=0)
-    expected_cols = {"gene", "top_cluster", "glm_coef", "pearson", "max_gg_corr", "max_gc_corr"}
+    markers = pd.read_csv(TIDY_MARKERS_CSV)
+    expected_cols = {"gene", "top_cluster", "glm_coef"}
     missing = expected_cols - set(markers.columns)
     if missing:
         raise ValueError(
-            f"[config] top-marker CSV {MARKERS_TOP_CSV} missing columns {missing}; "
+            f"[config] tidy markers CSV {TIDY_MARKERS_CSV} missing columns {missing}; "
             f"got {list(markers.columns)}"
         )
 
