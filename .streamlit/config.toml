@@ -1,0 +1,9 @@
+# Panoscope theme — matches ui/theme.py design tokens (wireframe).
+[theme]
+primaryColor = "#0F7B87"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F4F6"
+textColor = "#161B20"
+
+[browser]
+gatherUsageStats = false
