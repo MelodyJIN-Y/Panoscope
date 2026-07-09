@@ -47,6 +47,20 @@ _META_MARKERS = (
     "i could not",
     "i cannot",
     "i was unable",
+    # citation-selection meta the model sometimes emits instead of the note
+    "the citation",
+    "this citation",
+    "citation resolves",
+    "strongest fit",
+    "directly relevant",
+    "directly addresses",
+    "is the strongest",
+    "this paper",
+    "the paper",
+    "the reference",
+    "i chose",
+    "i selected",
+    "resolves cleanly",
 )
 
 
@@ -162,12 +176,122 @@ def run_celltype_notes(
     return notes
 
 
+# --------------------------------------------------------------------------- #
+# Per-marker biology notes (Output 4) — the skill reading each gene's evidence.
+# --------------------------------------------------------------------------- #
+def _gene_fallback(gene: str, cell_type: str, is_canonical: bool) -> str:
+    """Clean deterministic note when the model's text is unusable (grounded role only)."""
+    ct = cell_type.replace("_", " ")
+    role = "a canonical marker" if is_canonical else "a supporting marker"
+    return f"{gene} is {role} for {ct} in this cluster."
+
+
+def _gene_query(gene: str, cell_type: str, cluster: str, ev: Any) -> str:
+    """The skill's Output-4 note for THIS gene, grounded in its Tier-A evidence.
+
+    The skill itself is in the agent's system prompt; here we keep the ASK concise
+    (a chatty "apply Output 4" instruction makes the model narrate its citation
+    choice instead of writing the note) and inject only the one evidence-driven
+    caveat the skill's specificity rule needs, when the numbers warrant it.
+    """
+    ct = cell_type.replace("_", " ")
+    caveat = ""
+    if "localizes better with another cluster" in ev.caveats:
+        caveat = (
+            f" Because jazzPanda shows {gene}'s transcripts localize better with "
+            f"another cluster here, add a brief specificity caveat that it also marks "
+            f"another lineage."
+        )
+    elif "spatial pattern not unique" in ev.caveats:
+        caveat = f" Add a brief caveat that {gene}'s spatial pattern is not unique."
+    return (
+        f"In 16 words or fewer, state {gene}'s core biological role and its relevance "
+        f"to {ct} identity.{caveat} Reply with ONLY the biology clause: do not mention "
+        f"the literature search, the citation, or your reasoning, no preamble, no "
+        f"statistics, no em dash. Then cite exactly one real PubMed paper."
+    )
+
+
+def run_gene_notes(
+    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+) -> dict[str, Any]:
+    """Generate (resumable) a skill-grounded biology note for EVERY assigned marker.
+
+    Iterates each cluster's Tier-A evidence (from ``agent.verdict``); for each gene
+    asks the agent (which carries SKILL.md) to produce the Output-4 note grounded
+    in that gene's evidence, then records the evaluation fields alongside the note.
+    Confident floor: one real live PMID or none; deterministic role-only fallback
+    when the model's text is unusable.
+    """
+    out_path = paths.interp_dir(dataset_id, root) / "gene_notes.json"
+    notes = _load(out_path)
+
+    for cluster in cfg.CLUSTER_ORDER:
+        verdict = agent_verdict.verdict_for_cluster(cluster)
+        notes.setdefault(cluster, {})
+        for ev in verdict.evidence:
+            gene = ev.gene
+            if gene in notes[cluster] and notes[cluster][gene].get("summary"):
+                continue
+            try:
+                resp = agent_loop.chat(
+                    _gene_query(gene, verdict.cell_type, cluster, ev), cluster=cluster
+                )
+            except Exception as exc:  # noqa: BLE001 - keep going; save what we have
+                print(f"  ERROR {cluster}/{gene}: {exc}", flush=True)
+                continue
+            cite = resp.citations[0] if resp.citations else None
+            summary = _shorten(resp.text)
+            if not summary or _looks_meta(summary):
+                summary = _gene_fallback(gene, verdict.cell_type, ev.is_canonical)
+            notes[cluster][gene] = {
+                "gene": gene,
+                "cluster": cluster,
+                "cell_type": verdict.cell_type,
+                # Tier A — the skill's per-gene evaluation (jazzPanda + panel).
+                "glm_coef": ev.glm_coef,
+                "pearson": ev.pearson,
+                "max_gc_corr": ev.max_gc_corr,
+                "max_gg_corr": ev.max_gg_corr,
+                "within_cluster_pctile": ev.within_cluster_pctile,
+                "is_canonical": ev.is_canonical,
+                "is_on_panel": ev.is_on_panel,
+                "role": ev.role,
+                "caveats": list(ev.caveats),
+                # Tier B — the skill's Output-4 biology note (live-cited).
+                "summary": summary,
+                "pmid": cite.pmid if cite else None,
+                "citation": (
+                    {"pmid": cite.pmid, "title": cite.title, "authors": cite.authors, "year": cite.year}
+                    if cite
+                    else None
+                ),
+                "caveat_flagged": "localizes better with another cluster" in ev.caveats,
+                "verify": bool(resp.verify),
+            }
+            _save(out_path, notes)
+            pm = notes[cluster][gene]["pmid"] or "no-cite"
+            print(f"  {cluster}/{gene}: PMID {pm}", flush=True)
+
+    _save(out_path, notes)
+    return notes
+
+
 if __name__ == "__main__":
     import argparse
 
-    ap = argparse.ArgumentParser(description="Generate per-cluster cell-type notes (live).")
+    ap = argparse.ArgumentParser(description="Generate skill-grounded notes (live).")
     ap.add_argument("--dataset", default=cfg.DATASET_ID)
+    ap.add_argument("--celltype", action="store_true", help="cell-type notes")
+    ap.add_argument("--genes", action="store_true", help="per-marker biology notes")
     args = ap.parse_args()
-    result = run_celltype_notes(args.dataset)
-    n_cited = sum(1 for v in result.values() if v.get("pmid"))
-    print(f"[notes] {len(result)} cell-type notes ({n_cited} cited)")
+    if not args.celltype and not args.genes:
+        args.celltype = args.genes = True  # default: both
+    if args.celltype:
+        ct = run_celltype_notes(args.dataset)
+        print(f"[notes] {len(ct)} cell-type notes ({sum(1 for v in ct.values() if v.get('pmid'))} cited)")
+    if args.genes:
+        gn = run_gene_notes(args.dataset)
+        n = sum(len(v) for v in gn.values())
+        c = sum(1 for v in gn.values() for x in v.values() if x.get("pmid"))
+        print(f"[notes] {n} gene notes ({c} cited)")

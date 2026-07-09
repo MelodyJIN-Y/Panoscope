@@ -223,13 +223,20 @@ _GENE_NOTES_JSON = cfg.DATA_DIR_PATH / "gene_notes" / "notes.json"
 
 @_cache_data(show_spinner=False)
 def gene_notes() -> dict:
-    """All precomputed gene notes as ``{cluster: {gene: note}}`` (``{}`` if none).
+    """All grounded gene notes as ``{cluster: {gene: note}}`` (``{}`` if none).
 
-    Each note: ``{gene, cluster, cell_type, summary, pmid, citation, verify}``.
-    Read-only cache; the column shows nothing for a gene without a note.
+    Prefers the pipeline's SKILL-grounded notes (``interp/gene_notes.json``: the
+    per-gene evaluation + the Output-4 biology note); falls back to the legacy flat
+    ``data/gene_notes/notes.json`` during migration. Read-only cache; the column
+    shows nothing for a gene without a note.
     """
     import json
 
+    from pipeline import store
+
+    tree = store.load_gene_notes()
+    if tree:
+        return tree
     try:
         return json.loads(_GENE_NOTES_JSON.read_text())
     except (OSError, ValueError):

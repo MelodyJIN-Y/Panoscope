@@ -70,3 +70,23 @@ def load_celltype_notes(
         return data if isinstance(data, dict) else {}
     except Exception:  # noqa: BLE001 - fail soft
         return {}
+
+
+def load_gene_notes(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> dict:
+    """Return the skill-grounded per-marker biology notes, or {} if absent.
+
+    Shape: ``{cluster: {gene: {..evaluation.., summary, pmid, citation, ...}}}``.
+    Fail-soft: a missing file returns {} so the caller can fall back to the legacy
+    flat notes file during migration.
+    """
+    p = paths.interp_dir(dataset_id, root) / "gene_notes.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001 - fail soft
+        return {}
