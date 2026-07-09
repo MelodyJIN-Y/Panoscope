@@ -312,6 +312,23 @@ div[class*="st-key-seldot_"] button[data-testid="stBaseButton-primary"] {{
   outline: 2px solid var(--accent) !important; outline-offset: -2px;
 }}
 
+/* (2b) TOP NAV — Examine/Summary rendered as a chromeless top tab strip; the
+ * active tab (type="primary") gets an accent underline instead of a solid fill. */
+.st-key-pano_topnav [data-testid="stHorizontalBlock"] {{ gap: 2px; }}
+.st-key-pano_topnav div[data-testid="stButton"] > button {{
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  border-bottom: 2px solid transparent !important; border-radius: 0 !important;
+  padding: 8px 10px !important; min-height: 0 !important;
+  font-family: var(--sans) !important; font-size: 13px !important; font-weight: 500 !important;
+  color: var(--muted) !important;
+}}
+.st-key-pano_topnav div[data-testid="stButton"] > button:hover {{ color: var(--ink) !important; }}
+.st-key-pano_topnav div[data-testid="stButton"] > button[kind="primary"],
+.st-key-pano_topnav button[data-testid="stBaseButton-primary"] {{
+  background: transparent !important; color: var(--accent) !important;
+  border-bottom: 2px solid var(--accent) !important; font-weight: 700 !important;
+}}
+
 /* (3) CONDENSED SOURCES LINE — one small muted mono line under a chat turn,
  * replacing the per-number chip stack. Numbers stay in prose; this line
  * only names the provenance (jazzPanda · PubMed · lab note). */
