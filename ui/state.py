@@ -45,7 +45,7 @@ K_INITIALIZED = "_ui_initialized"
 # Closed vocabularies for the viewing/interaction controls
 # --------------------------------------------------------------------------- #
 BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)  # µm presets from the wireframe
-DEFAULT_BIN_UM = 50
+DEFAULT_BIN_UM = 25
 
 SCOPES: tuple[str, ...] = ("cluster", "dataset", "lab")
 DEFAULT_SCOPE = "cluster"

@@ -135,7 +135,14 @@ _STAGE_CSS = """
 .ctrl-lbl {
   font-family: var(--mono, ui-monospace, monospace); font-size: 11px;
   color: var(--faint, #9AA3AB); text-transform: uppercase; letter-spacing: .06em;
+  margin: 0; line-height: 1;
 }
+/* Bin control: put the label and the radio on one baseline. Center the row and
+   drop the radio's reserved (collapsed) label space so nothing pushes it down. */
+div[class*="st-key-pano_binctl"] [data-testid="stHorizontalBlock"] { align-items: center; }
+div[class*="st-key-pano_binctl"] [data-testid="stRadio"] > label { display: none; }
+div[class*="st-key-pano_binctl"] [data-testid="stRadio"] { margin: 0; }
+div[class*="st-key-pano_binctl"] [data-testid="stRadio"] [role="radiogroup"] { align-items: center; }
 .stage-legend {
   font-family: var(--mono, ui-monospace, monospace); font-size: 10.5px;
   color: var(--faint, #9AA3AB); line-height: 1.5;
@@ -294,15 +301,8 @@ def _fmt_val(v: float) -> str:
     return f"{v:.3f}"
 
 
-def _sqrt_colorbar(vmax: float, title: str) -> dict:
-    """A compact right-edge colorbar for a sqrt-mapped value.
-
-    Tick POSITIONS sit on the sqrt scale (matching the sqrt colour transform) but
-    the LABELS are the real values, so the colourbar reads in true units. Three
-    ticks (0, mid, max) keep it legible in a small panel.
-    """
-    vmax = float(vmax) if vmax and vmax > 0 else 1.0
-    orig = [0.0, vmax * 0.5, vmax]
+def _colorbar(tickvals: list, ticktext: list, title: str) -> dict:
+    """A compact right-edge colorbar with explicit tick positions + labels."""
     return dict(
         title=dict(
             text=title, side="right",
@@ -313,9 +313,36 @@ def _sqrt_colorbar(vmax: float, title: str) -> dict:
         x=1.0,
         xpad=3,
         outlinewidth=0,
-        tickvals=[v ** 0.5 for v in orig],
-        ticktext=[_fmt_val(v) for v in orig],
+        tickvals=tickvals,
+        ticktext=ticktext,
         tickfont=dict(family="IBM Plex Mono, monospace", size=8),
+    )
+
+
+def _sqrt_colorbar(vmax: float, title: str) -> dict:
+    """Colorbar for a sqrt-mapped value: tick POSITIONS on the sqrt scale, LABELS
+    in real units. Three ticks (0, mid, max) keep it legible in a small panel."""
+    vmax = float(vmax) if vmax and vmax > 0 else 1.0
+    orig = [0.0, vmax * 0.5, vmax]
+    return _colorbar([v ** 0.5 for v in orig], [_fmt_val(v) for v in orig], title)
+
+
+def _count_colorbar(dmax: float, count_max: float) -> dict:
+    """Colorbar for the density panel, LABELLED in bin counts.
+
+    The colour stays the sqrt of the area-normalized density (so switching bin
+    size never makes coarser bins look uniformly hotter — a confident-floor
+    invariant), but the ticks read the intuitive per-bin transcript COUNT. Within
+    one bin size count is proportional to density (uniform bin area), so tick
+    positions on the sqrt-density axis map exactly to count labels.
+    """
+    dmax = float(dmax) if dmax and dmax > 0 else 1.0
+    dens_ticks = [0.0, dmax * 0.5, dmax]
+    count_ticks = [0.0, count_max * 0.5, count_max]
+    return _colorbar(
+        [d ** 0.5 for d in dens_ticks],
+        [f"{int(round(c)):,}" for c in count_ticks],
+        "count",
     )
 
 
@@ -619,8 +646,9 @@ def _render_density(gene: str) -> None:
                 cmax=float(dens_sqrt.max()) if dens_sqrt.notna().any() else 1.0,
                 opacity=0.92,
                 showscale=True,
-                colorbar=_sqrt_colorbar(
-                    float(dens.max()) if dens.notna().any() else 1.0, "tx/µm²"
+                colorbar=_count_colorbar(
+                    float(dens.max()) if dens.notna().any() else 1.0,
+                    float(hb["count"].max()) if hb["count"].notna().any() else 0.0,
                 ),
             ),
             customdata=hb[["count", "density"]].to_numpy(),
@@ -785,21 +813,22 @@ def _render_density_controls() -> None:
     current = state.get_bin_um()
     idx = sizes.index(current) if current in sizes else sizes.index(state.DEFAULT_BIN_UM)
 
-    lbl_col, radio_col, _spacer = st.columns(
-        [0.13, 0.5, 0.37], vertical_alignment="center"
-    )
-    with lbl_col:
-        st.markdown('<div class="ctrl-lbl">Bin size</div>', unsafe_allow_html=True)
-    with radio_col:
-        picked = st.radio(
-            "Density bin size (µm)",
-            options=sizes,
-            index=idx,
-            format_func=lambda b: f"{b} µm",
-            horizontal=True,
-            label_visibility="collapsed",
-            key="bin_um_global",
+    with st.container(key="pano_binctl"):
+        lbl_col, radio_col, _spacer = st.columns(
+            [0.13, 0.5, 0.37], vertical_alignment="center"
         )
+        with lbl_col:
+            st.markdown('<div class="ctrl-lbl">Bin size</div>', unsafe_allow_html=True)
+        with radio_col:
+            picked = st.radio(
+                "Density bin size (µm)",
+                options=sizes,
+                index=idx,
+                format_func=lambda b: f"{b} µm",
+                horizontal=True,
+                label_visibility="collapsed",
+                key="bin_um_global",
+            )
     # Read fresh in the same run — the density panels below pick it up immediately.
     # Each panel carries its own numeric colorbar, so no shared text legend here.
     state.set_bin_um(picked)
