@@ -47,10 +47,11 @@ _DOWNLOAD_MIME = "text/csv"
 # values are the header labels shown to the biologist.
 # Displayed table columns (the CSV export stays the full canonical 11-col set).
 # "Short" and "Category" are dropped; a grounded per-cluster cell-type SUMMARY
-# column (from the pipeline's cell-type notes) will slot in after "Cell type".
+# (from the pipeline's cell-type notes) sits right after "Cell type".
 _COLUMNS: tuple[tuple[str, str], ...] = (
     ("cluster", "Cluster"),
     ("cell_type", "Cell type"),
+    ("summary", "Cell-type summary"),
     ("confidence", "Confidence"),
     ("verify", "Re-check"),
     ("key_markers", "Key markers"),
@@ -68,6 +69,7 @@ def _verdicts_to_frame(verdicts: list[ClusterVerdict]) -> pd.DataFrame:
         {
             "cluster": v.cluster,
             "cell_type": v.cell_type,
+            "summary": da.celltype_summary(v.cluster),
             "confidence": v.confidence,
             "verify": bool(v.verify),
             "key_markers": "; ".join(v.key_markers),
@@ -103,6 +105,11 @@ def render_summary_page() -> None:
         hide_index=True,
         use_container_width=True,
         column_config={
+            "Cell-type summary": st.column_config.TextColumn(
+                "Cell-type summary",
+                width="large",
+                help="Grounded, live-cited description of the cell type (pipeline notes)",
+            ),
             "Re-check": st.column_config.CheckboxColumn(
                 "Re-check", help="Flagged for re-checking (verify)"
             ),

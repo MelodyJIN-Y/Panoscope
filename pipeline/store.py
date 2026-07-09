@@ -50,3 +50,23 @@ def load_all_verdicts(
             return None
         out.append(v)
     return out
+
+
+def load_celltype_notes(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> dict:
+    """Return the per-cluster cell-type notes map, or {} if absent/unreadable.
+
+    Shape: ``{cluster: {cell_type, summary, pmid|null, citation|null, verify}}``.
+    Fail-soft: a missing file returns an empty dict so callers show a plain
+    fallback rather than crashing.
+    """
+    p = paths.interp_dir(dataset_id, root) / "celltype_notes.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001 - fail soft
+        return {}

@@ -273,6 +273,24 @@ def verdict_csv() -> str:
     return agent_verdict.to_csv(all_verdicts())
 
 
+@_cache_data(show_spinner=False)
+def celltype_notes() -> dict:
+    """Per-cluster cell-type summary notes from the pipeline tree (cached).
+
+    Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
+    the pipeline notes stage has not run. Each summary is a short, grounded,
+    live-cited description of the cell type (never fabricated)."""
+    from pipeline import store
+
+    return store.load_celltype_notes()
+
+
+def celltype_summary(cluster: str) -> str:
+    """The short grounded cell-type summary for a cluster, or '' if not available."""
+    note = celltype_notes().get(cluster) or {}
+    return str(note.get("summary") or "")
+
+
 # --------------------------------------------------------------------------- #
 # Agent (chat) — singleton resource, survives reruns.
 # --------------------------------------------------------------------------- #

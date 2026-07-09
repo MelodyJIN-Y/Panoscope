@@ -1,0 +1,104 @@
+{
+  "c1": {
+    "cluster": "c1",
+    "cell_type": "Tumor",
+    "summary": "Malignant luminal epithelial cells that proliferate uncontrollably, marked by the receptor tyrosine kinase ERBB2.",
+    "pmid": "22264274",
+    "citation": {
+      "pmid": "22264274",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c2": {
+    "cluster": "c2",
+    "cell_type": "Stromal",
+    "summary": "Breast stromal fibroblasts secrete and remodel the extracellular matrix scaffolding that surrounds and supports the tumor.",
+    "pmid": null,
+    "citation": null,
+    "verify": false
+  },
+  "c3": {
+    "cluster": "c3",
+    "cell_type": "Macrophages",
+    "summary": "Innate immune phagocytes infiltrating breast tumors, expressing LYZ (antimicrobial enzyme), FCER1G (Fc receptor signaling).",
+    "pmid": "38553005",
+    "citation": {
+      "pmid": "38553005",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c4": {
+    "cluster": "c4",
+    "cell_type": "Myoepithelial",
+    "summary": "Contractile basal cells lining breast ducts that suppress stromal invasion and maintain epithelial polarity.",
+    "pmid": "12473168",
+    "citation": {
+      "pmid": "12473168",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c5": {
+    "cluster": "c5",
+    "cell_type": "T_Cells",
+    "summary": "Adaptive immune lymphocytes that infiltrate breast tumors and mediate antitumor cytotoxicity.",
+    "pmid": "37263064",
+    "citation": {
+      "pmid": "37263064",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c6": {
+    "cluster": "c6",
+    "cell_type": "B_Cells",
+    "summary": "Antibody-producing lymphocytes that infiltrate breast tumors and signal better patient survival, marked by MS4A1 (CD20.",
+    "pmid": "29568299",
+    "citation": {
+      "pmid": "29568299",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c7": {
+    "cluster": "c7",
+    "cell_type": "Endothelial",
+    "summary": "Blood vessel-lining cells that control perfusion, nutrient delivery, and immune trafficking in breast tissue.",
+    "pmid": null,
+    "citation": null,
+    "verify": false
+  },
+  "c8": {
+    "cluster": "c8",
+    "cell_type": "Dendritic",
+    "summary": "Dendritic cells; driving markers TCL1A, LILRA4, SPIB.",
+    "pmid": null,
+    "citation": null,
+    "verify": false
+  },
+  "c9": {
+    "cluster": "c9",
+    "cell_type": "Mast_Cells",
+    "summary": "Tissue-resident immune cells that store and release proteases (CPA3.",
+    "pmid": "37063885",
+    "citation": {
+      "pmid": "37063885",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": true
+  }
+}
