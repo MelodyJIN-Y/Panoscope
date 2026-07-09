@@ -115,6 +115,13 @@ _EVIDENCE_CSS = """
   font-family: var(--mono); font-size: 12px; color: var(--faint);
   padding: 16px 4px;
 }
+/* Tighten the select-dot column (keyed container st-key-evrows_*) so the dot
+   sits right next to the gene name and lines up with it. */
+div[class*="st-key-evrows"] [data-testid="stHorizontalBlock"] { gap: 4px !important; align-items: center; }
+div[class*="st-key-evrows"] [data-testid="stColumn"] { padding: 0 !important; }
+div[class*="st-key-evrows"] [data-testid="stColumn"]:first-child {
+  display: flex; justify-content: flex-end; align-items: center;
+}
 </style>
 """
 
@@ -156,7 +163,7 @@ def render_evidence_table(cluster: str) -> None:
             unsafe_allow_html=True,
         )
 
-    _render_marker_rows(st, rows)
+    _render_marker_rows(st, rows, key="evrows_shown")
 
     # The long tail (non-driver markers beyond the default view) is tucked behind
     # an expander so the drivers and the tissue stay above the fold. Shown and
@@ -167,24 +174,27 @@ def render_evidence_table(cluster: str) -> None:
         with st.expander(
             f"Show all {len(verdict.evidence)} assigned markers", expanded=False
         ):
-            _render_marker_rows(st, hidden)
+            _render_marker_rows(st, hidden, key="evrows_hidden")
 
 
-def _render_marker_rows(st, rows) -> None:
-    """Render each marker: a narrow select-dot column + a wide HTML content column.
+def _render_marker_rows(st, rows, *, key: str) -> None:
+    """Render each marker: a narrow select-dot column + a wide HTML content column,
+    inside a keyed container so the theme can tighten the dot↔gene gap and keep the
+    dot aligned next to the gene name.
 
     The select-dot toggles multi-select membership and returns (no recompute).
     """
-    for ev in rows:
-        is_selected = state.is_marker_selected(ev.gene)
-        dot_col, body_col = st.columns([0.06, 0.94], vertical_alignment="center")
-        with dot_col:
-            _select_dot(st, ev.gene, is_selected)
-        with body_col:
-            st.markdown(
-                _marker_row_html(ev, is_selected=is_selected),
-                unsafe_allow_html=True,
-            )
+    with st.container(key=key):
+        for ev in rows:
+            is_selected = state.is_marker_selected(ev.gene)
+            dot_col, body_col = st.columns([0.05, 0.95], vertical_alignment="center")
+            with dot_col:
+                _select_dot(st, ev.gene, is_selected)
+            with body_col:
+                st.markdown(
+                    _marker_row_html(ev, is_selected=is_selected),
+                    unsafe_allow_html=True,
+                )
 
 
 def _select_dot(st, gene: str, is_selected: bool) -> None:
