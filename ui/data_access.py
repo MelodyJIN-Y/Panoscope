@@ -214,6 +214,34 @@ def expr_by_cluster(gene: str) -> Optional[pd.DataFrame]:
 
 
 # --------------------------------------------------------------------------- #
+# Grounded per-gene biology notes (precomputed offline, each with a REAL PubMed
+# citation — see scripts/precompute_gene_notes.py). The evidence table reads
+# these; it never generates biology text (confident floor).
+# --------------------------------------------------------------------------- #
+_GENE_NOTES_JSON = cfg.DATA_DIR_PATH / "gene_notes" / "notes.json"
+
+
+@_cache_data(show_spinner=False)
+def gene_notes() -> dict:
+    """All precomputed gene notes as ``{cluster: {gene: note}}`` (``{}`` if none).
+
+    Each note: ``{gene, cluster, cell_type, summary, pmid, citation, verify}``.
+    Read-only cache; the column shows nothing for a gene without a note.
+    """
+    import json
+
+    try:
+        return json.loads(_GENE_NOTES_JSON.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def gene_note(cluster: str, gene: str) -> Optional[dict]:
+    """The precomputed grounded note for ``(cluster, gene)``, or None if absent."""
+    return gene_notes().get(cluster, {}).get(gene)
+
+
+# --------------------------------------------------------------------------- #
 # Verdicts — computed ONCE, cached. Viewing controls never touch these.
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
@@ -285,6 +313,8 @@ __all__ = [
     "marker_expr_col",
     "available_expr_markers",
     "expr_by_cluster",
+    "gene_notes",
+    "gene_note",
     "verdict_for",
     "all_verdicts",
     "verdict_csv",

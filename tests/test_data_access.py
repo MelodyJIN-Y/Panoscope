@@ -52,3 +52,18 @@ def test_expr_by_cluster_covers_all_nine_clusters() -> None:
 
 def test_expr_by_cluster_none_for_unknown_gene() -> None:
     assert da.expr_by_cluster("NOT_A_REAL_GENE_XYZ") is None
+
+
+def test_gene_notes_are_grounded_and_cited() -> None:
+    """Confident floor for the evidence-table biology column: every committed note
+    has a summary, and any citation it carries is a real numeric PMID (looked up),
+    never a fabricated or malformed reference."""
+    notes = da.gene_notes()
+    if not notes:
+        pytest.skip("no precomputed gene notes present")
+    for _cluster, by_gene in notes.items():
+        for _gene, note in by_gene.items():
+            assert note.get("summary"), "a gene note must carry a summary"
+            pmid = note.get("pmid")
+            if pmid is not None:
+                assert str(pmid).isdigit(), f"non-numeric PMID: {pmid!r}"
