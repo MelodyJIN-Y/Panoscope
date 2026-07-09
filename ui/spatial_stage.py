@@ -540,18 +540,15 @@ def _render_density(gene: str) -> None:
 # --------------------------------------------------------------------------- #
 # View 4 — Grouped violin (per-cell expression across all nine clusters)
 # --------------------------------------------------------------------------- #
-def _render_violin(genes: list[str], cluster: str) -> None:
-    """Per-cell expression distribution of each selected gene across all nine
-    clusters, one violin per cluster in cluster colour.
+def _render_dotplot(genes: list[str], cluster: str) -> None:
+    """Dot plot of each selected gene's expression across the nine clusters.
 
-    Abstract chart (a distribution needs its axes), so it starts from
-    ``_base_layout`` and then *re-enables* the axes. Data is exactly what the prep
-    step exported: for each gene, ``expr_by_cluster`` joins the gene's per-cell
-    value onto the authoritative cluster labels — this module derives nothing.
-    ``points=False`` keeps 40k-cell violins light; ``meanline_visible`` shows the
-    mean Plotly draws from those same values (no invented statistic). Multiple
-    genes are grouped side by side per cluster (``violinmode="group"``); a single
-    gene reads as one violin per cluster in that cluster's colour.
+    The standard single-cell summary: for every (gene, cluster) a dot whose SIZE
+    is the fraction of that cluster's cells expressing the gene (value > 0) and
+    whose COLOUR is the mean per-cell expression. Both come straight from
+    ``expr_by_cluster`` (the exported per-cell values joined to the authoritative
+    cluster labels) — this derives nothing beyond a mean and a fraction of source
+    values. x = clusters (c1..c9), y = the selected genes.
     """
     st = _st()
     go = _go()
@@ -571,16 +568,73 @@ def _render_violin(genes: list[str], cluster: str) -> None:
         )
         return
 
-    single = len(frames) == 1
-    fig = go.Figure(layout=_base_layout(go, showlegend=not single, height=_VIOLIN_HEIGHT))
-    # Re-enable axes: a distribution is a chart, not a map. x = clusters (c1..c9),
-    # y = expression. Keep it light — a hairline y grid, category x in c1..c9 order.
+    # (gene, cluster) -> mean expression + % of cells expressing (value > 0),
+    # straight from the exported per-cell values (a mean and a fraction; nothing
+    # else is derived).
+    rows: list[tuple[str, str, float, float]] = []
+    for gene, by in frames:
+        for c in CLUSTER_ORDER:
+            vals = by.loc[by["cluster"] == c, "value"]
+            if len(vals) == 0:
+                continue
+            rows.append(
+                (gene, c, float(vals.mean()), float((vals > 0).mean()) * 100.0)
+            )
+
+    df = pd.DataFrame(rows, columns=["gene", "cluster", "mean", "pct"])
+    gene_order = [g for g, _ in frames]
+    y_order = list(reversed(gene_order))  # first-selected gene reads at the top
+
+    max_px = 26.0
+    pct_max = max(1.0, float(df["pct"].max()))
+    sizeref = 2.0 * pct_max / (max_px ** 2)
+    mean_max = float(df["mean"].max())
+    height = max(160, 74 + len(gene_order) * 46)
+
+    fig = go.Figure(layout=_base_layout(go, showlegend=False, height=height))
+    fig.add_trace(
+        go.Scatter(
+            x=df["cluster"],
+            y=df["gene"],
+            mode="markers",
+            marker=dict(
+                size=df["pct"],
+                sizemode="area",
+                sizeref=sizeref,
+                sizemin=3,
+                color=df["mean"],
+                colorscale=_EXPR_COLORSCALE,
+                cmin=0.0,
+                cmax=mean_max if mean_max > 0 else 1.0,
+                showscale=True,
+                colorbar=dict(
+                    title=dict(
+                        text="mean",
+                        side="right",
+                        font=dict(family="IBM Plex Mono, monospace", size=9),
+                    ),
+                    thickness=8,
+                    len=0.7,
+                    tickfont=dict(family="IBM Plex Mono, monospace", size=9),
+                ),
+                line=dict(width=0),
+            ),
+            customdata=df[["pct", "mean"]].to_numpy(),
+            hovertemplate=(
+                "%{y} · %{x}<br>%{customdata[0]:.0f}% expressing<br>"
+                "mean %{customdata[1]:.2f}<extra></extra>"
+            ),
+        )
+    )
     fig.update_layout(
+        margin=dict(l=8, r=40, t=8, b=8),
         xaxis=dict(
             visible=True,
-            showticklabels=True,   # cluster ids on the x-axis so each violin reads
+            showticklabels=True,
             ticks="outside",
-            showgrid=False,
+            automargin=True,
+            showgrid=True,
+            gridcolor="#F1F3F4",
             zeroline=False,
             type="category",
             categoryorder="array",
@@ -589,61 +643,19 @@ def _render_violin(genes: list[str], cluster: str) -> None:
         ),
         yaxis=dict(
             visible=True,
+            showticklabels=True,
+            automargin=True,
             showgrid=True,
-            gridcolor="#EEF0F2",
+            gridcolor="#F1F3F4",
             zeroline=False,
-            title=dict(
-                text="expression",
-                font=dict(family="IBM Plex Mono, monospace", size=10),
-            ),
-            tickfont=dict(family="IBM Plex Mono, monospace", size=10),
-        ),
-        violinmode="group",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            x=0,
-            font=dict(family="IBM Plex Mono, monospace", size=10),
+            type="category",
+            categoryorder="array",
+            categoryarray=y_order,
+            tickfont=dict(family="IBM Plex Mono, monospace", size=11),
         ),
     )
-
-    # Fixed per-gene colours for the grouped (multi-gene) case so each gene keeps
-    # one legend colour across every cluster. For a single gene we colour each
-    # violin by its own cluster (the familiar cluster palette).
-    for gi, (gene, by) in enumerate(frames):
-        present = [c for c in CLUSTER_ORDER if c in set(by["cluster"].unique())]
-        gene_color = fmt.cluster_color(CLUSTER_ORDER[gi % len(CLUSTER_ORDER)])
-        first_present = present[0] if present else None
-        for c in present:
-            vals = by.loc[by["cluster"] == c, "value"]
-            color = fmt.cluster_color(c) if single else gene_color
-            fig.add_trace(
-                go.Violin(
-                    x=[c] * len(vals),
-                    y=vals,
-                    name=gene,
-                    legendgroup=gene,
-                    scalegroup=gene,
-                    # one legend entry per gene (only on its first cluster trace)
-                    showlegend=(not single) and (c == first_present),
-                    line=dict(color=color, width=1),
-                    fillcolor=color,
-                    opacity=0.75 if single else 0.55,
-                    points=False,
-                    meanline_visible=True,
-                    hovertemplate=f"{gene} · {c}<extra></extra>",
-                )
-            )
-
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
-    if single:
-        _legend_line(
-            f'selected cluster <b style="color:{fmt.cluster_color(cluster)}">'
-            f"{cluster}</b> highlighted · one violin per cluster"
-        )
-    else:
-        _legend_line("violins grouped by gene · one per cluster")
+    _legend_line("dot size = % of cells expressing · colour = mean expression")
 
 
 # --------------------------------------------------------------------------- #
@@ -665,7 +677,7 @@ def _render_bin_control() -> None:
     label_col, radio_col = st.columns([0.6, 0.4], vertical_alignment="center")
     with label_col:
         st.markdown(
-            '<div class="ptitle">Transcript density · bin size</div>',
+            '<div class="ptitle">Transcript detections · bin size</div>',
             unsafe_allow_html=True,
         )
     with radio_col:
@@ -711,6 +723,7 @@ def render_spatial_stage(cluster: str) -> None:
         _panel_title("Cell map <span style='color:var(--faint)'>· tissue</span>")
         _render_cell_map(cluster)
     with r1_right:
+        _panel_title("UMAP <span style='color:var(--faint)'>· clusters</span>")
         _render_umap(cluster, feature=False)
 
     markers = state.active_markers()
@@ -733,15 +746,15 @@ def render_spatial_stage(cluster: str) -> None:
     for gene in markers:
         g_left, g_right = st.columns(2, gap="medium")
         with g_left:
-            _panel_title(f"<b>{gene}</b> density")
+            _panel_title(f"<b>{gene}</b> transcript detections")
             _render_density(gene)
         with g_right:
             _panel_title(f"<b>{gene}</b> feature UMAP")
             _render_umap(cluster, feature=True, gene=gene)
 
-    # Full-width grouped violin across all nine clusters for the selected set.
+    # Dot plot: expression of the selected genes across all nine clusters.
     _panel_title("Expression across clusters")
-    _render_violin(markers, cluster)
+    _render_dotplot(markers, cluster)
 
 
 __all__ = ["render_spatial_stage"]
