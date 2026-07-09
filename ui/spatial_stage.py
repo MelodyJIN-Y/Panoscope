@@ -86,7 +86,10 @@ _EXPR_COLORSCALE = _DENSITY_COLORSCALE  # same low->high teal ramp for feature U
 # Panel heights. The tissue panels (cell map / density) are square-locked images
 # (7520×5470 µm ⇒ W:H ≈ 1.375); the ratio lock does the shaping, this is only the
 # panel's drawing height. The UMAP + violin are abstract and use the default.
-_PLOT_HEIGHT = 320          # UMAP (abstract space — free ratio)
+# One shared height for the paired panels so the two columns of a row line up
+# (the tissue image letterboxes within it; the UMAP fills it). The violin is a
+# full-width chart of its own.
+_PLOT_HEIGHT = 300          # UMAP (abstract space — free ratio)
 _TISSUE_HEIGHT = 300        # cell map / density (ratio-locked tissue image)
 _VIOLIN_HEIGHT = 340        # full-width grouped violin
 _PLOT_BG = "#FFFFFF"
@@ -164,6 +167,7 @@ def _base_layout(go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT) -
         showticklabels=False,
         ticks="",
         visible=False,
+        fixedrange=True,   # view locked — no zoom/pan (hover still works)
     )
     return go_mod.Layout(
         height=height,
@@ -174,7 +178,7 @@ def _base_layout(go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT) -
         yaxis=axis,
         showlegend=showlegend,
         font=dict(family="Space Grotesk, system-ui, sans-serif"),
-        dragmode="pan",
+        dragmode=False,
     )
 
 
@@ -195,6 +199,7 @@ def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
         showticklabels=False,
         ticks="",
         visible=False,
+        fixedrange=True,       # view locked — no zoom/pan (hover still works)
     )
     axis_y = dict(
         showgrid=False,
@@ -205,6 +210,7 @@ def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
         scaleanchor="x",       # lock 1 µm on y to 1 µm on x — never stretch tissue
         scaleratio=1,
         autorange="reversed",  # tissue reads top-down like the slide
+        fixedrange=True,       # view locked — no zoom/pan
     )
     return go_mod.Layout(
         height=height,
@@ -215,25 +221,25 @@ def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
         yaxis=axis_y,
         showlegend=False,
         font=dict(family="Space Grotesk, system-ui, sans-serif"),
-        dragmode="pan",
+        dragmode=False,
     )
 
 
 def _plot_config() -> dict[str, Any]:
-    """Plotly display config: keep the toolbar minimal.
+    """Plotly display config: the view is LOCKED — no zoom, no pan, no toolbar.
 
-    ``autoScale2d`` is removed so a user cannot reset the axes and unlock the
-    tissue aspect ratio locked by ``_tissue_layout``.
+    A biologist reads the signal in place; dragging or scroll-zoom could push the
+    tissue out of frame, which is only annoying here. Zoom/pan are disabled at the
+    axis level (``fixedrange``) and via ``dragmode=False``; ``scrollZoom`` and
+    ``doubleClick`` are off and the mode bar is hidden. Hover tooltips stay on, so
+    per-cell / per-bin values remain readable.
     """
     return {
         "displaylogo": False,
-        "scrollZoom": True,
-        "modeBarButtonsToRemove": [
-            "select2d",
-            "lasso2d",
-            "autoScale2d",
-            "toggleSpikelines",
-        ],
+        "displayModeBar": False,
+        "scrollZoom": False,
+        "doubleClick": False,
+        "staticPlot": False,   # keep hover; only zoom/pan are disabled
     }
 
 
@@ -476,8 +482,8 @@ def _umap_feature(
 def _render_density(gene: str) -> None:
     """Precomputed transcript density for ``gene`` as an area-normalized map.
 
-    The 25 / 50 / 100 µm bin control lives here (and only here). The bin picks
-    which *precomputed* frame to read; the colour is that frame's ``density``
+    The global 25 / 50 / 100 µm bin control (``_render_bin_control``) picks which
+    *precomputed* frame this reads; the colour is that frame's ``density``
     (transcripts / µm²) so bins are comparable across sizes. If the gene has no
     precomputed density frame, show an honest placeholder — never a synthesized
     field. The tissue aspect ratio is locked by ``_tissue_layout`` so a coarse
@@ -486,27 +492,9 @@ def _render_density(gene: str) -> None:
     st = _st()
     go = _go()
 
-    # Bin control — a viewing control local to this density panel. Selecting a
-    # size only reads a different precomputed frame; it never re-bins a value.
-    current = state.get_bin_um()
-    sizes = list(state.BIN_SIZES_UM)
-    try:
-        bidx = sizes.index(current)
-    except ValueError:
-        bidx = sizes.index(state.DEFAULT_BIN_UM)
-    picked_bin = st.radio(
-        "Bin size (µm)",
-        options=sizes,
-        index=bidx,
-        format_func=lambda b: f"{b} µm",
-        horizontal=True,
-        label_visibility="collapsed",
-        key=f"bin_um_toggle_{gene}",
-    )
-    if picked_bin != current:
-        state.set_bin_um(picked_bin)  # selects a precomputed frame; no re-bin
-        st.rerun()
-
+    # Bin size is a single GLOBAL viewing control (``_render_bin_control``, drawn
+    # once above the gene rows), so this panel just reads it — no per-panel control
+    # to offset the density plot from its feature-UMAP neighbour.
     bin_um = state.get_bin_um()
     try:
         hb = da.hexbins(gene, bin_um)
@@ -683,6 +671,42 @@ def _cell_type_label(cluster: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Global density bin control (one control for every density panel)
+# --------------------------------------------------------------------------- #
+def _render_bin_control() -> None:
+    """One 25 / 50 / 100 µm density-bin selector for the whole grid.
+
+    Bin size is a global viewing control (it picks which precomputed frame every
+    density panel reads — it never re-bins a value). Rendered once, above the gene
+    rows, it reads fresh in the same run, so all density panels update together and
+    each stays aligned with its feature-UMAP neighbour.
+    """
+    st = _st()
+    sizes = list(state.BIN_SIZES_UM)
+    current = state.get_bin_um()
+    idx = sizes.index(current) if current in sizes else sizes.index(state.DEFAULT_BIN_UM)
+
+    label_col, radio_col = st.columns([0.6, 0.4], vertical_alignment="center")
+    with label_col:
+        st.markdown(
+            '<div class="ptitle">Transcript density · bin size</div>',
+            unsafe_allow_html=True,
+        )
+    with radio_col:
+        picked = st.radio(
+            "Density bin size (µm)",
+            options=sizes,
+            index=idx,
+            format_func=lambda b: f"{b} µm",
+            horizontal=True,
+            label_visibility="collapsed",
+            key="bin_um_global",
+        )
+    # Read fresh in the same run — the density panels below pick it up immediately.
+    state.set_bin_um(picked)
+
+
+# --------------------------------------------------------------------------- #
 # Public entry point
 # --------------------------------------------------------------------------- #
 def render_spatial_stage(cluster: str) -> None:
@@ -729,6 +753,9 @@ def render_spatial_stage(cluster: str) -> None:
             height=140,
         )
         return
+
+    # Single global density bin control (one row, above all density panels).
+    _render_bin_control()
 
     # One small-multiple row per selected marker: density (tissue) | feature UMAP.
     for gene in markers:
