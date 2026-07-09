@@ -2,9 +2,16 @@
 
 All mutable UI state lives in ``st.session_state`` behind these accessors so no
 pane pokes a raw key by string. The one grounding-relevant guarantee here:
-**pinning a marker only sets ``pinned_marker``** — it is a viewing control, it
-never triggers a verdict recompute. Verdicts are computed once and cached in
-``ui.data_access``; nothing in this module recomputes a value.
+**selecting a marker only mutates ``selected_markers``** — it is a viewing
+control, it never triggers a verdict recompute. Verdicts are computed once and
+cached in ``ui.data_access``; nothing in this module recomputes a value.
+
+Marker selection is a **multi-select**: the biologist toggles genes on/off via a
+subtle borderless dot per evidence row, and the spatial grid draws small-multiples
+for the selected set. ``selected_markers`` is an *ordered* list (selection order is
+preserved), capped for legibility only when rendering small-multiples
+(``active_markers(cap=…)``). The legacy single-pin API is kept as a thin alias over
+``selected_markers[0]`` so callers that predate multi-select keep working.
 
 Streamlit is imported lazily inside functions (``_ss()``) so this module imports
 cleanly with no server running — importing ``ui.state`` never requires a live
@@ -22,10 +29,8 @@ from agent.config import CLUSTER_ORDER
 # Key names (one place; accessors reference these, never bare strings)
 # --------------------------------------------------------------------------- #
 K_SELECTED_CLUSTER = "selected_cluster"
-K_PINNED_MARKER = "pinned_marker"
-K_HOVER_MARKER = "hover_marker"
+K_SELECTED_MARKERS = "selected_markers"
 K_BIN_UM = "bin_um"
-K_SPATIAL_VIEW = "spatial_view"
 K_CHAT_THREAD = "chat_thread"
 K_SCOPE = "scope"
 K_CAPTURE_OPEN = "capture_open"
@@ -38,9 +43,6 @@ K_INITIALIZED = "_ui_initialized"
 # --------------------------------------------------------------------------- #
 # Closed vocabularies for the viewing/interaction controls
 # --------------------------------------------------------------------------- #
-SPATIAL_VIEWS: tuple[str, ...] = ("cell_map", "umap", "density")
-DEFAULT_SPATIAL_VIEW = "cell_map"
-
 BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)  # µm presets from the wireframe
 DEFAULT_BIN_UM = 50
 
@@ -49,16 +51,19 @@ DEFAULT_SCOPE = "cluster"
 
 DEFAULT_CLUSTER = CLUSTER_ORDER[0]  # "c1"
 
+# Small-multiples cap: how many selected genes get a density + feature-UMAP pair.
+# Extras stay in ``selected_markers`` (and in the evidence table) but the spatial
+# grid caps the panels so the small-multiples stay legible.
+DEFAULT_MARKER_CAP = 4
+
 # --------------------------------------------------------------------------- #
 # Default seed values. Callables are invoked per-session so no mutable default
 # is shared across reruns/sessions (thread/list must be a fresh object).
 # --------------------------------------------------------------------------- #
 _DEFAULTS: dict[str, Any] = {
     K_SELECTED_CLUSTER: DEFAULT_CLUSTER,
-    K_PINNED_MARKER: None,
-    K_HOVER_MARKER: None,
+    K_SELECTED_MARKERS: list,   # fresh [] per session — ordered multi-select
     K_BIN_UM: DEFAULT_BIN_UM,
-    K_SPATIAL_VIEW: DEFAULT_SPATIAL_VIEW,
     K_CHAT_THREAD: list,        # fresh [] per session
     K_SCOPE: DEFAULT_SCOPE,
     K_CAPTURE_OPEN: False,
@@ -102,63 +107,113 @@ def get_selected_cluster() -> str:
 def set_selected_cluster(cluster: str) -> None:
     """Select a cluster. Ignores an unknown id (fail-closed on bad input).
 
-    Switching clusters clears the transient hover but keeps the pinned marker
-    and bin size — those persist across clusters per the viewing-control spec.
+    Switching clusters keeps the selected markers and bin size — those persist
+    across clusters per the viewing-control spec.
     """
     if cluster not in CLUSTER_ORDER:
         return
-    ss = _ss()
-    ss[K_SELECTED_CLUSTER] = cluster
-    ss[K_HOVER_MARKER] = None
+    _ss()[K_SELECTED_CLUSTER] = cluster
 
 
 # --------------------------------------------------------------------------- #
-# Pinned marker — the one pin that drives all three linked spatial views.
-# Pinning is a VIEWING control: it sets a key and nothing else. No recompute.
+# Selected markers — the multi-select set that drives the spatial small-multiples.
+# Selecting is a VIEWING control: it mutates one list key and nothing else. No
+# recompute. Order is preserved (selection order) so the panels stay stable.
 # --------------------------------------------------------------------------- #
-def get_pinned_marker() -> Optional[str]:
-    """Return the pinned marker gene, or None."""
-    return _ss().get(K_PINNED_MARKER)
+def get_selected_markers() -> list[str]:
+    """Return a copy of the selected marker genes, in selection order.
 
-
-def set_pinned_marker(gene: Optional[str]) -> None:
-    """Pin ``gene`` (or clear with None). Sets ``pinned_marker`` ONLY.
-
-    This must never trigger a verdict recompute — it changes the picture, not a
-    value. It writes a single session-state key and returns.
+    A copy is returned so callers cannot mutate the stored list by side effect
+    (immutable-in, immutable-out). Empty list before anything is selected.
     """
-    _ss()[K_PINNED_MARKER] = gene
+    return list(_ss().get(K_SELECTED_MARKERS, []))
 
 
-def toggle_pin(gene: str) -> None:
-    """Pin ``gene`` if not pinned, else unpin. Viewing-control only, no recompute."""
+def toggle_marker(gene: str) -> None:
+    """Add ``gene`` to the selection if absent, else remove it. Order preserved.
+
+    Viewing-control only: writes a new list to ``selected_markers`` and returns.
+    Never triggers a verdict recompute. A new list is stored (immutable update)
+    so nothing else holding the old reference is surprised.
+    """
     ss = _ss()
-    ss[K_PINNED_MARKER] = None if ss.get(K_PINNED_MARKER) == gene else gene
+    current = list(ss.get(K_SELECTED_MARKERS, []))
+    if gene in current:
+        ss[K_SELECTED_MARKERS] = [g for g in current if g != gene]
+    else:
+        ss[K_SELECTED_MARKERS] = current + [gene]
 
 
-def unpin_marker() -> None:
-    """Clear the pinned marker."""
-    _ss()[K_PINNED_MARKER] = None
+def is_marker_selected(gene: str) -> bool:
+    """True if ``gene`` is currently in the selection."""
+    return gene in _ss().get(K_SELECTED_MARKERS, [])
 
 
-def get_hover_marker() -> Optional[str]:
-    """Return the hover-preview marker (transient), or None."""
-    return _ss().get(K_HOVER_MARKER)
+def clear_markers() -> None:
+    """Clear the whole marker selection (fresh empty list)."""
+    _ss()[K_SELECTED_MARKERS] = []
 
 
-def set_hover_marker(gene: Optional[str]) -> None:
-    """Set the hover-preview marker. Viewing-control only, no recompute."""
-    _ss()[K_HOVER_MARKER] = gene
+def active_markers(cap: int = DEFAULT_MARKER_CAP) -> list[str]:
+    """Return the selected markers, capped to ``cap`` for small-multiples legibility.
+
+    The full selection stays in ``selected_markers`` (and in the evidence table);
+    this only limits how many density + feature-UMAP pairs the spatial grid draws.
+    ``cap <= 0`` returns the full selection uncapped.
+    """
+    selected = get_selected_markers()
+    if cap is not None and cap > 0:
+        return selected[:cap]
+    return selected
 
 
 def active_marker() -> Optional[str]:
-    """Return hover if set (preview), else the pinned marker — what to draw now."""
-    ss = _ss()
-    return ss.get(K_HOVER_MARKER) or ss.get(K_PINNED_MARKER)
+    """Return the first selected marker (or None) — back-compat single-marker view.
+
+    Kept so callers that predate multi-select (e.g. a single density/UMAP draw)
+    keep working. Equivalent to ``selected_markers[0]`` when anything is selected.
+    """
+    selected = _ss().get(K_SELECTED_MARKERS, [])
+    return selected[0] if selected else None
 
 
 # --------------------------------------------------------------------------- #
-# Bin size + spatial view — both pure viewing controls (change the picture only)
+# Legacy pin API — thin aliases over ``selected_markers`` for pre-multi-select
+# callers (e.g. the agent may request a marker be pinned). ``pinned_marker`` is
+# ``selected_markers[0]``; setting it selects that single gene; clearing empties
+# the selection. Still a pure viewing control — no recompute.
+# --------------------------------------------------------------------------- #
+def get_pinned_marker() -> Optional[str]:
+    """Back-compat: the first selected marker, or None (alias of ``active_marker``)."""
+    return active_marker()
+
+
+def set_pinned_marker(gene: Optional[str]) -> None:
+    """Back-compat: select ``gene`` as the sole marker (or clear with None).
+
+    Only acts when the gene is not already selected, so an agent re-requesting an
+    already-selected marker does not collapse a multi-gene selection. Viewing-
+    control only — writes ``selected_markers`` and returns, never a recompute.
+    """
+    ss = _ss()
+    if gene is None:
+        ss[K_SELECTED_MARKERS] = []
+    elif gene not in ss.get(K_SELECTED_MARKERS, []):
+        ss[K_SELECTED_MARKERS] = [gene]
+
+
+def toggle_pin(gene: str) -> None:
+    """Back-compat alias of :func:`toggle_marker` (add if absent else remove)."""
+    toggle_marker(gene)
+
+
+def unpin_marker() -> None:
+    """Back-compat: clear the whole marker selection (alias of :func:`clear_markers`)."""
+    clear_markers()
+
+
+# --------------------------------------------------------------------------- #
+# Bin size — a pure viewing control (change the picture only, never a value)
 # --------------------------------------------------------------------------- #
 def get_bin_um() -> int:
     """Return the hex-bin size in µm (25 / 50 / 100)."""
@@ -173,17 +228,6 @@ def set_bin_um(bin_um: int) -> None:
     """
     if int(bin_um) in BIN_SIZES_UM:
         _ss()[K_BIN_UM] = int(bin_um)
-
-
-def get_spatial_view() -> str:
-    """Return the active spatial view (cell_map / umap / density)."""
-    return _ss().get(K_SPATIAL_VIEW, DEFAULT_SPATIAL_VIEW)
-
-
-def set_spatial_view(view: str) -> None:
-    """Switch the spatial view. Rejects unknown views. Viewing-control only."""
-    if view in SPATIAL_VIEWS:
-        _ss()[K_SPATIAL_VIEW] = view
 
 
 # --------------------------------------------------------------------------- #
@@ -292,31 +336,32 @@ def close_paper() -> None:
 
 __all__ = [
     # keys / vocabularies
-    "SPATIAL_VIEWS",
     "BIN_SIZES_UM",
     "SCOPES",
     "DEFAULT_CLUSTER",
     "DEFAULT_BIN_UM",
-    "DEFAULT_SPATIAL_VIEW",
     "DEFAULT_SCOPE",
+    "DEFAULT_MARKER_CAP",
     # lifecycle
     "init_state",
     # cluster
     "get_selected_cluster",
     "set_selected_cluster",
-    # pin / hover (viewing controls — no recompute)
+    # marker multi-select (viewing controls — no recompute)
+    "get_selected_markers",
+    "toggle_marker",
+    "is_marker_selected",
+    "clear_markers",
+    "active_markers",
+    "active_marker",
+    # legacy pin aliases (back-compat over selected_markers — no recompute)
     "get_pinned_marker",
     "set_pinned_marker",
     "toggle_pin",
     "unpin_marker",
-    "get_hover_marker",
-    "set_hover_marker",
-    "active_marker",
-    # bin / view (viewing controls — no recompute)
+    # bin (viewing control — no recompute)
     "get_bin_um",
     "set_bin_um",
-    "get_spatial_view",
-    "set_spatial_view",
     # chat
     "get_chat_thread",
     "append_message",

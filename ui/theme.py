@@ -212,6 +212,130 @@ button[kind="primary"] {{
   background: var(--accent) !important; color: #fff !important;
   border-color: var(--accent) !important;
 }}
+
+/* ===================================================================== *
+ * MINIMAL / BORDERLESS CONTROLS (redesign)
+ *
+ * De-chroming is opt-in and scoped: wrap ONLY the evidence-table select
+ * dots and the cluster-rail rows in a `.pano-dechrome` container so the
+ * Confirm / Ask / Save primary buttons keep their chrome. Streamlit
+ * renders every button inside `div[data-testid="stButton"] > button`, so
+ * every rule below is namespaced under a wrapper class and never leaks.
+ * ===================================================================== */
+
+/* (1) SELECT-DOT — a borderless button whose whole surface is a single
+ * teal `●` (selected) or muted `○` (add). Zero border / background / box;
+ * the glyph is the affordance. Used per evidence row and any dot toggle.
+ * The button *label* carries the `●`/`○` glyph, so we color the button
+ * text and strip all chrome. Wrap the dot's button in `.pano-select-dot`
+ * (single control) or `.pano-dechrome` (a region of such controls). */
+.pano-dechrome div[data-testid="stButton"] > button,
+.pano-select-dot div[data-testid="stButton"] > button {{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 2px 4px !important;
+  min-height: 0 !important;
+  line-height: 1 !important;
+  border-radius: 6px !important;
+  color: var(--faint) !important;             /* ○ add — muted by default */
+  font-size: 15px !important;
+  transition: color 140ms ease, background 140ms ease;
+}}
+.pano-dechrome div[data-testid="stButton"] > button:hover,
+.pano-select-dot div[data-testid="stButton"] > button:hover {{
+  color: var(--accent) !important;            /* previewing a pick reads teal */
+  background: var(--accent-soft) !important;
+}}
+.pano-dechrome div[data-testid="stButton"] > button:focus-visible,
+.pano-select-dot div[data-testid="stButton"] > button:focus-visible {{
+  outline: 2px solid var(--accent) !important; outline-offset: 1px;
+}}
+/* Selected dot: the wrapper adds `.is-selected` so the glyph locks teal
+ * regardless of the button's own label/hover state. */
+.pano-select-dot.is-selected div[data-testid="stButton"] > button,
+.pano-dechrome .is-selected div[data-testid="stButton"] > button {{
+  color: var(--accent) !important;
+}}
+/* Robust variant: each dot lives in a real st.container(key="seldot_<on|off>_<gene>")
+ * so these class-substring rules actually reach the button. `_off_` = muted ○,
+ * `_on_` = teal ●. This is the mechanism the evidence table uses. */
+/* Descendant `button` (not `> button`): the dot uses help= which inserts tooltip
+ * wrapper spans between div[stButton] and the button, breaking a direct-child rule. */
+div[class*="st-key-seldot_"] button {{
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  padding: 0 !important; min-height: 0 !important; line-height: 1 !important;
+  border-radius: 6px !important; color: var(--faint) !important;
+  font-size: 16px !important; transition: color 140ms ease;
+}}
+div[class*="st-key-seldot_"] button:hover {{
+  color: var(--accent) !important; background: var(--accent-soft) !important;
+}}
+/* Selected dot = type="primary" (stable key; selection carried by type, not the
+ * container class). Override the global solid-teal primary back to a bare glyph. */
+div[class*="st-key-seldot_"] button[kind="primary"],
+div[class*="st-key-seldot_"] button[data-testid="stBaseButton-primary"] {{
+  color: var(--accent) !important; background: transparent !important;
+  border: 0 !important; box-shadow: none !important;
+}}
+
+/* (2) CLUSTER-RAIL — a light, borderless clickable list. Rendered inside a real
+ * st.container(key="pano_rail") -> `.st-key-pano_rail`, which genuinely wraps its
+ * child buttons (a markdown <div> block auto-closes empty and never contains the
+ * later widgets). Each row is a confidence dot + a chromeless cell-type button;
+ * the selected row uses type="primary", restyled here to a LIGHT accent (not the
+ * solid-teal primary), scoped tightly enough to beat the global primary rule. */
+.st-key-pano_rail {{ display: flex; flex-direction: column; gap: 1px; }}
+.st-key-pano_rail [data-testid="stHorizontalBlock"] {{ gap: 4px; align-items: center; }}
+.st-key-pano_rail [data-testid="stColumn"] {{ padding: 0; }}
+.pano-raildot {{
+  width: 9px; height: 9px; border-radius: 50%; margin: 0 auto; flex: none;
+}}
+.st-key-pano_rail div[data-testid="stButton"] > button {{
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  justify-content: flex-start !important; text-align: left !important;
+  padding: 7px 9px !important; min-height: 0 !important;
+  font-family: var(--sans) !important; font-size: 13px !important; font-weight: 500 !important;
+  color: var(--ink) !important; border-radius: 7px !important;
+  border-left: 2px solid transparent !important;
+  transition: background 140ms ease;
+}}
+.st-key-pano_rail div[data-testid="stButton"] > button:hover {{
+  background: var(--hair2) !important;
+}}
+.st-key-pano_rail div[data-testid="stButton"] > button[kind="primary"],
+.st-key-pano_rail button[data-testid="stBaseButton-primary"] {{
+  background: var(--accent-soft) !important; color: var(--accent) !important;
+  border-left-color: var(--accent) !important; font-weight: 700 !important;
+}}
+.st-key-pano_rail div[data-testid="stButton"] > button:focus-visible {{
+  outline: 2px solid var(--accent) !important; outline-offset: -2px;
+}}
+
+/* (3) CONDENSED SOURCES LINE — one small muted mono line under a chat turn,
+ * replacing the per-number chip stack. Numbers stay in prose; this line
+ * only names the provenance (jazzPanda · PubMed · lab note). */
+.pano-sources {{
+  font-family: var(--mono); font-size: 10px; color: var(--faint);
+  letter-spacing: .02em; margin-top: 7px; line-height: 1.5;
+  display: flex; flex-wrap: wrap; gap: 5px 8px; align-items: baseline;
+}}
+.pano-sources .lbl {{ text-transform: uppercase; letter-spacing: .08em; }}
+.pano-sources .sep {{ color: var(--hair); }}      /* faint middot separator */
+.pano-sources .src {{ color: var(--muted); white-space: nowrap; }}
+.pano-sources a {{ color: var(--accent); text-decoration: none; }}
+.pano-sources a:hover {{ text-decoration: underline; }}
+
+/* (4) QUIET CAPTIONS — recede Streamlit's default caption chrome so
+ * whitespace carries the layout instead of grey helper text. Captions kept
+ * (scope/basis/status labels) stay legible but visually recessive. */
+[data-testid="stCaptionContainer"], .stCaption, .pano-quiet-caption {{
+  color: var(--faint) !important;
+  font-size: 10px !important;
+  font-family: var(--mono) !important;
+  text-transform: uppercase; letter-spacing: .08em;
+  margin: 2px 0 !important;
+}}
 """
 
 

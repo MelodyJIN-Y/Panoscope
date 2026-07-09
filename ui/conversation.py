@@ -3,9 +3,10 @@
 ``render_conversation(cluster)`` is the whole third pane of the shell. On a fresh
 cluster it posts the grounded opening interpretation (``agent.loop.opening_interpretation``)
 BEFORE any question, then renders the running thread, then an ask box that calls
-``agent.loop.chat``. Every agent turn shows its prose, its Source chips
-(jz / panel / lit / mem), and its inline ``PMID:xxx`` citations rendered as
-clickable buttons that open the paper drawer via session state.
+``agent.loop.chat``. Every agent turn shows its prose, one condensed Sources
+line naming only the provenance kinds present (jazzPanda / panel / PubMed / lab
+note), and its inline ``PMID:xxx`` citations rendered as clickable buttons that
+open the paper drawer via session state.
 
 Capture-at-override lives here too: a note editor with scope / basis / status
 chips and a Save that calls ``agent.memory.create_note``. Saving posts the note's
@@ -41,19 +42,18 @@ _ROLE_AGENT = "agent"
 _ROLE_USER = "user"
 _ROLE_SYSTEM = "system"
 
-# Source.kind -> (css class, short label prefix) for the chip row under a turn.
-_SRC_CLASS: dict[str, str] = {
-    "jz": "src-jz",
-    "panel": "src-panel",
-    "lit": "src-lit",
-    "mem": "src-mem",
-}
-_SRC_PREFIX: dict[str, str] = {
+# Source.kind -> display name for the condensed "Sources:" line under a turn.
+# Only the KINDS present are shown (deduped), in this fixed provenance order —
+# no per-number chips. Numbers stay inline in the prose; PMIDs stay clickable via
+# the citation buttons below the bubble.
+_SRC_NAME: dict[str, str] = {
     "jz": "jazzPanda",
     "panel": "panel",
-    "lit": "lit",
+    "lit": "PubMed",
     "mem": "lab note",
 }
+# Fixed left-to-right order for the condensed line (grounded floor first).
+_SRC_ORDER: tuple[str, ...] = ("jz", "panel", "lit", "mem")
 
 # Basis chip labels (wireframe wording) -> the memory.create_note Basis literal.
 _BASIS_CHOICES: tuple[tuple[str, str], ...] = (
@@ -198,11 +198,11 @@ def _render_agent_bubble(msg: dict, idx: int) -> None:
     text = msg.get("text", "")
 
     prose_html, cited_pmids = _linkify_citations(text)
-    chip_html = _source_chips_html(resp.sources if resp else ())
+    sources_html = _sources_line_html(resp.sources if resp else ())
     verify_html = _verify_line_html(resp)
     st.markdown(
         f'<div class="who">agent</div>'
-        f'<div class="bubble a">{prose_html}{verify_html}{chip_html}</div>',
+        f'<div class="bubble a">{prose_html}{verify_html}{sources_html}</div>',
         unsafe_allow_html=True,
     )
 
@@ -224,39 +224,24 @@ def _verify_line_html(resp: Optional[AgentResponse]) -> str:
     )
 
 
-def _source_chips_html(sources: tuple[Source, ...]) -> str:
-    """Build the ``src-*`` chip row for a turn (empty string when no sources)."""
-    if not sources:
+def _sources_line_html(sources: tuple[Source, ...]) -> str:
+    """Build ONE condensed provenance line for a turn (empty when no sources).
+
+    Collapses the per-number chip stack into a single muted line naming only the
+    source KINDS present (deduped), e.g. ``Sources jazzPanda · PubMed · lab note``.
+    The numbers themselves stay inline in the prose and any cited PMIDs stay
+    clickable via the citation buttons rendered below the bubble — this line is
+    provenance, not the values. Uses the shared ``.pano-sources`` theme class.
+    """
+    kinds_present = {s.kind for s in sources}
+    names = [_SRC_NAME[k] for k in _SRC_ORDER if k in kinds_present]
+    if not names:
         return ""
-    chips: list[str] = []
-    for s in sources:
-        css = _SRC_CLASS.get(s.kind, "src-lit")
-        label = _source_label(s)
-        chips.append(f'<span class="srcchip {css}">{html.escape(label)}</span>')
-    return (
-        '<div class="src" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">'
-        + "".join(chips)
-        + "</div>"
+
+    spans = f'<span class="sep">{chr(0x00B7)}</span>'.join(
+        f'<span class="src">{html.escape(n)}</span>' for n in names
     )
-
-
-def _source_label(s: Source) -> str:
-    """Compact human label for a Source chip, e.g. ``jazzPanda ERBB2 21.44``."""
-    prefix = _SRC_PREFIX.get(s.kind, s.kind)
-    if s.kind == "jz":
-        val = f" {s.value}" if s.value else ""
-        return f"{prefix} {s.ref}{val}".strip()
-    if s.kind == "panel":
-        return f"{prefix} {s.ref}".strip()
-    if s.kind == "lit":
-        title = (s.value or "").strip()
-        short = (title[:34] + "…") if len(title) > 34 else title
-        return f"{prefix} PMID:{s.ref}" + (f" · {short}" if short else "")
-    if s.kind == "mem":
-        claim = (s.value or "").strip()
-        short = (claim[:30] + "…") if len(claim) > 30 else claim
-        return f"{prefix}" + (f" · {short}" if short else f" {s.ref}")
-    return f"{prefix} {s.ref}"
+    return f'<div class="pano-sources"><span class="lbl">Sources</span>{spans}</div>'
 
 
 # --------------------------------------------------------------------------- #
@@ -423,9 +408,7 @@ def _render_capture(cluster: str) -> None:
 
     st.markdown(
         '<div class="bubble sys" style="background:#FCF7EC;color:#7a5b1e">'
-        "Capture what you know. The agent keeps your call and cross-checks the "
-        "literature, showing agreement and dissent &mdash; it never silently "
-        "overrules you."
+        "Your call is kept and cross-checked &mdash; agreement and dissent stay visible."
         "</div>",
         unsafe_allow_html=True,
     )

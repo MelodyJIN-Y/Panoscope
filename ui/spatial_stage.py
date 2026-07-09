@@ -1,32 +1,47 @@
-"""The spatial stage: three linked Plotly views driven by one pinned marker.
+"""The spatial stage: a fixed grid of linked Plotly views for the selected markers.
 
 Public entry point: ``render_spatial_stage(cluster)``.
 
-The stage renders exactly one of three linked views, chosen by a view toggle:
+The stage is a fixed grid — there is no view toggle. It always shows, top to
+bottom:
 
-  * ``cell_map`` (default) — every segmented cell at its tissue coordinate,
-    coloured by cluster, with the selected cluster brought forward. "Did the
-    call land in the right cells."
-  * ``umap`` — every cell in expression space, coloured by cluster; when a
-    marker is pinned (or hovered) it recolours by that marker's per-cell
-    expression instead. "Is the cluster a clean island or bleeding into a
-    neighbour."
-  * ``density`` — the precomputed, area-normalized transcript hex-bins for the
-    pinned marker, before cell calling. "Is the raw signal really there." The
-    25 / 50 / 100 µm bin control lives here and here only.
+  * **Row 1 (context, always on)** — the cluster **cell map** (segmented cells at
+    tissue coordinates, selected cluster brought forward) beside the cluster
+    **UMAP** (expression space, coloured by cluster). "Did the call land in the
+    right cells, and is the cluster a clean island."
+  * **One small-multiple row per selected marker** — that gene's transcript
+    **density** (precomputed, area-normalized hex-bins, before cell calling)
+    beside its **feature UMAP** (the same UMAP recoloured by that gene's per-cell
+    expression). "Is the raw signal really there, and where does it sit in
+    expression space." The 25 / 50 / 100 µm bin control lives on the density
+    panel and nowhere else.
+  * **A full-width grouped violin** — each selected gene's per-cell expression
+    distribution across all nine clusters, one violin per cluster in cluster
+    colour. "How cluster-specific is this marker, holistically."
+
+When no marker is selected only Row 1 renders, followed by an honest placeholder
+inviting a pick — nothing is faked.
 
 Grounding invariant (the load-bearing one): every control on this stage is a
-**viewing** control. The view toggle, the bin size, and the pinned marker change
-*the picture*, never a value. The bin control selects which *precomputed* density
+**viewing** control. The bin size and the selected-marker set change *the
+picture*, never a value. The bin control selects which *precomputed* density
 frame to draw (``ui.data_access.hexbins`` reads a different file per bin) — it
 never re-bins, and the colour scale is the frame's already-area-normalized
-``density`` column so a coarser bin cannot look hotter than a finer one. Nothing
-in this module computes a statistic or a confidence.
+``density`` column so a coarser bin cannot look hotter than a finer one. The
+violin draws the per-cell expression the prep step exported and joins it onto the
+authoritative cluster labels; nothing in this module computes a statistic or a
+confidence.
 
-State is read through ``ui.state`` (never a raw session-state key): the active
-view, the pinned/hovered marker (``active_marker()`` = hover preview, else pin),
-and the bin size. When a pinned marker has no precomputed density or expression
-frame, the relevant view shows an honest "not precomputed for this marker"
+Tissue aspect ratio: the cell map and the density map are true tissue images, so
+they lock a 1:1 data aspect ratio (``_tissue_layout``: ``scaleanchor="x"``,
+``scaleratio=1``, y reversed) — a coarse bin or a wide container can never stretch
+the slide. The UMAP and the violin are abstract spaces and keep the free
+``_base_layout``.
+
+State is read through ``ui.state`` (never a raw session-state key): the selected
+markers (``active_markers()``, capped for small-multiples legibility) and the bin
+size (``get_bin_um()``). When a selected marker has no precomputed density or
+expression frame, that panel shows an honest "not precomputed for this marker"
 placeholder — it never fakes a value.
 
 Streamlit and Plotly are imported lazily inside the render functions so the
@@ -35,7 +50,7 @@ module imports cleanly with no server running.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -68,23 +83,17 @@ _DENSITY_COLORSCALE = [        # matches the wireframe teal ramp (#EAF3F4 -> #0F
 ]
 _EXPR_COLORSCALE = _DENSITY_COLORSCALE  # same low->high teal ramp for feature UMAP
 
-_PLOT_HEIGHT = 460
+# Panel heights. The tissue panels (cell map / density) are square-locked images
+# (7520×5470 µm ⇒ W:H ≈ 1.375); the ratio lock does the shaping, this is only the
+# panel's drawing height. The UMAP + violin are abstract and use the default.
+_PLOT_HEIGHT = 320          # UMAP (abstract space — free ratio)
+_TISSUE_HEIGHT = 300        # cell map / density (ratio-locked tissue image)
+_VIOLIN_HEIGHT = 340        # full-width grouped violin
 _PLOT_BG = "#FFFFFF"
-
-_VIEW_LABELS: dict[str, str] = {
-    "cell_map": "Cell map",
-    "umap": "UMAP",
-    "density": "Density",
-}
-_VIEW_CAPTION: dict[str, str] = {
-    "cell_map": "segmented cells at tissue coordinates · selected cluster brought forward",
-    "umap": "expression space · coloured by cluster, or by pinned-marker expression",
-    "density": "raw transcripts · hex-binned before cell calling · area-normalized",
-}
 
 # Density tile size in px per bin — purely cosmetic legibility; COLOUR is the
 # only thing that encodes signal.
-_DENSITY_TILE_PX: dict[int, int] = {25: 6, 50: 9, 100: 14}
+_DENSITY_TILE_PX: dict[int, int] = {25: 5, 50: 7, 100: 11}
 
 
 # --------------------------------------------------------------------------- #
@@ -97,25 +106,22 @@ def _st() -> Any:
 
 
 # --------------------------------------------------------------------------- #
-# Stage-local styling. These classes (.pinbar / .pempty / .plegend / .g) are
-# used only by this stage and are not part of the shared theme, so the stage
-# ships them itself. Injected once per session (idempotent flag) so reruns and
-# viewing-control toggles never restyle. Colours reference the theme's CSS
-# custom properties (--accent, --faint, …) so it stays in the design system.
+# Stage-local styling. These classes (.pempty / .plegend / .ptitle) are used
+# only by this stage and are not part of the shared theme, so the stage ships
+# them itself. Injected once per session (idempotent flag) so reruns never
+# restyle. Colours reference the theme's CSS custom properties so it stays in
+# the design system.
 # --------------------------------------------------------------------------- #
 _STAGE_CSS = """
-.pinbar {
-  font-family: var(--mono, ui-monospace, monospace); font-size: 11px;
-  color: var(--muted, #606A73); margin: 6px 0 4px;
-}
-.pinbar .g {
-  font-weight: 600; color: var(--accent, #0F7B87);
-  background: var(--accent-soft, #EBF5F6); padding: 1px 6px; border-radius: 5px;
-}
 .plegend {
   font-family: var(--mono, ui-monospace, monospace); font-size: 11px;
-  color: var(--muted, #606A73); margin-top: 6px; line-height: 1.5;
+  color: var(--muted, #606A73); margin-top: 4px; line-height: 1.5;
 }
+.ptitle {
+  font-family: var(--mono, ui-monospace, monospace); font-size: 11px;
+  color: var(--faint, #9AA3AB); margin: 2px 0 2px; letter-spacing: .02em;
+}
+.ptitle b { color: var(--accent, #0F7B87); font-weight: 600; }
 .pempty {
   display: flex; align-items: center; justify-content: center; text-align: center;
   font-family: var(--mono, ui-monospace, monospace); font-size: 12px;
@@ -142,8 +148,16 @@ def _go() -> Any:
     return go
 
 
-def _base_layout(go_mod: Any, *, showlegend: bool) -> Any:
-    """A shared, chrome-light Plotly layout (no axis ticks — this is a map)."""
+# --------------------------------------------------------------------------- #
+# Shared Plotly layouts
+# --------------------------------------------------------------------------- #
+def _base_layout(go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT) -> Any:
+    """A shared, chrome-light Plotly layout (no axis ticks — this is a map).
+
+    Used by the abstract views (UMAP, and the violin after it re-enables its
+    axes): axes are hidden and the aspect ratio is free, so the point cloud fills
+    the panel.
+    """
     axis = dict(
         showgrid=False,
         zeroline=False,
@@ -152,7 +166,7 @@ def _base_layout(go_mod: Any, *, showlegend: bool) -> Any:
         visible=False,
     )
     return go_mod.Layout(
-        height=_PLOT_HEIGHT,
+        height=height,
         margin=dict(l=8, r=8, t=8, b=8),
         paper_bgcolor=_PLOT_BG,
         plot_bgcolor=_PLOT_BG,
@@ -164,8 +178,53 @@ def _base_layout(go_mod: Any, *, showlegend: bool) -> Any:
     )
 
 
+def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
+    """Layout for a **true tissue image** (cell map / density): 1:1 data aspect.
+
+    ``yaxis.scaleanchor="x"`` + ``scaleratio=1`` lock one micron on x to one
+    micron on y, so the slide keeps its real shape (W:H ≈ 1.375) no matter how
+    wide the container is or how coarse the density bin is — a viewing control can
+    never stretch the tissue. ``autorange="reversed"`` flips y so the map reads
+    top-down like the physical slide. Axes stay hidden (a map, not a chart), and
+    ``autoScale2d`` is removed from the toolbar (see ``_plot_config``) so the user
+    cannot unlock the ratio.
+    """
+    axis_x = dict(
+        showgrid=False,
+        zeroline=False,
+        showticklabels=False,
+        ticks="",
+        visible=False,
+    )
+    axis_y = dict(
+        showgrid=False,
+        zeroline=False,
+        showticklabels=False,
+        ticks="",
+        visible=False,
+        scaleanchor="x",       # lock 1 µm on y to 1 µm on x — never stretch tissue
+        scaleratio=1,
+        autorange="reversed",  # tissue reads top-down like the slide
+    )
+    return go_mod.Layout(
+        height=height,
+        margin=dict(l=8, r=8, t=8, b=8),
+        paper_bgcolor=_PLOT_BG,
+        plot_bgcolor=_PLOT_BG,
+        xaxis=axis_x,
+        yaxis=axis_y,
+        showlegend=False,
+        font=dict(family="Space Grotesk, system-ui, sans-serif"),
+        dragmode="pan",
+    )
+
+
 def _plot_config() -> dict[str, Any]:
-    """Plotly display config: keep the toolbar minimal."""
+    """Plotly display config: keep the toolbar minimal.
+
+    ``autoScale2d`` is removed so a user cannot reset the axes and unlock the
+    tissue aspect ratio locked by ``_tissue_layout``.
+    """
     return {
         "displaylogo": False,
         "scrollZoom": True,
@@ -178,93 +237,17 @@ def _plot_config() -> dict[str, Any]:
     }
 
 
-# --------------------------------------------------------------------------- #
-# View toolbar — the toggle + (density-only) bin control. Viewing controls only.
-# --------------------------------------------------------------------------- #
-def _render_view_toolbar(active_view: str) -> None:
-    """Render the view toggle and, for density, the µm bin control.
-
-    Both write only their viewing-control key (``spatial_view`` / ``bin_um``)
-    via ``ui.state`` setters. Neither ever calls a verdict.
-    """
+def _panel_title(html: str) -> None:
+    """A small mono title above a panel (e.g. the gene name for a small-multiple)."""
     st = _st()
-    left, right = st.columns([3, 2])
-
-    with left:
-        options = list(state.SPATIAL_VIEWS)
-        try:
-            idx = options.index(active_view)
-        except ValueError:
-            idx = 0
-        picked = st.radio(
-            "Spatial view",
-            options=options,
-            index=idx,
-            format_func=lambda v: _VIEW_LABELS.get(v, v),
-            horizontal=True,
-            label_visibility="collapsed",
-            key="spatial_view_toggle",
-        )
-        if picked != active_view:
-            state.set_spatial_view(picked)  # picture only, no recompute
-            st.rerun()
-
-    with right:
-        if active_view == "density":
-            current = state.get_bin_um()
-            sizes = list(state.BIN_SIZES_UM)
-            try:
-                bidx = sizes.index(current)
-            except ValueError:
-                bidx = sizes.index(state.DEFAULT_BIN_UM)
-            picked_bin = st.radio(
-                "Bin size (µm)",
-                options=sizes,
-                index=bidx,
-                format_func=lambda b: f"{b} µm",
-                horizontal=True,
-                label_visibility="collapsed",
-                key="bin_um_toggle",
-            )
-            if picked_bin != current:
-                state.set_bin_um(picked_bin)  # selects a precomputed frame; no re-bin
-                st.rerun()
+    st.markdown(f'<div class="ptitle">{html}</div>', unsafe_allow_html=True)
 
 
-def _render_pinbar(active_view: str) -> None:
-    """One mono line naming what is pinned/previewed (mirrors the wireframe pinbar)."""
-    st = _st()
-    pinned = state.get_pinned_marker()
-    hover = state.get_hover_marker()
-    if pinned:
-        st.markdown(
-            f'<div class="pinbar">showing <span class="g">{pinned}</span> '
-            f"across the spatial views · click the pin again in the evidence "
-            f"table to unpin</div>",
-            unsafe_allow_html=True,
-        )
-    elif hover:
-        st.markdown(
-            f'<div class="pinbar">preview <span class="g">{hover}</span></div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        hint = (
-            "pin a marker in the evidence table to colour these views"
-            if active_view != "cell_map"
-            else "cells coloured by cluster · pin a marker to switch to its signal"
-        )
-        st.markdown(
-            f'<div class="pinbar"><span style="color:var(--faint)">{hint}</span></div>',
-            unsafe_allow_html=True,
-        )
-
-
-def _empty_panel(message: str) -> None:
+def _empty_panel(message: str, *, height: int = _PLOT_HEIGHT) -> None:
     """Render the honest empty state (never a faked plot)."""
     st = _st()
     st.markdown(
-        f'<div class="pempty" style="height:{_PLOT_HEIGHT}px">{message}</div>',
+        f'<div class="pempty" style="height:{height}px">{message}</div>',
         unsafe_allow_html=True,
     )
 
@@ -296,21 +279,23 @@ def _downsample_bg(df: pd.DataFrame, keep_mask: pd.Series, bg_cap: int) -> pd.Da
 
 
 # --------------------------------------------------------------------------- #
-# View 1 — Cell map (default)
+# View 1 — Cell map (tissue image; ratio-locked)
 # --------------------------------------------------------------------------- #
 def _render_cell_map(cluster: str) -> None:
     """Scattergl of all cells at tissue x/y, coloured by cluster; selected cluster
     brought forward (full colour + thin outline), the rest faded to grey.
 
     Pure viewing surface: it draws ``cells_df()`` (already cached) and the
-    selected cluster comes straight from ``cluster``. No value is computed.
+    selected cluster comes straight from ``cluster``. No value is computed. The
+    tissue aspect ratio is locked by ``_tissue_layout`` so the slide is never
+    stretched.
     """
     st = _st()
     go = _go()
 
     cells = da.cells_df()
     if cells.empty:
-        _empty_panel("no cell coordinates available")
+        _empty_panel("no cell coordinates available", height=_TISSUE_HEIGHT)
         return
 
     sel_mask = cells["cluster"] == cluster
@@ -318,7 +303,7 @@ def _render_cell_map(cluster: str) -> None:
     sel = view[view["cluster"] == cluster]
     bg = view[view["cluster"] != cluster]
 
-    fig = go.Figure(layout=_base_layout(go, showlegend=False))
+    fig = go.Figure(layout=_tissue_layout(go))
 
     # Background: all other clusters, muted.
     fig.add_trace(
@@ -351,25 +336,27 @@ def _render_cell_map(cluster: str) -> None:
             name=cluster,
         )
     )
-    # A tissue image reads top-down; flip y so the map matches the slide.
-    fig.update_yaxes(autorange="reversed")
 
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
     ct = _cell_type_label(cluster)
     _legend_line(
-        f'cells coloured by cluster · <b style="color:{sel_color}">{cluster} '
-        f"{ct}</b> brought forward · {len(sel):,} of {len(cells):,} cells shown"
+        f'<b style="color:{sel_color}">{cluster} {ct}</b> brought forward · '
+        f"{len(sel):,} cells"
     )
 
 
 # --------------------------------------------------------------------------- #
-# View 2 — UMAP (cluster colour, or pinned-marker expression)
+# View 2 — UMAP (cluster colour in Row 1; per-gene feature colour in gene rows)
 # --------------------------------------------------------------------------- #
-def _render_umap(cluster: str) -> None:
-    """Scattergl in UMAP space. Coloured by cluster when nothing is pinned; when a
-    marker is pinned/hovered it recolours by that marker's per-cell expression
-    (``marker_expr_col``) if exported, else falls back to cluster colour with a
-    note. Selected cluster is always outlined.
+def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> None:
+    """Scattergl in UMAP space (abstract — free aspect ratio via ``_base_layout``).
+
+    ``feature=False`` (Row 1): always cluster-coloured (``_umap_by_cluster``),
+    selected cluster outlined.
+    ``feature=True`` (a gene row): recolour by ``gene``'s per-cell expression
+    (``marker_expr_col``) if exported (``_umap_feature``); if the gene has no
+    exported expression, fall back to the cluster-coloured UMAP with an honest
+    note. ``gene`` is required when ``feature`` is True.
     """
     st = _st()
     go = _go()
@@ -379,37 +366,33 @@ def _render_umap(cluster: str) -> None:
         _empty_panel("no UMAP embedding available")
         return
 
-    gene = state.active_marker()  # hover preview, else pinned
-    expr = da.marker_expr_col(gene) if gene else None
+    expr = da.marker_expr_col(gene) if (feature and gene) else None
 
     sel_mask = umap["cluster"] == cluster
     view = _downsample_bg(umap, sel_mask, _MAX_BG_POINTS)
 
     fig = go.Figure(layout=_base_layout(go, showlegend=False))
 
-    if gene and expr is not None:
+    if feature and gene and expr is not None:
         _umap_feature(fig, go, view, expr, cluster)
         st.plotly_chart(fig, use_container_width=True, config=_plot_config())
         _legend_line(
-            f'<b>{gene}</b> expression · low <span class="grad"></span> high · '
-            f"selected cluster {cluster} outlined"
+            f'low <span class="grad"></span> high · {cluster} outlined'
         )
         return
 
-    # Cluster-coloured UMAP (default, or marker pinned but not exported)
+    # Cluster-coloured UMAP: Row 1 default, or a gene row whose expression is
+    # not exported (honest fallback).
     _umap_by_cluster(fig, go, view, cluster)
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
-    if gene and expr is None:
+    if feature and gene and expr is None:
         _legend_line(
             f'<span style="color:var(--absent)">{gene}: per-cell expression not '
             f"precomputed</span> · showing cluster colour instead"
         )
     else:
         sel_color = fmt.cluster_color(cluster)
-        _legend_line(
-            f"cells coloured by cluster · "
-            f'<b style="color:{sel_color}">{cluster}</b> outlined'
-        )
+        _legend_line(f'<b style="color:{sel_color}">{cluster}</b> outlined')
 
 
 def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> None:
@@ -488,44 +471,62 @@ def _umap_feature(
 
 
 # --------------------------------------------------------------------------- #
-# View 3 — Density (precomputed, area-normalized hex-bins for the pinned marker)
+# View 3 — Density (precomputed, area-normalized hex-bins; tissue image)
 # --------------------------------------------------------------------------- #
-def _render_density(cluster: str) -> None:
-    """Precomputed transcript density for the pinned marker as an area-normalized
-    map. The bin control picks which precomputed frame to read; the colour is the
-    frame's ``density`` (transcripts / µm²) so bins are comparable across sizes.
+def _render_density(gene: str) -> None:
+    """Precomputed transcript density for ``gene`` as an area-normalized map.
 
-    If no marker is pinned, or the pinned marker has no precomputed density frame,
-    show an honest placeholder — never a synthesized field.
+    The 25 / 50 / 100 µm bin control lives here (and only here). The bin picks
+    which *precomputed* frame to read; the colour is that frame's ``density``
+    (transcripts / µm²) so bins are comparable across sizes. If the gene has no
+    precomputed density frame, show an honest placeholder — never a synthesized
+    field. The tissue aspect ratio is locked by ``_tissue_layout`` so a coarse
+    bin never stretches the slide.
     """
     st = _st()
     go = _go()
 
-    gene = state.active_marker()
-    if not gene:
-        _empty_panel("pin a marker to see its transcript density")
-        return
+    # Bin control — a viewing control local to this density panel. Selecting a
+    # size only reads a different precomputed frame; it never re-bins a value.
+    current = state.get_bin_um()
+    sizes = list(state.BIN_SIZES_UM)
+    try:
+        bidx = sizes.index(current)
+    except ValueError:
+        bidx = sizes.index(state.DEFAULT_BIN_UM)
+    picked_bin = st.radio(
+        "Bin size (µm)",
+        options=sizes,
+        index=bidx,
+        format_func=lambda b: f"{b} µm",
+        horizontal=True,
+        label_visibility="collapsed",
+        key=f"bin_um_toggle_{gene}",
+    )
+    if picked_bin != current:
+        state.set_bin_um(picked_bin)  # selects a precomputed frame; no re-bin
+        st.rerun()
 
     bin_um = state.get_bin_um()
     try:
         hb = da.hexbins(gene, bin_um)
     except FileNotFoundError:
-        _empty_panel(f"{gene}: density not precomputed for this marker")
+        _empty_panel(f"{gene}: density not precomputed", height=_TISSUE_HEIGHT)
         return
     except Exception:
-        _empty_panel(f"{gene}: density unavailable")
+        _empty_panel(f"{gene}: density unavailable", height=_TISSUE_HEIGHT)
         return
 
     if hb is None or hb.empty:
-        _empty_panel(f"{gene}: density not precomputed for this marker")
+        _empty_panel(f"{gene}: density not precomputed", height=_TISSUE_HEIGHT)
         return
 
     dens = hb["density"]
-    fig = go.Figure(layout=_base_layout(go, showlegend=False))
+    fig = go.Figure(layout=_tissue_layout(go))
     # Square markers on the precomputed bin centres. Marker size scales with the
     # bin (bigger bins -> bigger tiles) purely for legibility; the COLOUR is the
     # area-normalized density and is the only thing that encodes signal.
-    tile = _DENSITY_TILE_PX.get(int(bin_um), 9)
+    tile = _DENSITY_TILE_PX.get(int(bin_um), 7)
     fig.add_trace(
         go.Scattergl(
             x=hb["hx"],
@@ -550,13 +551,118 @@ def _render_density(cluster: str) -> None:
             name="density",
         )
     )
-    fig.update_yaxes(autorange="reversed")
 
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
     _legend_line(
-        f"<b>{gene}</b> transcripts · {bin_um} µm bins · area-normalized "
-        f'(tx/µm²) · low <span class="grad"></span> high'
+        f'{bin_um} µm bins · tx/µm² · low <span class="grad"></span> high'
     )
+
+
+# --------------------------------------------------------------------------- #
+# View 4 — Grouped violin (per-cell expression across all nine clusters)
+# --------------------------------------------------------------------------- #
+def _render_violin(genes: list[str], cluster: str) -> None:
+    """Per-cell expression distribution of each selected gene across all nine
+    clusters, one violin per cluster in cluster colour.
+
+    Abstract chart (a distribution needs its axes), so it starts from
+    ``_base_layout`` and then *re-enables* the axes. Data is exactly what the prep
+    step exported: for each gene, ``expr_by_cluster`` joins the gene's per-cell
+    value onto the authoritative cluster labels — this module derives nothing.
+    ``points=False`` keeps 40k-cell violins light; ``meanline_visible`` shows the
+    mean Plotly draws from those same values (no invented statistic). Multiple
+    genes are grouped side by side per cluster (``violinmode="group"``); a single
+    gene reads as one violin per cluster in that cluster's colour.
+    """
+    st = _st()
+    go = _go()
+
+    # Only plot genes that actually have exported per-cell expression; the rest
+    # are honestly omitted (never faked).
+    frames: list[tuple[str, pd.DataFrame]] = []
+    for g in genes:
+        by = da.expr_by_cluster(g)
+        if by is not None and not by.empty:
+            frames.append((g, by))
+
+    if not frames:
+        _empty_panel(
+            "no per-cell expression precomputed for the selected marker(s)",
+            height=_VIOLIN_HEIGHT,
+        )
+        return
+
+    single = len(frames) == 1
+    fig = go.Figure(layout=_base_layout(go, showlegend=not single, height=_VIOLIN_HEIGHT))
+    # Re-enable axes: a distribution is a chart, not a map. x = clusters (c1..c9),
+    # y = expression. Keep it light — a hairline y grid, category x in c1..c9 order.
+    fig.update_layout(
+        xaxis=dict(
+            visible=True,
+            showgrid=False,
+            zeroline=False,
+            type="category",
+            categoryorder="array",
+            categoryarray=list(CLUSTER_ORDER),
+            tickfont=dict(family="IBM Plex Mono, monospace", size=10),
+        ),
+        yaxis=dict(
+            visible=True,
+            showgrid=True,
+            gridcolor="#EEF0F2",
+            zeroline=False,
+            title=dict(
+                text="expression",
+                font=dict(family="IBM Plex Mono, monospace", size=10),
+            ),
+            tickfont=dict(family="IBM Plex Mono, monospace", size=10),
+        ),
+        violinmode="group",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            x=0,
+            font=dict(family="IBM Plex Mono, monospace", size=10),
+        ),
+    )
+
+    # Fixed per-gene colours for the grouped (multi-gene) case so each gene keeps
+    # one legend colour across every cluster. For a single gene we colour each
+    # violin by its own cluster (the familiar cluster palette).
+    for gi, (gene, by) in enumerate(frames):
+        present = [c for c in CLUSTER_ORDER if c in set(by["cluster"].unique())]
+        gene_color = fmt.cluster_color(CLUSTER_ORDER[gi % len(CLUSTER_ORDER)])
+        first_present = present[0] if present else None
+        for c in present:
+            vals = by.loc[by["cluster"] == c, "value"]
+            color = fmt.cluster_color(c) if single else gene_color
+            fig.add_trace(
+                go.Violin(
+                    x=[c] * len(vals),
+                    y=vals,
+                    name=gene,
+                    legendgroup=gene,
+                    scalegroup=gene,
+                    # one legend entry per gene (only on its first cluster trace)
+                    showlegend=(not single) and (c == first_present),
+                    line=dict(color=color, width=1),
+                    fillcolor=color,
+                    opacity=0.75 if single else 0.55,
+                    points=False,
+                    meanline_visible=True,
+                    hovertemplate=f"{gene} · {c}<extra></extra>",
+                )
+            )
+
+    st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+    if single:
+        _legend_line(
+            f'selected cluster <b style="color:{fmt.cluster_color(cluster)}">'
+            f"{cluster}</b> highlighted · one violin per cluster"
+        )
+    else:
+        _legend_line("violins grouped by gene · one per cluster")
 
 
 # --------------------------------------------------------------------------- #
@@ -580,41 +686,63 @@ def _cell_type_label(cluster: str) -> str:
 # Public entry point
 # --------------------------------------------------------------------------- #
 def render_spatial_stage(cluster: str) -> None:
-    """Render the spatial stage for ``cluster``: the view toggle + pin readout +
-    the one active linked view (cell map / UMAP / density).
+    """Render the fixed spatial grid for ``cluster``.
+
+    The grid is:
+      * Row 1 — cluster cell map | cluster UMAP (always on, the context row).
+      * One small-multiple row per selected marker — density | feature UMAP.
+      * A full-width grouped violin across all nine clusters (selected markers).
+      * A placeholder inviting a pick when no marker is selected.
 
     Reads state via ``ui.state``:
-      * ``get_spatial_view()`` — which of the three views to draw (default cell_map)
-      * ``active_marker()``    — hover preview else pinned marker (drives UMAP/density)
-      * ``get_bin_um()``       — which precomputed density frame (density view only)
+      * ``active_markers()`` — the selected markers, capped for small-multiples.
+      * ``get_bin_um()``     — which precomputed density frame (density panels).
 
-    Every control here is a viewing control. Switching view, changing the bin, or
-    pinning a marker changes the picture only — this function never calls a verdict
-    and never derives a statistic.
+    Every control here is a viewing control. Selecting markers or changing the
+    bin changes the picture only — this function never calls a verdict and never
+    derives a statistic.
     """
     st = _st()
     _inject_stage_css()
 
     st.markdown(
         '<p class="pano-sect">Spatial evidence '
-        '<span class="r">a pinned marker drives all three views</span></p>',
+        '<span class="r">cluster context · one row per selected marker</span></p>',
         unsafe_allow_html=True,
     )
 
-    active_view = state.get_spatial_view()
-    _render_view_toolbar(active_view)
-    _render_pinbar(active_view)
-
-    st.caption(_VIEW_CAPTION.get(active_view, ""))
-
-    if active_view == "cell_map":
+    # Row 1 — cluster context: cell map (tissue) beside cluster UMAP (abstract).
+    r1_left, r1_right = st.columns(2, gap="medium")
+    with r1_left:
+        _panel_title("Cell map <span style='color:var(--faint)'>· tissue</span>")
         _render_cell_map(cluster)
-    elif active_view == "umap":
-        _render_umap(cluster)
-    elif active_view == "density":
-        _render_density(cluster)
-    else:  # defensive: unknown view falls back to the default map
-        _render_cell_map(cluster)
+    with r1_right:
+        _panel_title("UMAP <span style='color:var(--faint)'>· cluster colour</span>")
+        _render_umap(cluster, feature=False)
+
+    markers = state.active_markers()
+
+    if not markers:
+        _empty_panel(
+            "select a marker in the evidence table to see its transcript density, "
+            "feature UMAP, and across-cluster distribution",
+            height=140,
+        )
+        return
+
+    # One small-multiple row per selected marker: density (tissue) | feature UMAP.
+    for gene in markers:
+        g_left, g_right = st.columns(2, gap="medium")
+        with g_left:
+            _panel_title(f"<b>{gene}</b> density")
+            _render_density(gene)
+        with g_right:
+            _panel_title(f"<b>{gene}</b> feature UMAP")
+            _render_umap(cluster, feature=True, gene=gene)
+
+    # Full-width grouped violin across all nine clusters for the selected set.
+    _panel_title("Expression across clusters")
+    _render_violin(markers, cluster)
 
 
 __all__ = ["render_spatial_stage"]
