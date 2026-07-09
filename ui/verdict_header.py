@@ -88,6 +88,14 @@ def _header_html(cluster: str, verdict: ClusterVerdict) -> str:
     if verdict.verify:
         verify_html = f'<span class="pano-verify">{_esc(fmt.verify_badge(True))}</span>'
 
+    # Terse rationale: name the drivers only. The full numbers live in the
+    # evidence table (right below) and the conversation's opening interpretation,
+    # so restating glm_coef/pearson here is redundant clutter.
+    drivers = ", ".join(verdict.key_markers) if verdict.key_markers else verdict.cell_type
+    rationale = f"Driven by {drivers}."
+    if verdict.verify:
+        rationale += " Flagged to re-check."
+
     return (
         f'<div class="pano-idline">{_esc(_idline(cluster))}</div>'
         f'<div class="pano-verdict">'
@@ -95,7 +103,7 @@ def _header_html(cluster: str, verdict: ClusterVerdict) -> str:
         f'<span class="cf {cf_class}">{_esc(cf_text)}</span>'
         f"{verify_html}"
         f"</div>"
-        f'<div class="pano-rat">{_esc(verdict.notes)}</div>'
+        f'<div class="pano-rat">{_esc(rationale)}</div>'
     )
 
 

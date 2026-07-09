@@ -40,7 +40,7 @@ from ui import data_access, format as fmt, state
 # non-canonical supporters by glm_coef until we reach the cap. Nothing is
 # recomputed — this only *selects* rows the verdict already produced.
 # --------------------------------------------------------------------------- #
-MAX_SUPPORT_ROWS: int = 12
+MAX_SUPPORT_ROWS: int = 8
 
 # Specificity-strip teal ramp (ported verbatim from the wireframe's ``teal(v)``).
 # v is a 0..1 spatial-specificity value (pearson); higher -> deeper teal.
@@ -258,8 +258,27 @@ def render_evidence_table(cluster: str) -> None:
             unsafe_allow_html=True,
         )
 
-    # Each row = a narrow pin-button column + a wide HTML-content column. The
-    # pin button is the click-to-PIN control; it sets pinned_marker and returns.
+    _render_marker_rows(st, rows, pinned, selected)
+
+    # The long tail (non-driver markers beyond the default view) is tucked behind
+    # an expander so the drivers and the tissue stay above the fold. Shown and
+    # hidden rows are disjoint, so per-gene pin keys stay unique.
+    shown_ids = {id(e) for e in rows}
+    hidden = [e for e in verdict.evidence if id(e) not in shown_ids]
+    if hidden:
+        with st.expander(
+            f"Show all {len(verdict.evidence)} assigned markers", expanded=False
+        ):
+            _render_marker_rows(st, hidden, pinned, selected)
+
+    _render_offpanel_section(st, verdict, selected)
+
+
+def _render_marker_rows(st, rows, pinned, selected) -> None:
+    """Render each marker: a narrow pin-button column + a wide HTML content column.
+
+    The pin button sets ``pinned_marker`` and returns (no recompute).
+    """
     for ev in rows:
         is_pinned = pinned is not None and ev.gene.upper() == pinned.upper()
         pin_col, body_col = st.columns([0.06, 0.94], vertical_alignment="center")
@@ -267,13 +286,9 @@ def render_evidence_table(cluster: str) -> None:
             _pin_button(st, ev.gene, is_pinned)
         with body_col:
             st.markdown(
-                _marker_row_html(
-                    ev, selected_cluster=selected, is_pinned=is_pinned
-                ),
+                _marker_row_html(ev, selected_cluster=selected, is_pinned=is_pinned),
                 unsafe_allow_html=True,
             )
-
-    _render_offpanel_section(st, verdict, selected)
 
 
 def _pin_button(st, gene: str, is_pinned: bool) -> None:
