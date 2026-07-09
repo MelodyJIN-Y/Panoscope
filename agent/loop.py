@@ -162,12 +162,55 @@ def _global_interpretation_lines() -> str:
     return "\n".join(lines)
 
 
-def _cluster_context(cluster: Optional[str]) -> str:
-    """Grounded context block: the GLOBAL interpretation + the active cluster.
+def _inscope_notes_block(cluster: Optional[str]) -> str:
+    """The lab notes IN SCOPE for ``cluster``, injected on EVERY turn.
 
-    The global block (every cluster's call, confidence, verify, drivers) is always
-    present so the agent's knowledge of the annotation is independent of the
-    per-cluster conversation history it is given.
+    Recall must not depend on the model remembering to call ``memory_read``: an
+    override the lab saved is surfaced here every turn so it is never silently
+    forgotten. The agent MUST still honor and cite each note as ``[note:id]`` and
+    show its tension (a note may not be used silently). Read FRESH (notes mutate
+    on save) from the same base dir the memory tools write to. Never raises; empty
+    string when there are none.
+    """
+    if not cluster or cluster not in cfg.KNOWN_CLUSTERS:
+        return ""
+    try:
+        from agent import memory
+
+        notes = memory.apply_notes(cluster, base_dir=agent_tools.memory_base_dir())
+    except Exception:  # pragma: no cover - notes are best-effort context
+        return ""
+    if not notes:
+        return ""
+
+    lines: list[str] = []
+    for n in notes:
+        t = n.tension
+        if t.agree or t.dissent:
+            tension = f"agree {len(t.agree)} / dissent {len(t.dissent)}"
+        else:
+            tension = "literature thin" if t.thin else "no tension recorded"
+        scope_txt = (
+            f"cluster {n.scope_ref.cluster}" if n.scope == "cluster" else n.scope
+        )
+        lines.append(
+            f"  [note:{n.id}] ({scope_txt}, basis={n.basis}, {n.status}) "
+            f"{n.claim}  <{tension}>"
+        )
+    return (
+        "\n\n# IN-SCOPE LAB NOTES (the lab's own calls — you MUST honor these and "
+        "cite each as [note:id] when you use it, showing its tension; a note may "
+        "not be used silently)\n" + "\n".join(lines)
+    )
+
+
+def _cluster_context(cluster: Optional[str]) -> str:
+    """Grounded context block: GLOBAL interpretation + active cluster + lab notes.
+
+    The global block (every cluster's call, confidence, verify, drivers) and the
+    in-scope lab notes are always present, so the agent's knowledge of the whole
+    annotation AND of the lab's own overrides is independent of the per-cluster
+    conversation history it is given.
     """
     header = (
         "# GLOBAL INTERPRETATION (authoritative — every cluster's call; do not "
@@ -184,7 +227,7 @@ def _cluster_context(cluster: Optional[str]) -> str:
         )
     else:
         active = ""
-    return header + active
+    return header + active + _inscope_notes_block(cluster)
 
 
 def build_system_prompt(cluster: Optional[str]) -> str:

@@ -140,6 +140,15 @@ def set_memory_base_dir(path: Optional[str]) -> None:
     _MEMORY_BASE_DIR = path
 
 
+def memory_base_dir() -> Optional[str]:
+    """The base dir memory tools currently read/write (None = memory's default).
+
+    Exposed so other layers (e.g. the loop's in-scope-notes context injection)
+    read notes from the exact directory these tools write them to.
+    """
+    return _MEMORY_BASE_DIR
+
+
 def _literature_search_fn() -> Callable[[str], list[Citation]]:
     """The active reconciler: injected stub if set, else the live MCP search."""
     return _LITERATURE_SEARCH_FN or _live_literature_search
