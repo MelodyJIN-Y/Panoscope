@@ -1,10 +1,11 @@
 """Verdict header — the call the biologist reads first, above the evidence.
 
-``render_verdict(cluster)`` draws the top of the center pane exactly like the
-wireframe's ``.center`` header block: an id line (``CLUSTER 3 · 4,812 cells``),
-the cell-type call as an ``<h1>`` next to a confidence chip (plus a verify badge
-when the call is flagged), a one-line grounded rationale, and the Confirm /
-Override decision buttons.
+``render_verdict(cluster)`` draws the top of the center pane: an id line
+(``CLUSTER 3 · 4,812 cells``), the cell-type call as an ``<h1>`` next to a
+confidence chip (plus a verify badge when the call is flagged), and a one-line
+grounded rationale. Agreeing with, questioning, or overriding the call is done by
+telling the agent in the conversation pane (which captures a scope-enforced lab
+note); this header is just the call, not a decision widget.
 
 Grounding stance for this pane:
 
@@ -14,12 +15,6 @@ Grounding stance for this pane:
   cell frame. This module runs no statistic and invents no number.
 * The confidence chip / verify badge classes are the exact strings
   ``ui.format`` returns, so styling from ``ui.theme`` drops straight on.
-* **Override** does not decide anything. It opens the capture-at-override flow in
-  the conversation pane (``ui.state.open_capture``); the biologist makes the call
-  and states scope + basis there. The tool informs and preserves — it never makes
-  the call.
-* **Confirm** records the biologist's acceptance as an attributed system message
-  in the chat thread (never a silent "got it"); the verdict itself is untouched.
 
 Streamlit is imported lazily inside :func:`render_verdict` so importing this
 module never needs a running server.
@@ -112,18 +107,16 @@ def _header_html(cluster: str, verdict: ClusterVerdict) -> str:
 def render_verdict(cluster: str) -> None:
     """Render the verdict header for ``cluster`` at the top of the center pane.
 
-    Reads the cached ``ClusterVerdict`` (``verdict_for``) — the call, confidence
-    band, verify flag, and grounded one-line rationale — and the cached cluster
+    Reads the cached ``ClusterVerdict`` (``verdict_for``): the call, confidence
+    band, verify flag, and grounded one-line rationale, plus the cached cluster
     cell count, then lays out:
 
     * a mono id line with the cluster and its cell count,
     * the cell-type call beside a confidence chip (and a verify badge if flagged),
-    * the grounded rationale that cites the driving markers' numbers,
-    * Confirm / Override buttons.
+    * the grounded rationale that names the driving markers.
 
-    **Override** opens the capture-at-override flow in the conversation
-    (``ui.state.open_capture``); **Confirm** posts an attributed acceptance to the
-    chat thread. Neither recomputes a verdict — the verdict is read once, cached.
+    Agreement / question / override happens in the conversation pane (the agent
+    captures a scope-enforced lab note); this header never recomputes a verdict.
     """
     import streamlit as st
 

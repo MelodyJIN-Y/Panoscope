@@ -144,11 +144,6 @@ div[class*="st-key-pano_binctl"] [data-testid="stHorizontalBlock"] { align-items
 div[class*="st-key-pano_binctl"] [data-testid="stRadio"] > label { display: none; }
 div[class*="st-key-pano_binctl"] [data-testid="stRadio"] { margin: 0; }
 div[class*="st-key-pano_binctl"] [data-testid="stRadio"] [role="radiogroup"] { align-items: center; }
-.stage-legend {
-  font-family: var(--mono, ui-monospace, monospace); font-size: 10.5px;
-  color: var(--faint, #9AA3AB); line-height: 1.5;
-  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-}
 .pempty {
   display: flex; align-items: center; justify-content: center; text-align: center;
   font-family: var(--mono, ui-monospace, monospace); font-size: 12px;

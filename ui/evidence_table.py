@@ -11,9 +11,9 @@
   gene is a canonical marker for the cell type.
 * a **grounded biology note** — a short summary of the gene's role and its
   relevance to this cluster's identity, WITH a real PubMed citation. This text is
-  read from precomputed, cited notes (``ui.data_access.gene_note`` /
-  ``scripts/precompute_gene_notes.py``); this module never generates biology
-  (confident floor). Genes without a note show an em dash.
+  read from the pipeline's Output-4 notes (``ui.data_access.gene_note`` /
+  ``pipeline/stages/notes.py``); this module never generates biology
+  (confident floor). Genes without a note show nothing.
 
 Every value comes straight off the cached ``ClusterVerdict`` / the precomputed
 notes — this module computes nothing. Streamlit is imported lazily so importing

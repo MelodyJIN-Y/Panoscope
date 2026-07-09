@@ -25,7 +25,6 @@ from agent.types import Citation, Note
 
 from ui import data_access as da
 from ui import format as fmt
-from ui import state
 
 # --------------------------------------------------------------------------- #
 # Human-readable labels for the closed vocabularies (Scope / Basis / Status).
@@ -50,7 +49,6 @@ _EMPTY_TEXT = (
     "No notes yet. Override or confirm something in the chat and it is saved "
     "here with its basis and any literature tension."
 )
-_DRAWER_TITLE = "What this tool knows about your lab"
 _DRAWER_SUB = (
     "Notes the agent can cite. Each carries its basis and any literature tension."
 )
@@ -194,39 +192,8 @@ def _render_note_card(note: Note) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Public: the drawer
+# Public: the full-page lab-knowledge view (its own top tab)
 # --------------------------------------------------------------------------- #
-def render_lab_panel(*, expanded: Optional[bool] = None) -> None:
-    """Render the lab-knowledge drawer: every stored note the agent can cite.
-
-    Reads notes FRESH each call (``ui.data_access.read_notes``) so the list is
-    never stale after a save or delete. Open/closed state comes from
-    ``ui.state.is_lab_knowledge_open()`` unless ``expanded`` overrides it, so the
-    header "Lab knowledge N" button and this drawer stay in sync.
-
-    Renders, per note: the claim, a scope / basis / status meta line, the author
-    and date, and any literature tension (agree / dissent PMIDs) — all read
-    directly off the persisted Note. Each note has a delete control that removes
-    its file and reruns. Nothing here is fabricated or recomputed.
-    """
-    import streamlit as st
-
-    _inject_local_css()
-    notes = da.read_notes()
-    is_open = state.is_lab_knowledge_open() if expanded is None else bool(expanded)
-
-    with st.expander(f"{_DRAWER_TITLE}  ·  {len(notes)}", expanded=is_open):
-        st.caption(_DRAWER_SUB)
-        if not notes:
-            st.markdown(
-                f'<div class="lke">{_EMPTY_TEXT}</div>', unsafe_allow_html=True
-            )
-            return
-        # Newest first — the most recent lab judgment reads at the top.
-        for note in sorted(notes, key=lambda n: (n.created_at, n.id), reverse=True):
-            _render_note_card(note)
-
-
 def render_lab_page() -> None:
     """Full-page lab-knowledge view (its own top tab): every stored note the
     agent can cite, newest first, each with its scope / basis / status, author,
@@ -245,8 +212,8 @@ def render_lab_page() -> None:
     )
     st.markdown(
         f'<div class="pano-rat" style="max-width:70ch">{_DRAWER_SUB} '
-        "They are captured by telling the agent in the chat — an override or a "
-        "confirmation, and stay here, git-tracked and attributed.</div>",
+        "They are captured by telling the agent in the chat (an override or a "
+        "confirmation), and stay here, git-tracked and attributed.</div>",
         unsafe_allow_html=True,
     )
 
@@ -262,19 +229,4 @@ def render_lab_page() -> None:
             _render_note_card(note)
 
 
-def lab_knowledge_button(*, key: str = "lk_open_btn") -> None:
-    """Render the header "Lab knowledge N" pill that toggles the drawer open.
-
-    A thin companion to :func:`render_lab_panel`: it shows the live note count
-    and flips ``ui.state``'s lab-knowledge-open flag. Count is a fresh read so it
-    tracks saves and deletes immediately.
-    """
-    import streamlit as st
-
-    n = len(da.read_notes())
-    if st.button(f"Lab knowledge  {n}", key=key):
-        state.toggle_lab_knowledge()
-        st.rerun()
-
-
-__all__ = ["render_lab_panel", "lab_knowledge_button"]
+__all__ = ["render_lab_page"]

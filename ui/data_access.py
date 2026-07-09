@@ -214,9 +214,10 @@ def expr_by_cluster(gene: str) -> Optional[pd.DataFrame]:
 
 
 # --------------------------------------------------------------------------- #
-# Grounded per-gene biology notes (precomputed offline, each with a REAL PubMed
-# citation — see scripts/precompute_gene_notes.py). The evidence table reads
-# these; it never generates biology text (confident floor).
+# Grounded per-gene biology notes: the skill's Output-4 notes produced by the
+# pipeline (``pipeline/stages/notes.py`` -> ``interp/gene_notes.json``), each with
+# a REAL live PubMed citation. The evidence table reads these; it never generates
+# biology text (confident floor). Falls back to the legacy flat file below.
 # --------------------------------------------------------------------------- #
 _GENE_NOTES_JSON = cfg.DATA_DIR_PATH / "gene_notes" / "notes.json"
 

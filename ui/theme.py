@@ -145,11 +145,6 @@ html, body, .stApp {{
 .pano-verdict {{ display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }}
 .pano-verdict h1 {{ font-size: 25px; font-weight: 600; letter-spacing: -.02em; margin: 0; }}
 .pano-rat {{ color: var(--muted); max-width: 62ch; margin-bottom: 6px; }}
-.pano-hint {{
-  font-family: var(--mono); font-size: 11px; color: var(--faint);
-  max-width: 64ch; margin: 2px 0 14px; line-height: 1.5;
-}}
-.pano-hint a {{ color: var(--accent); }}
 
 /* ---- confidence chips (classes returned by ui.format.confidence_chip) ---- */
 .cf {{
@@ -211,13 +206,6 @@ html, body, .stApp {{
 .tension {{
   margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.5;
   background: var(--absent-bg); border-radius: 8px; padding: 7px 10px;
-}}
-
-/* ---- density/expression legend grad (plasma: low dark purple -> high bright yellow) ---- */
-.grad {{
-  display: inline-block; width: 64px; height: 8px; border-radius: 3px;
-  background: linear-gradient(90deg,
-    #0D0887 0%, #7E03A8 20%, #CC4778 40%, #F1605D 60%, #FCA636 80%, #F0F921 100%);
 }}
 
 /* ---- accent buttons (primary actions) ---- */

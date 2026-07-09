@@ -33,9 +33,6 @@ K_SELECTED_MARKERS = "selected_markers"
 K_BIN_UM = "bin_um"
 K_CHAT_THREAD = "chat_thread"
 K_PENDING_DRAFT = "pending_draft"
-K_SCOPE = "scope"
-K_CAPTURE_OPEN = "capture_open"
-K_LK_OPEN = "lab_knowledge_open"
 K_PAPER_OPEN = "paper_open"
 K_ACTIVE_PMID = "active_pmid"
 K_OPENING_POSTED = "opening_posted"
@@ -46,9 +43,6 @@ K_INITIALIZED = "_ui_initialized"
 # --------------------------------------------------------------------------- #
 BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)  # µm presets from the wireframe
 DEFAULT_BIN_UM = 25
-
-SCOPES: tuple[str, ...] = ("cluster", "dataset", "lab")
-DEFAULT_SCOPE = "cluster"
 
 DEFAULT_CLUSTER = CLUSTER_ORDER[0]  # "c1"
 
@@ -67,9 +61,6 @@ _DEFAULTS: dict[str, Any] = {
     K_BIN_UM: DEFAULT_BIN_UM,
     K_CHAT_THREAD: dict,        # {cluster_id: [msg, ...]} — one thread per cluster
     K_PENDING_DRAFT: dict,      # {cluster_id: NoteDraft} — note awaiting confirm
-    K_SCOPE: DEFAULT_SCOPE,
-    K_CAPTURE_OPEN: False,
-    K_LK_OPEN: False,
     K_PAPER_OPEN: False,
     K_ACTIVE_PMID: None,
     K_OPENING_POSTED: dict,     # {cluster_id: True} — opening interp posted once
@@ -313,53 +304,8 @@ def clear_pending_draft(cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Note scope (for capture-at-override)
+# Citation paper drawer (opened from the holistic-review / opening citations)
 # --------------------------------------------------------------------------- #
-def get_scope() -> str:
-    """Return the active memory scope (cluster / dataset / lab)."""
-    return _ss().get(K_SCOPE, DEFAULT_SCOPE)
-
-
-def set_scope(scope: str) -> None:
-    """Set the active memory scope. Rejects unknown scopes."""
-    if scope in SCOPES:
-        _ss()[K_SCOPE] = scope
-
-
-# --------------------------------------------------------------------------- #
-# Capture / drawer open flags
-# --------------------------------------------------------------------------- #
-def is_capture_open() -> bool:
-    """True if the capture-at-override note panel is open."""
-    return bool(_ss().get(K_CAPTURE_OPEN, False))
-
-
-def open_capture() -> None:
-    """Open the capture-at-override note panel."""
-    _ss()[K_CAPTURE_OPEN] = True
-
-
-def close_capture() -> None:
-    """Close the capture-at-override note panel."""
-    _ss()[K_CAPTURE_OPEN] = False
-
-
-def is_lab_knowledge_open() -> bool:
-    """True if the lab-knowledge drawer is open."""
-    return bool(_ss().get(K_LK_OPEN, False))
-
-
-def set_lab_knowledge_open(is_open: bool) -> None:
-    """Open/close the lab-knowledge drawer."""
-    _ss()[K_LK_OPEN] = bool(is_open)
-
-
-def toggle_lab_knowledge() -> None:
-    """Toggle the lab-knowledge drawer."""
-    ss = _ss()
-    ss[K_LK_OPEN] = not bool(ss.get(K_LK_OPEN, False))
-
-
 def is_paper_open() -> bool:
     """True if the citation paper drawer is open."""
     return bool(_ss().get(K_PAPER_OPEN, False))
@@ -385,10 +331,8 @@ def close_paper() -> None:
 __all__ = [
     # keys / vocabularies
     "BIN_SIZES_UM",
-    "SCOPES",
     "DEFAULT_CLUSTER",
     "DEFAULT_BIN_UM",
-    "DEFAULT_SCOPE",
     "DEFAULT_MARKER_CAP",
     # lifecycle
     "init_state",
@@ -420,16 +364,7 @@ __all__ = [
     "set_pending_draft",
     "get_pending_draft",
     "clear_pending_draft",
-    # scope
-    "get_scope",
-    "set_scope",
-    # capture / drawers
-    "is_capture_open",
-    "open_capture",
-    "close_capture",
-    "is_lab_knowledge_open",
-    "set_lab_knowledge_open",
-    "toggle_lab_knowledge",
+    # citation paper drawer
     "is_paper_open",
     "get_active_pmid",
     "open_paper",

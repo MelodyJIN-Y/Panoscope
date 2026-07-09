@@ -28,11 +28,23 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-streamlit run app.py            # launch the app
-pytest -m "not live"            # run the grounding suite (deterministic, no network)
+streamlit run app.py                             # launch the app
+pytest -m "not live"                             # run the grounding suite (deterministic, no network)
+
+python -m pipeline.run --dataset <id>            # (re)build a dataset's tree: verdicts + manifest (offline)
+python -m pipeline.stages.notes --dataset <id>   # live: skill-grounded per-marker + cell-type notes (PubMed)
 ```
 
 The app runs entirely on precomputed jazzPanda output — no live jazzPanda run, no GPU. For live PubMed citations inside the app, add your NCBI credentials (see [MCP setup](#skill--mcp-setup)); without them the app still runs and every jazzPanda-grounded number is unaffected.
+
+## The pipeline: one command per dataset
+
+The skill is the interpretation contract; the **per-dataset pipeline is its executor**. `python -m pipeline.run --dataset <id>` turns a dataset's raw inputs (jazzPanda markers, panel list, cluster key, + viz sources) into a self-contained `data/datasets/<id>/` tree — `verdicts.csv`, per-cluster `interp/clusters/c{n}.json`, `gene_notes.json`, `celltype_notes.json`, and a `manifest.json` (provenance + artifact hashes) — which the UI reads with no live recomputation. It runs in two skill-driven tiers:
+
+- **Tier A — the skill's mechanical rules as deterministic code** (`agent/verdict.py` = SKILL Steps 3a/3b/3d): per-gene evaluation, the `glm_coef`-anchored confidence rubric, and the panel-absence rule. Offline and reproducible.
+- **Tier B — the skill's literature interpretation, live** (SKILL.md sits in the agent's system prompt): the Output-4 per-marker biology note is *the skill reading that gene's own Tier-A evidence* — role framed by canonical status, and a specificity caveat flagged only when the numbers show the gene marks another lineage. One real live PMID or none.
+
+A second dataset needs no code change: drop its raw inputs in `data/datasets/<id>/inputs/` and run. jazzPanda is never run — its output is a consumed input.
 
 ## Calibration — commits on clean calls, flags the shaky ones
 
