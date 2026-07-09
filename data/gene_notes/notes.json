@@ -4,7 +4,7 @@
       "gene": "ERBB2",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "ERBB2 encodes a receptor tyrosine kinase whose amplification drives tumor proliferation and survival, confirming breast tumor identity (PMID:24508693). No clear cross-lineage specificity caveat applies; jazzPanda assigns ERBB2 exclusively to c1 (Tumor).",
+      "summary": "ERBB2 encodes a receptor tyrosine kinase whose amplification drives tumor proliferation and survival.",
       "pmid": "38291745",
       "citation": {
         "pmid": "38291745",
@@ -19,7 +19,7 @@
       "gene": "KRT7",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "KRT7 is a luminal epithelial intermediate filament expressed in the vast majority of invasive breast carcinomas, confirming luminal tumor identity (PMID:15141381); no clear cross-lineage specificity caveat applies here.",
+      "summary": "KRT7 is a luminal epithelial intermediate filament expressed in the vast majority of invasive breast carcinomas.",
       "pmid": "15141381",
       "citation": {
         "pmid": "15141381",
@@ -34,7 +34,7 @@
       "gene": "SCD",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "SCD encodes stearoyl-CoA desaturase, a lipid-desaturation enzyme upregulated in breast tumor cells to support membrane synthesis and ferroptosis resistance (PMID:41032417); no clear cross-lineage specificity caveat applies here.",
+      "summary": "SCD encodes stearoyl-CoA desaturase.",
       "pmid": "40593646",
       "citation": {
         "pmid": "40593646",
@@ -49,7 +49,7 @@
       "gene": "EPCAM",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "EPCAM is a transmembrane glycoprotein driving epithelial proliferation, adhesion, and signaling, and its overexpression is a hallmark of carcinomas, confirming c1 tumor identity (PMID:32507912).",
+      "summary": "EPCAM is a transmembrane glycoprotein driving epithelial proliferation, adhesion, and signaling.",
       "pmid": "32507912",
       "citation": {
         "pmid": "32507912",
@@ -64,7 +64,7 @@
       "gene": "FOXA1",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "FOXA1 is a luminal hormone-sensing epithelial identity gene that anchors the luminal breast tumor transcriptional program (PMID:39122969); no clear cross-lineage specificity caveat applies here.",
+      "summary": "FOXA1 is a luminal hormone-sensing epithelial identity gene that anchors the luminal breast tumor transcriptional program.",
       "pmid": "39122969",
       "citation": {
         "pmid": "39122969",
@@ -79,7 +79,7 @@
       "gene": "CCND1",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "CCND1 encodes Cyclin D1, a G1/S cell-cycle driver that is frequently amplified in breast tumor cells, confirming epithelial tumor identity (PMID:19881546). No clear cross-lineage specificity caveat applies here, as `max_gc_corr` equals `pearson`, meaning CCND1 localizes best with c1 and no other cluster competes.\n\n**One-sentence summary:**\n\nCCND1 drives G1/S cell-cycle entry and is a hallmark oncogene of breast tumor epithelial cells (PMID:19881546).",
+      "summary": "CCND1 encodes Cyclin D1, a G1/S cell-cycle driver that is frequently amplified in breast tumor cells.",
       "pmid": "33067265",
       "citation": {
         "pmid": "33067265",
@@ -94,7 +94,7 @@
       "gene": "GATA3",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "GATA3 is a transcription factor driving luminal epithelial differentiation and ER-positive identity in breast tumors (PMID:19059610); no clear cross-lineage specificity caveat applies here.",
+      "summary": "GATA3 is a transcription factor driving luminal epithelial differentiation and ER-positive identity in breast tumors.",
       "pmid": "19435916",
       "citation": {
         "pmid": "19435916",
@@ -109,7 +109,7 @@
       "gene": "KRT8",
       "cluster": "c1",
       "cell_type": "Tumor",
-      "summary": "KRT8 is a luminal epithelial cytoskeletal protein that reliably marks breast tumor cells (CK8/18/19-positive, ER-positive lineage) (PMID:18223478); no major specificity caveat applies, as myoepithelial and stromal lineages are KRT8-negative.",
+      "summary": "KRT8 is a luminal epithelial cytoskeletal protein that reliably marks breast tumor cells (CK8/18/19-positive, ER-positive lineage).",
       "pmid": "22270320",
       "citation": {
         "pmid": "22270320",
@@ -126,7 +126,7 @@
       "gene": "LUM",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "LUM encodes a fibroblast-secreted extracellular matrix proteoglycan that anchors stromal identity across connective tissues (PMID:17490399).",
+      "summary": "LUM encodes a fibroblast-secreted extracellular matrix proteoglycan that anchors stromal identity across connective tissues.",
       "pmid": "36674976",
       "citation": {
         "pmid": "36674976",
@@ -141,7 +141,7 @@
       "gene": "POSTN",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "POSTN (periostin) is a secreted extracellular matrix protein that defines cancer-associated fibroblast identity and supports stromal remodeling (PMID:38648387). **Specificity caveat:** POSTN is also expressed by partial-EMT tumor cells (PMID:36691359), so strong signal in a spatially mixed region may reflect tumor-stromal co-localization rather than pure CAF identity.",
+      "summary": "POSTN (periostin) is a secreted extracellular matrix protein that defines cancer-associated fibroblast identity and supports stromal.",
       "pmid": "36550569",
       "citation": {
         "pmid": "36550569",
@@ -156,7 +156,7 @@
       "gene": "CCDC80",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "CCDC80 (DRO1) is a secreted stromal protein and tumor-suppressor expressed by fibroblasts in the tumor microenvironment, anchoring its identity as a CAF marker (PMID:35422964). No clear cross-lineage signal was detected, so no specificity caveat applies.",
+      "summary": "CCDC80 (DRO1) is a secreted stromal protein and tumor-suppressor expressed by fibroblasts in the tumor microenvironment.",
       "pmid": "22384085",
       "citation": {
         "pmid": "22384085",
@@ -171,7 +171,7 @@
       "gene": "CXCL12",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "CXCL12 (SDF-1) is a chemokine secreted by cancer-associated fibroblasts that drives tumor-stroma crosstalk, confirming stromal identity in breast cancer (PMID:33603163).",
+      "summary": "CXCL12 (SDF-1) is a chemokine secreted by cancer-associated fibroblasts that drives tumor-stroma crosstalk.",
       "pmid": "33603163",
       "citation": {
         "pmid": "33603163",
@@ -186,7 +186,7 @@
       "gene": "MMP2",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "MMP2 is a fibroblast-secreted gelatinase that remodels the extracellular matrix, anchoring stromal identity in this panel (PMID:33740019); no clear cross-lineage specificity caveat applies, as its top cluster is c2.",
+      "summary": "MMP2 is a fibroblast-secreted gelatinase that remodels the extracellular matrix, anchoring stromal identity in this panel.",
       "pmid": "33740019",
       "citation": {
         "pmid": "33740019",
@@ -201,7 +201,7 @@
       "gene": "SFRP4",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "SFRP4 is a secreted Wnt antagonist produced by stromal fibroblasts, marking cancer-associated stroma through extracellular matrix remodeling (PMID:39511287).",
+      "summary": "SFRP4 is a secreted Wnt antagonist produced by stromal fibroblasts.",
       "pmid": "34282151",
       "citation": {
         "pmid": "34282151",
@@ -216,7 +216,7 @@
       "gene": "PDGFRB",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "PDGFRB drives mesenchymal/stromal identity as a receptor for PDGF-BB signaling in fibroblasts and pericytes; note it also marks perivascular pericytes, so stromal versus pericyte distinction requires spatial context (PMID:27608497).",
+      "summary": "PDGFRB drives mesenchymal/stromal identity as a receptor for PDGF-BB signaling in fibroblasts and pericytes.",
       "pmid": "34535655",
       "citation": {
         "pmid": "34535655",
@@ -231,7 +231,7 @@
       "gene": "PDGFRA",
       "cluster": "c2",
       "cell_type": "Stromal",
-      "summary": "PDGFRA encodes a receptor tyrosine kinase that drives fibroblast and mesenchymal stromal cell identity and survival, making it a canonical stromal marker (PMID:35360851); no clear cross-lineage specificity caveat applies here.",
+      "summary": "PDGFRA encodes a receptor tyrosine kinase that drives fibroblast and mesenchymal stromal cell identity and survival.",
       "pmid": "35360851",
       "citation": {
         "pmid": "35360851",
@@ -248,7 +248,7 @@
       "gene": "LYZ",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "LYZ encodes lysozyme, a bacteriolytic enzyme that is a canonical phagocytic myeloid marker, confirming macrophage identity (PMID:11900976).",
+      "summary": "LYZ encodes lysozyme, a bacteriolytic enzyme that is a canonical phagocytic myeloid marker, confirming macrophage identity.",
       "pmid": "38237157",
       "citation": {
         "pmid": "38237157",
@@ -263,7 +263,7 @@
       "gene": "FCER1G",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "FCER1G encodes the Fc receptor common gamma chain, an adaptor driving phagocytosis and cytokine production in macrophages (PMID:41994604); note a specificity caveat: the panel annotates it to NK/ILC cells, and it is broadly expressed across innate myeloid and innate lymphoid lineages.",
+      "summary": "FCER1G encodes the Fc receptor common gamma chain.",
       "pmid": "41994604",
       "citation": {
         "pmid": "41994604",
@@ -278,7 +278,7 @@
       "gene": "CD68",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "CD68 is a lysosomal membrane glycoprotein marking phagocytic macrophages and confirming myeloid identity in c3; note it also labels microglia and other activated phagocytes (PMID:28601280).",
+      "summary": "CD68 is a lysosomal membrane glycoprotein marking phagocytic macrophages and confirming myeloid identity in c3.",
       "pmid": "28601280",
       "citation": {
         "pmid": "28601280",
@@ -293,7 +293,7 @@
       "gene": "CD4",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "CD4 is a co-receptor that identifies helper T cells but is also expressed at low levels on monocytes and macrophages, so its presence in c3 is supportive but not macrophage-specific (PMID:32561858).",
+      "summary": "CD4 is a co-receptor that identifies helper T cells but is also expressed at low levels.",
       "pmid": "38199298",
       "citation": {
         "pmid": "38199298",
@@ -308,7 +308,7 @@
       "gene": "FGL2",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "FGL2 (fibroleukin) is a macrophage-expressed immunosuppressive prothrombinase that marks M2-polarized tumor-associated macrophages (PMID:38612926).",
+      "summary": "FGL2 (fibroleukin) is a macrophage-expressed immunosuppressive prothrombinase that marks M2-polarized tumor-associated macrophages.",
       "pmid": "38612926",
       "citation": {
         "pmid": "38612926",
@@ -323,7 +323,7 @@
       "gene": "ITGAX",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "ITGAX (CD11c) encodes a myeloid adhesion integrin marking macrophages and activated myeloid cells broadly; note it is also a canonical dendritic cell marker, so it does not distinguish macrophages from dendritic cells alone (PMID:21885153).",
+      "summary": "ITGAX (CD11c) encodes a myeloid adhesion integrin marking macrophages and activated myeloid cells broadly.",
       "pmid": "41134763",
       "citation": {
         "pmid": "41134763",
@@ -338,7 +338,7 @@
       "gene": "CD163",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "CD163 is a monocyte/macrophage-restricted hemoglobin-scavenger receptor and established marker of M2-polarized, anti-inflammatory macrophages, with no clear expression in other lineages in this tissue context (PMID:39451197).",
+      "summary": "CD163 is a monocyte/macrophage-restricted hemoglobin-scavenger receptor and established marker of M2-polarized, anti-inflammatory macrophages.",
       "pmid": "40211281",
       "citation": {
         "pmid": "40211281",
@@ -353,7 +353,7 @@
       "gene": "FCGR3A",
       "cluster": "c3",
       "cell_type": "Macrophages",
-      "summary": "FCGR3A (CD16) encodes a low-affinity IgG Fc receptor that drives antibody-dependent cytotoxicity and is a canonical marker of non-classical monocytes and tissue macrophages; note that NK cells also express FCGR3A, so co-expression with myeloid markers is needed to confirm macrophage identity (PMID:21404581).",
+      "summary": "FCGR3A (CD16) encodes a low-affinity IgG Fc receptor that drives antibody-dependent cytotoxicity and is a canonical.",
       "pmid": "18307280",
       "citation": {
         "pmid": "18307280",
@@ -370,7 +370,7 @@
       "gene": "SERPINA3",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "SERPINA3 encodes a serine protease inhibitor expressed in breast glandular epithelial cells, supporting myoepithelial identity; note that it is also upregulated in tumor cells undergoing EMT, so its presence alone does not exclude a tumor origin (PMID:33569740).",
+      "summary": "SERPINA3 encodes a serine protease inhibitor expressed in breast glandular epithelial cells, supporting myoepithelial identity.",
       "pmid": "33569740",
       "citation": {
         "pmid": "33569740",
@@ -385,7 +385,7 @@
       "gene": "DST",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "DST (dystonin/BPAG1) encodes a hemidesmosomal cytoskeletal linker that anchors intermediate filaments to the basement membrane, a defining structural feature of myoepithelial cells (PMID:24025550). No clear cross-lineage specificity caveat applies here, as the panel annotation confirms myoepithelial specificity.",
+      "summary": "DST (dystonin/BPAG1) encodes a hemidesmosomal cytoskeletal linker that anchors intermediate filaments to the basement membrane.",
       "pmid": "24025550",
       "citation": {
         "pmid": "24025550",
@@ -400,7 +400,7 @@
       "gene": "MYLK",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "c4 is called Myoepithelial at High confidence, driven by MYLK (glm_coef 5.90, pearson 0.83), ACTA2 (glm_coef 5.07, pearson 0.59), KRT14 (glm_coef 4.65, pearson 0.83).",
+      "summary": "c4 is called Myoepithelial at High confidence, driven by MYLK (glm_coef 5.90, pearson 0.83).",
       "pmid": null,
       "citation": null,
       "verify": false,
@@ -410,7 +410,7 @@
       "gene": "ACTA2",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "ACTA2 (alpha-smooth muscle actin) encodes the contractile cytoskeletal protein that defines myoepithelial identity in breast ducts (PMID:27195907); caveat: it also marks CAFs and smooth muscle cells, so it is not lineage-exclusive.",
+      "summary": "ACTA2 (alpha-smooth muscle actin) encodes the contractile cytoskeletal protein that defines myoepithelial identity in breast ducts.",
       "pmid": "19552766",
       "citation": {
         "pmid": "19552766",
@@ -425,7 +425,7 @@
       "gene": "KRT14",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "KRT14 encodes a basal cytoskeletal keratin that defines myoepithelial identity in the breast, though it also marks basal-like tumor cells, so co-expression with luminal markers should be checked to confirm lineage (PMID:38915368).",
+      "summary": "KRT14 encodes a basal cytoskeletal keratin that defines myoepithelial identity in the breast.",
       "pmid": "39110274",
       "citation": {
         "pmid": "39110274",
@@ -440,7 +440,7 @@
       "gene": "KRT5",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "KRT5 encodes a basal cytoskeletal keratin that defines myoepithelial identity in normal breast; note it also marks basal-like tumor cells, so co-expression with stromal or contractile markers is needed to confirm a true myoepithelial call (PMID:16341146).",
+      "summary": "KRT5 encodes a basal cytoskeletal keratin that defines myoepithelial identity in normal breast.",
       "pmid": "16341146",
       "citation": {
         "pmid": "16341146",
@@ -455,7 +455,7 @@
       "gene": "MYH11",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "MYH11 encodes smooth muscle myosin heavy chain, a canonical contractile marker of breast myoepithelial cells lining ducts and lobules (PMID:27195907). No specificity caveat: although the panel annotates MYH11 to smooth muscle cells, true vascular smooth muscle is captured by the Endothelial cluster (c7), so strong MYH11 signal in c4 is consistent with myoepithelial identity.",
+      "summary": "MYH11 encodes smooth muscle myosin heavy chain.",
       "pmid": "27195907",
       "citation": {
         "pmid": "27195907",
@@ -470,7 +470,7 @@
       "gene": "OXTR",
       "cluster": "c4",
       "cell_type": "Myoepithelial",
-      "summary": "OXTR encodes the oxytocin receptor, which drives myoepithelial contraction for milk ejection and defines myoepithelial identity in human breast (PMID:42420002); note that in canine ductal tumors OXTR also appears in luminal cells, so luminal co-expression is a potential specificity caveat.",
+      "summary": "OXTR encodes the oxytocin receptor.",
       "pmid": "42420002",
       "citation": {
         "pmid": "42420002",
@@ -487,7 +487,7 @@
       "gene": "IL7R",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "IL7R (CD127) drives T cell survival and homeostatic proliferation, making it a canonical T cell identity marker (PMID:22551764); no clear cross-lineage specificity caveat applies here.",
+      "summary": "IL7R (CD127) drives T cell survival and homeostatic proliferation.",
       "pmid": "24569454",
       "citation": {
         "pmid": "24569454",
@@ -502,7 +502,7 @@
       "gene": "PTPRC",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "**Specificity caveat applies:** PTPRC (CD45) is a pan-leukocyte phosphatase essential for T cell receptor signaling and broadly marks all leukocytes, including macrophages, B cells, and dendritic cells, not T cells alone (PMID:27598832).",
+      "summary": "**Specificity caveat applies:** PTPRC (CD45) is a pan-leukocyte phosphatase essential for T cell receptor signaling and.",
       "pmid": "27598832",
       "citation": {
         "pmid": "27598832",
@@ -517,7 +517,7 @@
       "gene": "TRAC",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "TRAC encodes the TCR-alpha constant chain, essential for surface TCR-alphabeta complex assembly and thus definitive T cell identity (PMID:21206088); no clear cross-lineage specificity caveat applies.",
+      "summary": "TRAC encodes the TCR-alpha constant chain.",
       "pmid": "28225754",
       "citation": {
         "pmid": "28225754",
@@ -532,7 +532,7 @@
       "gene": "CD3E",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "CD3E encodes the epsilon subunit of the TCR-CD3 signaling complex, making it a T cell-specific surface marker essential for antigen recognition and T cell identity (PMID:25320284). No specificity caveat applies; CD3E is not known to clearly mark any other lineage.",
+      "summary": "CD3E encodes the epsilon subunit of the TCR-CD3 signaling complex.",
       "pmid": "40445758",
       "citation": {
         "pmid": "40445758",
@@ -547,7 +547,7 @@
       "gene": "CXCR4",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "CXCR4 is the CXCL12-driven chemokine receptor directing T cell tissue homing and retention (PMID:34648304); note it is also expressed on B cells and macrophages, so it is not T-cell-exclusive.",
+      "summary": "CXCR4 is the CXCL12-driven chemokine receptor directing T cell tissue homing and retention.",
       "pmid": "20042588",
       "citation": {
         "pmid": "20042588",
@@ -562,7 +562,7 @@
       "gene": "CD8A",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "CD8A encodes the MHC class I co-receptor that defines cytotoxic T lymphocytes, confirming c5 as a CD8+ T cell cluster (PMID:31522417). No clear cross-lineage specificity caveat applies; CD8A expression is restricted to cytotoxic T cells and a minor NK subset, not a distinct non-lymphoid lineage.",
+      "summary": "CD8A encodes the MHC class I co-receptor that defines cytotoxic T lymphocytes.",
       "pmid": "37652576",
       "citation": {
         "pmid": "37652576",
@@ -577,7 +577,7 @@
       "gene": "CCL5",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "CCL5 (RANTES) is a T cell-secreted chemokine that recruits and retains effector T cells in the tumor microenvironment, supporting c5's T cell identity (PMID:35917973). No clear cross-lineage specificity caveat applies here, as CCL5's top cluster assignment is exclusively c5.",
+      "summary": "CCL5 (RANTES) is a T cell-secreted chemokine that recruits and retains effector T cells in the.",
       "pmid": "35917973",
       "citation": {
         "pmid": "35917973",
@@ -592,7 +592,7 @@
       "gene": "IL2RG",
       "cluster": "c5",
       "cell_type": "T_Cells",
-      "summary": "IL2RG encodes the common gamma chain shared by IL-2, IL-4, IL-7, IL-15, and IL-21 receptors, making it essential for T cell development and survival (PMID:24771849). **Specificity caveat:** the panel annotates IL2RG to Dendritic cells, and it is broadly expressed across lymphoid and innate immune lineages, so it supports but does not uniquely confirm T cell identity.",
+      "summary": "IL2RG encodes the common gamma chain shared by IL-2, IL-4, IL-7, IL-15, and IL-21 receptors.",
       "pmid": "38658764",
       "citation": {
         "pmid": "38658764",
@@ -609,7 +609,7 @@
       "gene": "MS4A1",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "MS4A1 (CD20) encodes a B-cell-surface calcium channel essential for B cell activation and proliferation, making it the canonical B cell identity marker (PMID:39650658); note that a rare CD20+ T cell subset exists via trogocytosis, so a small T cell specificity caveat applies.",
+      "summary": "MS4A1 (CD20) encodes a B-cell-surface calcium channel essential for B cell activation and proliferation.",
       "pmid": "39650658",
       "citation": {
         "pmid": "39650658",
@@ -624,7 +624,7 @@
       "gene": "BANK1",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "BANK1 is a B-cell-specific scaffold protein that amplifies BCR-induced calcium signaling, making it a reliable B cell identity marker (PMID:11782428).",
+      "summary": "BANK1 is a B-cell-specific scaffold protein that amplifies BCR-induced calcium signaling.",
       "pmid": "11782428",
       "citation": {
         "pmid": "11782428",
@@ -639,7 +639,7 @@
       "gene": "MZB1",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "MZB1 is a B cell-specific ER chaperone that supports antibody secretion and calcium homeostasis, confirming B cell identity (PMID:21093319).",
+      "summary": "MZB1 is a B cell-specific ER chaperone that supports antibody secretion and calcium homeostasis.",
       "pmid": "29382365",
       "citation": {
         "pmid": "29382365",
@@ -654,7 +654,7 @@
       "gene": "CD79A",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "CD79A (Ig-alpha) is essential for B cell receptor surface expression and survival signaling, making it a definitive B cell identity marker with no cross-lineage specificity concern (PMID:36426942).",
+      "summary": "CD79A (Ig-alpha) is essential for B cell receptor surface expression and survival signaling.",
       "pmid": "7542303",
       "citation": {
         "pmid": "7542303",
@@ -669,7 +669,7 @@
       "gene": "CD19",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "CD19 is a pan-B-cell co-receptor that amplifies BCR signaling and defines committed B lymphocyte identity across all maturation stages, with no meaningful cross-lineage expression (PMID:20207528).",
+      "summary": "CD19 is a pan-B-cell co-receptor that amplifies BCR signaling and defines committed B lymphocyte identity across.",
       "pmid": "2224123",
       "citation": {
         "pmid": "2224123",
@@ -684,7 +684,7 @@
       "gene": "TNFRSF17",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "TNFRSF17 (BCMA) is a plasma cell survival receptor, confirming antibody-secreting B lineage identity in this cluster (PMID:35144648); no clear cross-lineage specificity caveat applies.",
+      "summary": "TNFRSF17 (BCMA) is a plasma cell survival receptor, confirming antibody-secreting B lineage identity in this cluster.",
       "pmid": "35144648",
       "citation": {
         "pmid": "35144648",
@@ -699,7 +699,7 @@
       "gene": "CD79B",
       "cluster": "c6",
       "cell_type": "B_Cells",
-      "summary": "CD79B (Igβ) is an obligate B-cell receptor complex component required for surface BCR display and B cell signaling, with no clear cross-lineage expression (PMID:9269755).",
+      "summary": "CD79B (Igβ) is an obligate B-cell receptor complex component required for surface BCR display and B.",
       "pmid": "38203179",
       "citation": {
         "pmid": "38203179",
@@ -716,7 +716,7 @@
       "gene": "AQP1",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "AQP1 is a water-channel protein that marks capillary endothelia across tissues, supporting endothelial identity; note that in advanced carcinomas AQP1 can also appear in neoplastic tumor cells, so co-expression with other endothelial markers is advisable (PMID:15809704).",
+      "summary": "AQP1 is a water-channel protein that marks capillary endothelia across tissues, supporting endothelial identity.",
       "pmid": "15809704",
       "citation": {
         "pmid": "15809704",
@@ -731,7 +731,7 @@
       "gene": "PECAM1",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "PECAM1 (CD31) mediates endothelial cell-cell adhesion at junctions and is a canonical pan-endothelial marker (PMID:17116209); note that platelets and leukocytes also express PECAM1, so strong signal in immune-dense regions warrants cross-cluster review.",
+      "summary": "PECAM1 (CD31) mediates endothelial cell-cell adhesion at junctions and is a canonical pan-endothelial marker.",
       "pmid": "38449858",
       "citation": {
         "pmid": "38449858",
@@ -746,7 +746,7 @@
       "gene": "VWF",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "VWF is a canonical endothelial hemostatic glycoprotein stored in Weibel-Palade bodies, confirming endothelial identity, though its expression is heterogeneous across vessel types and absent in some capillary beds (PMID:16234507).",
+      "summary": "VWF is a canonical endothelial hemostatic glycoprotein stored in Weibel-Palade bodies, confirming endothelial identity.",
       "pmid": "16234507",
       "citation": {
         "pmid": "16234507",
@@ -761,7 +761,7 @@
       "gene": "CD93",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "CD93 is a transmembrane glycoprotein that promotes endothelial cell adhesion and angiogenesis, making it a reliable endothelial identity marker (PMID:31287944).",
+      "summary": "CD93 is a transmembrane glycoprotein that promotes endothelial cell adhesion and angiogenesis.",
       "pmid": "31287944",
       "citation": {
         "pmid": "31287944",
@@ -776,7 +776,7 @@
       "gene": "CAV1",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "CAV1 encodes the structural caveolae scaffold protein that drives endothelial transcytosis and vascular signaling (PMID:15361787); note that CAV1 also marks macrophages and smooth muscle cells, so it is not endothelial-exclusive.",
+      "summary": "CAV1 encodes the structural caveolae scaffold protein that drives endothelial transcytosis and vascular signaling.",
       "pmid": "31217430",
       "citation": {
         "pmid": "31217430",
@@ -791,7 +791,7 @@
       "gene": "CLEC14A",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "CLEC14A is a tumor endothelial C-type lectin that drives pro-angiogenic migration and tube formation, confirming endothelial identity (PMID:21706054); no clear cross-lineage specificity caveat applies.",
+      "summary": "CLEC14A is a tumor endothelial C-type lectin that drives pro-angiogenic migration and tube formation.",
       "pmid": "32696621",
       "citation": {
         "pmid": "32696621",
@@ -806,7 +806,7 @@
       "gene": "RAMP2",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "RAMP2 is the adrenomedullin receptor accessory protein essential for vascular endothelial integrity and homeostasis (PMID:23355623). No clear cross-lineage specificity caveat applies; its top cluster is c7 and `max_gc_corr` equals its own `pearson`, confirming it does not localize better with any other cluster. Note that the panel annotates RAMP2 under \"Adipocytes,\" but jazzPanda's spatial signal assigns it firmly to c7 (Endothelial), consistent with the established literature.",
+      "summary": "RAMP2 is the adrenomedullin receptor accessory protein essential for vascular endothelial integrity and homeostasis.",
       "pmid": "26040754",
       "citation": {
         "pmid": "26040754",
@@ -821,7 +821,7 @@
       "gene": "MMRN2",
       "cluster": "c7",
       "cell_type": "Endothelial",
-      "summary": "MMRN2 is an endothelial-specific extracellular matrix protein that regulates angiogenesis by sequestering VEGFA, confirming endothelial identity (PMID:28435016). Note: the panel annotates MMRN2 under \"Adipocytes,\" so verify no adipocyte signal is present in this dataset.",
+      "summary": "MMRN2 is an endothelial-specific extracellular matrix protein that regulates angiogenesis by sequestering VEGFA, confirming endothelial identity.",
       "pmid": "28435016",
       "citation": {
         "pmid": "28435016",
@@ -838,7 +838,7 @@
       "gene": "TCL1A",
       "cluster": "c8",
       "cell_type": "Dendritic",
-      "summary": "TCL1A is a proto-oncogene and survival factor expressed in plasmacytoid dendritic cells (pDCs), supporting their identity here; however, it is also a canonical B cell marker (panel annotation: B cells), so its specificity for pDC versus B cell lineage requires caution (PMID:12576313).",
+      "summary": "TCL1A is a proto-oncogene and survival factor expressed in plasmacytoid dendritic cells (pDCs).",
       "pmid": "41540405",
       "citation": {
         "pmid": "41540405",
@@ -853,7 +853,7 @@
       "gene": "LILRA4",
       "cluster": "c8",
       "cell_type": "Dendritic",
-      "summary": "LILRA4 (ILT7/CD85g) is a pDC-exclusive inhibitory receptor that suppresses type I interferon production, making it a highly specific plasmacytoid dendritic cell identity marker with no clear cross-lineage caveat (PMID:30395816).",
+      "summary": "LILRA4 (ILT7/CD85g) is a pDC-exclusive inhibitory receptor that suppresses type I interferon production.",
       "pmid": "37435086",
       "citation": {
         "pmid": "37435086",
@@ -868,7 +868,7 @@
       "gene": "SPIB",
       "cluster": "c8",
       "cell_type": "Dendritic",
-      "summary": "SPIB is an ETS-family transcription factor required for plasmacytoid and immature lymphoid DC identity, confirming its role as a DC-lineage specifier (PMID:40885192); note that SPIB also drives B-cell development, so strong B-cell co-markers in c8 would warrant a specificity check.",
+      "summary": "SPIB is an ETS-family transcription factor required for plasmacytoid and immature lymphoid DC identity.",
       "pmid": "40885192",
       "citation": {
         "pmid": "40885192",
@@ -883,7 +883,7 @@
       "gene": "PLD4",
       "cluster": "c8",
       "cell_type": "Dendritic",
-      "summary": "PLD4 is a surface phospholipase expressed on plasmacytoid dendritic cells (pDCs), supporting Dendritic identity; note a specificity caveat as PLD4 also marks B cells under TLR7/9 stimulation (PMID:37840148).",
+      "summary": "PLD4 is a surface phospholipase expressed on plasmacytoid dendritic cells (pDCs), supporting Dendritic identity.",
       "pmid": "37840148",
       "citation": {
         "pmid": "37840148",
@@ -900,7 +900,7 @@
       "gene": "CPA3",
       "cluster": "c9",
       "cell_type": "Mast_Cells",
-      "summary": "CPA3 encodes a mast-cell-specific granule protease that is a canonical identity marker for tissue-resident mast cells across species (PMID:35983043).",
+      "summary": "CPA3 encodes a mast-cell-specific granule protease that is a canonical identity marker for tissue-resident mast cells.",
       "pmid": "35983043",
       "citation": {
         "pmid": "35983043",
@@ -915,7 +915,7 @@
       "gene": "CTSG",
       "cluster": "c9",
       "cell_type": "Mast_Cells",
-      "summary": "CTSG encodes a granule serine protease that marks the MCTC subset of human mast cells; note that neutrophils also express CTSG, so stromal or myeloid contamination could confound the signal (PMID:7721078).",
+      "summary": "CTSG encodes a granule serine protease that marks the MCTC subset of human mast cells.",
       "pmid": "8999871",
       "citation": {
         "pmid": "8999871",

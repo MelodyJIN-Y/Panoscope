@@ -20,6 +20,7 @@ Run (needs the PubMed MCP + the API key, like the app):
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -34,28 +35,38 @@ from agent.config import CLUSTER_ORDER  # noqa: E402
 from agent.types import ClusterVerdict  # noqa: E402
 
 _OUT = _ROOT / "data" / "gene_notes" / "notes.json"
-_MAX_GENES_PER_CLUSTER = 8  # cover the markers the evidence table shows per cluster
+_MAX_WORDS = 16  # hard cap on the summary length (crisp, one clause)
 
 
-def _shown_genes(verdict: ClusterVerdict) -> list[str]:
-    """The marker genes the evidence table shows for a cluster: every canonical
-    marker plus the strongest non-canonical supporters up to the cap (mirrors
-    ui.evidence_table._rows_to_show), in the verdict's glm_coef order."""
-    canonical = [e for e in verdict.evidence if e.is_canonical]
-    non_canon = [e for e in verdict.evidence if not e.is_canonical]
-    budget = max(0, _MAX_GENES_PER_CLUSTER - len(canonical))
-    kept = {id(e) for e in canonical} | {id(e) for e in non_canon[:budget]}
-    return [e.gene for e in verdict.evidence if id(e) in kept]
+def _marker_genes(verdict: ClusterVerdict) -> list[str]:
+    """EVERY assigned marker gene for a cluster, so the evidence table's biology
+    column is populated for the whole 'show all' list, not just the top rows."""
+    return [e.gene for e in verdict.evidence]
 
 
 def _strip_dashes(text: str) -> str:
-    """Never ship an em dash (project style): replace with a comma or a colon."""
-    return (
-        text.replace(" — ", ", ")
-        .replace(" – ", ", ")
-        .replace("—", ", ")
-        .replace("–", ", ")
-    )
+    """Never ship an em dash (project style): replace with a comma."""
+    return text.replace(" — ", ", ").replace(" – ", ", ").replace("—", ", ").replace("–", ", ")
+
+
+_INLINE_PMID = re.compile(r"\s*[\(\[]?\s*PMID[:\s]*\d+\s*[\)\]]?", re.IGNORECASE)
+
+
+def _shorten(text: str, max_words: int = _MAX_WORDS) -> str:
+    """Crisp one-clause summary: drop any inline PMID (the citation is shown
+    separately), drop em dashes, keep the first sentence, cap at ``max_words``."""
+    t = _INLINE_PMID.sub("", _strip_dashes(text.strip())).strip()
+    m = re.search(r"[.;]\s", t)
+    if m and m.start() < 220:
+        t = t[: m.start()]
+    words = t.split()
+    if len(words) > max_words:
+        capped = " ".join(words[:max_words])
+        # Back off to the last clause boundary so we never cut mid-phrase.
+        ci = capped.rfind(",")
+        t = capped[:ci] if ci > 20 else capped
+    t = t.strip().rstrip(",;:. ")
+    return (t + ".") if t else t
 
 
 def _load() -> dict:
@@ -75,12 +86,10 @@ def _save(notes: dict) -> None:
 def _query(gene: str, cell_type: str, cluster: str) -> str:
     ct = cell_type.replace("_", " ")
     return (
-        f"In ONE short sentence (max 18 words), state {gene}'s core biological role "
-        f"and its relevance to {ct} identity; flag a specificity caveat only if "
-        f"{gene} also clearly marks another lineage. Do NOT mention any numeric "
-        f"statistics (glm_coef, pearson, correlations) since those are shown "
-        f"separately. Do NOT use em dashes. Cite exactly one real PubMed paper. "
-        f"Plain prose, no preamble."
+        f"In 12 words or fewer, state {gene}'s core biological role and its "
+        f"relevance to {ct} identity. Do NOT mention any statistics, no PMID in "
+        f"the sentence, no em dashes, no preamble, just the clause. Then cite "
+        f"exactly one real PubMed paper."
     )
 
 
@@ -90,7 +99,7 @@ def _note_from_response(gene: str, cluster: str, cell_type: str, resp) -> dict:
         "gene": gene,
         "cluster": cluster,
         "cell_type": cell_type,
-        "summary": _strip_dashes(resp.text.strip()),
+        "summary": _shorten(resp.text),
         "pmid": cite.pmid if cite else None,
         "citation": (
             {
@@ -114,7 +123,7 @@ def main() -> None:
     for cluster in CLUSTER_ORDER:
         verdict = agent_verdict.verdict_for_cluster(cluster)
         cell_type = verdict.cell_type
-        genes = _shown_genes(verdict)
+        genes = _marker_genes(verdict)
         notes.setdefault(cluster, {})
         for gene in genes:
             total += 1
