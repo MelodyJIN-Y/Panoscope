@@ -139,6 +139,9 @@ _CONVO_CSS = """
 .st-key-conv_ask [data-testid="stFormSubmitButton"] button {
   min-height: 42px !important; border-radius: 10px !important; font-weight: 600 !important;
 }
+/* Hide Streamlit's "Press Enter to submit form" hint under the input. */
+.st-key-conv_ask [data-testid="InputInstructions"],
+.st-key-conv_ask [data-testid="stTextInputInstructions"] { display: none !important; }
 /* Confirm-to-save card: an accent-tinted panel between thread and ask box. */
 .st-key-conv_draft {
   border: 1px solid var(--accent); border-radius: 12px;
