@@ -28,14 +28,27 @@ from agent import config as cfg
 # --------------------------------------------------------------------------- #
 # Tidy file locations (all under data/)
 # --------------------------------------------------------------------------- #
-_MARKERS_TOP = cfg.DATA_DIR_PATH / "jazzpanda" / "markers_top.csv"
-_PANEL_PARQUET = cfg.DATA_DIR_PATH / "panels" / "panel.parquet"
-_CLUSTER_KEY_JSON = cfg.DATA_DIR_PATH / "cluster_key.json"
-_CELLS_PARQUET = cfg.DATA_DIR_PATH / "cells" / "cells.parquet"
-_CELLS_CSV = cfg.DATA_DIR_PATH / "cells" / "cells.csv"
-_UMAP_PARQUET = cfg.DATA_DIR_PATH / "embeddings" / "umap.parquet"
-_UMAP_CSV = cfg.DATA_DIR_PATH / "embeddings" / "umap.csv"
-_DENSITY_DIR = cfg.DATA_DIR_PATH / "density"
+# Per-dataset pipeline tree (data/datasets/<id>/). Each artifact is resolved
+# tree-first with a fall back to the legacy flat path, so the app reads the
+# pipeline output where it exists and keeps working mid-migration. Resolved at
+# import: the tree either exists (pipeline has run) or it does not.
+_DATASET_DIR = cfg.DATA_DIR_PATH / "datasets" / cfg.DATASET_ID
+
+
+def _resolved(tree_rel: str, legacy):
+    """Return the per-dataset tree path if present, else the legacy flat path."""
+    cand = _DATASET_DIR / tree_rel
+    return cand if cand.exists() else legacy
+
+
+_MARKERS_TOP = _resolved("inputs/markers_top.csv", cfg.DATA_DIR_PATH / "jazzpanda" / "markers_top.csv")
+_PANEL_PARQUET = _resolved("inputs/panel.parquet", cfg.DATA_DIR_PATH / "panels" / "panel.parquet")
+_CLUSTER_KEY_JSON = _resolved("inputs/cluster_key.json", cfg.DATA_DIR_PATH / "cluster_key.json")
+_CELLS_PARQUET = _resolved("viz/cells.parquet", cfg.DATA_DIR_PATH / "cells" / "cells.parquet")
+_CELLS_CSV = _resolved("viz/cells.csv", cfg.DATA_DIR_PATH / "cells" / "cells.csv")
+_UMAP_PARQUET = _resolved("viz/umap.parquet", cfg.DATA_DIR_PATH / "embeddings" / "umap.parquet")
+_UMAP_CSV = _resolved("viz/umap.csv", cfg.DATA_DIR_PATH / "embeddings" / "umap.csv")
+_DENSITY_DIR = _resolved("viz/hexbin", cfg.DATA_DIR_PATH / "density")
 
 _MARKERS_TOP_COLS = [
     "gene",

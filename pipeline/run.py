@@ -23,6 +23,7 @@ from pipeline import manifest as manifest_mod
 from pipeline import paths
 from pipeline.stages.validate import validate
 from pipeline.stages.verdicts import run_verdicts
+from pipeline.stages.viz import collect_viz
 
 # Legacy raw-input sources copied into <id>/inputs/ for provenance. (In a later
 # slice tissue/platform become per-dataset metadata inputs rather than constants.)
@@ -73,6 +74,7 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
 
     validate(dataset_id)
     inputs = _copy_inputs(dataset_id, root)
+    vdir = collect_viz(dataset_id, root)  # ensure viz frames live in the tree
     verdicts = run_verdicts(dataset_id, root)
 
     # Hash every derived artifact for the manifest.
@@ -85,6 +87,14 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
         "sha256": manifest_mod.sha256_file(csvp),
         "rows": len(verdicts),
     }
+    # Small viz frames are hashed; the 840 hexbin frames are recorded by count.
+    for name in ("cells.parquet", "cells.csv", "umap.parquet", "umap.csv", "expr.parquet"):
+        f = vdir / name
+        if f.exists():
+            artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
+    hexdir = vdir / "hexbin"
+    if hexdir.exists():
+        artifacts["viz/hexbin/"] = {"n_frames": len(list(hexdir.glob("*.parquet")))}
 
     try:
         panel_n = int(len(data.load_panel()))
@@ -98,8 +108,10 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
     views = {
         "cell_map": _ok(data.load_cells),
         "umap": _ok(data.load_umap),
-        "density": (cfg.DATA_DIR_PATH / "density").exists(),
-        "expr": (cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet").exists(),
+        "density": (hexdir.exists() and any(hexdir.glob("*.parquet")))
+        or (cfg.DATA_DIR_PATH / "density").exists(),
+        "expr": (vdir / "expr.parquet").exists()
+        or (cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet").exists(),
     }
 
     man = manifest_mod.build_manifest(

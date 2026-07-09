@@ -31,13 +31,27 @@ from agent.config import CLUSTER_ORDER, DEMO_MARKERS
 from agent.types import ClusterVerdict, Note
 
 # --------------------------------------------------------------------------- #
-# File paths this module reads directly (marker_expr only; everything else goes
-# through agent.data). Field layout, per data check:
-#   marker_expr.csv : cell_id (int) + one float column per demo marker
+# File paths this module reads directly (marker_expr + density index; everything
+# else goes through agent.data). Both resolve to the per-dataset pipeline tree
+# (data/datasets/<id>/viz/) when present, falling back to the legacy flat path.
+#   expr.parquet : cell_id (int) + one float column per panel marker
 # --------------------------------------------------------------------------- #
-_MARKER_EXPR_PARQUET = cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet"
+_DATASET_DIR = cfg.DATA_DIR_PATH / "datasets" / cfg.DATASET_ID
+
+
+def _resolved(tree_rel: str, legacy):
+    """Return the per-dataset tree path if present, else the legacy flat path."""
+    cand = _DATASET_DIR / tree_rel
+    return cand if cand.exists() else legacy
+
+
+_MARKER_EXPR_PARQUET = _resolved(
+    "viz/expr.parquet", cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet"
+)
 _MARKER_EXPR_CSV = cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.csv"
-_DENSITY_INDEX = cfg.DATA_DIR_PATH / "density" / "_index.json"
+_DENSITY_INDEX = _resolved(
+    "viz/hexbin/_index.json", cfg.DATA_DIR_PATH / "density" / "_index.json"
+)
 
 
 # --------------------------------------------------------------------------- #

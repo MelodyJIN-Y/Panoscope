@@ -1,6 +1,6 @@
 {
   "dataset_id": "xenium_hbreast_sample1",
-  "generated_at": "2026-07-09T13:41:31Z",
+  "generated_at": "2026-07-09T15:18:18Z",
   "pipeline_version": "0.1.0",
   "tissue": "human breast",
   "platform": "Xenium",
@@ -68,6 +68,18 @@
     "interp/verdicts.csv": {
       "sha256": "054bd6c6c8b5f5e1b25da9dab04b8236a8bd33224354e472c4b6d38534fc32f3",
       "rows": 9
+    },
+    "viz/cells.csv": {
+      "sha256": "219a45887d37230eedd7f56c731293646fb6508c36afade78f8140131d2e5092"
+    },
+    "viz/umap.csv": {
+      "sha256": "9d80ce3eacdd0e4e57025617975687fab6774edf743981ba2bc41d1e9930d550"
+    },
+    "viz/expr.parquet": {
+      "sha256": "c31d03f5fb51c40a5a6f2c84617f9174859b63757bd1f55000e48dddf012067f"
+    },
+    "viz/hexbin/": {
+      "n_frames": 840
     }
   }
 }
