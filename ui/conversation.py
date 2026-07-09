@@ -32,7 +32,7 @@ import html
 import re
 from typing import Any, Optional
 
-from agent.types import AgentResponse, Citation, Source
+from agent.types import AgentResponse, Source
 
 from ui import data_access as dax
 from ui import state
@@ -80,9 +80,6 @@ _BASIS_SAVED_LABEL: dict[str, str] = {
     "convention": "convention",
 }
 
-# Fixed-height scroll area for the thread; the ask box sits pinned just below it.
-_THREAD_HEIGHT = 440
-
 # Matches PMID:12345678 (case-insensitive, optional space) so citations in the
 # agent's prose become clickable. Group 1 is the numeric id.
 _PMID_RE = re.compile(r"PMID:\s*(\d+)", re.IGNORECASE)
@@ -115,8 +112,9 @@ _CONVO_CSS = """
   color: var(--absent) !important; border-color: var(--absent) !important;
   background: var(--absent-bg) !important;
 }
-/* Thread scroll area: no box, a little breathing room for the scrollbar. */
-.st-key-conv_thread { padding-right: 8px; }
+/* Thread: grows to fit its content and only scrolls once it gets tall, so a
+   short thread leaves NO dead space above the ask box. */
+.st-key-conv_thread { max-height: 496px; overflow-y: auto; padding-right: 8px; }
 /* Turn wrappers: agent to the left, you to the right — reads as a chat. */
 .turn { display: flex; flex-direction: column; margin: 0 0 13px; }
 .turn.a { align-items: flex-start; }
@@ -124,19 +122,22 @@ _CONVO_CSS = """
 .turn.u .bubble.u { max-width: 88%; }
 .turn.a .bubble.a { max-width: 97%; }
 .turn.sys .bubble.sys { width: 100%; }
-/* Compact, ghosted citation buttons under an agent turn. */
-.st-key-conv_thread div[data-testid="stButton"] button {
-  min-height: 0 !important; padding: 3px 9px !important; border-radius: 7px !important;
-  font-family: var(--mono) !important; font-size: 10px !important;
-  background: var(--paper) !important; border: 1px solid var(--hair) !important;
-  color: var(--accent) !important; box-shadow: none !important; font-weight: 500 !important;
+/* Inline citation: a real clickable PubMed link in the prose (no separate box). */
+.bubble a.pcite { text-decoration: none; }
+.bubble a.pcite:hover { border-bottom-style: solid; }
+/* Ask row: a clean rounded input with a compact send button beside it. */
+.st-key-conv_ask { border-top: 1px solid var(--hair); padding-top: 11px; margin-top: 2px; }
+.st-key-conv_ask [data-testid="stTextInput"] input {
+  border-radius: 10px !important; border: 1px solid var(--hair) !important;
+  background: var(--paper) !important; padding: 11px 13px !important;
+  font-size: 13px !important; color: var(--ink) !important;
 }
-.st-key-conv_thread div[data-testid="stButton"] button:hover {
-  border-color: var(--accent) !important; background: var(--accent-soft) !important;
+.st-key-conv_ask [data-testid="stTextInput"] input::placeholder { color: var(--faint) !important; }
+.st-key-conv_ask [data-testid="stTextInput"] input:focus {
+  border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-soft) !important;
 }
-/* Ask row: input + a compact send, aligned at the bottom. */
 .st-key-conv_ask [data-testid="stFormSubmitButton"] button {
-  min-height: 38px !important; border-radius: 9px !important;
+  min-height: 42px !important; border-radius: 10px !important; font-weight: 600 !important;
 }
 /* Confirm-to-save card: an accent-tinted panel between thread and ask box. */
 .st-key-conv_draft {
@@ -180,7 +181,7 @@ def render_conversation(cluster: str) -> None:
     _ensure_opening(cluster)
     _render_header(cluster)
 
-    with st.container(height=_THREAD_HEIGHT, border=False, key="conv_thread"):
+    with st.container(key="conv_thread"):
         _render_thread(cluster)
 
     _render_draft_card(cluster)
@@ -261,14 +262,14 @@ def _render_thread(cluster: str) -> None:
         )
         return
 
-    for idx, msg in enumerate(thread):
+    for msg in thread:
         role = msg.get("role", _ROLE_AGENT)
         if role == _ROLE_USER:
             _render_user_bubble(msg.get("text", ""))
         elif role == _ROLE_SYSTEM:
             _render_system_bubble(msg.get("text", ""))
         else:
-            _render_agent_bubble(msg, idx)
+            _render_agent_bubble(msg)
 
 
 def _render_user_bubble(text: str) -> None:
@@ -290,19 +291,19 @@ def _render_system_bubble(text: str) -> None:
     )
 
 
-def _render_agent_bubble(msg: dict, idx: int) -> None:
-    """Render one agent turn: prose (inline citations) + verify + sources line.
+def _render_agent_bubble(msg: dict) -> None:
+    """Render one agent turn: prose (inline clickable PMIDs) + verify + sources.
 
-    Inline ``PMID:xxx`` mentions get a dotted underline (they show WHERE the
-    citation is); the actual affordance is the compact button row below, which
-    opens the paper drawer (Streamlit can't bind a callback inside markdown HTML).
+    ``PMID:xxx`` mentions in the prose ARE the citation affordance now — each is a
+    real link straight to PubMed, so there is no separate citation box below the
+    bubble.
     """
     import streamlit as st
 
     resp: Optional[AgentResponse] = msg.get("resp")
     text = msg.get("text", "")
 
-    prose_html, cited_pmids = _linkify_citations(text)
+    prose_html = _linkify_citations(text)
     sources_html = _sources_line_html(resp.sources if resp else ())
     verify_html = _verify_line_html(resp)
     st.markdown(
@@ -310,8 +311,6 @@ def _render_agent_bubble(msg: dict, idx: int) -> None:
         f'<div class="bubble a">{prose_html}{verify_html}{sources_html}</div></div>',
         unsafe_allow_html=True,
     )
-    citations = list(resp.citations) if resp else []
-    _render_citation_buttons(citations, cited_pmids, idx)
 
 
 def _verify_line_html(resp: Optional[AgentResponse]) -> str:
@@ -345,77 +344,24 @@ def _sources_line_html(sources: tuple[Source, ...]) -> str:
 # --------------------------------------------------------------------------- #
 # Inline citation linkification
 # --------------------------------------------------------------------------- #
-def _linkify_citations(text: str) -> tuple[str, list[str]]:
-    """Escape prose and turn ``PMID:xxx`` mentions into dotted-underline spans.
+def _linkify_citations(text: str) -> str:
+    """Escape prose and turn ``PMID:xxx`` mentions into real PubMed links.
 
-    Returns ``(html, pmids)`` where ``pmids`` is the ordered, de-duplicated list
-    of PMIDs found — the caller renders a clickable button per PMID.
+    Each PMID becomes a clickable anchor to pubmed.ncbi.nlm.nih.gov (new tab) —
+    the citation is one click away inline, so no separate citation box is needed.
     """
-    pmids: list[str] = []
     parts: list[str] = []
     last = 0
     for m in _PMID_RE.finditer(text):
         parts.append(html.escape(text[last : m.start()]))
-        pmid = m.group(1)
-        if pmid not in pmids:
-            pmids.append(pmid)
-        parts.append(f'<span class="pcite">\U0001f4c4 PMID:{html.escape(pmid)}</span>')
+        pmid = html.escape(m.group(1))
+        parts.append(
+            f'<a class="pcite" href="https://pubmed.ncbi.nlm.nih.gov/{pmid}/" '
+            f'target="_blank">\U0001f4c4 PMID:{pmid}</a>'
+        )
         last = m.end()
     parts.append(html.escape(text[last:]))
-    return "".join(parts), pmids
-
-
-def _render_citation_buttons(
-    citations: list[Citation], cited_pmids: list[str], idx: int
-) -> None:
-    """One compact button per citation that opens the paper drawer.
-
-    Prefers the ``Citation`` objects (they carry title/authors); falls back to a
-    bare button for any prose-only PMID so no cited paper is unreachable.
-    """
-    import streamlit as st
-
-    by_pmid = {str(c.pmid): c for c in citations}
-    ordered: list[str] = [str(c.pmid) for c in citations]
-    for p in cited_pmids:
-        if p not in ordered:
-            ordered.append(p)
-    if not ordered:
-        return
-
-    cols = st.columns(min(len(ordered), 3))
-    for i, pmid in enumerate(ordered):
-        cite = by_pmid.get(pmid)
-        label = _citation_button_label(pmid, cite)
-        with cols[i % len(cols)]:
-            if st.button(
-                label,
-                key=f"cite_{idx}_{i}_{pmid}",
-                use_container_width=True,
-                help="Open the paper in the citation drawer",
-            ):
-                state.open_paper(pmid)
-                _rerun(st)
-
-
-def _citation_button_label(pmid: str, cite: Optional[Citation]) -> str:
-    """Short button label like ``[doc] Rivera 2022`` or ``[doc] PMID:123``."""
-    if cite is not None:
-        first = _first_author(cite.authors)
-        year = f" {cite.year}" if cite.year else ""
-        if first:
-            return f"\U0001f4c4 {first}{year}"
-    return f"\U0001f4c4 PMID:{pmid}"
-
-
-def _first_author(authors: str) -> str:
-    """Return the first author's surname-ish token from an authors string."""
-    a = (authors or "").strip()
-    if not a:
-        return ""
-    first = a.split(",")[0].split(";")[0].strip()
-    token = first.split(" ")[0].strip()
-    return token or first
+    return "".join(parts)
 
 
 # --------------------------------------------------------------------------- #
@@ -437,7 +383,7 @@ def _render_ask_box(cluster: str) -> None:
                 query = st.text_input(
                     "Ask",
                     key=_K_ASK,
-                    placeholder="Ask, or override the call (e.g. 'this is CAF, our own data')…",
+                    placeholder="Ask or override this call…",
                     label_visibility="collapsed",
                 )
             with c_send:
