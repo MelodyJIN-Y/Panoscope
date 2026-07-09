@@ -218,7 +218,7 @@ def _verify_line_html(resp: Optional[AgentResponse]) -> str:
         return ""
     return (
         '<div class="tension" style="border-left-color:var(--absent)">'
-        "&#9873; re-check this &mdash; evidence is thin; confirm before relying on it."
+        "&#9873; re-check this: evidence is thin; confirm before relying on it."
         "</div>"
     )
 
@@ -398,7 +398,7 @@ def _render_capture(cluster: str) -> None:
 
     st.markdown(
         '<div class="bubble sys" style="background:#FCF7EC;color:#7a5b1e">'
-        "Your call is kept and cross-checked &mdash; agreement and dissent stay visible."
+        "Your call is kept and cross-checked: agreement and dissent stay visible."
         "</div>",
         unsafe_allow_html=True,
     )
@@ -494,7 +494,7 @@ def _save_note(cluster: str, claim: str, basis: str, status: str) -> None:
 
     text = (claim or "").strip()
     if not text:
-        _toast(st, "Write the note first — nothing to save.")
+        _toast(st, "Write the note first: nothing to save.")
         return
 
     scope = state.get_scope()

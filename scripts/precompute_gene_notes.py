@@ -31,9 +31,31 @@ if str(_ROOT) not in sys.path:
 from agent import loop as agent_loop  # noqa: E402
 from agent import verdict as agent_verdict  # noqa: E402
 from agent.config import CLUSTER_ORDER  # noqa: E402
+from agent.types import ClusterVerdict  # noqa: E402
 
 _OUT = _ROOT / "data" / "gene_notes" / "notes.json"
-_GENES_PER_CLUSTER = 5  # the key drivers per cluster (verdict.key_markers)
+_MAX_GENES_PER_CLUSTER = 8  # cover the markers the evidence table shows per cluster
+
+
+def _shown_genes(verdict: ClusterVerdict) -> list[str]:
+    """The marker genes the evidence table shows for a cluster: every canonical
+    marker plus the strongest non-canonical supporters up to the cap (mirrors
+    ui.evidence_table._rows_to_show), in the verdict's glm_coef order."""
+    canonical = [e for e in verdict.evidence if e.is_canonical]
+    non_canon = [e for e in verdict.evidence if not e.is_canonical]
+    budget = max(0, _MAX_GENES_PER_CLUSTER - len(canonical))
+    kept = {id(e) for e in canonical} | {id(e) for e in non_canon[:budget]}
+    return [e.gene for e in verdict.evidence if id(e) in kept]
+
+
+def _strip_dashes(text: str) -> str:
+    """Never ship an em dash (project style): replace with a comma or a colon."""
+    return (
+        text.replace(" — ", ", ")
+        .replace(" – ", ", ")
+        .replace("—", ", ")
+        .replace("–", ", ")
+    )
 
 
 def _load() -> dict:
@@ -53,11 +75,12 @@ def _save(notes: dict) -> None:
 def _query(gene: str, cell_type: str, cluster: str) -> str:
     ct = cell_type.replace("_", " ")
     return (
-        f"In ONE sentence (max 28 words), give a grounded note on {gene} for "
-        f"cluster {cluster} ({ct}): its general biological role and why it is (or "
-        f"is not cleanly) relevant to {ct} identity, and flag any specificity "
-        f"caveat if {gene} also marks another lineage. Cite exactly one real "
-        f"PubMed paper. Plain prose, no preamble."
+        f"In ONE short sentence (max 18 words), state {gene}'s core biological role "
+        f"and its relevance to {ct} identity; flag a specificity caveat only if "
+        f"{gene} also clearly marks another lineage. Do NOT mention any numeric "
+        f"statistics (glm_coef, pearson, correlations) since those are shown "
+        f"separately. Do NOT use em dashes. Cite exactly one real PubMed paper. "
+        f"Plain prose, no preamble."
     )
 
 
@@ -67,7 +90,7 @@ def _note_from_response(gene: str, cluster: str, cell_type: str, resp) -> dict:
         "gene": gene,
         "cluster": cluster,
         "cell_type": cell_type,
-        "summary": resp.text.strip(),
+        "summary": _strip_dashes(resp.text.strip()),
         "pmid": cite.pmid if cite else None,
         "citation": (
             {
@@ -91,7 +114,7 @@ def main() -> None:
     for cluster in CLUSTER_ORDER:
         verdict = agent_verdict.verdict_for_cluster(cluster)
         cell_type = verdict.cell_type
-        genes = list(verdict.key_markers[:_GENES_PER_CLUSTER])
+        genes = _shown_genes(verdict)
         notes.setdefault(cluster, {})
         for gene in genes:
             total += 1

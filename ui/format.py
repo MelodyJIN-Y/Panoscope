@@ -148,13 +148,13 @@ def num_fmt(value: Optional[float], digits: int = 2) -> str:
     it shows exactly ``digits`` places of the stored value.
     """
     if value is None:
-        return "—"  # em dash
+        return "n/a"  # no value
     try:
         f = float(value)
     except (TypeError, ValueError):
-        return "—"
+        return "n/a"
     if f != f:  # NaN
-        return "—"
+        return "n/a"
     return f"{f:.{digits}f}"
 
 
@@ -166,13 +166,13 @@ def pct_fmt(value: Optional[float]) -> str:
     as a smaller top-percent.
     """
     if value is None:
-        return "—"
+        return "n/a"
     try:
         f = float(value)
     except (TypeError, ValueError):
-        return "—"
+        return "n/a"
     if f != f:
-        return "—"
+        return "n/a"
     top = max(0.0, min(1.0, 1.0 - f))
     return f"top {top * 100:.0f}%"
 

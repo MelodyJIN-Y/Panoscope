@@ -183,11 +183,11 @@ def _render_refinement(ref: Refinement) -> None:
     <span class="from">{_esc(ref.from_call)}</span>
     <span class="arr">&rarr;</span>
     <span class="to">{_esc(ref.to_call)}</span>
-    <span class="hol-tag">subtype — you decide</span>
+    <span class="hol-tag">subtype: you decide</span>
   </div>
   <div class="hol-ev"><span class="lbl">driving markers:</span> {markers}</div>
   <div class="hol-rat">{_esc(ref.rationale)}. This is a subtype sharpening within
-    the same immune/dendritic lineage — the jazzPanda numbers do not change.</div>
+    the same immune/dendritic lineage; the jazzPanda numbers do not change.</div>
 </div>""",
         unsafe_allow_html=True,
     )
@@ -197,7 +197,7 @@ def _render_refinement(ref: Refinement) -> None:
     if cite is not None and cite.pmid:
         paper_drawer.register_citations([cite])
         st.markdown(
-            '<div class="hol-lit"><span class="q">literature direction — '
+            '<div class="hol-lit"><span class="q">literature direction, '
             f"live: {_esc(ref.lit_query)}</span></div>",
             unsafe_allow_html=True,
         )

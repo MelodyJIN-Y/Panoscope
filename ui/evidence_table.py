@@ -75,7 +75,7 @@ def _bio_html(cluster: str, gene: str) -> str:
     """
     note = data_access.gene_note(cluster, gene)
     if not note or not note.get("summary"):
-        return '<div class="pano-ev-bio empty">&mdash;</div>'
+        return '<div class="pano-ev-bio empty"></div>'
 
     summary = html.escape(str(note["summary"]))
     pmid = note.get("pmid")

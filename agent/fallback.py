@@ -5,7 +5,7 @@ Every response here is a pure function of :mod:`agent.verdict` (which is itself 
 pure function of the precomputed jazzPanda output and the panel list). Nothing is
 invented: each number traces to a jazzPanda column, each off-panel line traces to
 the panel-absence primitive, and no live citation is asserted (the fallback path
-never has a network, so it states no PMID/DOI — it says the literature would be
+never has a network, so it states no PMID/DOI, it says the literature would be
 fetched live, and stays purely jazzPanda-grounded).
 
 Because every response is built from the verdict, every response carries the same
@@ -15,10 +15,10 @@ needed (no identifiers to resolve).
 
 Public API
 ----------
-- :func:`fallback_opening` — the pre-baked opening interpretation for a cluster.
-- :func:`fallback_answer` — a canned answer for a recognized demo-beat question,
+- :func:`fallback_opening`, the pre-baked opening interpretation for a cluster.
+- :func:`fallback_answer`, a canned answer for a recognized demo-beat question,
   or ``None`` when nothing matches (the caller then uses the generic fallback).
-- :func:`generic_fallback` — the last-resort grounded template for any cluster.
+- :func:`generic_fallback`, the last-resort grounded template for any cluster.
 
 Design rules honoured
 ---------------------
@@ -95,7 +95,7 @@ def _sidecar(
     """Machine-readable manifest of exactly the numbers/markers a response used.
 
     Off-panel genes are listed as markers-mentioned (so the checker recognises the
-    token) but contribute NO number — their absence is not a statistic. No PMIDs
+    token) but contribute NO number, their absence is not a statistic. No PMIDs
     and no notes are used on the fallback path.
     """
     numbers: list[tuple[str, str, float]] = []
@@ -147,7 +147,7 @@ def fallback_opening(cluster: str) -> AgentResponse:
     Built from :func:`agent.verdict.opening_interpretation` +
     :func:`agent.verdict.verdict_for_cluster`. States the cell-type call, the
     confidence band, the driving canonical markers with their real glm_coef /
-    pearson, and — where present — the panel-absence context (c2 Stromal). Cites no
+    pearson, and, where present, the panel-absence context (c2 Stromal). Cites no
     live literature (the fallback path has no network); the live loop fills PMIDs.
 
     KeyError if ``cluster`` is unknown (propagated from the verdict engine).
@@ -158,17 +158,17 @@ def fallback_opening(cluster: str) -> AgentResponse:
 
     if drivers:
         lead = (
-            f"{op.cluster} reads as {op.cell_type} — {op.confidence} confidence, "
+            f"{op.cluster} reads as {op.cell_type}, {op.confidence} confidence, "
             f"driven by {_driver_phrase(drivers)}."
         )
     else:
         lead = (
-            f"{op.cluster} reads as {op.cell_type} — {op.confidence} confidence; "
+            f"{op.cluster} reads as {op.cell_type}, {op.confidence} confidence; "
             f"no canonical marker drives the call, so re-check this."
         )
 
     verify_line = (
-        " verify=TRUE — the signal is thin, re-check this call."
+        " verify=TRUE, the signal is thin, re-check this call."
         if op.verify
         else ""
     )
@@ -197,7 +197,7 @@ def fallback_opening(cluster: str) -> AgentResponse:
 # Canned demo-beat Q&A (answered from verdict/data only)
 # --------------------------------------------------------------------------- #
 def _defines_answer(v: ClusterVerdict) -> AgentResponse:
-    """'What defines this cluster' — the driving markers and their numbers."""
+    """'What defines this cluster', the driving markers and their numbers."""
     drivers = v.opening.driving_markers
     notes = v.offpanel_notes
     if drivers:
@@ -208,11 +208,11 @@ def _defines_answer(v: ClusterVerdict) -> AgentResponse:
     else:
         body = (
             f"{v.cluster} is called {v.cell_type} ({v.confidence} confidence), but "
-            f"no canonical marker defines it here — re-check this."
+            f"no canonical marker defines it here, re-check this."
         )
     body += _offpanel_line(notes, v.cell_type)
     if v.verify:
-        body += " verify=TRUE — re-check this call."
+        body += " verify=TRUE, re-check this call."
     return AgentResponse(
         text=body,
         sources=_marker_sources(drivers) + _offpanel_sources(notes),
@@ -224,7 +224,7 @@ def _defines_answer(v: ClusterVerdict) -> AgentResponse:
 
 
 def _doublet_answer(v: ClusterVerdict) -> AgentResponse:
-    """'Could this be a doublet' — answered honestly from spatial specificity.
+    """'Could this be a doublet', answered honestly from spatial specificity.
 
     Grounded in the driver's pearson (spatial specificity) only; no invented
     doublet score. High driver pearson argues the signal is spatially coherent
@@ -234,7 +234,7 @@ def _doublet_answer(v: ClusterVerdict) -> AgentResponse:
     if not drivers:
         body = (
             f"{v.cluster} has no canonical driver, so a doublet cannot be ruled in "
-            f"or out from the markers alone — re-check this."
+            f"or out from the markers alone, re-check this."
         )
         return AgentResponse(
             text=body,
@@ -257,7 +257,7 @@ def _doublet_answer(v: ClusterVerdict) -> AgentResponse:
             f"Cannot rule out a doublet from the markers alone: {d.gene} "
             f"(glm_coef {_FMT.format(d.glm_coef)}, pearson {_FMT.format(d.pearson)}) "
             f"is the driver, but the spatial signal is not strong enough to be sure. "
-            f"verify=TRUE — re-check this."
+            f"verify=TRUE, re-check this."
         )
     return AgentResponse(
         text=body,
@@ -270,7 +270,7 @@ def _doublet_answer(v: ClusterVerdict) -> AgentResponse:
 
 
 def _confidence_answer(v: ClusterVerdict) -> AgentResponse:
-    """'How confident / why this confidence' — the band and what drives it."""
+    """'How confident / why this confidence', the band and what drives it."""
     drivers = v.opening.driving_markers
     if drivers:
         d = drivers[0]
@@ -281,13 +281,13 @@ def _confidence_answer(v: ClusterVerdict) -> AgentResponse:
         )
     else:
         body = (
-            f"{v.cluster} {v.cell_type}: {v.confidence} confidence — no canonical "
+            f"{v.cluster} {v.cell_type}: {v.confidence} confidence, no canonical "
             f"marker drives it, so re-check this."
         )
     if v.small_n:
         body += " This is a fragile cluster (<=2 assigned markers)."
     if v.verify:
-        body += " verify=TRUE — re-check this call."
+        body += " verify=TRUE, re-check this call."
     return AgentResponse(
         text=body,
         sources=_marker_sources(drivers),
@@ -299,7 +299,7 @@ def _confidence_answer(v: ClusterVerdict) -> AgentResponse:
 
 
 def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
-    """'What about <missing canonical>' — the panel-absence explanation.
+    """'What about <missing canonical>', the panel-absence explanation.
 
     Only meaningful where the cluster carries off-panel canonical markers (c2). For
     a cluster with no off-panel notes, returns None (caller uses generic fallback).
@@ -311,7 +311,7 @@ def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
     drivers = v.opening.driving_markers
     body = (
         f"{genes} are canonical {v.cell_type.replace('_', ' ')} markers that are "
-        f"off-panel — they were never measured in this panel, so their absence is "
+        f"off-panel, they were never measured in this panel, so their absence is "
         f"not evidence against the {v.cell_type} call. The call stands on the "
         f"on-panel markers: {_driver_phrase(drivers)}."
     )
@@ -372,7 +372,7 @@ def fallback_answer(query: str, cluster: str) -> Optional[AgentResponse]:
     """Canned, grounded answer for a recognized demo-beat question, else ``None``.
 
     Recognizes a small set of intents (what defines this cluster, could this be a
-    doublet, how confident, and — for c2 — the off-panel-absence question) and
+    doublet, how confident, and, for c2, the off-panel-absence question) and
     answers each purely from the verdict/data. Returns ``None`` when the query does
     not match a canned intent, OR when the matched builder has nothing to say for
     this cluster (e.g. the off-panel intent on a cluster with no off-panel notes),
@@ -394,7 +394,7 @@ def fallback_answer(query: str, cluster: str) -> Optional[AgentResponse]:
 def generic_fallback(cluster: str) -> AgentResponse:
     """Last-resort grounded response: the call, confidence, and top markers.
 
-    Always returns a fully grounded :class:`AgentResponse` for any known cluster —
+    Always returns a fully grounded :class:`AgentResponse` for any known cluster,
     the demo never shows a spinner or an error. Numbers trace to jazzPanda via the
     verdict; off-panel context (c2) is included; verify is preserved.
 
@@ -416,7 +416,7 @@ def generic_fallback(cluster: str) -> AgentResponse:
         )
     body += _offpanel_line(notes, v.cell_type)
     if v.verify:
-        body += " verify=TRUE — re-check this call."
+        body += " verify=TRUE, re-check this call."
 
     return AgentResponse(
         text=body,
@@ -432,12 +432,12 @@ def generic_fallback(cluster: str) -> AgentResponse:
 
 
 # --------------------------------------------------------------------------- #
-# FallbackStore — a thin, stateless facade over the three fallback layers.
+# FallbackStore, a thin, stateless facade over the three fallback layers.
 # --------------------------------------------------------------------------- #
 class FallbackStore:
     """Facade the loop calls: opening, canned-answer match, or generic fallback.
 
-    Stateless and deterministic. Holds no data of its own — every response is
+    Stateless and deterministic. Holds no data of its own, every response is
     (re)built from the verdict engine on demand, so it can never go stale relative
     to the jazzPanda output the way a frozen JSON blob could.
     """

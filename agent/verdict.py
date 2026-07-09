@@ -61,7 +61,7 @@ FRAGILE_FLOOR_BAND: str = "Medium"  # a fragile cluster with a canonical driver 
 
 
 # --------------------------------------------------------------------------- #
-# Canonical marker map — the on-panel canonical markers per cell type.
+# Canonical marker map, the on-panel canonical markers per cell type.
 # Grounded: these are established lineage markers; the driver is whichever of
 # these ranks highest by glm_coef among the cluster's assigned (on-panel) rows.
 # Only genes actually present in the cluster's marker table can ever drive a
@@ -82,7 +82,7 @@ CANONICAL_MARKERS: dict[str, tuple[str, ...]] = {
 # --------------------------------------------------------------------------- #
 # Panel-absence notes (P8). P0 populates only c2/Stromal. These are canonical
 # markers that were NEVER on the panel: their absence is not evidence against
-# the type. Notes are context only — they never touch band/score/verify.
+# the type. Notes are context only, they never touch band/score/verify.
 # --------------------------------------------------------------------------- #
 OFF_PANEL_CANONICAL: dict[str, tuple[str, ...]] = {
     "Stromal": ("COL1A1", "COL1A2", "DCN", "VIM", "FAP"),
@@ -101,7 +101,7 @@ def _assert_off_panel_map() -> None:
             if data.panel_contains(gene):
                 raise AssertionError(
                     f"[verdict] OFF_PANEL_CANONICAL[{cell_type!r}] lists {gene!r} "
-                    f"but data.panel_contains({gene!r}) is True — it IS on the panel. "
+                    f"but data.panel_contains({gene!r}) is True, it IS on the panel. "
                     f"An off-panel-absence note must reference a gene that was never "
                     f"measured. Fix the map."
                 )
@@ -259,7 +259,7 @@ def _driving_markers(evidence: tuple[MarkerEvidence, ...]) -> tuple[MarkerEviden
 def offpanel_notes(cell_type: str) -> tuple[OffPanelNote, ...]:
     """Panel-absence notes for a cell type: canonical markers never measured.
 
-    Context only — the caller must NOT let these change band/score/verify. Each
+    Context only, the caller must NOT let these change band/score/verify. Each
     gene is re-asserted off-panel here so a bad entry fails loud at call time too.
     """
     notes: list[OffPanelNote] = []
@@ -304,10 +304,10 @@ def _headline(cell_type: str, band: str, drivers: tuple[MarkerEvidence, ...]) ->
     if drivers:
         d = drivers[0]
         return (
-            f"{cell_type} — {band} confidence, driven by {d.gene} "
+            f"{cell_type}, {band} confidence, driven by {d.gene} "
             f"(glm_coef {d.glm_coef:.2f}, pearson {d.pearson:.2f})."
         )
-    return f"{cell_type} — {band} confidence; no canonical marker drives the call."
+    return f"{cell_type}, {band} confidence; no canonical marker drives the call."
 
 
 def opening_interpretation(cluster: str) -> OpeningInterpretation:
@@ -346,14 +346,14 @@ def _compose_notes(
     if fragile:
         parts.append("Fragile cluster (<=2 assigned markers): re-check this.")
     if verify:
-        parts.append("verify=TRUE — re-check this call.")
+        parts.append("verify=TRUE, re-check this call.")
     return " ".join(parts)
 
 
 def _source_trace(
     evidence: tuple[MarkerEvidence, ...], offpanel: tuple[OffPanelNote, ...]
 ) -> tuple[str, ...]:
-    """Every (gene,stat,value) actually used — grounding tests read this."""
+    """Every (gene,stat,value) actually used, grounding tests read this."""
     trace: list[str] = []
     for e in evidence:
         trace.append(f"jz:{e.gene}:glm_coef={e.glm_coef:.6f}")

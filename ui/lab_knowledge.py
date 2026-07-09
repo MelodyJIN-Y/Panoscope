@@ -101,7 +101,7 @@ def _status_text(note: Note) -> str:
 def _created_date(note: Note) -> str:
     """The date portion of the ISO created_at stamp (whole stamp if unparseable)."""
     if not note.created_at:
-        return "—"  # em dash
+        return "n/a"  # no date
     return note.created_at.split("T", 1)[0]
 
 
@@ -124,9 +124,9 @@ def _tension_line(note: Note) -> Optional[str]:
             bits.append(f"agrees ({len(t.agree)}): {_pmids(t.agree)}")
         if t.dissent:
             bits.append(f"dissents ({len(t.dissent)}): {_pmids(t.dissent)}")
-        return "literature tension — " + " · ".join(bits)
+        return "literature tension: " + " · ".join(bits)
     if t.thin:
-        return "literature thin — no supporting reference found on file"
+        return "literature thin: no supporting reference found on file"
     return None
 
 
@@ -246,7 +246,7 @@ def render_lab_page() -> None:
     st.markdown(
         f'<div class="pano-rat" style="max-width:70ch">{_DRAWER_SUB} '
         "They are captured by telling the agent in the chat — an override or a "
-        "confirmation — and stay here, git-tracked and attributed.</div>",
+        "confirmation, and stay here, git-tracked and attributed.</div>",
         unsafe_allow_html=True,
     )
 
