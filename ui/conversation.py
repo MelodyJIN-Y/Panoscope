@@ -123,9 +123,9 @@ def _ensure_opening(cluster: str) -> None:
 
     resp = _safe_opening(cluster)
     state.append_message({"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
-    # Auto-pin the opening's leading driver — viewing control only.
-    if resp.pin_marker and state.get_pinned_marker() is None:
-        state.set_pinned_marker(resp.pin_marker)
+    # No auto-pin: a cluster opens with NO genes selected by default. Marker
+    # selection is per-cluster — the biologist picks markers in the evidence table,
+    # and those picks never carry over to another cluster.
     state.mark_opening_posted(cluster)
 
 
@@ -357,9 +357,10 @@ def _submit_query(cluster: str, query: str) -> None:
     state.append_message({"role": _ROLE_USER, "text": query, "resp": None})
     resp = _safe_chat(cluster, query)
     state.append_message({"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
-    # If the agent pinned a marker to back its answer, honor it (viewing control).
+    # If the agent pinned a marker to back its answer, honor it for THIS cluster
+    # (viewing control; per-cluster selection).
     if resp.pin_marker:
-        state.set_pinned_marker(resp.pin_marker)
+        state.set_pinned_marker(cluster, resp.pin_marker)
 
 
 def _safe_chat(cluster: str, query: str) -> AgentResponse:

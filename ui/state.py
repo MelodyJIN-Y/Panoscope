@@ -62,7 +62,7 @@ DEFAULT_MARKER_CAP = 4
 # --------------------------------------------------------------------------- #
 _DEFAULTS: dict[str, Any] = {
     K_SELECTED_CLUSTER: DEFAULT_CLUSTER,
-    K_SELECTED_MARKERS: list,   # fresh [] per session — ordered multi-select
+    K_SELECTED_MARKERS: dict,   # {cluster: [gene, ...]} — per-cluster multi-select
     K_BIN_UM: DEFAULT_BIN_UM,
     K_CHAT_THREAD: list,        # fresh [] per session
     K_SCOPE: DEFAULT_SCOPE,
@@ -120,96 +120,97 @@ def set_selected_cluster(cluster: str) -> None:
 # Selecting is a VIEWING control: it mutates one list key and nothing else. No
 # recompute. Order is preserved (selection order) so the panels stay stable.
 # --------------------------------------------------------------------------- #
-def get_selected_markers() -> list[str]:
-    """Return a copy of the selected marker genes, in selection order.
+def get_selected_markers(cluster: str) -> list[str]:
+    """Return a copy of the markers selected FOR ``cluster``, in selection order.
 
-    A copy is returned so callers cannot mutate the stored list by side effect
-    (immutable-in, immutable-out). Empty list before anything is selected.
+    Selection is per-cluster: ``selected_markers`` is a ``{cluster: [gene, ...]}``
+    map, so switching clusters never carries one cluster's picks onto another —
+    each cluster shows only its own selected genes (or none). Empty list before
+    anything is selected for that cluster.
     """
-    return list(_ss().get(K_SELECTED_MARKERS, []))
+    return list(_ss().get(K_SELECTED_MARKERS, {}).get(cluster, []))
 
 
-def toggle_marker(gene: str) -> None:
-    """Add ``gene`` to the selection if absent, else remove it. Order preserved.
+def toggle_marker(cluster: str, gene: str) -> None:
+    """Add ``gene`` to ``cluster``'s selection if absent, else remove it (order kept).
 
-    Viewing-control only: writes a new list to ``selected_markers`` and returns.
-    Never triggers a verdict recompute. A new list is stored (immutable update)
-    so nothing else holding the old reference is surprised.
+    Viewing-control only: writes a new per-cluster list and returns. Never triggers
+    a verdict recompute. The whole map is rewritten (immutable update).
     """
     ss = _ss()
-    current = list(ss.get(K_SELECTED_MARKERS, []))
+    by = dict(ss.get(K_SELECTED_MARKERS, {}))
+    current = list(by.get(cluster, []))
     if gene in current:
-        ss[K_SELECTED_MARKERS] = [g for g in current if g != gene]
+        by[cluster] = [g for g in current if g != gene]
     else:
-        ss[K_SELECTED_MARKERS] = current + [gene]
+        by[cluster] = current + [gene]
+    ss[K_SELECTED_MARKERS] = by
 
 
-def is_marker_selected(gene: str) -> bool:
-    """True if ``gene`` is currently in the selection."""
-    return gene in _ss().get(K_SELECTED_MARKERS, [])
+def is_marker_selected(cluster: str, gene: str) -> bool:
+    """True if ``gene`` is currently selected for ``cluster``."""
+    return gene in _ss().get(K_SELECTED_MARKERS, {}).get(cluster, [])
 
 
-def clear_markers() -> None:
-    """Clear the whole marker selection (fresh empty list)."""
-    _ss()[K_SELECTED_MARKERS] = []
+def clear_markers(cluster: str) -> None:
+    """Clear ``cluster``'s marker selection (fresh empty list)."""
+    ss = _ss()
+    by = dict(ss.get(K_SELECTED_MARKERS, {}))
+    by[cluster] = []
+    ss[K_SELECTED_MARKERS] = by
 
 
-def active_markers(cap: int = DEFAULT_MARKER_CAP) -> list[str]:
-    """Return the selected markers, capped to ``cap`` for small-multiples legibility.
+def active_markers(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
+    """Markers selected for ``cluster``, capped for small-multiples legibility.
 
-    The full selection stays in ``selected_markers`` (and in the evidence table);
-    this only limits how many density + feature-UMAP pairs the spatial grid draws.
-    ``cap <= 0`` returns the full selection uncapped.
+    The full selection stays in the evidence table; this only limits how many
+    density + feature-UMAP pairs the spatial grid draws. ``cap <= 0`` is uncapped.
     """
-    selected = get_selected_markers()
+    selected = get_selected_markers(cluster)
     if cap is not None and cap > 0:
         return selected[:cap]
     return selected
 
 
-def active_marker() -> Optional[str]:
-    """Return the first selected marker (or None) — back-compat single-marker view.
-
-    Kept so callers that predate multi-select (e.g. a single density/UMAP draw)
-    keep working. Equivalent to ``selected_markers[0]`` when anything is selected.
-    """
-    selected = _ss().get(K_SELECTED_MARKERS, [])
+def active_marker(cluster: str) -> Optional[str]:
+    """First marker selected for ``cluster`` (or None) — single-marker convenience."""
+    selected = get_selected_markers(cluster)
     return selected[0] if selected else None
 
 
 # --------------------------------------------------------------------------- #
-# Legacy pin API — thin aliases over ``selected_markers`` for pre-multi-select
-# callers (e.g. the agent may request a marker be pinned). ``pinned_marker`` is
-# ``selected_markers[0]``; setting it selects that single gene; clearing empties
-# the selection. Still a pure viewing control — no recompute.
+# Legacy pin API — per-cluster aliases for callers that pin a single marker (e.g.
+# the agent may pin a marker to back a chat answer). Still a pure viewing control.
 # --------------------------------------------------------------------------- #
-def get_pinned_marker() -> Optional[str]:
-    """Back-compat: the first selected marker, or None (alias of ``active_marker``)."""
-    return active_marker()
+def get_pinned_marker(cluster: str) -> Optional[str]:
+    """Back-compat: the first marker selected for ``cluster`` (alias of active_marker)."""
+    return active_marker(cluster)
 
 
-def set_pinned_marker(gene: Optional[str]) -> None:
-    """Back-compat: select ``gene`` as the sole marker (or clear with None).
+def set_pinned_marker(cluster: str, gene: Optional[str]) -> None:
+    """Pin ``gene`` for ``cluster`` (append if not already selected), or clear on None.
 
-    Only acts when the gene is not already selected, so an agent re-requesting an
-    already-selected marker does not collapse a multi-gene selection. Viewing-
-    control only — writes ``selected_markers`` and returns, never a recompute.
+    Appends rather than replacing, so an agent pinning a marker during chat adds it
+    to the current cluster's selection without wiping the biologist's picks. Pure
+    viewing control — writes ``selected_markers`` and returns, never a recompute.
     """
     ss = _ss()
+    by = dict(ss.get(K_SELECTED_MARKERS, {}))
     if gene is None:
-        ss[K_SELECTED_MARKERS] = []
-    elif gene not in ss.get(K_SELECTED_MARKERS, []):
-        ss[K_SELECTED_MARKERS] = [gene]
+        by[cluster] = []
+    elif gene not in by.get(cluster, []):
+        by[cluster] = list(by.get(cluster, [])) + [gene]
+    ss[K_SELECTED_MARKERS] = by
 
 
-def toggle_pin(gene: str) -> None:
-    """Back-compat alias of :func:`toggle_marker` (add if absent else remove)."""
-    toggle_marker(gene)
+def toggle_pin(cluster: str, gene: str) -> None:
+    """Back-compat alias of :func:`toggle_marker` for one cluster."""
+    toggle_marker(cluster, gene)
 
 
-def unpin_marker() -> None:
-    """Back-compat: clear the whole marker selection (alias of :func:`clear_markers`)."""
-    clear_markers()
+def unpin_marker(cluster: str) -> None:
+    """Back-compat: clear ``cluster``'s marker selection (alias of clear_markers)."""
+    clear_markers(cluster)
 
 
 # --------------------------------------------------------------------------- #

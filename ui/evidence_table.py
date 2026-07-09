@@ -163,7 +163,7 @@ def render_evidence_table(cluster: str) -> None:
             unsafe_allow_html=True,
         )
 
-    _render_marker_rows(st, rows, key="evrows_shown")
+    _render_marker_rows(st, rows, cluster, key="evrows_shown")
 
     # The long tail (non-driver markers beyond the default view) is tucked behind
     # an expander so the drivers and the tissue stay above the fold. Shown and
@@ -174,22 +174,23 @@ def render_evidence_table(cluster: str) -> None:
         with st.expander(
             f"Show all {len(verdict.evidence)} assigned markers", expanded=False
         ):
-            _render_marker_rows(st, hidden, key="evrows_hidden")
+            _render_marker_rows(st, hidden, cluster, key="evrows_hidden")
 
 
-def _render_marker_rows(st, rows, *, key: str) -> None:
+def _render_marker_rows(st, rows, cluster: str, *, key: str) -> None:
     """Render each marker: a narrow select-dot column + a wide HTML content column,
     inside a keyed container so the theme can tighten the dot↔gene gap and keep the
     dot aligned next to the gene name.
 
-    The select-dot toggles multi-select membership and returns (no recompute).
+    The select-dot toggles this ``cluster``'s marker set (selection is per-cluster)
+    and returns (no recompute).
     """
     with st.container(key=key):
         for ev in rows:
-            is_selected = state.is_marker_selected(ev.gene)
+            is_selected = state.is_marker_selected(cluster, ev.gene)
             dot_col, body_col = st.columns([0.05, 0.95], vertical_alignment="center")
             with dot_col:
-                _select_dot(st, ev.gene, is_selected)
+                _select_dot(st, cluster, ev.gene, is_selected)
             with body_col:
                 st.markdown(
                     _marker_row_html(ev, is_selected=is_selected),
@@ -197,7 +198,7 @@ def _render_marker_rows(st, rows, *, key: str) -> None:
                 )
 
 
-def _select_dot(st, gene: str, is_selected: bool) -> None:
+def _select_dot(st, cluster: str, gene: str, is_selected: bool) -> None:
     """Draw the borderless teal select-dot for one marker (● selected / ○ add).
 
     The dot is a chromeless ``st.button`` whose label is the glyph; the theme's
@@ -227,7 +228,7 @@ def _select_dot(st, gene: str, is_selected: bool) -> None:
             use_container_width=True,
             type="primary" if is_selected else "secondary",
         ):
-            state.toggle_marker(gene)
+            state.toggle_marker(cluster, gene)
             st.rerun()
 
 

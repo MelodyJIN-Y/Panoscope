@@ -726,7 +726,7 @@ def render_spatial_stage(cluster: str) -> None:
         _panel_title("UMAP <span style='color:var(--faint)'>· clusters</span>")
         _render_umap(cluster, feature=False)
 
-    markers = state.active_markers()
+    markers = state.active_markers(cluster)
 
     if not markers:
         _empty_panel(
