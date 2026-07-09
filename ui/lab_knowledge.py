@@ -227,6 +227,41 @@ def render_lab_panel(*, expanded: Optional[bool] = None) -> None:
             _render_note_card(note)
 
 
+def render_lab_page() -> None:
+    """Full-page lab-knowledge view (its own top tab): every stored note the
+    agent can cite, newest first, each with its scope / basis / status, author,
+    date, and any literature tension. Reads notes FRESH so the page never shows a
+    stale list after the agent captures or the user deletes one. Nothing here is
+    fabricated or recomputed — every field is read off the persisted Note.
+    """
+    import streamlit as st
+
+    _inject_local_css()
+    notes = da.read_notes()
+
+    st.markdown(
+        f'<p class="pano-eyebrow">Lab knowledge · {len(notes)} notes</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<div class="pano-rat" style="max-width:70ch">{_DRAWER_SUB} '
+        "They are captured by telling the agent in the chat — an override or a "
+        "confirmation — and stay here, git-tracked and attributed.</div>",
+        unsafe_allow_html=True,
+    )
+
+    if not notes:
+        st.markdown(f'<div class="lke">{_EMPTY_TEXT}</div>', unsafe_allow_html=True)
+        return
+
+    # Newest first — the most recent lab judgment reads at the top. A modest
+    # max-width keeps the note cards readable on a wide page.
+    left, _spacer = st.columns([0.62, 0.38])
+    with left:
+        for note in sorted(notes, key=lambda n: (n.created_at, n.id), reverse=True):
+            _render_note_card(note)
+
+
 def lab_knowledge_button(*, key: str = "lk_open_btn") -> None:
     """Render the header "Lab knowledge N" pill that toggles the drawer open.
 

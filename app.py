@@ -4,10 +4,10 @@ Streamlit entrypoint. The chat is the product; the panels are the evidence it
 stands on. Every number shown here comes from the agent layer (jazzPanda output,
 the panel list, or a cited lab note) — this file only wires panels together.
 
-Navigation lives in a single TOP bar (not a sidebar): the brand, the
-``Examine cluster | Summary`` tabs, and the Lab-knowledge button, all in one row.
-Session state is shared across pages natively (one script run per rerun), so the
-selected cluster / markers / chat / notes carry over between tabs.
+Navigation lives in a single TOP bar (not a sidebar): the brand and three tabs —
+``Examine cluster | Summary | Lab knowledge`` — in one row. Session state is
+shared across pages natively (one script run per rerun), so the selected cluster
+/ markers / chat / notes carry over between tabs.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ import streamlit as st
 from ui import (
     cluster_rail,
     conversation,
+    data_access as dax,
     evidence_table,
     lab_knowledge,
     paper_drawer,
@@ -30,6 +31,7 @@ from ui import (
 _K_PAGE = "active_page"
 _PAGE_EXAMINE = "examine"
 _PAGE_SUMMARY = "summary"
+_PAGE_LAB = "lab"
 
 
 def _set_page(page: str) -> None:
@@ -38,14 +40,12 @@ def _set_page(page: str) -> None:
 
 
 def _top_bar(page: str) -> None:
-    """The single top bar: brand · Examine/Summary tabs · Lab knowledge.
+    """The single top bar: brand · Examine / Summary / Lab knowledge tabs.
 
     The tabs are chromeless buttons styled (theme ``.st-key-pano_topnav``) into a
     top tab strip — the active one (``type="primary"``) gets an accent underline.
     """
-    brand_col, tabs_col, lab_col = st.columns(
-        [0.34, 0.42, 0.24], vertical_alignment="center"
-    )
+    brand_col, tabs_col = st.columns([0.3, 0.7], vertical_alignment="center")
     with brand_col:
         st.markdown(
             '<div class="pano-brand">Pano<span class="d">·</span>scope</div>'
@@ -54,7 +54,7 @@ def _top_bar(page: str) -> None:
         )
     with tabs_col:
         with st.container(key="pano_topnav"):
-            t_examine, t_summary = st.columns(2)
+            t_examine, t_summary, t_lab = st.columns(3)
             with t_examine:
                 st.button(
                     "🔬 Examine cluster",
@@ -73,12 +73,22 @@ def _top_bar(page: str) -> None:
                     on_click=_set_page,
                     args=(_PAGE_SUMMARY,),
                 )
-    with lab_col:
-        lab_knowledge.lab_knowledge_button()
+            with t_lab:
+                n_notes = len(dax.read_notes())
+                st.button(
+                    f"📒 Lab knowledge · {n_notes}",
+                    key="nav_lab",
+                    type="primary" if page == _PAGE_LAB else "secondary",
+                    use_container_width=True,
+                    on_click=_set_page,
+                    args=(_PAGE_LAB,),
+                )
 
 
 def _examine_body() -> None:
     """The 3-pane review surface: rail | verdict + evidence + spatial | chat."""
+    if state.is_paper_open():
+        paper_drawer.render_paper_drawer()
     rail_col, center_col, chat_col = st.columns([222, 760, 372], gap="small")
     with rail_col:
         cluster_rail.render_rail()
@@ -100,14 +110,9 @@ state.init_state()
 page = st.session_state.get(_K_PAGE, _PAGE_EXAMINE)
 _top_bar(page)
 
-# Drawers hang off session flags; render on either page so the Lab-knowledge
-# button works from the top bar regardless of which tab is open.
-if state.is_lab_knowledge_open():
-    lab_knowledge.render_lab_panel(expanded=True)
-if state.is_paper_open():
-    paper_drawer.render_paper_drawer()
-
 if page == _PAGE_SUMMARY:
     summary.render_summary_page()
+elif page == _PAGE_LAB:
+    lab_knowledge.render_lab_page()
 else:
     _examine_body()

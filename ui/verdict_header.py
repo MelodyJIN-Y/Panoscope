@@ -32,7 +32,6 @@ from typing import Optional
 from agent.types import ClusterVerdict
 
 from ui import format as fmt
-from ui import state
 from ui.data_access import cluster_cells_df, verdict_for
 
 # --------------------------------------------------------------------------- #
@@ -108,43 +107,6 @@ def _header_html(cluster: str, verdict: ClusterVerdict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Actions (wire buttons to shared UI state; no verdict recompute)
-# --------------------------------------------------------------------------- #
-def _on_override() -> None:
-    """Open the capture-at-override flow in the conversation pane.
-
-    Opens the note-capture panel and defaults its scope to ``cluster`` (the tap
-    where the biologist's knowledge diverges from the default). The biologist
-    still makes the call and states basis/status there — this only routes them.
-    """
-    state.set_scope(state.DEFAULT_SCOPE)
-    state.open_capture()
-
-
-def _on_confirm(verdict: ClusterVerdict) -> None:
-    """Record the biologist's acceptance of the call as an attributed message.
-
-    Appends a short system message to the chat thread so the acceptance is
-    visible and dated in-thread — never a silent overrule, never a bare "got it".
-    The verdict object is not mutated.
-    """
-    state.close_capture()
-    state.append_message(
-        {
-            "role": "sys",
-            "text": (
-                f"Confirmed: {verdict.cell_type} "
-                f"({verdict.confidence} confidence) for "
-                f"cluster {fmt.short_cluster_id(verdict.cluster)}, "
-                f"kept as called."
-            ),
-            "kind": "confirm",
-            "cluster": verdict.cluster,
-        }
-    )
-
-
-# --------------------------------------------------------------------------- #
 # Public render
 # --------------------------------------------------------------------------- #
 def render_verdict(cluster: str) -> None:
@@ -168,24 +130,12 @@ def render_verdict(cluster: str) -> None:
     verdict = verdict_for(cluster)
 
     st.markdown(_header_html(cluster, verdict), unsafe_allow_html=True)
-
-    confirm_col, override_col, _spacer = st.columns([1, 1, 3])
-    with confirm_col:
-        st.button(
-            "Confirm annotation",
-            key=f"verdict_confirm_{cluster}",
-            type="primary",
-            use_container_width=True,
-            on_click=_on_confirm,
-            args=(verdict,),
-        )
-    with override_col:
-        st.button(
-            "Override…",
-            key=f"verdict_override_{cluster}",
-            use_container_width=True,
-            on_click=_on_override,
-        )
+    st.markdown(
+        '<div class="pano-hint">Agree, question, or override this call by telling '
+        "the agent in the chat &rarr; it keeps your call, cross-checks the "
+        "literature, and saves it to Lab knowledge.</div>",
+        unsafe_allow_html=True,
+    )
 
 
 __all__ = ["render_verdict"]

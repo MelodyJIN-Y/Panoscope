@@ -127,6 +127,11 @@ html, body, .stApp {{
 .pano-verdict {{ display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }}
 .pano-verdict h1 {{ font-size: 25px; font-weight: 600; letter-spacing: -.02em; margin: 0; }}
 .pano-rat {{ color: var(--muted); max-width: 62ch; margin-bottom: 6px; }}
+.pano-hint {{
+  font-family: var(--mono); font-size: 11px; color: var(--faint);
+  max-width: 64ch; margin: 2px 0 14px; line-height: 1.5;
+}}
+.pano-hint a {{ color: var(--accent); }}
 
 /* ---- confidence chips (classes returned by ui.format.confidence_chip) ---- */
 .cf {{

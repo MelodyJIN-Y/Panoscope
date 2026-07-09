@@ -105,7 +105,6 @@ def render_conversation(cluster: str) -> None:
     )
 
     _render_thread(cluster)
-    _render_capture(cluster)
     _render_ask_box(cluster)
 
 
@@ -343,20 +342,10 @@ def _render_ask_box(cluster: str) -> None:
         query = st.text_input(
             "Ask",
             key=_K_ASK,
-            placeholder=f"Ask about {cluster}…",
+            placeholder=f"Ask, or override the call (e.g. 'this is CAF, our own data')…",
             label_visibility="collapsed",
         )
-        c_ask, c_note = st.columns([3, 2])
-        with c_ask:
-            asked = st.form_submit_button(
-                "Ask", use_container_width=True, type="primary"
-            )
-        with c_note:
-            capture = st.form_submit_button("Capture a note", use_container_width=True)
-
-    if capture:
-        state.open_capture()
-        _rerun(st)
+        asked = st.form_submit_button("Ask", use_container_width=True, type="primary")
 
     if asked and query and query.strip():
         _submit_query(cluster, query.strip())
