@@ -14,7 +14,9 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
+
+import pandas as pd
 
 from agent import config as cfg
 from agent import data
@@ -45,12 +47,20 @@ def _now_iso() -> str:
     )
 
 
-def _ok(loader: Callable[[], Any]) -> bool:
-    try:
-        loader()
-        return True
-    except Exception:  # noqa: BLE001 - a missing view is a False, not a crash
-        return False
+def _read_tree_frame(vdir: Path, stem: str) -> Optional[pd.DataFrame]:
+    """Read a viz frame straight from the tree (parquet, else csv), or None.
+
+    Reads the collected tree files directly rather than through agent.data, whose
+    paths are frozen at import to the pre-move legacy location.
+    """
+    for suffix, reader in ((".parquet", pd.read_parquet), (".csv", pd.read_csv)):
+        p = vdir / f"{stem}{suffix}"
+        if p.exists():
+            try:
+                return reader(p)
+            except Exception:  # noqa: BLE001 - a corrupt frame is a None, not a crash
+                return None
+    return None
 
 
 def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, Any]]:
@@ -100,18 +110,19 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
         panel_n = int(len(data.load_panel()))
     except Exception:  # noqa: BLE001
         panel_n = 0
-    try:
-        n_cells: Optional[int] = int(len(data.load_cells()))
-    except Exception:  # noqa: BLE001
-        n_cells = None
 
+    # views_available and n_cells are read from the tree viz/ contents we just
+    # collected — NOT via data.load_cells(), whose paths agent.data froze at
+    # import (to the legacy location, before collect_viz MOVED the frames), and
+    # NOT via the legacy dir, which collect_viz leaves behind empty. Both were
+    # confirmed first-run manifest bugs.
+    cells_frame = _read_tree_frame(vdir, "cells")
+    n_cells: Optional[int] = int(len(cells_frame)) if cells_frame is not None else None
     views = {
-        "cell_map": _ok(data.load_cells),
-        "umap": _ok(data.load_umap),
-        "density": (hexdir.exists() and any(hexdir.glob("*.parquet")))
-        or (cfg.DATA_DIR_PATH / "density").exists(),
-        "expr": (vdir / "expr.parquet").exists()
-        or (cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet").exists(),
+        "cell_map": (vdir / "cells.parquet").exists() or (vdir / "cells.csv").exists(),
+        "umap": (vdir / "umap.parquet").exists() or (vdir / "umap.csv").exists(),
+        "density": hexdir.exists() and bool(list(hexdir.glob("*.parquet"))),
+        "expr": (vdir / "expr.parquet").exists(),
     }
 
     man = manifest_mod.build_manifest(

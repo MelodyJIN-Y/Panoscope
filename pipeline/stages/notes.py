@@ -107,6 +107,28 @@ def _fallback_summary(cell_type: str, markers: list[str]) -> str:
     return f"{ct} cells; driving markers {drv}." if drv else f"{ct} cells."
 
 
+def _resolve_note(model_text: str, cite: Any, fallback_summary: str):
+    """Turn the model's answer + its top citation into (summary, pmid, citation, used_fallback).
+
+    Confident floor: if the model's text is unusable (empty or meta-commentary),
+    use the deterministic fallback clause AND DROP the citation — a fallback clause
+    is not supported by any paper, so stapling a real PMID to it would be a
+    mismatched citation (worse than none). A citation is kept ONLY when the model's
+    own prose survives as the summary.
+    """
+    summary = _shorten(model_text)
+    used_fallback = (not summary) or _looks_meta(summary)
+    if used_fallback:
+        summary = fallback_summary
+        cite = None
+    citation = (
+        {"pmid": cite.pmid, "title": cite.title, "authors": cite.authors, "year": cite.year}
+        if cite
+        else None
+    )
+    return summary, (cite.pmid if cite else None), citation, used_fallback
+
+
 def _query(cell_type: str, markers: list[str]) -> str:
     ct = cell_type.replace("_", " ")
     drv = ", ".join(markers[:3])
@@ -154,19 +176,14 @@ def run_celltype_notes(
             print(f"  ERROR {cluster}: {exc}", flush=True)
             continue
         cite = resp.citations[0] if resp.citations else None
-        summary = _shorten(resp.text)
-        if not summary or _looks_meta(summary):
-            summary = _fallback_summary(verdict.cell_type, list(verdict.key_markers))
+        fb = _fallback_summary(verdict.cell_type, list(verdict.key_markers))
+        summary, pmid, citation, _ = _resolve_note(resp.text, cite, fb)
         notes[cluster] = {
             "cluster": cluster,
             "cell_type": verdict.cell_type,
             "summary": summary,
-            "pmid": cite.pmid if cite else None,
-            "citation": (
-                {"pmid": cite.pmid, "title": cite.title, "authors": cite.authors, "year": cite.year}
-                if cite
-                else None
-            ),
+            "pmid": pmid,
+            "citation": citation,
             "verify": bool(resp.verify),
         }
         _save(out_path, notes)
@@ -241,9 +258,8 @@ def run_gene_notes(
                 print(f"  ERROR {cluster}/{gene}: {exc}", flush=True)
                 continue
             cite = resp.citations[0] if resp.citations else None
-            summary = _shorten(resp.text)
-            if not summary or _looks_meta(summary):
-                summary = _gene_fallback(gene, verdict.cell_type, ev.is_canonical)
+            fb = _gene_fallback(gene, verdict.cell_type, ev.is_canonical)
+            summary, pmid, citation, _ = _resolve_note(resp.text, cite, fb)
             notes[cluster][gene] = {
                 "gene": gene,
                 "cluster": cluster,
@@ -260,12 +276,8 @@ def run_gene_notes(
                 "caveats": list(ev.caveats),
                 # Tier B — the skill's Output-4 biology note (live-cited).
                 "summary": summary,
-                "pmid": cite.pmid if cite else None,
-                "citation": (
-                    {"pmid": cite.pmid, "title": cite.title, "authors": cite.authors, "year": cite.year}
-                    if cite
-                    else None
-                ),
+                "pmid": pmid,
+                "citation": citation,
                 "caveat_flagged": "localizes better with another cluster" in ev.caveats,
                 "verify": bool(resp.verify),
             }
