@@ -102,6 +102,8 @@ _CONVO_CSS = """
   font-size: 12.5px; font-weight: 600;
 }
 .st-key-conv_head { border-bottom: 1px solid var(--hair); padding-bottom: 7px; margin-bottom: 2px; }
+.conv-hint { font-size: 11.5px; color: var(--faint); line-height: 1.5; margin: 4px 0 9px; }
+.conv-hint::before { content: '💬'; margin-right: 6px; opacity: .8; }
 .st-key-conv_head div[data-testid="stButton"] button {
   background: transparent !important; border: 1px solid var(--hair) !important;
   color: var(--faint) !important; box-shadow: none !important; min-height: 0 !important;
@@ -183,6 +185,12 @@ def render_conversation(cluster: str) -> None:
     st.markdown(_CONVO_CSS, unsafe_allow_html=True)
     _ensure_opening(cluster)
     _render_header(cluster)
+    st.markdown(
+        '<div class="conv-hint">Agree, question, or override this call by telling '
+        "the agent below &rarr; it keeps your call, cross-checks the literature, "
+        "and saves it to Lab knowledge.</div>",
+        unsafe_allow_html=True,
+    )
 
     with st.container(key="conv_thread"):
         _render_thread(cluster)

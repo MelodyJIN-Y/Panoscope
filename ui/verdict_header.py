@@ -129,13 +129,10 @@ def render_verdict(cluster: str) -> None:
 
     verdict = verdict_for(cluster)
 
+    # The header is the call itself: id line, cell type + confidence, drivers. The
+    # "how to agree/override" guidance now lives in the conversation pane (where
+    # the biologist actually acts), not stacked here as grey text.
     st.markdown(_header_html(cluster, verdict), unsafe_allow_html=True)
-    st.markdown(
-        '<div class="pano-hint">Agree, question, or override this call by telling '
-        "the agent in the chat &rarr; it keeps your call, cross-checks the "
-        "literature, and saves it to Lab knowledge.</div>",
-        unsafe_allow_html=True,
-    )
 
 
 __all__ = ["render_verdict"]

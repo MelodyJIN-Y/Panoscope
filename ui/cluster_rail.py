@@ -69,11 +69,14 @@ def render_rail() -> Optional[str]:
             verdict: Optional[ClusterVerdict] = verdicts.get(cluster)
             is_sel = cluster == selected
 
+            # Show the cluster id alongside the cell type (e.g. "c1 Tumor") — the
+            # id is how every other surface (spatial views, chat, notes) refers to
+            # the cluster, so the rail names it the same way.
             if verdict is not None:
-                name = verdict.cell_type.replace("_", " ")
+                name = f"{cluster} {verdict.cell_type.replace('_', ' ')}"
                 label = f"{name}  ⚑" if verdict.verify else name
             else:
-                label = _cluster_label(cluster)
+                label = f"{cluster} {_cluster_label(cluster)}"
 
             # One chromeless button per cluster. The colour dot is the button's
             # ``::before`` (theme, coloured per cluster via the ``st-key-rail_cN``

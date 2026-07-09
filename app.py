@@ -20,7 +20,6 @@ import streamlit as st
 from ui import (
     cluster_rail,
     conversation,
-    data_access as dax,
     evidence_table,
     lab_knowledge,
     paper_drawer,
@@ -102,9 +101,8 @@ def _top_bar(page: str) -> None:
                         args=(_PAGE_EXAMINE,),
                     )
                 with t_lab:
-                    n_notes = len(dax.read_notes())
                     st.button(
-                        f"Lab knowledge · {n_notes}",
+                        "Lab knowledge",
                         key="nav_lab",
                         type="primary" if page == _PAGE_LAB else "secondary",
                         use_container_width=True,
@@ -113,10 +111,11 @@ def _top_bar(page: str) -> None:
                     )
         with ctx_col:
             st.markdown(
-                '<div class="pano-ctx-chip">'
+                '<div class="pano-ctx-wrap"><div class="pano-ctx-chip">'
+                '<div class="pano-ctx-text">'
                 '<span class="pano-ctx-main">Xenium human breast · sample 1</span>'
                 '<span class="pano-ctx-sub">280 genes · 9 clusters · jazzPanda markers</span>'
-                "</div>",
+                "</div></div></div>",
                 unsafe_allow_html=True,
             )
 
