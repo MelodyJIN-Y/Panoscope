@@ -52,6 +52,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import numpy as np
 import pandas as pd
 
 from agent.config import CLUSTER_ORDER
@@ -101,9 +102,9 @@ _TISSUE_HEIGHT = 300        # cell map / density (ratio-locked tissue image)
 _VIOLIN_HEIGHT = 340        # full-width grouped violin
 _PLOT_BG = "#FFFFFF"
 
-# Density tile size in px per bin — purely cosmetic legibility; COLOUR is the
-# only thing that encodes signal.
-_DENSITY_TILE_PX: dict[int, int] = {25: 5, 50: 7, 100: 11}
+# Density is drawn as data-coordinate cells (go.Heatmap): each bin is exactly
+# bin_um wide on the tissue, so tile size tracks the µm control instead of a fixed
+# pixel size that could never line up with the selected bin.
 
 
 # --------------------------------------------------------------------------- #
@@ -597,10 +598,12 @@ def _render_density(gene: str) -> None:
 
     The global 25 / 50 / 100 µm bin control (``_render_density_controls``) picks which
     *precomputed* frame this reads; the colour is that frame's ``density``
-    (transcripts / µm²) so bins are comparable across sizes. If the gene has no
-    precomputed density frame, show an honest placeholder — never a synthesized
-    field. The tissue aspect ratio is locked by ``_tissue_layout`` so a coarse
-    bin never stretches the slide.
+    (transcripts / µm²) so bins are comparable across sizes. Each bin is rendered as
+    a data-coordinate ``go.Heatmap`` cell exactly ``bin_um`` wide, so the tiles tile
+    the slide and their size visibly matches the µm the biologist selected (a fixed
+    pixel marker never could). If the gene has no precomputed density frame, show an
+    honest placeholder — never a synthesized field. The tissue aspect ratio is locked
+    by ``_tissue_layout`` so a coarse bin never stretches the slide.
     """
     st = _st()
     go = _go()
@@ -626,37 +629,53 @@ def _render_density(gene: str) -> None:
     # sqrt transform on the density for the colour mapping (trans="sqrt"): it lifts
     # the low end so sparse bins stay visible. The hover still shows the REAL count
     # and density — the transform is display-only and never changes a value.
-    dens_sqrt = dens.clip(lower=0) ** 0.5
+    dens_sqrt = (dens.clip(lower=0) ** 0.5).to_numpy(dtype="float64")
+    cmax = float(dens_sqrt.max()) if dens_sqrt.size and np.isfinite(dens_sqrt).any() else 1.0
+
+    # Draw each bin as a DATA-COORDINATE cell (go.Heatmap), not a fixed-pixel marker:
+    # a "50 µm" bin is exactly 50 µm wide on the tissue, so the tiles tile the slide
+    # and the picture visibly scales with the 25/50/100 µm control (a pixel-sized
+    # marker could never line up with the µm the biologist picked). The sparse
+    # precomputed bins are placed onto their regular grid; absent bins stay NaN and
+    # render transparent (hoverongaps=False) so the slide reads through the holes.
+    hx = hb["hx"].to_numpy(dtype="float64")
+    hy = hb["hy"].to_numpy(dtype="float64")
+    x0, y0 = hx.min(), hy.min()
+    nx = int(round((hx.max() - x0) / bin_um)) + 1
+    ny = int(round((hy.max() - y0) / bin_um)) + 1
+    gx = x0 + np.arange(nx) * bin_um           # column centres, µm
+    gy = y0 + np.arange(ny) * bin_um           # row centres, µm
+    ix = np.round((hx - x0) / bin_um).astype(int)
+    iy = np.round((hy - y0) / bin_um).astype(int)
+
+    z = np.full((ny, nx), np.nan)              # sqrt-density per cell (colour)
+    z[iy, ix] = dens_sqrt
+    cd = np.full((ny, nx, 2), np.nan)          # hover: real count + real density
+    cd[iy, ix, 0] = hb["count"].to_numpy(dtype="float64")
+    cd[iy, ix, 1] = dens.to_numpy(dtype="float64")
+
     fig = go.Figure(layout=_tissue_layout(go))
-    # Square markers on the precomputed bin centres. Marker size scales with the
-    # bin (bigger bins -> bigger tiles) purely for legibility; the COLOUR is the
-    # sqrt of the area-normalized density and is the only thing that encodes signal.
-    tile = _DENSITY_TILE_PX.get(int(bin_um), 7)
     fig.add_trace(
-        go.Scattergl(
-            x=hb["hx"],
-            y=hb["hy"],
-            mode="markers",
-            marker=dict(
-                size=tile,
-                symbol="square",
-                color=dens_sqrt,
-                colorscale=_DENSITY_COLORSCALE,
-                cmin=0.0,
-                cmax=float(dens_sqrt.max()) if dens_sqrt.notna().any() else 1.0,
-                opacity=0.92,
-                showscale=True,
-                colorbar=_count_colorbar(
-                    float(dens.max()) if dens.notna().any() else 1.0,
-                    float(hb["count"].max()) if hb["count"].notna().any() else 0.0,
-                ),
-            ),
-            customdata=hb[["count", "density"]].to_numpy(),
+        go.Heatmap(
+            x=gx,
+            y=gy,
+            z=z,
+            customdata=cd,
+            colorscale=_DENSITY_COLORSCALE,
+            zmin=0.0,
+            zmax=cmax,
+            zsmooth=False,
+            xgap=0,
+            ygap=0,
+            hoverongaps=False,
             hovertemplate=(
-                "count %{customdata[0]}<br>"
+                "count %{customdata[0]:.0f}<br>"
                 "density %{customdata[1]:.4f} tx/µm²<extra></extra>"
             ),
-            showlegend=False,
+            colorbar=_count_colorbar(
+                float(dens.max()) if dens.notna().any() else 1.0,
+                float(hb["count"].max()) if hb["count"].notna().any() else 0.0,
+            ),
             name="density",
         )
     )
