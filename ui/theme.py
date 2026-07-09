@@ -96,8 +96,8 @@ html, body, .stApp {{
 
 /* ---- brand / header ---- */
 .pano-brand {{
-  font-family: var(--sans); font-weight: 700; font-size: 16px;
-  letter-spacing: -.01em; display: flex; align-items: center; color: var(--ink);
+  font-family: var(--sans); font-weight: 700; font-size: 19px;
+  letter-spacing: -.02em; display: flex; align-items: center; color: var(--ink);
 }}
 .pano-brand .d {{ color: var(--accent); }}
 .pano-mark {{
@@ -106,24 +106,16 @@ html, body, .stApp {{
   margin-right: 9px;
 }}
 /* The real Panoscope logo mark (assets/panoscope_logo.png), embedded inline. */
-.pano-logo {{ width: 30px; height: 30px; margin-right: 10px; flex: none; object-fit: contain; }}
+.pano-logo {{ width: 34px; height: 34px; margin-right: 11px; flex: none; object-fit: contain; }}
 .pano-ctx {{ font-family: var(--mono); font-size: 10.5px; color: var(--faint); margin-top: 3px; }}
-/* Right-aligned dataset context — a bordered pill with a live-status dot. */
-.pano-ctx-wrap {{ display: flex; justify-content: flex-end; }}
-.pano-ctx-chip {{
-  display: inline-flex; align-items: center; gap: 9px;
-  background: var(--paper); border: 1px solid var(--hair);
-  border-radius: 10px; padding: 6px 12px;
-}}
-.pano-ctx-chip::before {{
-  content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none;
-  background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
-}}
-.pano-ctx-text {{ display: flex; flex-direction: column; line-height: 1.35; }}
+/* Right-aligned dataset context — plain text with a small live-status dot; no box. */
+.pano-ctx-wrap {{ display: flex; justify-content: flex-end; align-items: center; }}
+.pano-ctx-chip {{ display: inline-flex; align-items: center; }}
+.pano-ctx-text {{ display: flex; flex-direction: column; line-height: 1.4; text-align: right; }}
 .pano-ctx-main {{ font-family: var(--mono); font-size: 11px; color: var(--ink); font-weight: 600; }}
 .pano-ctx-sub {{ font-family: var(--mono); font-size: 10px; color: var(--faint); }}
 /* App bar — a real header strip with a hairline under it. */
-.st-key-pano_appbar {{ border-bottom: 1px solid var(--hair); padding: 4px 0 11px; margin-bottom: 14px; }}
+.st-key-pano_appbar {{ border-bottom: 1px solid var(--hair); padding: 6px 0 12px; margin-bottom: 14px; }}
 .pano-eyebrow {{
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .1em; color: var(--faint); font-weight: 500; margin: 0 0 12px;
@@ -217,8 +209,8 @@ html, body, .stApp {{
   border-bottom: 1px dotted var(--accent); white-space: nowrap;
 }}
 .tension {{
-  margin-top: 8px; border-left: 2px solid var(--absent);
-  padding: 4px 0 4px 10px; font-size: 12px; color: var(--muted);
+  margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.5;
+  background: var(--absent-bg); border-radius: 8px; padding: 7px 10px;
 }}
 
 /* ---- density/expression legend grad (plasma: low dark purple -> high bright yellow) ---- */

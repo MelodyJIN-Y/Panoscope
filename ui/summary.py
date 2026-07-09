@@ -32,10 +32,10 @@ from ui import holistic
 # --------------------------------------------------------------------------- #
 # Copy — page headings. Constants so prose never drifts.
 # --------------------------------------------------------------------------- #
-_PAGE_TITLE = "All clusters — annotation summary"
+_PAGE_TITLE = "All clusters · annotation summary"
 _PAGE_SUB = (
     "Every call side by side. The table below is the exact export; the holistic "
-    "pass re-reads the whole set for coherence. Numbers come from jazzPanda — "
+    "pass re-reads the whole set for coherence. Numbers come from jazzPanda; "
     "nothing on this page recomputes a value."
 )
 _DOWNLOAD_LABEL = "Download annotations (CSV)"
@@ -45,14 +45,15 @@ _DOWNLOAD_MIME = "text/csv"
 # Column order + display labels for the summary table. The keys are attributes
 # on ``ClusterVerdict`` (``key_markers`` is ";"-joined for a flat cell); the
 # values are the header labels shown to the biologist.
+# Displayed table columns (the CSV export stays the full canonical 11-col set).
+# "Short" and "Category" are dropped; a grounded per-cluster cell-type SUMMARY
+# column (from the pipeline's cell-type notes) will slot in after "Cell type".
 _COLUMNS: tuple[tuple[str, str], ...] = (
     ("cluster", "Cluster"),
     ("cell_type", "Cell type"),
-    ("cell_type_short", "Short"),
     ("confidence", "Confidence"),
     ("verify", "Re-check"),
     ("key_markers", "Key markers"),
-    ("category", "Category"),
     ("lineage", "Lineage"),
 )
 
@@ -67,11 +68,9 @@ def _verdicts_to_frame(verdicts: list[ClusterVerdict]) -> pd.DataFrame:
         {
             "cluster": v.cluster,
             "cell_type": v.cell_type,
-            "cell_type_short": v.cell_type_short,
             "confidence": v.confidence,
             "verify": bool(v.verify),
             "key_markers": "; ".join(v.key_markers),
-            "category": v.category,
             "lineage": v.lineage,
         }
         for v in verdicts

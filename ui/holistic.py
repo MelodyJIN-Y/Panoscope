@@ -36,7 +36,7 @@ from ui import state
 # --------------------------------------------------------------------------- #
 # Copy — the panel's headings. Kept as constants so prose never drifts.
 # --------------------------------------------------------------------------- #
-_PANEL_TITLE = "Holistic review — all 9 clusters together"
+_PANEL_TITLE = "Holistic review · all 9 clusters together"
 _PANEL_SUB = (
     "After annotating each cluster on its own, re-read the whole set for "
     "coherence. Numbers below are computed from the data; the one refinement is "
@@ -44,7 +44,7 @@ _PANEL_SUB = (
 )
 _COHERENCE_HEAD = "Coherence check"
 _REFINE_HEAD = "One refinement to consider"
-_CONNECTOR_UNAVAILABLE = "literature: connector unavailable — re-check"
+_CONNECTOR_UNAVAILABLE = "literature: connector unavailable, re-check"
 
 # How many real PMIDs to pull for the refinement's lit_query. One clickable
 # citation is enough to ground the direction; we keep the fetch small.
@@ -57,27 +57,31 @@ _LIT_MAX_RESULTS = 3
 # defines. Re-injecting the same block across reruns is harmless.
 # --------------------------------------------------------------------------- #
 _HOL_CSS = """
-.hol-sub { font-size:12px; color:var(--muted); line-height:1.45; margin-bottom:12px; }
+.hol-sub { font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:18px; max-width:82ch; }
 .hol-head { font-family:var(--mono); font-size:10px; text-transform:uppercase;
-            letter-spacing:.1em; color:var(--faint); font-weight:500; margin:14px 0 8px; }
-.hol-note { font-size:13px; color:var(--ink); line-height:1.5;
-            padding:9px 11px; border:1px solid var(--hair); border-left:3px solid var(--accent);
-            border-radius:8px; background:var(--paper); margin-bottom:8px; }
-.hol-card { border:1px solid var(--hair); border-radius:10px; padding:12px 13px;
-            background:var(--paper); }
-.hol-call { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+            letter-spacing:.1em; color:var(--faint); font-weight:500; margin:20px 0 4px; }
+/* Coherence: a clean checklist (a teal check + a hairline between rows), NOT
+   left-accent cards. */
+.hol-checks { border-top:1px solid var(--hair); max-width:88ch; }
+.hol-check { display:flex; gap:12px; align-items:flex-start; padding:12px 2px;
+             border-bottom:1px solid var(--hair); font-size:13px; color:var(--ink); line-height:1.55; }
+.hol-check::before { content:'\\2713'; color:var(--accent); font-weight:700; flex:none; font-size:13px; }
+/* Refinement: a soft surface card with an all-around border (no left accent). */
+.hol-card { border:1px solid var(--hair); border-radius:12px; padding:15px 17px;
+            background:var(--paper); max-width:82ch; }
+.hol-call { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:9px; }
 .hol-call .cid { font-family:var(--mono); font-size:11px; color:var(--faint); }
-.hol-call .arr { font-family:var(--mono); font-size:13px; color:var(--accent); }
+.hol-call .arr { font-family:var(--mono); font-size:14px; color:var(--accent); }
 .hol-call .from { font-size:14px; color:var(--muted); }
-.hol-call .to   { font-size:15px; font-weight:600; color:var(--ink); }
+.hol-call .to   { font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
 .hol-tag { font-family:var(--mono); font-size:9px; text-transform:uppercase;
-           letter-spacing:.08em; color:var(--absent); background:var(--absent-bg);
-           padding:2px 7px; border-radius:5px; }
+           letter-spacing:.08em; color:var(--accent); background:var(--accent-soft);
+           padding:2px 8px; border-radius:5px; }
 .hol-ev { font-family:var(--mono); font-size:11px; color:var(--muted);
-          margin:6px 0; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+          margin:9px 0; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
 .hol-ev .lbl { color:var(--faint); }
-.hol-rat { font-size:12px; color:var(--muted); line-height:1.45; margin:6px 0 2px; }
-.hol-lit { font-family:var(--mono); font-size:11px; margin-top:8px; }
+.hol-rat { font-size:12.5px; color:var(--muted); line-height:1.5; margin:9px 0 2px; }
+.hol-lit { font-family:var(--mono); font-size:11px; margin-top:12px; color:var(--faint); }
 .hol-lit.thin { color:var(--absent); }
 .hol-lit .q { color:var(--faint); }
 """
@@ -145,12 +149,18 @@ def _first_real_citation(lit_query: str) -> Optional[Citation]:
 # Rendering helpers
 # --------------------------------------------------------------------------- #
 def _render_coherence(review: HolisticReview) -> None:
-    """Render each grounded coherence note as its own card (verbatim, no recompute)."""
+    """Render the grounded coherence notes as a clean checklist (verbatim, no recompute).
+
+    A teal check + a hairline between rows — not left-accent cards. Each note's
+    text is read straight off the review; nothing here is recomputed.
+    """
     import streamlit as st
 
     st.markdown(f'<div class="hol-head">{_COHERENCE_HEAD}</div>', unsafe_allow_html=True)
-    for note in review.coherence_notes:
-        st.markdown(f'<div class="hol-note">{_esc(note)}</div>', unsafe_allow_html=True)
+    items = "".join(
+        f'<div class="hol-check">{_esc(note)}</div>' for note in review.coherence_notes
+    )
+    st.markdown(f'<div class="hol-checks">{items}</div>', unsafe_allow_html=True)
 
 
 def _cite_label(cite: Citation) -> str:

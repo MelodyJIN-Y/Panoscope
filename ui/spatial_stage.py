@@ -135,7 +135,7 @@ _STAGE_CSS = """
 .ctrl-lbl {
   font-family: var(--mono, ui-monospace, monospace); font-size: 11px;
   color: var(--faint, #9AA3AB); text-transform: uppercase; letter-spacing: .06em;
-  margin: 0; line-height: 1;
+  margin: 0; line-height: 1; transform: translateY(-5px);
 }
 /* Bin control: put the label and the radio on one baseline. Center the row and
    drop the radio's reserved (collapsed) label space so nothing pushes it down. */

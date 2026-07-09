@@ -329,7 +329,7 @@ def _verify_line_html(resp: Optional[AgentResponse]) -> str:
     if resp is None or not resp.verify:
         return ""
     return (
-        '<div class="tension" style="border-left-color:var(--absent)">'
+        '<div class="tension">'
         "&#9873; re-check this: evidence is thin; confirm before relying on it."
         "</div>"
     )

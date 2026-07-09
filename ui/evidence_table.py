@@ -167,9 +167,8 @@ def render_evidence_table(cluster: str) -> None:
 
     st.markdown(_EVIDENCE_CSS, unsafe_allow_html=True)
     st.markdown(
-        '<p class="pano-eyebrow">Marker evidence · '
-        f"{html.escape(verdict.cell_type.replace('_', ' '))} · "
-        f"{len(verdict.evidence)} assigned markers</p>",
+        '<p class="pano-eyebrow">Assigned markers '
+        f"({len(verdict.evidence)} markers)</p>",
         unsafe_allow_html=True,
     )
 
