@@ -64,7 +64,7 @@ _DEFAULTS: dict[str, Any] = {
     K_SELECTED_CLUSTER: DEFAULT_CLUSTER,
     K_SELECTED_MARKERS: dict,   # {cluster: [gene, ...]} — per-cluster multi-select
     K_BIN_UM: DEFAULT_BIN_UM,
-    K_CHAT_THREAD: list,        # fresh [] per session
+    K_CHAT_THREAD: dict,        # {cluster_id: [msg, ...]} — one thread per cluster
     K_SCOPE: DEFAULT_SCOPE,
     K_CAPTURE_OPEN: False,
     K_LK_OPEN: False,
@@ -232,24 +232,33 @@ def set_bin_um(bin_um: int) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Chat thread — list of message dicts {role, text, ...} appended by conversation
+# Chat thread — PER-CLUSTER. Each cluster owns its own conversation so switching
+# clusters swaps threads and never bleeds one cluster's chat into another. The
+# agent's *knowledge* of the whole annotation is carried separately (grounded
+# global-interpretation context in the system prompt), not through this log.
+# Store shape: {cluster_id: [ {role, text, ...}, ... ]}.
 # --------------------------------------------------------------------------- #
-def get_chat_thread() -> list[dict]:
-    """Return the chat thread list (the live object, appended in place)."""
+def _threads() -> dict:
+    """Return the {cluster: [msg,...]} store (created lazily; live object)."""
     ss = _ss()
-    if K_CHAT_THREAD not in ss:
-        ss[K_CHAT_THREAD] = []
+    if K_CHAT_THREAD not in ss or not isinstance(ss[K_CHAT_THREAD], dict):
+        ss[K_CHAT_THREAD] = {}
     return ss[K_CHAT_THREAD]
 
 
-def append_message(message: dict) -> None:
-    """Append one message dict to the chat thread."""
-    get_chat_thread().append(message)
+def get_chat_thread(cluster: str) -> list[dict]:
+    """Return ``cluster``'s chat thread (the live list, appended in place)."""
+    return _threads().setdefault(cluster, [])
 
 
-def clear_chat_thread() -> None:
-    """Reset the chat thread to empty."""
-    _ss()[K_CHAT_THREAD] = []
+def append_message(cluster: str, message: dict) -> None:
+    """Append one message dict to ``cluster``'s chat thread."""
+    get_chat_thread(cluster).append(message)
+
+
+def clear_chat_thread(cluster: str) -> None:
+    """Reset ``cluster``'s chat thread to empty (other clusters untouched)."""
+    _threads()[cluster] = []
 
 
 def opening_was_posted(cluster: str) -> bool:
@@ -262,6 +271,15 @@ def mark_opening_posted(cluster: str) -> None:
     ss = _ss()
     posted = dict(ss.get(K_OPENING_POSTED, {}))  # new dict (immutable update)
     posted[cluster] = True
+    ss[K_OPENING_POSTED] = posted
+
+
+def reset_opening_posted(cluster: str) -> None:
+    """Forget that ``cluster``'s opening was posted, so it re-posts on next render
+    (used by the conversation's 'clear' control to restart a fresh thread)."""
+    ss = _ss()
+    posted = dict(ss.get(K_OPENING_POSTED, {}))
+    posted.pop(cluster, None)
     ss[K_OPENING_POSTED] = posted
 
 
@@ -369,6 +387,7 @@ __all__ = [
     "clear_chat_thread",
     "opening_was_posted",
     "mark_opening_posted",
+    "reset_opening_posted",
     # scope
     "get_scope",
     "set_scope",

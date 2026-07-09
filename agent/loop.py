@@ -133,13 +133,48 @@ def _skill_text() -> str:
         return ""
 
 
+@lru_cache(maxsize=1)
+def _global_interpretation_lines() -> str:
+    """One grounded line per cluster: cell type + confidence + verify + drivers.
+
+    This is the whole annotation's interpretation result, read from the
+    deterministic verdicts (never fabricated). It is injected on EVERY turn so the
+    agent stays aware of the full picture even though each conversation thread is
+    scoped to a single cluster — the biologist can ask relational questions ("how
+    does this sit next to c4?") and the agent keeps the annotation coherent.
+    Cached (verdicts are static within a run). Falls back to the key on any error.
+    """
+    from agent import verdict as _verdict
+
+    lines: list[str] = []
+    for c in cfg.CLUSTER_ORDER:
+        meta = cfg.CLUSTER_KEY.get(c, {})
+        try:
+            v = _verdict.verdict_for_cluster(c)
+            flag = "  [VERIFY — re-check]" if v.verify else ""
+            drivers = ", ".join(v.key_markers[:3])
+            lines.append(
+                f"  {c}: {v.cell_type} — {v.confidence} confidence{flag}"
+                f" (drivers: {drivers})"
+            )
+        except Exception:  # pragma: no cover - degrade to the bare key, never raise
+            lines.append(f"  {c}: {meta.get('cell_type', '?')}")
+    return "\n".join(lines)
+
+
 def _cluster_context(cluster: Optional[str]) -> str:
-    """A short grounded context block for the active cluster (from the key)."""
-    key_lines = [
-        f"  {c}: {meta['cell_type']} ({meta['category']} / {meta['lineage']})"
-        for c, meta in cfg.CLUSTER_KEY.items()
-    ]
-    header = "# CLUSTER KEY (authoritative cluster -> cell type)\n" + "\n".join(key_lines)
+    """Grounded context block: the GLOBAL interpretation + the active cluster.
+
+    The global block (every cluster's call, confidence, verify, drivers) is always
+    present so the agent's knowledge of the annotation is independent of the
+    per-cluster conversation history it is given.
+    """
+    header = (
+        "# GLOBAL INTERPRETATION (authoritative — every cluster's call; do not "
+        "restate a number you have not read from a tool, but you MAY use these "
+        "calls and confidence bands to reason relationally and stay consistent)\n"
+        + _global_interpretation_lines()
+    )
     if cluster and cluster in cfg.KNOWN_CLUSTERS:
         meta = cfg.CLUSTER_KEY[cluster]
         active = (
