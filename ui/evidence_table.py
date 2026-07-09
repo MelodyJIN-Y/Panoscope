@@ -30,38 +30,15 @@ from agent.types import ClusterVerdict, MarkerEvidence
 from ui import data_access, format as fmt, state
 
 # --------------------------------------------------------------------------- #
-# How many rows to show. A cluster can carry dozens of assigned markers (c1 has
-# 84); showing all buries the drivers. Keep every canonical marker (the drivers
-# the call rests on), then top up with the strongest non-canonical supporters by
-# glm_coef until the cap. This only *selects* rows the verdict already produced.
-# --------------------------------------------------------------------------- #
-MAX_SUPPORT_ROWS: int = 8
-
-
-def _rows_to_show(verdict: ClusterVerdict) -> list[MarkerEvidence]:
-    """Canonical markers (always) + strongest non-canonical supporters, capped."""
-    canonical = [e for e in verdict.evidence if e.is_canonical]
-    non_canonical = [e for e in verdict.evidence if not e.is_canonical]
-    budget = max(0, MAX_SUPPORT_ROWS - len(canonical))
-    kept = {id(e) for e in canonical} | {id(e) for e in non_canonical[:budget]}
-    return [e for e in verdict.evidence if id(e) in kept]
-
-
-# --------------------------------------------------------------------------- #
 # Pure HTML fragments (escape all source-derived text)
 # --------------------------------------------------------------------------- #
 def _num_html(ev: MarkerEvidence) -> str:
-    """The numbers cell: a canonical tag (if any), glm_coef, and pearson."""
+    """The numbers cell: glm_coef and pearson. (The canonical tag now sits next to
+    the gene name in the gene column, via the button's ::after, not here.)"""
     glm = fmt.num_fmt(ev.glm_coef, 2)
     pear = fmt.num_fmt(ev.pearson, 2)
-    canon = (
-        '<span class="pano-canon" title="canonical marker for this cell type">canonical</span>'
-        if ev.is_canonical
-        else ""
-    )
     return (
-        f'<div class="pano-ev-num">{canon}'
-        f'<span class="num">{glm}</span>'
+        f'<div class="pano-ev-num"><span class="num">{glm}</span>'
         f'<span class="num dim pano-ev-sub">pearson {pear}</span></div>'
     )
 
@@ -155,11 +132,22 @@ div[class*="st-key-generow_"] button[data-testid="stBaseButton-primary"] {
   color: var(--accent) !important; background: transparent !important;
 }
 div[class*="st-key-generow_"] div[data-testid="stButton"] > button:hover { background: var(--hair2) !important; }
+/* Canonical marker: a small tag right after the gene name (canonical rows only). */
+div[class*="st-key-generow_canon_"] div[data-testid="stButton"] > button::after {
+  content: 'canonical'; align-self: center; flex: none; margin-left: 8px;
+  font-family: var(--mono); font-size: 9px; font-weight: 500; line-height: 1.5;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 1px 6px; border-radius: 4px;
+}
 </style>
 """
 
 # Column proportions shared by the header and every row so they line up.
 _COLS = [0.24, 0.20, 0.56]
+
+# The marker rows live in one fixed-height, scrollable panel (all markers at once,
+# scroll for the long tail) rather than a top-N view plus a "show all" expander.
+_EV_SCROLL_HEIGHT = 360
 
 
 # --------------------------------------------------------------------------- #
@@ -190,51 +178,48 @@ def render_evidence_table(cluster: str) -> None:
             unsafe_allow_html=True,
         )
 
-    rows = _rows_to_show(verdict)
-    if not rows:
+    all_rows = list(verdict.evidence)
+    if not all_rows:
         st.markdown(
             '<div class="pano-ev-empty">No assigned markers for this cluster.</div>',
             unsafe_allow_html=True,
         )
+        return
 
-    _render_marker_rows(st, rows, cluster, key="evrows_shown")
-
-    # The long tail (non-driver markers beyond the default view) is tucked behind
-    # an expander. Shown and hidden rows are disjoint, so per-gene keys stay unique.
-    shown_ids = {id(e) for e in rows}
-    hidden = [e for e in verdict.evidence if id(e) not in shown_ids]
-    if hidden:
-        with st.expander(
-            f"Show all {len(verdict.evidence)} assigned markers", expanded=False
-        ):
-            _render_marker_rows(st, hidden, cluster, key="evrows_hidden")
+    # Every assigned marker in one fixed-height, scrollable panel — scroll for the
+    # long tail rather than an expander that pushes the tissue down the page.
+    with st.container(height=_EV_SCROLL_HEIGHT, key="evrows"):
+        _render_marker_rows(st, all_rows, cluster)
 
 
-def _render_marker_rows(st, rows, cluster: str, *, key: str) -> None:
+def _render_marker_rows(st, rows, cluster: str) -> None:
     """Render each marker as ``[gene button | numbers | cited biology note]``.
 
-    The gene button (dot ::before + name) toggles this ``cluster``'s marker set
-    (per-cluster selection) in-line — the evidence table renders BEFORE the spatial
-    stage in the same run, so the grid sees the change immediately. No recompute.
+    Called inside the scrollable rows container. The gene button (dot ::before +
+    name) toggles this ``cluster``'s marker set (per-cluster selection) in-line; the
+    evidence table renders BEFORE the spatial stage in the same run, so the grid
+    sees the change immediately. No recompute.
     """
-    with st.container(key=key):
-        for ev in rows:
-            is_selected = state.is_marker_selected(cluster, ev.gene)
-            with st.container(key=f"generow_{ev.gene}"):
-                g_col, n_col, b_col = st.columns(_COLS, vertical_alignment="top")
-                with g_col:
-                    if st.button(
-                        str(ev.gene),
-                        key=f"select_{ev.gene}",
-                        type="primary" if is_selected else "secondary",
-                        use_container_width=True,
-                    ):
-                        state.toggle_marker(cluster, ev.gene)
-                        st.rerun()
-                with n_col:
-                    st.markdown(_num_html(ev), unsafe_allow_html=True)
-                with b_col:
-                    st.markdown(_bio_html(cluster, ev.gene), unsafe_allow_html=True)
+    for ev in rows:
+        is_selected = state.is_marker_selected(cluster, ev.gene)
+        # Canonical markers get a `canonical` tag after the gene name via CSS
+        # (::after on the button), keyed by the container name below.
+        row_key = f"generow_canon_{ev.gene}" if ev.is_canonical else f"generow_{ev.gene}"
+        with st.container(key=row_key):
+            g_col, n_col, b_col = st.columns(_COLS, vertical_alignment="top")
+            with g_col:
+                if st.button(
+                    str(ev.gene),
+                    key=f"select_{ev.gene}",
+                    type="primary" if is_selected else "secondary",
+                    use_container_width=True,
+                ):
+                    state.toggle_marker(cluster, ev.gene)
+                    st.rerun()
+            with n_col:
+                st.markdown(_num_html(ev), unsafe_allow_html=True)
+            with b_col:
+                st.markdown(_bio_html(cluster, ev.gene), unsafe_allow_html=True)
 
 
 __all__ = ["render_evidence_table"]
