@@ -47,7 +47,9 @@ from agent.types import (
     AgentResponse,
     Citation,
     GroundingSidecar,
+    NoteDraft,
     Source,
+    Tension,
 )
 
 # python-dotenv: load ANTHROPIC_API_KEY (+ NCBI creds for the MCP client) from
@@ -109,9 +111,12 @@ the engine; you are the interpretation layer. You never run jazzPanda live.
    write a PMID from memory. If a lookup returns nothing, say the literature is
    thin — do not invent a reference. A fabricated citation is the worst possible
    failure.
-4. MEMORY IS SCOPED AND CITED. Use `memory_read` to see in-scope lab notes; cite
-   any note you use as [note:<id>] and show its tension. Capture overrides with
-   `memory_write`.
+4. MEMORY IS SCOPED AND CITED. In-scope lab notes are given to you above; cite
+   any note you use as [note:<id>] and show its tension (never use one silently).
+   At an override/correction, PROPOSE a note with `memory_draft` (never persist on
+   your own) — it cross-checks the claim against the literature and the biologist
+   confirms scope/basis before it is saved. Tell them you drafted it and to
+   confirm below; keep the disagreement visible, never a bare acknowledgement.
 5. WHEN UNSURE, say "re-check this" and set the verify flag — do not guess to
    seem helpful.
 6. Plain language. Every point names a gene and its number. State the confidence
@@ -266,6 +271,51 @@ def _default_literature_verifier(ident: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
+# Rebuild a NoteDraft from a memory_draft tool payload
+# --------------------------------------------------------------------------- #
+def _cite_from_dict(d: dict[str, Any]) -> Citation:
+    """Rebuild a real Citation from a draft-payload tension entry."""
+    year = d.get("year")
+    return Citation(
+        pmid=str(d.get("pmid", "")),
+        title=str(d.get("title", "")),
+        authors=str(d.get("authors", "")),
+        year=int(year) if str(year).isdigit() else 0,
+        journal=str(d.get("journal", "")),
+        stance=str(d.get("stance", "agree")),
+        is_real=True,
+    )
+
+
+def _draft_from_payload(data: Any) -> Optional[NoteDraft]:
+    """Reconstruct a :class:`NoteDraft` from a ``memory_draft`` envelope's data.
+
+    Returns None if the payload is malformed (the turn simply carries no draft).
+    """
+    if not isinstance(data, dict) or not data.get("claim"):
+        return None
+    t = data.get("tension") or {}
+    tension = Tension(
+        agree=tuple(_cite_from_dict(c) for c in t.get("agree", ()) if isinstance(c, dict)),
+        dissent=tuple(_cite_from_dict(c) for c in t.get("dissent", ()) if isinstance(c, dict)),
+        thin=bool(t.get("thin", True)),
+        query=str(t.get("query", "")),
+        looked_up_at="",
+    )
+    return NoteDraft(
+        claim=str(data["claim"]),
+        scope=data.get("scope", "cluster"),
+        basis=data.get("basis", "own_validation"),
+        status=data.get("status", "firm"),
+        cluster=data.get("cluster"),
+        subject_cell_type=data.get("subject_cell_type"),
+        subject_markers=tuple(data.get("subject_markers") or ()),
+        tension=tension,
+        dataset=str(data.get("dataset", cfg.DATASET_ID)),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Sidecar / source accumulation from tool results
 # --------------------------------------------------------------------------- #
 class _Ledger:
@@ -287,6 +337,7 @@ class _Ledger:
         self.sources: list[Source] = []
         self.citations: list[Citation] = []
         self.pin_marker: Optional[str] = None
+        self.note_draft: Optional[NoteDraft] = None
 
     # -- record one tool call's envelope ----------------------------------- #
     def record(self, tool_name: str, envelope: dict[str, Any]) -> None:
@@ -305,6 +356,8 @@ class _Ledger:
             self._record_notes(data)
         elif tool_name == "memory_write":
             self._record_note_write(data)
+        elif tool_name == "memory_draft":
+            self._record_draft(data)
 
     def _record_source(self, s: Any) -> None:
         if not isinstance(s, dict):
@@ -385,6 +438,22 @@ class _Ledger:
     def _record_note_write(self, data: Any) -> None:
         if isinstance(data, dict) and data.get("id"):
             self.notes.append(str(data["id"]))
+
+    def _record_draft(self, data: Any) -> None:
+        """Capture a proposed (unsaved) note + its tension citations.
+
+        The draft becomes ``AgentResponse.note_draft`` (the UI renders the confirm
+        card). Its real agree/dissent PMIDs are recorded like any literature cite
+        so the grounding gate accepts the override prose and the UI can link them.
+        """
+        draft = _draft_from_payload(data)
+        if draft is None:
+            return
+        self.note_draft = draft
+        for c in draft.tension.agree + draft.tension.dissent:
+            if c.pmid:
+                self.pmids.append(c.pmid)
+                self.citations.append(c)
 
     # -- finalize ---------------------------------------------------------- #
     def sidecar(self) -> GroundingSidecar:
@@ -761,6 +830,7 @@ class PanoscopeAgent:
             pin_marker=ledger.pin_marker,
             citations=ledger.citation_tuple(),
             note_written=None,
+            note_draft=ledger.note_draft,
             used_fallback=False,
             opening=False,
         )

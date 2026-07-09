@@ -32,6 +32,7 @@ K_SELECTED_CLUSTER = "selected_cluster"
 K_SELECTED_MARKERS = "selected_markers"
 K_BIN_UM = "bin_um"
 K_CHAT_THREAD = "chat_thread"
+K_PENDING_DRAFT = "pending_draft"
 K_SCOPE = "scope"
 K_CAPTURE_OPEN = "capture_open"
 K_LK_OPEN = "lab_knowledge_open"
@@ -65,6 +66,7 @@ _DEFAULTS: dict[str, Any] = {
     K_SELECTED_MARKERS: dict,   # {cluster: [gene, ...]} — per-cluster multi-select
     K_BIN_UM: DEFAULT_BIN_UM,
     K_CHAT_THREAD: dict,        # {cluster_id: [msg, ...]} — one thread per cluster
+    K_PENDING_DRAFT: dict,      # {cluster_id: NoteDraft} — note awaiting confirm
     K_SCOPE: DEFAULT_SCOPE,
     K_CAPTURE_OPEN: False,
     K_LK_OPEN: False,
@@ -284,6 +286,33 @@ def reset_opening_posted(cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Pending note draft — a proposed note awaiting the biologist's two-tap confirm.
+# Per cluster (the draft belongs to the cluster it was raised on). Held here as a
+# frozen NoteDraft; the confirm card edits scope/basis/status before saving.
+# --------------------------------------------------------------------------- #
+def _drafts() -> dict:
+    ss = _ss()
+    if K_PENDING_DRAFT not in ss or not isinstance(ss[K_PENDING_DRAFT], dict):
+        ss[K_PENDING_DRAFT] = {}
+    return ss[K_PENDING_DRAFT]
+
+
+def set_pending_draft(cluster: str, draft: Any) -> None:
+    """Stash a proposed NoteDraft for ``cluster`` (renders the confirm card)."""
+    _drafts()[cluster] = draft
+
+
+def get_pending_draft(cluster: str) -> Any:
+    """The proposed NoteDraft awaiting confirm for ``cluster``, or None."""
+    return _drafts().get(cluster)
+
+
+def clear_pending_draft(cluster: str) -> None:
+    """Drop ``cluster``'s pending draft (after Save or Discard)."""
+    _drafts().pop(cluster, None)
+
+
+# --------------------------------------------------------------------------- #
 # Note scope (for capture-at-override)
 # --------------------------------------------------------------------------- #
 def get_scope() -> str:
@@ -388,6 +417,9 @@ __all__ = [
     "opening_was_posted",
     "mark_opening_posted",
     "reset_opening_posted",
+    "set_pending_draft",
+    "get_pending_draft",
+    "clear_pending_draft",
     # scope
     "get_scope",
     "set_scope",

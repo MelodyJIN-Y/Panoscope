@@ -107,7 +107,13 @@ def test_dispatch_unknown_tool_fails_cleanly():
 
 def test_tool_schemas_match_dispatch():
     names = {s["name"] for s in tools.TOOL_SCHEMAS}
-    assert names == set(tools._DISPATCH)
+    # Every model-facing schema has a dispatch entry. The reverse need NOT hold:
+    # memory_write stays dispatchable (save paths/tests) but is deliberately not
+    # exposed to the model, so it cannot persist a note the biologist has not
+    # confirmed — the model drafts (memory_draft) and the UI saves.
+    assert names <= set(tools._DISPATCH)
+    assert "memory_write" not in names
+    assert "memory_draft" in names
     assert len(tools.TOOL_SCHEMAS) == 7
     for schema in tools.TOOL_SCHEMAS:
         assert "name" in schema and "description" in schema and "input_schema" in schema
@@ -356,3 +362,35 @@ def test_literature_search_live_or_graceful_offline():
 def test_literature_fetch_bad_pmids_fails():
     env = tools.dispatch("literature_fetch", {"pmids": ["notanid", "xx"]})
     assert env["ok"] is False
+
+
+def test_memory_draft_reconciles_but_persists_nothing(isolated_memory):
+    """memory_draft proposes a reconciled note WITHOUT writing it (UI-gated save)."""
+    tools.set_literature_search(_stub_search)
+
+    env = tools.dispatch(
+        "memory_draft",
+        {
+            "claim": "In our breast TME, LUM marks CAFs in this cluster",
+            "scope": "cluster",
+            "basis": "own_validation",
+            "cluster": "c2",
+            "subject_markers": ["LUM"],
+        },
+    )
+    _assert_envelope(env)
+    assert env["ok"] is True
+    # It reconciled (real agree/dissent PMIDs on the payload) ...
+    tension = env["data"]["tension"]
+    assert tension["agree"] or tension["dissent"]
+    assert "id" not in env["data"]  # a draft has no persisted id
+    # ... but nothing was written: an in-scope read finds no notes.
+    read_env = tools.dispatch("memory_read", {"cluster": "c2"})
+    assert read_env["data"]["n_notes"] == 0
+
+
+def test_memory_write_not_exposed_to_model():
+    """The model cannot call memory_write (only memory_draft); persistence is UI-gated."""
+    schema_names = {s["name"] for s in tools.TOOL_SCHEMAS}
+    assert "memory_write" not in schema_names
+    assert "memory_draft" in schema_names

@@ -298,6 +298,21 @@ def notes_in_scope(cluster: Optional[str]) -> list[Note]:
     return memory.apply_notes(cluster)
 
 
+def save_note_draft(draft: Any) -> Note:
+    """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a lab note.
+
+    The second half of capture-at-override: the confirm card in the chat produced
+    a (possibly edited) draft, and this writes it via ``agent.memory.save_draft``
+    into the SAME base dir the agent reads notes from — so a just-saved note is
+    immediately in scope for recall. No second literature lookup (the tension is
+    already on the draft). Returns the written Note.
+    """
+    from agent import memory
+    from agent import tools
+
+    return memory.save_draft(draft, base_dir=tools.memory_base_dir())
+
+
 __all__ = [
     "markers_df",
     "panel_df",
@@ -321,4 +336,5 @@ __all__ = [
     "get_agent",
     "read_notes",
     "notes_in_scope",
+    "save_note_draft",
 ]

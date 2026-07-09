@@ -168,6 +168,27 @@ class Note:
     supersedes: Optional[str]
 
 
+@dataclass(frozen=True)
+class NoteDraft:
+    """A proposed lab note, reconciled against the literature but NOT yet saved.
+
+    The agent produces this at an override (via ``memory_draft``); the biologist
+    confirms scope/basis/status in the chat and only then is it persisted
+    (``memory.save_draft``). Nothing hits disk until the biologist saves. The
+    ``tension`` is already computed from the claim, so adjusting scope/basis/status
+    at confirm time never needs another literature lookup.
+    """
+    claim: str
+    scope: Scope
+    basis: Basis
+    status: Status
+    cluster: Optional[str]                  # active cluster; used iff scope=="cluster"
+    subject_cell_type: Optional[str]
+    subject_markers: tuple[str, ...]
+    tension: Tension
+    dataset: str
+
+
 # --------------------------------------------------------------------------- #
 # Agent I/O
 # --------------------------------------------------------------------------- #
@@ -197,5 +218,6 @@ class AgentResponse:
     pin_marker: Optional[str] = None
     citations: tuple[Citation, ...] = ()
     note_written: Optional[Note] = None
+    note_draft: Optional[NoteDraft] = None   # proposed note awaiting biologist confirm
     used_fallback: bool = False
     opening: bool = False

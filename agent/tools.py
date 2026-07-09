@@ -565,6 +565,101 @@ def memory_write(
 
 
 # --------------------------------------------------------------------------- #
+# 8. memory_draft — propose a note (reconciled) WITHOUT persisting it
+# --------------------------------------------------------------------------- #
+def _draft_payload(draft) -> dict[str, Any]:
+    """Flatten a NoteDraft (with its tension) to a JSON-safe dict for the payload.
+
+    Carries enough of each tension citation (pmid/title/authors/year/stance) for
+    the loop to rebuild the draft and for the confirm card to show the tension.
+    """
+
+    def _cites(cs) -> list[dict[str, Any]]:
+        return [
+            {
+                "pmid": c.pmid,
+                "title": c.title,
+                "authors": c.authors,
+                "year": c.year,
+                "stance": c.stance,
+                "journal": c.journal,
+            }
+            for c in cs
+            if c.pmid
+        ]
+
+    t = draft.tension
+    return {
+        "claim": draft.claim,
+        "scope": draft.scope,
+        "basis": draft.basis,
+        "status": draft.status,
+        "cluster": draft.cluster,
+        "dataset": draft.dataset,
+        "subject_cell_type": draft.subject_cell_type,
+        "subject_markers": list(draft.subject_markers),
+        "tension": {
+            "thin": t.thin,
+            "query": t.query,
+            "agree": _cites(t.agree),
+            "dissent": _cites(t.dissent),
+        },
+    }
+
+
+def memory_draft(
+    claim: str,
+    scope: str,
+    basis: str,
+    status: str = "firm",
+    cluster: Optional[str] = None,
+    subject_cell_type: Optional[str] = None,
+    subject_markers: Optional[list[str]] = None,
+    dataset: str = cfg.DATASET_ID,
+) -> Envelope:
+    """PROPOSE a lab note (reconciled against the literature) WITHOUT saving it.
+
+    Capture-at-override, step one: record the claim, its inferred scope/basis, and
+    cross-check the claim against the literature (real PMIDs, agree/dissent). The
+    biologist then confirms scope/basis/status in the chat and only THEN is it
+    persisted. Nothing is written here. Use this at an override/correction — never
+    persist a note the biologist has not confirmed.
+    """
+    if not claim or not str(claim).strip():
+        return _fail("memory_draft requires a non-empty claim")
+    if scope not in ("cluster", "dataset", "lab"):
+        return _fail(f"invalid scope {scope!r}; must be cluster|dataset|lab")
+    if basis not in ("paper", "own_validation", "convention"):
+        return _fail(f"invalid basis {basis!r}; must be paper|own_validation|convention")
+
+    lit_fn = _literature_search_fn()
+    try:
+        draft = memory.draft_note(
+            claim=str(claim).strip(),
+            scope=scope,  # type: ignore[arg-type]
+            basis=basis,  # type: ignore[arg-type]
+            status=status,  # type: ignore[arg-type]
+            cluster=cluster,
+            subject_cell_type=subject_cell_type,
+            subject_markers=subject_markers,
+            dataset=dataset,
+            literature_search=lit_fn,
+        )
+    except ValueError as exc:
+        return _fail(str(exc))
+
+    # Surface the tension citations as literature Sources so the grounding gate
+    # and the UI see the (real) PMIDs the agent may reference for this override.
+    t = draft.tension
+    sources = tuple(
+        Source(kind="lit", ref=c.pmid, value=c.title, detail=c.stance)
+        for c in (t.agree + t.dissent)
+        if c.pmid
+    )
+    return _ok(_draft_payload(draft), sources)
+
+
+# --------------------------------------------------------------------------- #
 # Dispatch table + Anthropic tool schemas
 # --------------------------------------------------------------------------- #
 _DISPATCH: dict[str, Callable[..., Envelope]] = {
@@ -575,6 +670,7 @@ _DISPATCH: dict[str, Callable[..., Envelope]] = {
     "literature_fetch": literature_fetch,
     "memory_read": memory_read,
     "memory_write": memory_write,
+    "memory_draft": memory_draft,
 }
 
 
@@ -735,13 +831,16 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "memory_write",
+        "name": "memory_draft",
         "description": (
-            "Capture a biologist override/correction as a scoped lab note AND cross-check it "
-            "against the literature (real PMIDs), attaching the agree/dissent tension. Use at "
-            "an override: record the claim, its scope (cluster|dataset|lab), and basis "
-            "(paper|own_validation|convention). Keeps the biologist's call WITH the "
-            "disagreement visible — never a bare acknowledgement, never a silent overrule."
+            "PROPOSE a lab note at a biologist override/correction and cross-check the claim "
+            "against the literature (real PMIDs, agree/dissent) — but DO NOT persist it. The "
+            "biologist confirms scope and basis in the chat and only then is it saved, so "
+            "nothing hits disk on your word alone. Use this (never persist directly) whenever "
+            "the biologist overrides, corrects, or asks to record a call: give the claim, your "
+            "best-inferred scope (cluster|dataset|lab) and basis (paper|own_validation|"
+            "convention), and — for cluster scope — the cluster. Then tell the biologist you "
+            "have drafted it and to confirm scope/basis below. Keep the disagreement visible."
         ),
         "input_schema": {
             "type": "object",
@@ -781,9 +880,17 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     },
 ]
 
-# Sanity: schema list and dispatch table must name exactly the same 7 tools.
-assert {s["name"] for s in TOOL_SCHEMAS} == set(_DISPATCH), (
-    "TOOL_SCHEMAS and dispatch table disagree on the tool set"
+# Sanity: every model-facing schema must have a dispatch entry. The reverse need
+# not hold — memory_write stays dispatchable (for save paths/tests) but is NOT
+# exposed to the model, so it cannot persist a note the biologist hasn't confirmed.
+_SCHEMA_NAMES = {s["name"] for s in TOOL_SCHEMAS}
+assert _SCHEMA_NAMES <= set(_DISPATCH), (
+    "TOOL_SCHEMAS names a tool with no dispatch entry: "
+    f"{_SCHEMA_NAMES - set(_DISPATCH)}"
+)
+assert "memory_write" not in _SCHEMA_NAMES, (
+    "memory_write must not be model-facing; the model drafts (memory_draft) and "
+    "the biologist confirms before any write"
 )
 
 
@@ -797,6 +904,8 @@ __all__ = [
     "literature_fetch",
     "memory_read",
     "memory_write",
+    "memory_draft",
     "set_literature_search",
     "set_memory_base_dir",
+    "memory_base_dir",
 ]

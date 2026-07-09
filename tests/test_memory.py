@@ -301,3 +301,62 @@ def test_supersede_creates_new_note_linked_to_old(base: Path):
     # old note is untouched on disk (immutability)
     still_there = memory.get_note(old.id, base)
     assert still_there == old
+
+
+# --------------------------------------------------------------------------- #
+# Draft-then-save (capture-at-override, two-tap confirm)
+# --------------------------------------------------------------------------- #
+def test_draft_note_reconciles_but_writes_nothing(base: Path):
+    """draft_note attaches the tension yet persists nothing (biologist not asked)."""
+    draft = memory.draft_note(
+        claim="In our breast TME, PDGFRB marks CAFs here, not pericytes",
+        scope="cluster",
+        basis="own_validation",
+        status="firm",
+        cluster="c2",
+        subject_markers=["PDGFRB"],
+        dataset=DATASET,
+        literature_search=_agree_one_dissent_one,
+    )
+    # Tension is computed (1 agree + 1 dissent) ...
+    assert len(draft.tension.agree) == 1
+    assert len(draft.tension.dissent) == 1
+    # ... but nothing was written.
+    assert memory.read_notes(base) == []
+
+
+def test_save_draft_persists_with_confirmed_scope_and_kept_tension(base: Path):
+    """The biologist re-scopes cluster->dataset at confirm; save keeps the tension
+    (no second lookup) and drops the cluster so it cannot masquerade as cluster."""
+    import dataclasses
+
+    draft = memory.draft_note(
+        claim="PDGFRB marks CAFs in this dataset",
+        scope="cluster",
+        basis="own_validation",
+        cluster="c2",
+        subject_markers=["PDGFRB"],
+        dataset=DATASET,
+        literature_search=_agree_one_dissent_one,
+    )
+    edited = dataclasses.replace(draft, scope="dataset", cluster=None)
+    note = memory.save_draft(edited, base_dir=base)
+
+    assert note.scope == "dataset"
+    assert note.scope_ref.cluster is None
+    assert len(note.tension.agree) == 1 and len(note.tension.dissent) == 1
+    # Now on disk and firing dataset-wide.
+    assert len(memory.read_notes(base)) == 1
+    assert memory.apply_notes("c7", dataset=DATASET, base_dir=base)
+
+
+def test_save_draft_cluster_scope_requires_cluster(base: Path):
+    """A cluster-scoped draft with no cluster fails closed at save."""
+    import dataclasses
+
+    draft = memory.draft_note(
+        claim="something", scope="dataset", basis="convention", dataset=DATASET
+    )
+    bad = dataclasses.replace(draft, scope="cluster", cluster=None)
+    with pytest.raises(ValueError):
+        memory.save_draft(bad, base_dir=base)

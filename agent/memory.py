@@ -38,6 +38,7 @@ from agent.types import (
     Basis,
     Citation,
     Note,
+    NoteDraft,
     Scope,
     ScopeRef,
     Source,
@@ -215,6 +216,135 @@ def reconcile(note: Note, literature_search: Optional[LiteratureSearch] = None) 
 # --------------------------------------------------------------------------- #
 # Create
 # --------------------------------------------------------------------------- #
+def _validate_note_fields(claim: str, scope: str, basis: str, status: str) -> None:
+    """Validate the closed-vocab fields shared by draft + create (raises ValueError)."""
+    if not claim or not claim.strip():
+        raise ValueError("[memory] note claim must be non-empty")
+    if scope not in ("cluster", "dataset", "lab"):
+        raise ValueError(f"[memory] invalid scope {scope!r}")
+    if basis not in ("paper", "own_validation", "convention"):
+        raise ValueError(f"[memory] invalid basis {basis!r}")
+    if status not in ("firm", "tentative"):
+        raise ValueError(f"[memory] invalid status {status!r}")
+
+
+def draft_note(
+    *,
+    claim: str,
+    scope: Scope,
+    basis: Basis,
+    status: Status = "firm",
+    cluster: Optional[str] = None,
+    subject_cell_type: Optional[str] = None,
+    subject_markers: Optional[Iterable[str]] = None,
+    dataset: str = cfg.DATASET_ID,
+    literature_search: Optional[LiteratureSearch] = None,
+) -> NoteDraft:
+    """Reconcile a proposed note against the literature WITHOUT persisting it.
+
+    This is the first half of capture-at-override: the agent proposes a note, we
+    cross-check the claim against the literature (real PMIDs only), and return a
+    :class:`~agent.types.NoteDraft` carrying that tension. Nothing is written —
+    the biologist confirms scope/basis/status and only then :func:`save_draft`
+    persists it. Validates the closed-vocab fields (and a cluster for cluster
+    scope) so a malformed draft fails fast, same as :func:`create_note`.
+    """
+    _validate_note_fields(claim, scope, basis, status)
+    if scope == "cluster":
+        if cluster is None:
+            raise ValueError("[memory] a cluster-scoped note must name a cluster")
+        if cluster not in cfg.KNOWN_CLUSTERS:
+            raise ValueError(
+                f"[memory] unknown cluster {cluster!r}; known: {sorted(cfg.KNOWN_CLUSTERS)}"
+            )
+
+    markers = tuple(subject_markers) if subject_markers else ()
+    stub = Note(
+        id="__draft__",
+        claim=claim.strip(),
+        scope=scope,
+        scope_ref=ScopeRef(dataset=dataset, cluster=cluster if scope == "cluster" else None),
+        basis=basis,
+        status=status,
+        subject_cell_type=subject_cell_type,
+        subject_markers=markers,
+        tension=Tension(agree=(), dissent=(), thin=True, query="", looked_up_at=""),
+        author="",
+        created_at=_now_iso(),
+        trigger="override",
+        supersedes=None,
+    )
+    tension = reconcile(stub, literature_search)
+    return NoteDraft(
+        claim=claim.strip(),
+        scope=scope,
+        basis=basis,
+        status=status,
+        cluster=cluster if scope == "cluster" else None,
+        subject_cell_type=subject_cell_type,
+        subject_markers=markers,
+        tension=tension,
+        dataset=dataset,
+    )
+
+
+def save_draft(
+    draft: NoteDraft,
+    *,
+    attributed_to: str = "melody.xyjin@gmail.com",
+    trigger: str = "override",
+    supersedes: Optional[str] = None,
+    base_dir: Path | str | None = None,
+) -> Note:
+    """Persist a (possibly biologist-edited) :class:`~agent.types.NoteDraft`.
+
+    The second half of capture-at-override: the biologist confirmed scope/basis/
+    status, so we write the note WITH the tension the draft already carries (no
+    second literature lookup). Scope is enforced at save on the FINAL scope — a
+    cluster-scoped note must name a cluster; dataset/lab notes drop any cluster so
+    they can never masquerade as cluster-scoped. Returns the written Note.
+    """
+    _validate_note_fields(draft.claim, draft.scope, draft.basis, draft.status)
+    if draft.scope == "cluster":
+        if not draft.cluster:
+            raise ValueError("[memory] a cluster-scoped note must name a cluster")
+        if draft.cluster not in cfg.KNOWN_CLUSTERS:
+            raise ValueError(
+                f"[memory] unknown cluster {draft.cluster!r}; "
+                f"known: {sorted(cfg.KNOWN_CLUSTERS)}"
+            )
+        scope_cluster: Optional[str] = draft.cluster
+    else:
+        scope_cluster = None
+
+    note_id = uuid.uuid4().hex[:12]
+    note = Note(
+        id=note_id,
+        claim=draft.claim.strip(),
+        scope=draft.scope,
+        scope_ref=ScopeRef(dataset=draft.dataset, cluster=scope_cluster),
+        basis=draft.basis,
+        status=draft.status,
+        subject_cell_type=draft.subject_cell_type,
+        subject_markers=tuple(draft.subject_markers),
+        tension=draft.tension,
+        author=attributed_to,
+        created_at=_now_iso(),
+        trigger=trigger,  # type: ignore[arg-type]
+        supersedes=supersedes,
+    )
+    _write_note(note, base_dir)
+    log_decision(
+        kind="note_created",
+        cluster=scope_cluster,
+        note_id=note_id,
+        actor=attributed_to,
+        detail=f"scope={draft.scope} basis={draft.basis} status={draft.status} (confirmed)",
+        base_dir=base_dir,
+    )
+    return note
+
+
 def create_note(
     *,
     claim: str,

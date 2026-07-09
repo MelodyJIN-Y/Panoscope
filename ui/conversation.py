@@ -59,6 +59,27 @@ _SRC_ORDER: tuple[str, ...] = ("jz", "panel", "lit", "mem")
 # Session key for the ask input (namespaced so no other pane collides).
 _K_ASK = "conv_ask_input"
 
+# Confirm-card toggles: (display label, stored enum value). Scope's cluster label
+# is filled with the active cluster id at render time.
+_BASIS_OPTS: tuple[tuple[str, str], ...] = (
+    ("our own data", "own_validation"),
+    ("a paper", "paper"),
+    ("convention", "convention"),
+)
+_STATUS_OPTS: tuple[tuple[str, str], ...] = (
+    ("firm", "firm"),
+    ("tentative", "tentative"),
+)
+_SCOPE_SAVED_LABEL: dict[str, str] = {
+    "dataset": "this dataset",
+    "lab": "lab-wide",
+}
+_BASIS_SAVED_LABEL: dict[str, str] = {
+    "own_validation": "our own data",
+    "paper": "a paper",
+    "convention": "convention",
+}
+
 # Fixed-height scroll area for the thread; the ask box sits pinned just below it.
 _THREAD_HEIGHT = 440
 
@@ -117,6 +138,28 @@ _CONVO_CSS = """
 .st-key-conv_ask [data-testid="stFormSubmitButton"] button {
   min-height: 38px !important; border-radius: 9px !important;
 }
+/* Confirm-to-save card: an accent-tinted panel between thread and ask box. */
+.st-key-conv_draft {
+  border: 1px solid var(--accent); border-radius: 12px;
+  background: var(--accent-soft); padding: 12px 13px; margin: 4px 0 10px;
+}
+.draft-eyebrow {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--accent); font-weight: 600; margin-bottom: 6px;
+}
+.draft-claim { font-size: 13px; line-height: 1.5; color: var(--ink); font-weight: 500; margin-bottom: 8px; }
+.draft-lbl {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--faint); margin: 6px 0 1px;
+}
+.draft-tension { font-family: var(--mono); font-size: 11px; color: var(--muted); margin: 10px 0 6px; }
+.draft-tension .lbl { text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 6px; }
+.draft-tension .agree { color: var(--accent); font-weight: 600; }
+.draft-tension .dissent { color: var(--absent); font-weight: 600; }
+.draft-tension .thin { color: var(--faint); }
+.draft-tension a { color: var(--accent); text-decoration: none; }
+.draft-tension a:hover { text-decoration: underline; }
+.st-key-conv_draft [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
 </style>
 """
 
@@ -140,6 +183,7 @@ def render_conversation(cluster: str) -> None:
     with st.container(height=_THREAD_HEIGHT, border=False, key="conv_thread"):
         _render_thread(cluster)
 
+    _render_draft_card(cluster)
     _render_ask_box(cluster)
 
 
@@ -409,13 +453,12 @@ def _render_ask_box(cluster: str) -> None:
 def _submit_query(cluster: str, query: str) -> None:
     """Append the user turn, run the agent, append its grounded answer.
 
-    A chat-driven override writes a scope-enforced lab note through the agent's
-    ``memory_write`` tool; we detect that by the notes-count delta and post a
-    plain confirmation so the capture is visible (never a silent overrule).
+    A chat-driven override does NOT persist a note on the model's word: the agent
+    proposes one (``resp.note_draft``) and we stash it so the confirm card renders.
+    Nothing is written until the biologist saves — see ``_render_draft_card``.
     """
     state.append_message(cluster, {"role": _ROLE_USER, "text": query, "resp": None})
 
-    notes_before = _note_count()
     resp = _safe_chat(cluster, query)
     state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
 
@@ -423,24 +466,159 @@ def _submit_query(cluster: str, query: str) -> None:
     if resp.pin_marker:
         state.set_pinned_marker(cluster, resp.pin_marker)
 
-    if _note_count() > notes_before:
+    # A proposed override note awaits the biologist's two-tap confirm.
+    if resp.note_draft is not None:
+        state.set_pending_draft(cluster, resp.note_draft)
+
+
+# --------------------------------------------------------------------------- #
+# Confirm-to-save card — the biologist's two taps (scope + basis), then Save.
+# Nothing is persisted until Save; Discard drops the draft. Sits between the
+# thread and the ask box so a pending decision is always in view.
+# --------------------------------------------------------------------------- #
+def _render_draft_card(cluster: str) -> None:
+    """Render the pending note draft (if any) as a confirm card with toggles."""
+    import dataclasses
+
+    import streamlit as st
+
+    draft = state.get_pending_draft(cluster)
+    if draft is None:
+        return
+
+    nonce = _draft_nonce(draft)
+    scope_opts = (
+        (f"this cluster ({cluster})", "cluster"),
+        ("this dataset", "dataset"),
+        ("lab-wide", "lab"),
+    )
+    with st.container(key="conv_draft"):
+        st.markdown(
+            '<div class="draft-eyebrow">Draft to save · confirm scope &amp; basis</div>'
+            f'<div class="draft-claim">{html.escape(draft.claim)}</div>',
+            unsafe_allow_html=True,
+        )
+        scope = _seg(st, "scope", scope_opts, draft.scope, f"dscope_{cluster}_{nonce}")
+        basis = _seg(st, "basis", _BASIS_OPTS, draft.basis, f"dbasis_{cluster}_{nonce}")
+        status = _seg(st, "status", _STATUS_OPTS, draft.status, f"dstatus_{cluster}_{nonce}")
+        st.markdown(_draft_tension_html(draft), unsafe_allow_html=True)
+        c_save, c_disc = st.columns([0.6, 0.4])
+        save = c_save.button(
+            "Save note", key=f"dsave_{cluster}_{nonce}", type="primary", use_container_width=True
+        )
+        disc = c_disc.button("Discard", key=f"ddisc_{cluster}_{nonce}", use_container_width=True)
+
+    if disc:
+        state.clear_pending_draft(cluster)
         state.append_message(
             cluster,
-            {
-                "role": _ROLE_SYSTEM,
-                "text": "Saved to Lab knowledge. Your call is kept with the "
-                "literature check attached, and it is cited whenever it applies.",
-                "resp": None,
-            },
+            {"role": _ROLE_SYSTEM, "text": "Draft discarded — nothing was saved.", "resp": None},
         )
+        _rerun(st)
+    elif save:
+        edited = dataclasses.replace(
+            draft,
+            scope=scope,
+            basis=basis,
+            status=status,
+            cluster=cluster if scope == "cluster" else None,
+        )
+        _save_pending_draft(cluster, edited)
+        _rerun(st)
 
 
-def _note_count() -> int:
-    """Current lab-note count (fresh disk read; 0 on any error)."""
+def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
+    """A segmented-control (or radio fallback) over (label, value) options.
+
+    Seeds from ``default_value`` (the agent's proposal); the widget key carries the
+    draft nonce so a NEW draft starts fresh. Returns the chosen enum value.
+    """
+    labels = [lab for lab, _ in opts]
+    val_by_label = {lab: val for lab, val in opts}
+    label_by_val = {val: lab for lab, val in opts}
+    default_label = label_by_val.get(default_value, labels[0])
+    st.markdown(f'<div class="draft-lbl">{html.escape(label)}</div>', unsafe_allow_html=True)
+    seg = getattr(st, "segmented_control", None)
+    if callable(seg):
+        picked = seg(
+            label, labels, default=default_label, key=key, label_visibility="collapsed"
+        )
+    else:  # pragma: no cover - older Streamlit without segmented_control
+        picked = st.radio(
+            label,
+            labels,
+            index=labels.index(default_label),
+            horizontal=True,
+            key=key,
+            label_visibility="collapsed",
+        )
+    return val_by_label.get(picked, default_value)
+
+
+def _draft_nonce(draft: Any) -> int:
+    """A per-draft key suffix so a new draft's toggles start from its proposal
+    (stable across reruns within a session; derived from the claim)."""
+    return abs(hash(draft.claim)) % 100000
+
+
+def _draft_tension_html(draft: Any) -> str:
+    """The live literature-check line for the draft (agree/dissent PMIDs or thin)."""
+    t = draft.tension
+    if t.agree or t.dissent:
+        parts: list[str] = []
+        if t.agree:
+            parts.append(f'<span class="agree">{len(t.agree)} agree</span> {_pmid_links(t.agree)}')
+        if t.dissent:
+            parts.append(
+                f'<span class="dissent">{len(t.dissent)} dissent</span> {_pmid_links(t.dissent)}'
+            )
+        body = " · ".join(parts)
+    else:
+        body = '<span class="thin">literature thin — no clear paper either way</span>'
+    return f'<div class="draft-tension"><span class="lbl">literature check</span>{body}</div>'
+
+
+def _pmid_links(cites) -> str:
+    """Clickable external PubMed links for a tuple of citations (real PMIDs)."""
+    return " ".join(
+        f'<a href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(c.pmid))}/" '
+        f'target="_blank">PMID:{html.escape(str(c.pmid))}</a>'
+        for c in cites
+        if c.pmid
+    )
+
+
+def _save_pending_draft(cluster: str, edited: Any) -> None:
+    """Persist the confirmed draft and post an inline saved confirmation."""
     try:
-        return len(dax.read_notes())
-    except Exception:  # noqa: BLE001 - a count is best-effort, never fatal
-        return 0
+        note = dax.save_note_draft(edited)
+    except Exception:  # noqa: BLE001 - surface a clean message, never crash the pane
+        state.clear_pending_draft(cluster)
+        state.append_message(
+            cluster,
+            {"role": _ROLE_SYSTEM, "text": "Could not save the note — please try again.", "resp": None},
+        )
+        return
+    state.clear_pending_draft(cluster)
+    state.append_message(cluster, {"role": _ROLE_SYSTEM, "text": _saved_line(note), "resp": None})
+
+
+def _saved_line(note: Any) -> str:
+    """The 'Saved to Lab knowledge · scope · basis · status' confirmation line."""
+    if note.scope == "cluster" and note.scope_ref.cluster:
+        scope_txt = f"cluster {note.scope_ref.cluster}"
+    else:
+        scope_txt = _SCOPE_SAVED_LABEL.get(note.scope, note.scope)
+    basis_txt = _BASIS_SAVED_LABEL.get(note.basis, note.basis)
+    t = note.tension
+    if t.agree or t.dissent:
+        tension = f"{len(t.agree)} agree / {len(t.dissent)} dissent kept visible"
+    else:
+        tension = "literature thin, recorded as-is"
+    return (
+        f"Saved to Lab knowledge · {scope_txt} · {basis_txt} · {note.status}. "
+        f"Literature: {tension}. It is cited whenever it applies."
+    )
 
 
 def _safe_chat(cluster: str, query: str) -> AgentResponse:
