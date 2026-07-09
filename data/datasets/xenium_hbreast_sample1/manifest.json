@@ -1,0 +1,73 @@
+{
+  "dataset_id": "xenium_hbreast_sample1",
+  "generated_at": "2026-07-09T13:41:31Z",
+  "pipeline_version": "0.1.0",
+  "tissue": "human breast",
+  "platform": "Xenium",
+  "panel_gene_count": 280,
+  "n_cells": 158379,
+  "clusters": [
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5",
+    "c6",
+    "c7",
+    "c8",
+    "c9"
+  ],
+  "views_available": {
+    "cell_map": true,
+    "umap": true,
+    "density": true,
+    "expr": true
+  },
+  "inputs": {
+    "markers_top.csv": {
+      "file": "markers_top.csv",
+      "sha256": "8ca914a6ef971536f5731d0d0eee799e5447d4bd3d74f36b3a7c259ef0d2fd32"
+    },
+    "panel.parquet": {
+      "file": "panel.parquet",
+      "sha256": "58a2bc868609d38320f1d40ecab7c05f309e82bdf78aa3bfad18aa77f662b4f9"
+    },
+    "cluster_key.json": {
+      "file": "cluster_key.json",
+      "sha256": "13ec8af3bb954541800afeb4d9d0b2887a1e5043e8dfc069ad0240e48bf17a35"
+    }
+  },
+  "artifacts": {
+    "interp/clusters/c1.json": {
+      "sha256": "5fadd1fb45f69ec93f3fe5949ee69f79874726cbeb5805d1fea79209ef2f48e9"
+    },
+    "interp/clusters/c2.json": {
+      "sha256": "f5a1808955cc74fb29f8e994734e9a1205cec0216ce1f1678fa114b3f5588a9b"
+    },
+    "interp/clusters/c3.json": {
+      "sha256": "b03d6f43291aaab994409b89753ba8a6b45bb7583d7a9f633e7a8b32a069dafd"
+    },
+    "interp/clusters/c4.json": {
+      "sha256": "7a491da5a644dc4ab92431dadb543fcfd40340658478cf68767a79cd75f19d51"
+    },
+    "interp/clusters/c5.json": {
+      "sha256": "ae2097ac31decbdaed9fefd4b5b5c030bd7f14033e29f871df3230a975fe8391"
+    },
+    "interp/clusters/c6.json": {
+      "sha256": "9d352531c27a2e56a06be0f41285718b39e29ebd633795c2ca9dea71987adda7"
+    },
+    "interp/clusters/c7.json": {
+      "sha256": "da0cf3f1ca670de45cd9466e93943c5dc38a3b1633cc5d4f7eeaec0f5c0b1900"
+    },
+    "interp/clusters/c8.json": {
+      "sha256": "33399904a45b219fb9fe9713b23db5362789661f48b0bb2599758b2ee16b646b"
+    },
+    "interp/clusters/c9.json": {
+      "sha256": "0b156f5990bb81ffa8e1e13bd32c17c2c9d3e870e36897b33b97dacaa78e4384"
+    },
+    "interp/verdicts.csv": {
+      "sha256": "054bd6c6c8b5f5e1b25da9dab04b8236a8bd33224354e472c4b6d38534fc32f3",
+      "rows": 9
+    }
+  }
+}

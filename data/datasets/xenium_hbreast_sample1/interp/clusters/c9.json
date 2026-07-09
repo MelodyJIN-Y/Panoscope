@@ -1,0 +1,106 @@
+{
+  "cluster": "c9",
+  "cell_type": "Mast_Cells",
+  "cell_type_short": "Imm_Mast",
+  "confidence": "Medium",
+  "confidence_score": 0.55,
+  "key_markers": [
+    "CPA3",
+    "CTSG"
+  ],
+  "notes": "Mast_Cells call driven by CPA3 glm_coef=1.95/pearson=0.42. Confidence Medium. Adjustments: driver localizes better with another cluster -> -1 band; fragile cluster with canonical driver: floored at Medium. Fragile cluster (<=2 assigned markers): re-check this. verify=TRUE, re-check this call.",
+  "category": "Immune",
+  "lineage": "Myeloid",
+  "exclude": false,
+  "verify": true,
+  "small_n": true,
+  "evidence": [
+    {
+      "gene": "CPA3",
+      "top_cluster": "c9",
+      "glm_coef": 1.95002341191202,
+      "pearson": 0.416590960889766,
+      "max_gg_corr": 0.750660087229604,
+      "max_gc_corr": 0.435165783180411,
+      "p_value": null,
+      "within_cluster_pctile": 1.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [
+        "localizes better with another cluster"
+      ],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "CTSG",
+      "top_cluster": "c9",
+      "glm_coef": 0.746097697989979,
+      "pearson": 0.289284195123902,
+      "max_gg_corr": 0.750660087229604,
+      "max_gc_corr": 0.314556104162657,
+      "p_value": null,
+      "within_cluster_pctile": 0.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "expected_absent",
+      "caveats": [
+        "localizes better with another cluster",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:top_result"
+    }
+  ],
+  "offpanel_notes": [],
+  "opening": {
+    "cluster": "c9",
+    "cell_type": "Mast_Cells",
+    "confidence": "Medium",
+    "headline": "Mast_Cells, Medium confidence, driven by CPA3 (glm_coef 1.95, pearson 0.42).",
+    "driving_markers": [
+      {
+        "gene": "CPA3",
+        "top_cluster": "c9",
+        "glm_coef": 1.95002341191202,
+        "pearson": 0.416590960889766,
+        "max_gg_corr": 0.750660087229604,
+        "max_gc_corr": 0.435165783180411,
+        "p_value": null,
+        "within_cluster_pctile": 1.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [
+          "localizes better with another cluster"
+        ],
+        "source": "jazzpanda:top_result"
+      }
+    ],
+    "offpanel_notes": [],
+    "literature_hooks": [
+      {
+        "claim": "CPA3 marks Mast_Cells",
+        "marker": "CPA3",
+        "cell_type": "Mast_Cells",
+        "query_terms": [
+          "CPA3",
+          "Mast Cells",
+          "marker"
+        ],
+        "status": "unfilled"
+      }
+    ],
+    "verify": true
+  },
+  "band_basis": "glm_coef direct (fragile cap)",
+  "demotions": [
+    "driver localizes better with another cluster -> -1 band",
+    "fragile cluster with canonical driver: floored at Medium"
+  ],
+  "source_trace": [
+    "jz:CPA3:glm_coef=1.950023",
+    "jz:CPA3:pearson=0.416591",
+    "jz:CTSG:glm_coef=0.746098",
+    "jz:CTSG:pearson=0.289284"
+  ]
+}

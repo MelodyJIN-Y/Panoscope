@@ -1,0 +1,212 @@
+{
+  "cluster": "c8",
+  "cell_type": "Dendritic",
+  "cell_type_short": "Imm_DC",
+  "confidence": "Medium-High",
+  "confidence_score": 0.7,
+  "key_markers": [
+    "TCL1A",
+    "LILRA4",
+    "SPIB",
+    "PLD4"
+  ],
+  "notes": "Dendritic call driven by TCL1A glm_coef=1.88/pearson=0.87, LILRA4 glm_coef=1.75/pearson=0.84, SPIB glm_coef=1.48/pearson=0.83. Confidence Medium-High. Adjustments: high pearson on driver (0.87) -> +1 band.",
+  "category": "Immune",
+  "lineage": "Myeloid",
+  "exclude": false,
+  "verify": false,
+  "small_n": false,
+  "evidence": [
+    {
+      "gene": "TCL1A",
+      "top_cluster": "c8",
+      "glm_coef": 1.87839818449647,
+      "pearson": 0.871582760123161,
+      "max_gg_corr": 0.880973075929252,
+      "max_gc_corr": 0.871582760123161,
+      "p_value": null,
+      "within_cluster_pctile": 1.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "LILRA4",
+      "top_cluster": "c8",
+      "glm_coef": 1.74937550383414,
+      "pearson": 0.836268732135421,
+      "max_gg_corr": 0.880973075929252,
+      "max_gc_corr": 0.836268732135421,
+      "p_value": null,
+      "within_cluster_pctile": 0.6666666666666666,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "SPIB",
+      "top_cluster": "c8",
+      "glm_coef": 1.47621977872019,
+      "pearson": 0.831789540300494,
+      "max_gg_corr": 0.833275707110524,
+      "max_gc_corr": 0.831789540300494,
+      "p_value": null,
+      "within_cluster_pctile": 0.3333333333333333,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "PLD4",
+      "top_cluster": "c8",
+      "glm_coef": 0.826413547242221,
+      "pearson": 0.776436080460886,
+      "max_gg_corr": 0.843328839346717,
+      "max_gc_corr": 0.776436080460886,
+      "p_value": null,
+      "within_cluster_pctile": 0.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    }
+  ],
+  "offpanel_notes": [],
+  "opening": {
+    "cluster": "c8",
+    "cell_type": "Dendritic",
+    "confidence": "Medium-High",
+    "headline": "Dendritic, Medium-High confidence, driven by TCL1A (glm_coef 1.88, pearson 0.87).",
+    "driving_markers": [
+      {
+        "gene": "TCL1A",
+        "top_cluster": "c8",
+        "glm_coef": 1.87839818449647,
+        "pearson": 0.871582760123161,
+        "max_gg_corr": 0.880973075929252,
+        "max_gc_corr": 0.871582760123161,
+        "p_value": null,
+        "within_cluster_pctile": 1.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "LILRA4",
+        "top_cluster": "c8",
+        "glm_coef": 1.74937550383414,
+        "pearson": 0.836268732135421,
+        "max_gg_corr": 0.880973075929252,
+        "max_gc_corr": 0.836268732135421,
+        "p_value": null,
+        "within_cluster_pctile": 0.6666666666666666,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "SPIB",
+        "top_cluster": "c8",
+        "glm_coef": 1.47621977872019,
+        "pearson": 0.831789540300494,
+        "max_gg_corr": 0.833275707110524,
+        "max_gc_corr": 0.831789540300494,
+        "p_value": null,
+        "within_cluster_pctile": 0.3333333333333333,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "PLD4",
+        "top_cluster": "c8",
+        "glm_coef": 0.826413547242221,
+        "pearson": 0.776436080460886,
+        "max_gg_corr": 0.843328839346717,
+        "max_gc_corr": 0.776436080460886,
+        "p_value": null,
+        "within_cluster_pctile": 0.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      }
+    ],
+    "offpanel_notes": [],
+    "literature_hooks": [
+      {
+        "claim": "TCL1A marks Dendritic",
+        "marker": "TCL1A",
+        "cell_type": "Dendritic",
+        "query_terms": [
+          "TCL1A",
+          "Dendritic",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "LILRA4 marks Dendritic",
+        "marker": "LILRA4",
+        "cell_type": "Dendritic",
+        "query_terms": [
+          "LILRA4",
+          "Dendritic",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "SPIB marks Dendritic",
+        "marker": "SPIB",
+        "cell_type": "Dendritic",
+        "query_terms": [
+          "SPIB",
+          "Dendritic",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "PLD4 marks Dendritic",
+        "marker": "PLD4",
+        "cell_type": "Dendritic",
+        "query_terms": [
+          "PLD4",
+          "Dendritic",
+          "marker"
+        ],
+        "status": "unfilled"
+      }
+    ],
+    "verify": false
+  },
+  "band_basis": "glm_coef direct",
+  "demotions": [
+    "high pearson on driver (0.87) -> +1 band"
+  ],
+  "source_trace": [
+    "jz:TCL1A:glm_coef=1.878398",
+    "jz:TCL1A:pearson=0.871583",
+    "jz:LILRA4:glm_coef=1.749376",
+    "jz:LILRA4:pearson=0.836269",
+    "jz:SPIB:glm_coef=1.476220",
+    "jz:SPIB:pearson=0.831790",
+    "jz:PLD4:glm_coef=0.826414",
+    "jz:PLD4:pearson=0.776436"
+  ]
+}

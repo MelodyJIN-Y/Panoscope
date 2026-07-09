@@ -246,12 +246,19 @@ def gene_note(cluster: str, gene: str) -> Optional[dict]:
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
 def verdict_for(cluster: str) -> ClusterVerdict:
-    """Deterministic verdict for one cluster (cached; computed once per session).
+    """Verdict for one cluster (cached once per session).
 
-    A pinned marker, a bin-size change, or a view toggle must NEVER call this
-    with a changed argument — the verdict depends only on the cluster id.
+    Prefers the verdict PERSISTED by the per-dataset pipeline
+    (``data/datasets/<id>/interp/clusters/c{n}.json``); falls back to computing it
+    live when the pipeline tree is absent. The persisted object is byte-faithful
+    to the computed one (``tests/test_pipeline.py`` round-trip gate), so the call
+    is identical either way — reading it just avoids recomputation and makes the
+    verdict a portable dataset artifact. Depends only on the cluster id.
     """
-    return agent_verdict.verdict_for_cluster(cluster)
+    from pipeline import store
+
+    persisted = store.load_verdict(cluster)
+    return persisted if persisted is not None else agent_verdict.verdict_for_cluster(cluster)
 
 
 @_cache_data(show_spinner=False)

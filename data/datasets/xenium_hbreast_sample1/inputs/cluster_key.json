@@ -1,0 +1,56 @@
+{
+  "c1": {
+    "cell_type": "Tumor",
+    "cell_type_short": "Tum_Epi",
+    "category": "Epithelial",
+    "lineage": "Epithelial"
+  },
+  "c2": {
+    "cell_type": "Stromal",
+    "cell_type_short": "Str_Fib",
+    "category": "Stromal",
+    "lineage": "Mesenchymal"
+  },
+  "c3": {
+    "cell_type": "Macrophages",
+    "cell_type_short": "Imm_Mac",
+    "category": "Immune",
+    "lineage": "Myeloid"
+  },
+  "c4": {
+    "cell_type": "Myoepithelial",
+    "cell_type_short": "Myoepi_",
+    "category": "Epithelial",
+    "lineage": "Epithelial"
+  },
+  "c5": {
+    "cell_type": "T_Cells",
+    "cell_type_short": "Imm_T",
+    "category": "Immune",
+    "lineage": "Lymphoid"
+  },
+  "c6": {
+    "cell_type": "B_Cells",
+    "cell_type_short": "Imm_B",
+    "category": "Immune",
+    "lineage": "Lymphoid"
+  },
+  "c7": {
+    "cell_type": "Endothelial",
+    "cell_type_short": "Endo_",
+    "category": "Endothelial",
+    "lineage": "Endothelial"
+  },
+  "c8": {
+    "cell_type": "Dendritic",
+    "cell_type_short": "Imm_DC",
+    "category": "Immune",
+    "lineage": "Myeloid"
+  },
+  "c9": {
+    "cell_type": "Mast_Cells",
+    "cell_type_short": "Imm_Mast",
+    "category": "Immune",
+    "lineage": "Myeloid"
+  }
+}

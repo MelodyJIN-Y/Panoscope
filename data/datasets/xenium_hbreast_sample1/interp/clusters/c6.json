@@ -1,0 +1,291 @@
+{
+  "cluster": "c6",
+  "cell_type": "B_Cells",
+  "cell_type_short": "Imm_B",
+  "confidence": "Medium-High",
+  "confidence_score": 0.7,
+  "key_markers": [
+    "MS4A1",
+    "BANK1",
+    "MZB1",
+    "CD79A",
+    "CD19"
+  ],
+  "notes": "B_Cells call driven by MS4A1 glm_coef=2.55/pearson=0.82, BANK1 glm_coef=1.58/pearson=0.71, CD79A glm_coef=0.94/pearson=0.78. Confidence Medium-High.",
+  "category": "Immune",
+  "lineage": "Lymphoid",
+  "exclude": false,
+  "verify": false,
+  "small_n": false,
+  "evidence": [
+    {
+      "gene": "MS4A1",
+      "top_cluster": "c6",
+      "glm_coef": 2.54976579250807,
+      "pearson": 0.821674594989734,
+      "max_gg_corr": 0.938723874159466,
+      "max_gc_corr": 0.821674594989734,
+      "p_value": null,
+      "within_cluster_pctile": 1.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "BANK1",
+      "top_cluster": "c6",
+      "glm_coef": 1.57741249633245,
+      "pearson": 0.714977624098961,
+      "max_gg_corr": 0.938723874159466,
+      "max_gc_corr": 0.714977624098961,
+      "p_value": null,
+      "within_cluster_pctile": 0.8333333333333334,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "MZB1",
+      "top_cluster": "c6",
+      "glm_coef": 1.57289216062747,
+      "pearson": 0.223168482764059,
+      "max_gg_corr": 0.75622507474896,
+      "max_gc_corr": 0.378430797499953,
+      "p_value": null,
+      "within_cluster_pctile": 0.6666666666666666,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "expected_absent",
+      "caveats": [
+        "localizes better with another cluster",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "CD79A",
+      "top_cluster": "c6",
+      "glm_coef": 0.943845610505176,
+      "pearson": 0.77610526900368,
+      "max_gg_corr": 0.815217165654564,
+      "max_gc_corr": 0.77610526900368,
+      "p_value": null,
+      "within_cluster_pctile": 0.5,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "CD19",
+      "top_cluster": "c6",
+      "glm_coef": 0.463608338228334,
+      "pearson": 0.722584591175376,
+      "max_gg_corr": 0.924315705346234,
+      "max_gc_corr": 0.722584591175376,
+      "p_value": null,
+      "within_cluster_pctile": 0.3333333333333333,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "TNFRSF17",
+      "top_cluster": "c6",
+      "glm_coef": 0.39555166518706,
+      "pearson": 0.575217435984756,
+      "max_gg_corr": 0.830183505392439,
+      "max_gc_corr": 0.575217435984756,
+      "p_value": null,
+      "within_cluster_pctile": 0.16666666666666666,
+      "is_canonical": false,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "CD79B",
+      "top_cluster": "c6",
+      "glm_coef": 0.243828506808129,
+      "pearson": 0.820082603167652,
+      "max_gg_corr": 0.790291152554462,
+      "max_gc_corr": 0.820082603167652,
+      "p_value": null,
+      "within_cluster_pctile": 0.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    }
+  ],
+  "offpanel_notes": [],
+  "opening": {
+    "cluster": "c6",
+    "cell_type": "B_Cells",
+    "confidence": "Medium-High",
+    "headline": "B_Cells, Medium-High confidence, driven by MS4A1 (glm_coef 2.55, pearson 0.82).",
+    "driving_markers": [
+      {
+        "gene": "MS4A1",
+        "top_cluster": "c6",
+        "glm_coef": 2.54976579250807,
+        "pearson": 0.821674594989734,
+        "max_gg_corr": 0.938723874159466,
+        "max_gc_corr": 0.821674594989734,
+        "p_value": null,
+        "within_cluster_pctile": 1.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "BANK1",
+        "top_cluster": "c6",
+        "glm_coef": 1.57741249633245,
+        "pearson": 0.714977624098961,
+        "max_gg_corr": 0.938723874159466,
+        "max_gc_corr": 0.714977624098961,
+        "p_value": null,
+        "within_cluster_pctile": 0.8333333333333334,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "CD79A",
+        "top_cluster": "c6",
+        "glm_coef": 0.943845610505176,
+        "pearson": 0.77610526900368,
+        "max_gg_corr": 0.815217165654564,
+        "max_gc_corr": 0.77610526900368,
+        "p_value": null,
+        "within_cluster_pctile": 0.5,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "CD19",
+        "top_cluster": "c6",
+        "glm_coef": 0.463608338228334,
+        "pearson": 0.722584591175376,
+        "max_gg_corr": 0.924315705346234,
+        "max_gc_corr": 0.722584591175376,
+        "p_value": null,
+        "within_cluster_pctile": 0.3333333333333333,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "CD79B",
+        "top_cluster": "c6",
+        "glm_coef": 0.243828506808129,
+        "pearson": 0.820082603167652,
+        "max_gg_corr": 0.790291152554462,
+        "max_gc_corr": 0.820082603167652,
+        "p_value": null,
+        "within_cluster_pctile": 0.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      }
+    ],
+    "offpanel_notes": [],
+    "literature_hooks": [
+      {
+        "claim": "MS4A1 marks B_Cells",
+        "marker": "MS4A1",
+        "cell_type": "B_Cells",
+        "query_terms": [
+          "MS4A1",
+          "B Cells",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "BANK1 marks B_Cells",
+        "marker": "BANK1",
+        "cell_type": "B_Cells",
+        "query_terms": [
+          "BANK1",
+          "B Cells",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "CD79A marks B_Cells",
+        "marker": "CD79A",
+        "cell_type": "B_Cells",
+        "query_terms": [
+          "CD79A",
+          "B Cells",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "CD19 marks B_Cells",
+        "marker": "CD19",
+        "cell_type": "B_Cells",
+        "query_terms": [
+          "CD19",
+          "B Cells",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "CD79B marks B_Cells",
+        "marker": "CD79B",
+        "cell_type": "B_Cells",
+        "query_terms": [
+          "CD79B",
+          "B Cells",
+          "marker"
+        ],
+        "status": "unfilled"
+      }
+    ],
+    "verify": false
+  },
+  "band_basis": "glm_coef direct",
+  "demotions": [],
+  "source_trace": [
+    "jz:MS4A1:glm_coef=2.549766",
+    "jz:MS4A1:pearson=0.821675",
+    "jz:BANK1:glm_coef=1.577412",
+    "jz:BANK1:pearson=0.714978",
+    "jz:MZB1:glm_coef=1.572892",
+    "jz:MZB1:pearson=0.223168",
+    "jz:CD79A:glm_coef=0.943846",
+    "jz:CD79A:pearson=0.776105",
+    "jz:CD19:glm_coef=0.463608",
+    "jz:CD19:pearson=0.722585",
+    "jz:TNFRSF17:glm_coef=0.395552",
+    "jz:TNFRSF17:pearson=0.575217",
+    "jz:CD79B:glm_coef=0.243829",
+    "jz:CD79B:pearson=0.820083"
+  ]
+}
