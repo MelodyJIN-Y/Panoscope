@@ -119,6 +119,1141 @@
       },
       "verify": false,
       "used_fallback": false
+    },
+    "TACSTD2": {
+      "gene": "TACSTD2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TACSTD2 (TROP2) is an epithelial glycoprotein overexpressed in breast carcinoma cells, marking tumor identity.",
+      "pmid": "32961790",
+      "citation": {
+        "pmid": "32961790",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SERHL2": {
+      "gene": "SERHL2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "A serine hydrolase-like gene expressed in breast glandular tumor cells under hypoxia., Shamis et al.",
+      "pmid": "39660488",
+      "citation": {
+        "pmid": "39660488",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ANKRD30A": {
+      "gene": "ANKRD30A",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Breast-restricted mammary differentiation antigen (NY-BR-1) marking luminal tumor epithelium.",
+      "pmid": "17410359",
+      "citation": {
+        "pmid": "17410359",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "FASN": {
+      "gene": "FASN",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "FASN drives de novo lipogenesis, marking proliferating breast tumor epithelial cells.",
+      "pmid": "25302649",
+      "citation": {
+        "pmid": "25302649",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MLPH": {
+      "gene": "MLPH",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "MLPH links vesicle transport to myosin Va, marking luminal breast tumor glandular identity.",
+      "pmid": "32181676",
+      "citation": {
+        "pmid": "32181676",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CDH1": {
+      "gene": "CDH1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "CDH1 encodes E-cadherin, the epithelial adhesion protein whose loss marks tumor invasion.",
+      "pmid": "31591367",
+      "citation": {
+        "pmid": "31591367",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD9": {
+      "gene": "CD9",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "CD9 tetraspanin regulates breast epithelial cell adhesion, marking tumor glandular identity.",
+      "pmid": "20938929",
+      "citation": {
+        "pmid": "20938929",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ABCC11": {
+      "gene": "ABCC11",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "An ABC-family drug efflux transporter overexpressed in ER-positive breast tumor cells., Honorat et al.",
+      "pmid": "18310281",
+      "citation": {
+        "pmid": "18310281",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CTTN": {
+      "gene": "CTTN",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "CTTN drives cortical actin assembly, promoting breast tumor cell invasion., Lang et al.",
+      "pmid": "11607842",
+      "citation": {
+        "pmid": "11607842",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TPD52": {
+      "gene": "TPD52",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TPD52 is a proto-oncogene overexpressed in carcinoma epithelial cells, marking tumor identity., Byrne JA et al.",
+      "pmid": "20846453",
+      "citation": {
+        "pmid": "20846453",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CEACAM6": {
+      "gene": "CEACAM6",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Cell-adhesion molecule overexpressed on tumor epithelial surfaces, marking breast cancer cells., Zhao D et al.",
+      "pmid": "39674878",
+      "citation": {
+        "pmid": "39674878",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MDM2": {
+      "gene": "MDM2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "MDM2 negatively regulates p53, suppressing tumor cell apoptosis and enabling proliferation.",
+      "pmid": "14704432",
+      "citation": {
+        "pmid": "14704432",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TOMM7": {
+      "gene": "TOMM7",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TOMM7 stabilizes the mitochondrial TOM import complex, supporting tumor cell metabolic demands., Kato & Mihara (2008).",
+      "pmid": "39615461",
+      "citation": {
+        "pmid": "39615461",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "NARS": {
+      "gene": "NARS",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "NARS (asparaginyl-tRNA synthetase) charges tRNA with asparagine, fueling tumor protein synthesis., Shi R et al.",
+      "pmid": "37587064",
+      "citation": {
+        "pmid": "37587064",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TCIM": {
+      "gene": "TCIM",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TCIM (C8orf4) suppresses NOTCH2-driven cancer stem cell self-renewal, marking tumor epithelial identity.",
+      "pmid": "25985737",
+      "citation": {
+        "pmid": "25985737",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "S100A14": {
+      "gene": "S100A14",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Calcium-binding protein marking epithelial-like breast tumor cells with prognostic impact.",
+      "pmid": "25912829",
+      "citation": {
+        "pmid": "25912829",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ENAH": {
+      "gene": "ENAH",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "ENAH (Mena) drives actin-based protrusion and invasion in breast tumor cells., Philippar et al.",
+      "pmid": "21071226",
+      "citation": {
+        "pmid": "21071226",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LYPD3": {
+      "gene": "LYPD3",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "GPI-anchored surface protein marking invasive tumor epithelial cells.",
+      "pmid": "22404718",
+      "citation": {
+        "pmid": "22404718",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "FLNB": {
+      "gene": "FLNB",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Actin-crosslinking scaffold driving tumor cell invasion and EMT plasticity., Li J et al.",
+      "pmid": "25925610",
+      "citation": {
+        "pmid": "25925610",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CCDC6": {
+      "gene": "CCDC6",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "CCDC6 is a tumor suppressor regulating DNA repair, marking breast glandular tumor cells.",
+      "pmid": "35964058",
+      "citation": {
+        "pmid": "35964058",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MYO5B": {
+      "gene": "MYO5B",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "MYO5B drives apical cargo trafficking, marking polarized glandular tumor epithelium., Vogel GF et al.",
+      "pmid": "26823605",
+      "citation": {
+        "pmid": "26823605",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ADAM9": {
+      "gene": "ADAM9",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "ADAM9 is a metalloprotease that drives tumor cell invasion and EMT., Hamada et al.",
+      "pmid": "22064652",
+      "citation": {
+        "pmid": "22064652",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SMS": {
+      "gene": "SMS",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SMS converts spermidine to spermine, supporting tumor cell survival and proliferation., Guo et al.",
+      "pmid": "32591507",
+      "citation": {
+        "pmid": "32591507",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "HMGA1": {
+      "gene": "HMGA1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "HMGA1 is a chromatin remodeler that drives tumor epithelial proliferation and invasiveness., Chang HP et al.",
+      "pmid": "35629376",
+      "citation": {
+        "pmid": "35629376",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "RUNX1": {
+      "gene": "RUNX1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "RUNX1 is a transcription factor mutated in luminal breast cancer, controlling ER-positive epithelial fate.",
+      "pmid": "39937190",
+      "citation": {
+        "pmid": "39937190",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TRAF4": {
+      "gene": "TRAF4",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TRAF4 promotes breast tumor proliferation, invasion, and metastasis via AKT/NF-κB signaling., Zhu et al.",
+      "pmid": "29684350",
+      "citation": {
+        "pmid": "29684350",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "AR": {
+      "gene": "AR",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "AR drives tumor cell proliferation and is expressed in ~60, 80% of breast tumors.",
+      "pmid": "40516902",
+      "citation": {
+        "pmid": "40516902",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TENT5C": {
+      "gene": "TENT5C",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TENT5C (FAM46C) polyadenylates mRNAs to regulate tumor cell survival and proliferation.",
+      "pmid": "28931820",
+      "citation": {
+        "pmid": "28931820",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "USP53": {
+      "gene": "USP53",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Deubiquitinase that stabilizes CRKL, driving breast tumor growth and metastasis.",
+      "pmid": "37894400",
+      "citation": {
+        "pmid": "37894400",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TMEM147": {
+      "gene": "TMEM147",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "ER-resident translocon subunit supporting multi-pass membrane protein biogenesis in breast tumor cells., McGilvray et al.",
+      "pmid": "37891677",
+      "citation": {
+        "pmid": "37891677",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LARS": {
+      "gene": "LARS",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "LARS charges leucine onto tRNA, fueling tumor protein synthesis and proliferation.",
+      "pmid": "34325132",
+      "citation": {
+        "pmid": "34325132",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ACTG2": {
+      "gene": "ACTG2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "ACTG2 encodes gamma-smooth muscle actin, marking myoepithelial rather than tumor cells.",
+      "pmid": "40971055",
+      "citation": {
+        "pmid": "40971055",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SH3YL1": {
+      "gene": "SH3YL1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SH3YL1 is an SH3-domain scaffold expressed in proliferating glandular epithelial cells, marking breast tumor identity.",
+      "pmid": "39538342",
+      "citation": {
+        "pmid": "39538342",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TOP2A": {
+      "gene": "TOP2A",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TOP2A encodes a DNA decatenation enzyme marking actively proliferating tumor cells., Nikolényi et al.",
+      "pmid": "38723526",
+      "citation": {
+        "pmid": "38723526",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "QARS": {
+      "gene": "QARS",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "QARS glutaminylates FBW7, stabilizing c-Myc and Mcl-1 to drive tumor proliferation., Wang M et al.",
+      "pmid": "40338031",
+      "citation": {
+        "pmid": "40338031",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "JUP": {
+      "gene": "JUP",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "JUP encodes plakoglobin, anchoring desmosomal junctions in breast glandular tumor epithelium.",
+      "pmid": "31420988",
+      "citation": {
+        "pmid": "31420988",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ZNF562": {
+      "gene": "ZNF562",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "The resolved paper is about diabetic foot ulcers and does not speak to ZNF562's role in.",
+      "pmid": "38287255",
+      "citation": {
+        "pmid": "38287255",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SEC11C": {
+      "gene": "SEC11C",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SEC11C cleaves signal peptides in the ER, enabling secretory protein maturation in tumor cells.",
+      "pmid": "34388369",
+      "citation": {
+        "pmid": "34388369",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TFAP2A": {
+      "gene": "TFAP2A",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TFAP2A (AP-2α) drives breast tumor epithelial identity by regulating growth factor and EMT programs.",
+      "pmid": "38890750",
+      "citation": {
+        "pmid": "38890750",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SEC24A": {
+      "gene": "SEC24A",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SEC24A is a COPII coat subunit that selects cargo for ER export.",
+      "pmid": "19933202",
+      "citation": {
+        "pmid": "19933202",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SQLE": {
+      "gene": "SQLE",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SQLE encodes squalene epoxidase, driving cholesterol biosynthesis to fuel tumor cell proliferation., Xu et al.",
+      "pmid": "38744443",
+      "citation": {
+        "pmid": "38744443",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "VOPP1": {
+      "gene": "VOPP1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "VOPP1 is a prosurvival oncoprotein that promotes tumor cell proliferation and suppresses apoptosis.",
+      "pmid": "32083568",
+      "citation": {
+        "pmid": "32083568",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SLC5A6": {
+      "gene": "SLC5A6",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SLC5A6 (SMVT) transports biotin and vitamins into glandular epithelial tumor cells, supporting their proliferative metabolism.",
+      "pmid": "39246269",
+      "citation": {
+        "pmid": "39246269",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PCLAF": {
+      "gene": "PCLAF",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "PCLAF (p15PAF) drives DNA replication and is overexpressed in proliferating tumor cells.",
+      "pmid": "42385916",
+      "citation": {
+        "pmid": "42385916",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SRPK1": {
+      "gene": "SRPK1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SRPK1 phosphorylates SR splicing factors, driving breast tumor progression.",
+      "pmid": "24961466",
+      "citation": {
+        "pmid": "24961466",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TRAPPC3": {
+      "gene": "TRAPPC3",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TRAPPC3 anchors the TRAPP I tethering complex driving ER-to-Golgi secretory trafficking.",
+      "pmid": "17110339",
+      "citation": {
+        "pmid": "17110339",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "RHOH": {
+      "gene": "RHOH",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "**RHOH is a hematopoietic-restricted GTPase.",
+      "pmid": "15563831",
+      "citation": {
+        "pmid": "15563831",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "FAM107B": {
+      "gene": "FAM107B",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "FAM107B is a heat-shock-inducible tumor suppressor lost across breast and other cancers., Nakajima et al.",
+      "pmid": "22825356",
+      "citation": {
+        "pmid": "22825356",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KLF5": {
+      "gene": "KLF5",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "KLF5 is an oncogenic transcription factor driving tumor epithelial proliferation and survival., Wang et al.",
+      "pmid": "21169070",
+      "citation": {
+        "pmid": "21169070",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "WARS": {
+      "gene": "WARS",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "WARS encodes tryptophanyl-tRNA synthetase, upregulated in tumors via IFN-γ signaling.",
+      "pmid": "31033497",
+      "citation": {
+        "pmid": "31033497",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CENPF": {
+      "gene": "CENPF",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Kinetochore scaffold driving mitotic progression, marking actively proliferating tumor cells.",
+      "pmid": "40299364",
+      "citation": {
+        "pmid": "40299364",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TUBA4A": {
+      "gene": "TUBA4A",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TUBA4A encodes alpha-tubulin, marking cytoskeletal and ciliated epithelial identity in tumor cells., Coy S et al.",
+      "pmid": "27562488",
+      "citation": {
+        "pmid": "27562488",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MYBPC1": {
+      "gene": "MYBPC1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Slow-skeletal sarcomeric scaffold, aberrantly expressed in tumor epithelial cells., Song T et al.",
+      "pmid": "21426302",
+      "citation": {
+        "pmid": "21426302",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CCPG1": {
+      "gene": "CCPG1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "CCPG1 is an ER-phagy receptor that clears stressed ER, supporting tumor cell survival.",
+      "pmid": "35127371",
+      "citation": {
+        "pmid": "35127371",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SDC4": {
+      "gene": "SDC4",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "SDC4 is a heparan sulfate proteoglycan driving tumor cell spreading and adhesion signaling.",
+      "pmid": "26160374",
+      "citation": {
+        "pmid": "26160374",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "OCIAD2": {
+      "gene": "OCIAD2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "OCIAD2 suppresses mitochondrial apoptosis, promoting tumor cell survival and proliferation.",
+      "pmid": "38944166",
+      "citation": {
+        "pmid": "38944166",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KARS": {
+      "gene": "KARS",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "Lysyl-tRNA synthetase fueling protein synthesis supports tumor cell viability., He Y et al.",
+      "pmid": "24312579",
+      "citation": {
+        "pmid": "24312579",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "AGR3": {
+      "gene": "AGR3",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "AGR3 is a luminal breast glandular protein upregulated in breast tumor epithelial cells.",
+      "pmid": "31291711",
+      "citation": {
+        "pmid": "31291711",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "RTKN2": {
+      "gene": "RTKN2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "RTKN2 is an anti-apoptotic Rho-GTPase effector that promotes tumor cell survival and proliferation.",
+      "pmid": "15504364",
+      "citation": {
+        "pmid": "15504364",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "BACE2": {
+      "gene": "BACE2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "BACE2 is a secretase enriched in breast glandular epithelium, marking luminal tumor identity.",
+      "pmid": "31856384",
+      "citation": {
+        "pmid": "31856384",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PTRHD1": {
+      "gene": "PTRHD1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "A putative tRNA-binding protein enriched in breast glandular epithelium, marking tumor identity.",
+      "pmid": "27235175",
+      "citation": {
+        "pmid": "27235175",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TRIB1": {
+      "gene": "TRIB1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "TRIB1 scaffolds ubiquitin-proteasome degradation, activating PI3K-AKT/MAPK oncogenic signaling in tumor cells., Singh K et al.",
+      "pmid": "38791967",
+      "citation": {
+        "pmid": "38791967",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "HOOK2": {
+      "gene": "HOOK2",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "HOOK2 anchors proteins to centrosomes in dividing epithelial tumor cells.",
+      "pmid": "31662022",
+      "citation": {
+        "pmid": "31662022",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "C6orf132": {
+      "gene": "C6orf132",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "The literature is thin: no PubMed records were returned for C6orf132 across three queries.",
+      "pmid": null,
+      "citation": null,
+      "verify": false,
+      "used_fallback": false
+    },
+    "MUC6": {
+      "gene": "MUC6",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "MUC6 is a secretory mucin protecting epithelial surfaces, retained in tumor epithelium., Bartman et al.",
+      "pmid": "37349623",
+      "citation": {
+        "pmid": "37349623",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MKI67": {
+      "gene": "MKI67",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "MKI67 marks actively dividing cells, confirming proliferative tumor identity.",
+      "pmid": "33812473",
+      "citation": {
+        "pmid": "33812473",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "S100A8": {
+      "gene": "S100A8",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "S100A8 drives NF-κB inflammatory signaling that promotes tumor cell proliferation and invasion., Chen et al.",
+      "pmid": "24670043",
+      "citation": {
+        "pmid": "24670043",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "EIF4EBP1": {
+      "gene": "EIF4EBP1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "mTOR-regulated translational repressor, hyperactivated in breast tumor cells to sustain proliferation.",
+      "pmid": "27319316",
+      "citation": {
+        "pmid": "27319316",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "DNTTIP1": {
+      "gene": "DNTTIP1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "DNTTIP1 promotes tumor growth by driving HDAC-mediated p53 deacetylation in cancer cells., Sawai et al.",
+      "pmid": "29855544",
+      "citation": {
+        "pmid": "29855544",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "AQP3": {
+      "gene": "AQP3",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "AQP3 is a water/glycerol channel upregulated in epithelial tumor cells, marking glandular identity., Niu et al.",
+      "pmid": "33187942",
+      "citation": {
+        "pmid": "33187942",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "HOXD8": {
+      "gene": "HOXD8",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "HOXD8 is a homeobox transcription factor that suppresses breast tumor growth.",
+      "pmid": "34454307",
+      "citation": {
+        "pmid": "34454307",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "DUSP5": {
+      "gene": "DUSP5",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "DUSP5 negatively feeds back on ERK signaling, restraining tumor proliferation., Izumi et al.",
+      "pmid": "28899709",
+      "citation": {
+        "pmid": "28899709",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ANKRD28": {
+      "gene": "ANKRD28",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "ANKRD28 scaffolds PP6 phosphatase and promotes tumor cell migration via focal adhesions., Tachibana et al.",
+      "pmid": "19118547",
+      "citation": {
+        "pmid": "19118547",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CXCL16": {
+      "gene": "CXCL16",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "CXCL16 is a chemokine expressed by breast tumor epithelial cells that drives invasion and metastasis.",
+      "pmid": "25909173",
+      "citation": {
+        "pmid": "25909173",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PELI1": {
+      "gene": "PELI1",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "E3 ubiquitin ligase driving NF-κB and PI3K/AKT to promote tumor proliferation., Fei et al.",
+      "pmid": "32544190",
+      "citation": {
+        "pmid": "32544190",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TUBB2B": {
+      "gene": "TUBB2B",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "summary": "A microtubule structural gene overexpressed in breast tumor cells, supporting proliferation and survival.",
+      "pmid": "39962586",
+      "citation": {
+        "pmid": "39962586",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
     }
   },
   "c2": {
@@ -235,6 +1370,296 @@
       "pmid": "35360851",
       "citation": {
         "pmid": "35360851",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PTGDS": {
+      "gene": "PTGDS",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "PTGDS is a CAF-secreted prostaglandin synthase marking stromal identity in tumors., Liang J et al.",
+      "pmid": "42276991",
+      "citation": {
+        "pmid": "42276991",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ZEB2": {
+      "gene": "ZEB2",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "ZEB2 drives EMT transcription, reinforcing mesenchymal stromal cell identity., Vellinga et al.",
+      "pmid": "30794893",
+      "citation": {
+        "pmid": "30794893",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "FBLN1": {
+      "gene": "FBLN1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "Fibulin-1 is a secreted ECM glycoprotein that anchors stromal fibroblast identity., Satish et al.",
+      "pmid": "7842734",
+      "citation": {
+        "pmid": "7842734",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "BASP1": {
+      "gene": "BASP1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "A WT1 transcriptional co-suppressor enriched in mesenchymal and stromal lineages., Carpenter et al.",
+      "pmid": "14701728",
+      "citation": {
+        "pmid": "14701728",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ITM2C": {
+      "gene": "ITM2C",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "**ITM2C (BRI3) encodes a type-II transmembrane protein.",
+      "pmid": "11290423",
+      "citation": {
+        "pmid": "11290423",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CRISPLD2": {
+      "gene": "CRISPLD2",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "Secreted ECM-regulatory protein marking mesenchymal/stromal identity and fibroblast differentiation capacity., Rong et al.",
+      "pmid": "24926665",
+      "citation": {
+        "pmid": "24926665",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "IGF1": {
+      "gene": "IGF1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "IGF1 is a growth factor secreted by stromal fibroblasts supporting mesenchymal identity., Kanawa et al.",
+      "pmid": "34940124",
+      "citation": {
+        "pmid": "34940124",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "S100A4": {
+      "gene": "S100A4",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "S100A4 (fibroblast-specific protein 1) marks mesenchymal/stromal identity and fibroblast activation., Fan C et al.",
+      "pmid": "39934849",
+      "citation": {
+        "pmid": "39934849",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ZEB1": {
+      "gene": "ZEB1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "ZEB1 drives EMT, repressing epithelial genes to enforce mesenchymal identity.",
+      "pmid": "40362600",
+      "citation": {
+        "pmid": "40362600",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TCF4": {
+      "gene": "TCF4",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "c2 is called Stromal at Very High confidence, driven by LUM (glm_coef 18.00, pearson 0.91).",
+      "pmid": null,
+      "citation": null,
+      "verify": false,
+      "used_fallback": true
+    },
+    "PDK4": {
+      "gene": "PDK4",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "PDK4 suppresses mitochondrial glucose oxidation, marking metabolically active stromal fibroblasts., Pasanen et al., *Experimental Cell Research*.",
+      "pmid": "28099503",
+      "citation": {
+        "pmid": "28099503",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PRDM1": {
+      "gene": "PRDM1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "**Note:** PRDM1 is on the panel but annotated as a T cell marker.",
+      "pmid": "17569706",
+      "citation": {
+        "pmid": "17569706",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "GJB2": {
+      "gene": "GJB2",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "GJB2 (Connexin 26) encodes a gap junction protein mediating intercellular communication in stromal and tumor cells.",
+      "pmid": "7560895",
+      "citation": {
+        "pmid": "7560895",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LRRC15": {
+      "gene": "LRRC15",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "TGFβ-induced membrane protein marking cancer-associated fibroblasts and mesenchymal stroma., Purcell et al.",
+      "pmid": "29764866",
+      "citation": {
+        "pmid": "29764866",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ERN1": {
+      "gene": "ERN1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "ERN1 (IRE1α) senses ER stress and drives the unfolded protein response, supporting secretory stromal cells.",
+      "pmid": "32854418",
+      "citation": {
+        "pmid": "32854418",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "DPT": {
+      "gene": "DPT",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "DPT encodes an extracellular matrix protein that mediates proteoglycan binding and cell-matrix adhesion in fibroblasts.",
+      "pmid": "10233760",
+      "citation": {
+        "pmid": "10233760",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "GLIPR1": {
+      "gene": "GLIPR1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "c2 is called Stromal at Very High confidence, driven by LUM (glm_coef 18.00, pearson 0.91).",
+      "pmid": null,
+      "citation": null,
+      "verify": false,
+      "used_fallback": true
+    },
+    "PIM1": {
+      "gene": "PIM1",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "PIM1 is a pro-survival serine/threonine kinase supporting stromal fibroblast proliferation., Wang Z et al.",
+      "pmid": "12441685",
+      "citation": {
+        "pmid": "12441685",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "RAB30": {
+      "gene": "RAB30",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "RAB30 maintains Golgi structural integrity, supporting the secretory activity of stromal cells., Kelly EE et al.",
+      "pmid": "22188167",
+      "citation": {
+        "pmid": "22188167",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PDE4A": {
+      "gene": "PDE4A",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "summary": "PDE4A degrades cAMP, modulating stromal cell signaling and mesenchymal state., Stevens et al.",
+      "pmid": "36409824",
+      "citation": {
+        "pmid": "36409824",
         "title": "",
         "authors": "",
         "year": 0
@@ -363,6 +1788,306 @@
       },
       "verify": false,
       "used_fallback": false
+    },
+    "AIF1": {
+      "gene": "AIF1",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "Calcium-binding actin-regulatory protein marking macrophage and monocyte identity., Zhang et al.",
+      "pmid": "28601280",
+      "citation": {
+        "pmid": "28601280",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "APOC1": {
+      "gene": "APOC1",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "APOC1 is a lipoprotein-associated lipid regulator expressed in lipid-handling macrophages., Schrode et al.",
+      "pmid": "42113855",
+      "citation": {
+        "pmid": "42113855",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "IGSF6": {
+      "gene": "IGSF6",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "Immunoglobulin superfamily cell-surface receptor selectively expressed in macrophages, confirming myeloid identity., Bates et al.",
+      "pmid": "37989761",
+      "citation": {
+        "pmid": "37989761",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SLAMF7": {
+      "gene": "SLAMF7",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "SLAMF7 is an M1-associated surface receptor that marks activated macrophages., Beyer et al.",
+      "pmid": "23029029",
+      "citation": {
+        "pmid": "23029029",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "C1QC": {
+      "gene": "C1QC",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "Complement C1q subunit C, produced by macrophages, marks tumor-infiltrating myeloid identity.",
+      "pmid": "35765947",
+      "citation": {
+        "pmid": "35765947",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MRC1": {
+      "gene": "MRC1",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "MRC1 (CD206) is a mannose receptor marking resident and tumor-associated macrophages., Ray et al.",
+      "pmid": "36170234",
+      "citation": {
+        "pmid": "36170234",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "HAVCR2": {
+      "gene": "HAVCR2",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "TIM-3 immune checkpoint expressed on macrophages, promoting immunosuppressive tumor microenvironment activity., Luo et al.",
+      "pmid": "39696711",
+      "citation": {
+        "pmid": "39696711",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MNDA": {
+      "gene": "MNDA",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "MNDA is a nuclear antigen restricted to myelomonocytic cells, confirming macrophage identity.",
+      "pmid": "10492038",
+      "citation": {
+        "pmid": "10492038",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD14": {
+      "gene": "CD14",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "CD14 is a canonical monocyte/macrophage surface receptor for LPS, confirming myeloid identity.",
+      "pmid": "33790912",
+      "citation": {
+        "pmid": "33790912",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "C15orf48": {
+      "gene": "C15orf48",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "Inflammation-induced mitochondrial remodeling gene marking proinflammatory macrophages., Clayton SA et al., *Science Advances* (2021).",
+      "pmid": "34878835",
+      "citation": {
+        "pmid": "34878835",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MMP12": {
+      "gene": "MMP12",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "MMP12 is a macrophage-secreted elastase marking mature tissue-resident macrophages., Vaalamo et al.",
+      "pmid": "35382832",
+      "citation": {
+        "pmid": "35382832",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD83": {
+      "gene": "CD83",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "CD83 marks pro-resolving, alternatively activated macrophages and gates inflammatory resolution., Peckert-Maier K et al.",
+      "pmid": "36863089",
+      "citation": {
+        "pmid": "36863089",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "C1QA": {
+      "gene": "C1QA",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "Complement subunit C1QA marks tissue-resident macrophages and supports immune opsonization., Horowitz et al.",
+      "pmid": "38328228",
+      "citation": {
+        "pmid": "38328228",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "MMP1": {
+      "gene": "MMP1",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "MMP1 degrades collagen via inflammatory macrophage signaling, marking active ECM remodeling., Uno E et al.",
+      "pmid": "40539048",
+      "citation": {
+        "pmid": "40539048",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD86": {
+      "gene": "CD86",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "CD86 is a costimulatory ligand marking activated, antigen-presenting macrophages., Zhou et al., *Glycobiology* (2022).",
+      "pmid": "16202456",
+      "citation": {
+        "pmid": "16202456",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ITGAM": {
+      "gene": "ITGAM",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "ITGAM (CD11b) encodes the Mac-1 integrin subunit mediating myeloid cell adhesion and phagocytosis., Fagerholm et al.",
+      "pmid": "36170234",
+      "citation": {
+        "pmid": "36170234",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "FCER1A": {
+      "gene": "FCER1A",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "**FCER1A encodes the IgE high-affinity receptor alpha chain, marking dendritic cells not macrophages.**, Herrmann et al.",
+      "pmid": "33443066",
+      "citation": {
+        "pmid": "33443066",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TPSAB1": {
+      "gene": "TPSAB1",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "TPSAB1 encodes mast cell tryptase, marking mast cells, not macrophages.",
+      "pmid": "38132246",
+      "citation": {
+        "pmid": "38132246",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LY86": {
+      "gene": "LY86",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "LY86 (MD-1) co-regulates TLR signaling in macrophages, supporting innate immune activation.",
+      "pmid": "22396206",
+      "citation": {
+        "pmid": "22396206",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PDCD1LG2": {
+      "gene": "PDCD1LG2",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "summary": "PD-L2 checkpoint ligand expressed on tumor-associated macrophages, suppressing T cell immunity.",
+      "pmid": "33424844",
+      "citation": {
+        "pmid": "33424844",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
     }
   },
   "c4": {
@@ -474,6 +2199,251 @@
       "pmid": "42420002",
       "citation": {
         "pmid": "42420002",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SFRP1": {
+      "gene": "SFRP1",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "Secreted Wnt antagonist enriched in normal breast myoepithelial cells, suppressed in tumors., Shulewitz et al.",
+      "pmid": "17485441",
+      "citation": {
+        "pmid": "17485441",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PTN": {
+      "gene": "PTN",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "PTN encodes a heparin-binding growth factor that maintains mammary epithelial progenitor identity., Rosenfield et al.",
+      "pmid": "1733956",
+      "citation": {
+        "pmid": "1733956",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "DSP": {
+      "gene": "DSP",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "DSP anchors desmosomes to keratin filaments, conferring the structural cohesion that defines myoepithelial identity.",
+      "pmid": "39381601",
+      "citation": {
+        "pmid": "39381601",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KRT6B": {
+      "gene": "KRT6B",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "c4 is called Myoepithelial at High confidence, driven by MYLK (glm_coef 5.90, pearson 0.83).",
+      "pmid": null,
+      "citation": null,
+      "verify": false,
+      "used_fallback": true
+    },
+    "DSC2": {
+      "gene": "DSC2",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "DSC2 encodes a desmosomal cadherin anchoring keratin-linked cell junctions in glandular epithelium, marking the myoepithelial layer.",
+      "pmid": "36268507",
+      "citation": {
+        "pmid": "36268507",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SVIL": {
+      "gene": "SVIL",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "Supervillin anchors actomyosin contractility, supporting the contractile cytoskeleton defining myoepithelial cells., Smith TC et al.",
+      "pmid": "33862101",
+      "citation": {
+        "pmid": "33862101",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KRT23": {
+      "gene": "KRT23",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "A type I intermediate filament keratin marking glandular breast epithelial identity., Zhao C et al.",
+      "pmid": "28749462",
+      "citation": {
+        "pmid": "28749462",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ESR1": {
+      "gene": "ESR1",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "ESR1 encodes estrogen receptor alpha, which is low in myoepithelial cells, marking luminal identity instead.",
+      "pmid": "19395651",
+      "citation": {
+        "pmid": "19395651",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KIT": {
+      "gene": "KIT",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "KIT (CD117) is a tyrosine kinase receptor marking myoepithelial and progenitor cells in benign breast.",
+      "pmid": "21388062",
+      "citation": {
+        "pmid": "21388062",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "EGFR": {
+      "gene": "EGFR",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "EGFR drives growth-factor signaling and marks the basal/myoepithelial breast lineage., Lacroix M (2006), *Endocrine-Related Cancer*.",
+      "pmid": "17158753",
+      "citation": {
+        "pmid": "17158753",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PIGR": {
+      "gene": "PIGR",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "PIGR transports secretory IgA across epithelial cells, marking glandular breast epithelium., Asano M & Komiyama K.",
+      "pmid": "21712618",
+      "citation": {
+        "pmid": "21712618",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "OPRPN": {
+      "gene": "OPRPN",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "The PubMed connector is returning zero hits for all OPRPN/opiorphin queries.",
+      "pmid": null,
+      "citation": null,
+      "verify": false,
+      "used_fallback": false
+    },
+    "SLC25A37": {
+      "gene": "SLC25A37",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "Mitochondrial iron importer supporting heme synthesis in breast glandular cells., Polesel et al., *Mitochondrion* (2024).",
+      "pmid": "19805291",
+      "citation": {
+        "pmid": "19805291",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "PGR": {
+      "gene": "PGR",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "PGR encodes the progesterone receptor, mediating hormone-driven breast epithelial proliferation.",
+      "pmid": "23548208",
+      "citation": {
+        "pmid": "23548208",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "C5orf46": {
+      "gene": "C5orf46",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "Encodes an antimicrobial peptide enriched in glandular epithelial secretory cells, supporting myoepithelial identity.",
+      "pmid": "33804835",
+      "citation": {
+        "pmid": "33804835",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CDC42EP1": {
+      "gene": "CDC42EP1",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "CDC42EP1 organizes actin downstream of CDC42, supporting myoepithelial contractile shape., Hirsch DS et al.",
+      "pmid": "37877586",
+      "citation": {
+        "pmid": "37877586",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CX3CR1": {
+      "gene": "CX3CR1",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "summary": "Fractalkine receptor marking myeloid identity, not myoepithelial lineage., Petit M et al., *Cell Reports* (2024).",
+      "pmid": "39395172",
+      "citation": {
+        "pmid": "39395172",
         "title": "",
         "authors": "",
         "year": 0
@@ -596,6 +2566,351 @@
       "pmid": "38658764",
       "citation": {
         "pmid": "38658764",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CYTIP": {
+      "gene": "CYTIP",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CYTIP regulates integrin-mediated adhesion and TCR signaling in T cells., Chen Q et al.",
+      "pmid": "35015072",
+      "citation": {
+        "pmid": "35015072",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KLRB1": {
+      "gene": "KLRB1",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "KLRB1 (CD161) marks innate-like T cell subsets including Th17 and NKT cells., Cosmi et al.",
+      "pmid": "38914941",
+      "citation": {
+        "pmid": "38914941",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LDHB": {
+      "gene": "LDHB",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "LDHB converts lactate to pyruvate, marking metabolically active, exhaustion-prone intratumoural T cells.",
+      "pmid": "40461882",
+      "citation": {
+        "pmid": "40461882",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD3G": {
+      "gene": "CD3G",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CD3G encodes the CD3γ subunit, essential for TCR-CD3 complex assembly and T cell activation.",
+      "pmid": "38657677",
+      "citation": {
+        "pmid": "38657677",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "GZMA": {
+      "gene": "GZMA",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "Cytotoxic serine protease in activated T cells and NK cells, marking cytolytic identity.",
+      "pmid": "8420039",
+      "citation": {
+        "pmid": "8420039",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "GPR183": {
+      "gene": "GPR183",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "GPR183 (EBI2) guides oxysterol-driven immune cell migration, marking T cell tissue positioning.",
+      "pmid": "23682316",
+      "citation": {
+        "pmid": "23682316",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CCR7": {
+      "gene": "CCR7",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CCR7 directs naive and central-memory T cell homing to lymph nodes.",
+      "pmid": "21373990",
+      "citation": {
+        "pmid": "21373990",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD69": {
+      "gene": "CD69",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CD69 is an early activation and tissue-retention marker confirming T cell identity., Cibrián D, Sánchez-Madrid F.",
+      "pmid": "28475283",
+      "citation": {
+        "pmid": "28475283",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SERPINB9": {
+      "gene": "SERPINB9",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "Protects cytotoxic T cells from self-inflicted granzyme B-mediated apoptosis., Huang H et al., *Frontiers in Immunology*.",
+      "pmid": "36931661",
+      "citation": {
+        "pmid": "36931661",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TCF7": {
+      "gene": "TCF7",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "TCF7 encodes TCF-1, a master transcription factor sustaining T cell stemness and memory identity.",
+      "pmid": "33128876",
+      "citation": {
+        "pmid": "33128876",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD247": {
+      "gene": "CD247",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CD247 encodes the CD3ζ chain, essential for TCR/CD3 surface assembly and T cell activation signaling.",
+      "pmid": "38992472",
+      "citation": {
+        "pmid": "38992472",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SELL": {
+      "gene": "SELL",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "SELL (CD62L/L-selectin) mediates naive T cell homing to lymph nodes, marking naive/central-memory T cells.",
+      "pmid": "16828564",
+      "citation": {
+        "pmid": "16828564",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SMAP2": {
+      "gene": "SMAP2",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "SMAP2 is an ArfGAP regulating clathrin-mediated endosomal trafficking, supporting T cell receptor recycling.",
+      "pmid": "16571680",
+      "citation": {
+        "pmid": "16571680",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ADGRE5": {
+      "gene": "ADGRE5",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "ADGRE5 (CD97) is an activation-upregulated adhesion receptor marking T cells., Kop EN et al., *Immunology Letters*.",
+      "pmid": "21618833",
+      "citation": {
+        "pmid": "21618833",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LPXN": {
+      "gene": "LPXN",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "Leupaxin is a leukocyte-enriched paxillin-family adaptor regulating lymphocyte antigen-receptor signaling., Watanabe N et al.",
+      "pmid": "18497331",
+      "citation": {
+        "pmid": "18497331",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CTLA4": {
+      "gene": "CTLA4",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CTLA4 is an inhibitory checkpoint receptor that dampens T cell activation.",
+      "pmid": "29118008",
+      "citation": {
+        "pmid": "29118008",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "LTB": {
+      "gene": "LTB",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "LTB (lymphotoxin-beta) is a TNF-family cytokine expressed on T cells that supports lymphoid organogenesis and T.",
+      "pmid": "40579701",
+      "citation": {
+        "pmid": "40579701",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SLAMF1": {
+      "gene": "SLAMF1",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "SLAMF1 (CD150) marks activated T cells, including alloantigen-stimulated regulatory T cells., Browning et al., *Cellular Immunology*.",
+      "pmid": "40701970",
+      "citation": {
+        "pmid": "40701970",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "TIGIT": {
+      "gene": "TIGIT",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "TIGIT is an inhibitory receptor marking exhausted T cells in tumors., Chu X et al.",
+      "pmid": "31207604",
+      "citation": {
+        "pmid": "31207604",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KLRD1": {
+      "gene": "KLRD1",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "KLRD1 (CD94) marks cytotoxic NK and activated CD8+ T cells via NKG2 heterodimer signaling.",
+      "pmid": "39781341",
+      "citation": {
+        "pmid": "39781341",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "NKG7": {
+      "gene": "NKG7",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "NKG7 drives cytotoxic granule exocytosis, marking cytotoxic T cells.",
+      "pmid": "9166283",
+      "citation": {
+        "pmid": "9166283",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CD27": {
+      "gene": "CD27",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "CD27 is a costimulatory TNF-receptor that marks T cell activation and memory differentiation.",
+      "pmid": "36139142",
+      "citation": {
+        "pmid": "36139142",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "DUSP2": {
+      "gene": "DUSP2",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "summary": "A MAPK phosphatase selectively upregulated in T cells, marking activation and exhaustion states.",
+      "pmid": "31766293",
+      "citation": {
+        "pmid": "31766293",
         "title": "",
         "authors": "",
         "year": 0
@@ -825,6 +3140,211 @@
       "pmid": "28435016",
       "citation": {
         "pmid": "28435016",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "KDR": {
+      "gene": "KDR",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "KDR (VEGFR2) mediates VEGF signaling, defining vascular endothelial identity., Brekken & Thorpe (2001).",
+      "pmid": "41822962",
+      "citation": {
+        "pmid": "41822962",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ADH1B": {
+      "gene": "ADH1B",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "c7 is called Endothelial at High confidence, driven by AQP1 (glm_coef 7.37, pearson 0.75).",
+      "pmid": null,
+      "citation": null,
+      "verify": false,
+      "used_fallback": true
+    },
+    "NOSTRIN": {
+      "gene": "NOSTRIN",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "NOSTRIN sequesters eNOS, attenuating nitric oxide production in endothelial cells., Schilling K et al.",
+      "pmid": "28235804",
+      "citation": {
+        "pmid": "28235804",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ANKRD29": {
+      "gene": "ANKRD29",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "Ankyrin-repeat scaffold protein suppressing MAPK-driven proliferation, spatially enriched in endothelial cells here., Zhao H et al.",
+      "pmid": "37192718",
+      "citation": {
+        "pmid": "37192718",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "HOXD9": {
+      "gene": "HOXD9",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "HOXD9 encodes a HOX transcription factor marking endothelial positional identity., Toshner et al.",
+      "pmid": "38867168",
+      "citation": {
+        "pmid": "38867168",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "RAPGEF3": {
+      "gene": "RAPGEF3",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "RAPGEF3 (EPAC1) is a cAMP-activated Rap1 GEF that maintains endothelial junction integrity., Kooistra MR et al.",
+      "pmid": "40848957",
+      "citation": {
+        "pmid": "40848957",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "ANGPT2": {
+      "gene": "ANGPT2",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "ANGPT2 is an endothelium-secreted Tie2 ligand that regulates vascular stability.",
+      "pmid": "27100185",
+      "citation": {
+        "pmid": "27100185",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "EGFL7": {
+      "gene": "EGFL7",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "EGFL7 is an endothelial-restricted secreted factor supporting vascular cord formation and angiogenesis.",
+      "pmid": "24740971",
+      "citation": {
+        "pmid": "24740971",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "IL3RA": {
+      "gene": "IL3RA",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "IL3RA (CD123) supports endothelial viability under oxidative stress, not lineage identity.",
+      "pmid": "23432359",
+      "citation": {
+        "pmid": "23432359",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SOX17": {
+      "gene": "SOX17",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "SOX17 is a transcription factor that drives and maintains arterial endothelial identity.",
+      "pmid": "36512862",
+      "citation": {
+        "pmid": "36512862",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "CAVIN2": {
+      "gene": "CAVIN2",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "CAVIN2 stabilizes endothelial caveolae, marking vascular endothelial identity., Yokomori et al., *Micron*.",
+      "pmid": "26086560",
+      "citation": {
+        "pmid": "26086560",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "AVPR1A": {
+      "gene": "AVPR1A",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "Vasopressin receptor mediating vasoconstriction in perivascular smooth muscle, marking vessel-associated cells., Albee et al.",
+      "pmid": "30057184",
+      "citation": {
+        "pmid": "30057184",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SOX18": {
+      "gene": "SOX18",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "SOX18 is a transcription factor that activates PROX1, specifying lymphatic endothelial identity from venous endothelium.",
+      "pmid": "37759531",
+      "citation": {
+        "pmid": "37759531",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false,
+      "used_fallback": false
+    },
+    "SNAI1": {
+      "gene": "SNAI1",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "summary": "SNAI1 drives endothelial-to-mesenchymal transition, eroding endothelial identity., Elmadbouh et al.",
+      "pmid": "41279130",
+      "citation": {
+        "pmid": "41279130",
         "title": "",
         "authors": "",
         "year": 0
