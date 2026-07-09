@@ -103,6 +103,12 @@ _EVIDENCE_CSS = """
 .pano-ev-empty {
   font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
 }
+/* Scrollable rows body: no boxed border (border=False on the container); just a
+   single top hairline so it reads as the table body under the header row. */
+div[class*="st-key-evrows"] {
+  border-top: 1px solid var(--hair) !important;
+  padding-top: 2px;
+}
 /* Per-row keyed container: tighten spacing + render the gene button as a
    chromeless, left-aligned name with a ::before select dot (like the rail). */
 div[class*="st-key-evrows"] [data-testid="stHorizontalBlock"] { gap: 8px !important; }
@@ -188,7 +194,9 @@ def render_evidence_table(cluster: str) -> None:
 
     # Every assigned marker in one fixed-height, scrollable panel — scroll for the
     # long tail rather than an expander that pushes the tissue down the page.
-    with st.container(height=_EV_SCROLL_HEIGHT, key="evrows"):
+    # border=False drops Streamlit's heavy default box; a single top hairline (CSS)
+    # ties the scrolling body to the header above it, table-style.
+    with st.container(height=_EV_SCROLL_HEIGHT, border=False, key="evrows"):
         _render_marker_rows(st, all_rows, cluster)
 
 

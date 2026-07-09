@@ -285,6 +285,25 @@ def _downsample_bg(df: pd.DataFrame, keep_mask: pd.Series, bg_cap: int) -> pd.Da
 
 
 # --------------------------------------------------------------------------- #
+# Cell-type labels for hover (read the authoritative key; never computes a value)
+# --------------------------------------------------------------------------- #
+def _cluster_celltype_map() -> dict:
+    """Map each cluster id to its human cell-type label for hover tooltips.
+
+    Read straight from the authoritative ``CLUSTER_KEY``; unassigned cells (blank
+    cluster) read as ``unassigned``. Nothing is computed.
+    """
+    from agent.config import CLUSTER_KEY, CLUSTER_ORDER
+
+    labels = {
+        c: CLUSTER_KEY.get(c, {}).get("cell_type", c).replace("_", " ")
+        for c in CLUSTER_ORDER
+    }
+    labels[""] = "unassigned"
+    return labels
+
+
+# --------------------------------------------------------------------------- #
 # View 1 — Cell map (tissue image; ratio-locked)
 # --------------------------------------------------------------------------- #
 def _render_cell_map(cluster: str) -> None:
@@ -306,25 +325,29 @@ def _render_cell_map(cluster: str) -> None:
 
     sel_mask = cells["cluster"] == cluster
     view = _downsample_bg(cells, sel_mask, _MAX_BG_POINTS)
+    view = view.assign(
+        cell_type=view["cluster"].map(_cluster_celltype_map()).fillna("unassigned")
+    )
     sel = view[view["cluster"] == cluster]
     bg = view[view["cluster"] != cluster]
 
     fig = go.Figure(layout=_tissue_layout(go))
 
-    # Background: all other clusters, muted.
+    # Background: all other clusters, muted. Hovering any cell shows its cell type.
     fig.add_trace(
         go.Scattergl(
             x=bg["x"],
             y=bg["y"],
             mode="markers",
             marker=dict(size=2.2, color=_FADE_COLOR, opacity=0.55),
-            hoverinfo="skip",
+            customdata=bg["cell_type"],
+            hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
             name="other clusters",
         )
     )
     # Foreground: the selected cluster filled with its own palette colour (no
-    # outline — just the filled points).
+    # outline — just the filled points). Hover shows the cell type.
     sel_color = fmt.cluster_color(cluster)
     fig.add_trace(
         go.Scattergl(
@@ -332,8 +355,8 @@ def _render_cell_map(cluster: str) -> None:
             y=sel["y"],
             mode="markers",
             marker=dict(size=3.4, color=sel_color, opacity=0.95),
-            customdata=sel["cell_id"],
-            hovertemplate="cell %{customdata}<extra></extra>",
+            customdata=sel["cell_type"],
+            hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
             name=cluster,
         )
@@ -391,7 +414,11 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
 def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> None:
     """Grey out every other cluster; fill the selected cluster with its own
     palette colour (no outline). Mirrors the cell map's selected-vs-rest
-    treatment so the two Row-1 panels read the same way."""
+    treatment so the two Row-1 panels read the same way. Hovering any cell shows
+    its cell type (read from the authoritative key), not the opaque cell id."""
+    view = view.assign(
+        cell_type=view["cluster"].map(_cluster_celltype_map()).fillna("unassigned")
+    )
     sel = view[view["cluster"] == cluster]
     bg = view[view["cluster"] != cluster]
     fig.add_trace(
@@ -400,7 +427,8 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
             y=bg["umap_2"],
             mode="markers",
             marker=dict(size=2.2, color=_FADE_COLOR, opacity=0.5),
-            hoverinfo="skip",
+            customdata=bg["cell_type"],
+            hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
             name="other clusters",
         )
@@ -411,7 +439,8 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
             y=sel["umap_2"],
             mode="markers",
             marker=dict(size=3.2, color=fmt.cluster_color(cluster), opacity=0.95),
-            hovertemplate=f"{cluster}<extra></extra>",
+            customdata=sel["cell_type"],
+            hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
             name=cluster,
         )
