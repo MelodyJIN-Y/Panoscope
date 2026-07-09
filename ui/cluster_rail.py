@@ -30,26 +30,11 @@ from typing import Optional
 from agent.config import CLUSTER_KEY, CLUSTER_ORDER
 from agent.types import ClusterVerdict
 
-from ui import data_access, state
+from ui import data_access, format as fmt, state
 
-# --------------------------------------------------------------------------- #
-# Confidence-band dot colors — mirror the theme.py confidence tokens so the dot
-# reads on the same scale as the header chip (Very-High deepest teal -> Low
-# faint grey). Keyed by band label, not by index.
-# --------------------------------------------------------------------------- #
-_CONFIDENCE_DOT: dict[str, str] = {
-    "Very High": "#0F5B65",
-    "High": "#2E8C97",
-    "Medium-High": "#5FA7AE",
-    "Medium": "#A9C7CB",
-    "Low": "#E2E6E7",
-}
-_DEFAULT_DOT = "#E2E6E7"
-
-
-def _dot_color(confidence: str) -> str:
-    """Confidence-band color for the rail dot (faint-grey fallback)."""
-    return _CONFIDENCE_DOT.get(confidence, _DEFAULT_DOT)
+# The rail dot uses the cluster's own palette colour (``fmt.cluster_color``), so
+# the dot beside a cluster name matches that cluster's colour in the cell map,
+# UMAP, and violin — a single visual key across the whole app.
 
 
 def _cluster_label(cluster: str) -> str:
@@ -96,12 +81,10 @@ def render_rail() -> Optional[str]:
             if verdict is not None:
                 name = verdict.cell_type.replace("_", " ")
                 label = f"{name}  ⚑" if verdict.verify else name
-                dot = _dot_html(
-                    _dot_color(verdict.confidence), f"{verdict.confidence} confidence"
-                )
+                dot = _dot_html(fmt.cluster_color(cluster), name)
             else:
                 label = _cluster_label(cluster)
-                dot = _dot_html(_DEFAULT_DOT, "confidence unavailable")
+                dot = _dot_html(fmt.cluster_color(cluster), _cluster_label(cluster))
 
             dot_col, btn_col = st.columns([0.14, 0.86], vertical_alignment="center")
             with dot_col:

@@ -323,19 +323,15 @@ def _render_cell_map(cluster: str) -> None:
             name="other clusters",
         )
     )
-    # Foreground: the selected cluster in its own colour, brought forward.
+    # Foreground: the selected cluster filled with its own palette colour (no
+    # outline — just the filled points).
     sel_color = fmt.cluster_color(cluster)
     fig.add_trace(
         go.Scattergl(
             x=sel["x"],
             y=sel["y"],
             mode="markers",
-            marker=dict(
-                size=3.4,
-                color=sel_color,
-                opacity=0.95,
-                line=dict(width=0.4, color=_HIGHLIGHT_LINE),
-            ),
+            marker=dict(size=3.4, color=sel_color, opacity=0.95),
             customdata=sel["cell_id"],
             hovertemplate="cell %{customdata}<extra></extra>",
             showlegend=False,
@@ -344,11 +340,6 @@ def _render_cell_map(cluster: str) -> None:
     )
 
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
-    ct = _cell_type_label(cluster)
-    _legend_line(
-        f'<b style="color:{sel_color}">{cluster} {ct}</b> brought forward · '
-        f"{len(sel):,} cells"
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -382,9 +373,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
     if feature and gene and expr is not None:
         _umap_feature(fig, go, view, expr, cluster)
         st.plotly_chart(fig, use_container_width=True, config=_plot_config())
-        _legend_line(
-            f'low <span class="grad"></span> high · {cluster} outlined'
-        )
+        _legend_line('low <span class="grad"></span> high')
         return
 
     # Cluster-coloured UMAP: Row 1 default, or a gene row whose expression is
@@ -396,35 +385,37 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
             f'<span style="color:var(--absent)">{gene}: per-cell expression not '
             f"precomputed</span> · showing cluster colour instead"
         )
-    else:
-        sel_color = fmt.cluster_color(cluster)
-        _legend_line(f'<b style="color:{sel_color}">{cluster}</b> outlined')
+    # Row-1 cluster UMAP: no caption (the label was removed for a cleaner grid).
 
 
 def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> None:
-    """Add per-cluster scattergl traces (one per cluster, in c1..c9 order)."""
-    present = set(view["cluster"].unique())
-    for c in [c for c in CLUSTER_ORDER if c in present]:
-        sub = view[view["cluster"] == c]
-        is_sel = c == cluster
-        fig.add_trace(
-            go.Scattergl(
-                x=sub["umap_1"],
-                y=sub["umap_2"],
-                mode="markers",
-                marker=dict(
-                    size=3.2 if is_sel else 2.2,
-                    color=fmt.cluster_color(c),
-                    opacity=0.9 if is_sel else 0.5,
-                    line=dict(width=0.5, color=_HIGHLIGHT_LINE)
-                    if is_sel
-                    else dict(width=0),
-                ),
-                name=c,
-                hovertemplate=f"{c}<extra></extra>",
-                showlegend=False,
-            )
+    """Grey out every other cluster; fill the selected cluster with its own
+    palette colour (no outline). Mirrors the cell map's selected-vs-rest
+    treatment so the two Row-1 panels read the same way."""
+    sel = view[view["cluster"] == cluster]
+    bg = view[view["cluster"] != cluster]
+    fig.add_trace(
+        go.Scattergl(
+            x=bg["umap_1"],
+            y=bg["umap_2"],
+            mode="markers",
+            marker=dict(size=2.2, color=_FADE_COLOR, opacity=0.5),
+            hoverinfo="skip",
+            showlegend=False,
+            name="other clusters",
         )
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=sel["umap_1"],
+            y=sel["umap_2"],
+            mode="markers",
+            marker=dict(size=3.2, color=fmt.cluster_color(cluster), opacity=0.95),
+            hovertemplate=f"{cluster}<extra></extra>",
+            showlegend=False,
+            name=cluster,
+        )
+    )
 
 
 def _umap_feature(
@@ -587,6 +578,8 @@ def _render_violin(genes: list[str], cluster: str) -> None:
     fig.update_layout(
         xaxis=dict(
             visible=True,
+            showticklabels=True,   # cluster ids on the x-axis so each violin reads
+            ticks="outside",
             showgrid=False,
             zeroline=False,
             type="category",
@@ -654,23 +647,6 @@ def _render_violin(genes: list[str], cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Small display helper
-# --------------------------------------------------------------------------- #
-def _cell_type_label(cluster: str) -> str:
-    """Best-effort cell-type label for a caption (never computes; reads the key).
-
-    Falls back to an empty string if the key is unavailable, so a caption never
-    crashes the stage.
-    """
-    try:
-        from agent.config import CLUSTER_KEY
-
-        return CLUSTER_KEY.get(cluster, {}).get("cell_type", "")
-    except Exception:
-        return ""
-
-
-# --------------------------------------------------------------------------- #
 # Global density bin control (one control for every density panel)
 # --------------------------------------------------------------------------- #
 def _render_bin_control() -> None:
@@ -729,19 +705,12 @@ def render_spatial_stage(cluster: str) -> None:
     st = _st()
     _inject_stage_css()
 
-    st.markdown(
-        '<p class="pano-sect">Spatial evidence '
-        '<span class="r">cluster context · one row per selected marker</span></p>',
-        unsafe_allow_html=True,
-    )
-
     # Row 1 — cluster context: cell map (tissue) beside cluster UMAP (abstract).
     r1_left, r1_right = st.columns(2, gap="medium")
     with r1_left:
         _panel_title("Cell map <span style='color:var(--faint)'>· tissue</span>")
         _render_cell_map(cluster)
     with r1_right:
-        _panel_title("UMAP <span style='color:var(--faint)'>· cluster colour</span>")
         _render_umap(cluster, feature=False)
 
     markers = state.active_markers()
@@ -753,6 +722,9 @@ def render_spatial_stage(cluster: str) -> None:
             height=140,
         )
         return
+
+    # Breathing room between the cell-level row and the transcript hex-bin rows.
+    st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
 
     # Single global density bin control (one row, above all density panels).
     _render_bin_control()

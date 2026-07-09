@@ -28,15 +28,15 @@ from agent.types import ClusterVerdict, MarkerEvidence, MarkerRole
 # never reassigns a color.
 # --------------------------------------------------------------------------- #
 CLUSTER_COLORS: dict[str, str] = {
-    "c1": "#0F7B87",  # teal — brand accent (Tumor)
-    "c2": "#4C9A2A",  # green (Stromal)
-    "c3": "#8A6D3B",  # bronze (Macrophages)
-    "c4": "#C2569B",  # magenta (Myoepithelial)
-    "c5": "#2F6FEB",  # blue (T cells)
-    "c6": "#7A55C9",  # violet (B cells)
-    "c7": "#1F9E9E",  # cyan (Endothelial)
-    "c8": "#E08A1E",  # amber (Dendritic)
-    "c9": "#C0453B",  # brick (Mast cells)
+    "c1": "#FC8D62",  # orange (Tumor)
+    "c2": "#66C2A5",  # teal-green (Stromal)
+    "c3": "#8DA0CB",  # blue-violet (Macrophages)
+    "c4": "#E78AC3",  # pink (Myoepithelial)
+    "c5": "#A6D854",  # green (T cells)
+    "c6": "#87CEEB",  # skyblue (B cells)
+    "c7": "#7D26CD",  # purple3 (Endothelial)
+    "c8": "#E5C498",  # tan (Dendritic)
+    "c9": "#0000FF",  # blue (Mast cells)
 }
 _FALLBACK_CLUSTER_COLOR = "#9AA3AB"
 
