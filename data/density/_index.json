@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-08T23:08:43",
+  "generated_at": "2026-07-09T14:15:48",
   "dataset": "xenium_hbreast_sample1",
   "source": "Raw_data_Xenium_hbreast_sample1/transcripts.csv.gz",
   "qv_min": 20.0,
@@ -17,441 +17,970 @@
   "normalization": "density = count / bin_area (transcripts per um^2)",
   "bin_scheme": "square bins snapped to origin (0,0); hx/hy are bin centers in um",
   "genes": [
-    "ERBB2",
-    "KRT7",
-    "SCD",
-    "LUM",
-    "POSTN",
-    "CCDC80",
-    "LYZ",
-    "FCER1G",
-    "CD68",
-    "SERPINA3",
-    "DST",
-    "SFRP1",
-    "IL7R",
-    "PTPRC",
-    "TRAC",
-    "MS4A1",
-    "BANK1",
-    "MZB1",
+    "ABCC11",
+    "ACTA2",
+    "ACTG2",
+    "ADAM9",
+    "ADGRE5",
+    "ADH1B",
+    "ADIPOQ",
+    "AGR3",
+    "AIF1",
+    "AKR1C1",
+    "AKR1C3",
+    "ALDH1A3",
+    "ANGPT2",
+    "ANKRD28",
+    "ANKRD29",
+    "ANKRD30A",
+    "APOBEC3A",
+    "APOBEC3B",
+    "APOC1",
     "AQP1",
-    "PECAM1",
-    "VWF",
-    "TCL1A",
-    "LILRA4",
-    "SPIB",
+    "AQP3",
+    "AR",
+    "AVPR1A",
+    "BACE2",
+    "BANK1",
+    "BASP1",
+    "C15orf48",
+    "C1QA",
+    "C1QC",
+    "C2orf42",
+    "C5orf46",
+    "C6orf132",
+    "CAV1",
+    "CAVIN2",
+    "CCDC6",
+    "CCDC80",
+    "CCL5",
+    "CCL8",
+    "CCND1",
+    "CCPG1",
+    "CCR7",
+    "CD14",
+    "CD163",
+    "CD19",
+    "CD247",
+    "CD27",
+    "CD274",
+    "CD3E",
+    "CD3G",
+    "CD4",
+    "CD68",
+    "CD69",
+    "CD79A",
+    "CD79B",
+    "CD80",
+    "CD83",
+    "CD86",
+    "CD8A",
+    "CD9",
+    "CD93",
+    "CDC42EP1",
+    "CDH1",
+    "CEACAM6",
+    "CEACAM8",
+    "CENPF",
+    "CLEC14A",
+    "CLEC9A",
+    "CLECL1",
+    "CLIC6",
     "CPA3",
-    "CTSG"
+    "CRISPLD2",
+    "CTH",
+    "CTLA4",
+    "CTSG",
+    "CTTN",
+    "CX3CR1",
+    "CXCL12",
+    "CXCL16",
+    "CXCL5",
+    "CXCR4",
+    "CYTIP",
+    "DAPK3",
+    "DMKN",
+    "DNAAF1",
+    "DNTTIP1",
+    "DPT",
+    "DSC2",
+    "DSP",
+    "DST",
+    "DUSP2",
+    "DUSP5",
+    "EGFL7",
+    "EGFR",
+    "EIF4EBP1",
+    "ENAH",
+    "EPCAM",
+    "ERBB2",
+    "ERN1",
+    "ESM1",
+    "ESR1",
+    "FAM107B",
+    "FAM49A",
+    "FASN",
+    "FBLN1",
+    "FCER1A",
+    "FCER1G",
+    "FCGR3A",
+    "FGL2",
+    "FLNB",
+    "FOXA1",
+    "FOXC2",
+    "FOXP3",
+    "FSTL3",
+    "GATA3",
+    "GJB2",
+    "GLIPR1",
+    "GNLY",
+    "GPR183",
+    "GZMA",
+    "GZMK",
+    "HAVCR2",
+    "HMGA1",
+    "HOOK2",
+    "HOXD8",
+    "HOXD9",
+    "HPX",
+    "IGF1",
+    "IGSF6",
+    "IL2RA",
+    "IL2RG",
+    "IL3RA",
+    "IL7R",
+    "ITGAM",
+    "ITGAX",
+    "ITM2C",
+    "JUP",
+    "KARS",
+    "KDR",
+    "KIT",
+    "KLF5",
+    "KLRB1",
+    "KLRC1",
+    "KLRD1",
+    "KLRF1",
+    "KRT14",
+    "KRT23",
+    "KRT5",
+    "KRT6B",
+    "KRT7",
+    "KRT8",
+    "LAG3",
+    "LARS",
+    "LDHB",
+    "LGALSL",
+    "LILRA4",
+    "LPL",
+    "LPXN",
+    "LRRC15",
+    "LTB",
+    "LUM",
+    "LY86",
+    "LYPD3",
+    "LYZ",
+    "MAP3K8",
+    "MDM2",
+    "MKI67",
+    "MLPH",
+    "MMP1",
+    "MMP12",
+    "MMP2",
+    "MMRN2",
+    "MNDA",
+    "MRC1",
+    "MS4A1",
+    "MUC6",
+    "MYBPC1",
+    "MYH11",
+    "MYLK",
+    "MYO5B",
+    "MZB1",
+    "NARS",
+    "NCAM1",
+    "NDUFA4L2",
+    "NKG7",
+    "NOSTRIN",
+    "OCIAD2",
+    "OPRPN",
+    "OXTR",
+    "PCLAF",
+    "PDCD1",
+    "PDCD1LG2",
+    "PDE4A",
+    "PDGFRA",
+    "PDGFRB",
+    "PDK4",
+    "PECAM1",
+    "PELI1",
+    "PGR",
+    "PIGR",
+    "PIM1",
+    "PLD4",
+    "POSTN",
+    "PPARG",
+    "PRDM1",
+    "PRF1",
+    "PTGDS",
+    "PTN",
+    "PTPRC",
+    "PTRHD1",
+    "QARS",
+    "RAB30",
+    "RAMP2",
+    "RAPGEF3",
+    "RHOH",
+    "RORC",
+    "RTKN2",
+    "RUNX1",
+    "S100A14",
+    "S100A4",
+    "S100A8",
+    "SCD",
+    "SCGB2A1",
+    "SDC4",
+    "SEC11C",
+    "SEC24A",
+    "SELL",
+    "SERHL2",
+    "SERPINA3",
+    "SERPINB9",
+    "SFRP1",
+    "SFRP4",
+    "SH3YL1",
+    "SLAMF1",
+    "SLAMF7",
+    "SLC25A37",
+    "SLC5A6",
+    "SMAP2",
+    "SMS",
+    "SNAI1",
+    "SOX17",
+    "SOX18",
+    "SPIB",
+    "SQLE",
+    "SRPK1",
+    "SSTR2",
+    "STC1",
+    "SVIL",
+    "TAC1",
+    "TACSTD2",
+    "TCEAL7",
+    "TCF4",
+    "TCF7",
+    "TCIM",
+    "TCL1A",
+    "TENT5C",
+    "TFAP2A",
+    "THAP2",
+    "TIFA",
+    "TIGIT",
+    "TIMP4",
+    "TMEM147",
+    "TNFRSF17",
+    "TOMM7",
+    "TOP2A",
+    "TPD52",
+    "TPSAB1",
+    "TRAC",
+    "TRAF4",
+    "TRAPPC3",
+    "TRIB1",
+    "TUBA4A",
+    "TUBB2B",
+    "UCP1",
+    "USP53",
+    "VOPP1",
+    "VWF",
+    "WARS",
+    "ZEB1",
+    "ZEB2",
+    "ZNF562"
   ],
-  "n_genes": 26,
+  "n_genes": 280,
   "genes_with_zero_transcripts": [],
   "per_gene_transcript_counts": {
-    "ERBB2": 2164898,
-    "KRT7": 1077455,
-    "SCD": 878700,
-    "LUM": 1087247,
-    "POSTN": 972805,
-    "CCDC80": 424344,
-    "LYZ": 245251,
-    "FCER1G": 164324,
-    "CD68": 151221,
-    "SERPINA3": 264411,
-    "DST": 312203,
-    "SFRP1": 142794,
-    "IL7R": 151259,
-    "PTPRC": 172241,
-    "TRAC": 121564,
-    "MS4A1": 20875,
-    "BANK1": 19121,
-    "MZB1": 63381,
+    "ABCC11": 175973,
+    "ACTA2": 343540,
+    "ACTG2": 295829,
+    "ADAM9": 203335,
+    "ADGRE5": 47975,
+    "ADH1B": 102855,
+    "ADIPOQ": 20496,
+    "AGR3": 46090,
+    "AIF1": 113343,
+    "AKR1C1": 19139,
+    "AKR1C3": 9996,
+    "ALDH1A3": 26744,
+    "ANGPT2": 15728,
+    "ANKRD28": 42414,
+    "ANKRD29": 16818,
+    "ANKRD30A": 656900,
+    "APOBEC3A": 1365,
+    "APOBEC3B": 15821,
+    "APOC1": 53676,
     "AQP1": 131864,
-    "PECAM1": 129969,
-    "VWF": 89369,
-    "TCL1A": 3624,
-    "LILRA4": 6051,
-    "SPIB": 8600,
+    "AQP3": 17442,
+    "AR": 111257,
+    "AVPR1A": 11491,
+    "BACE2": 69091,
+    "BANK1": 19121,
+    "BASP1": 183274,
+    "C15orf48": 13815,
+    "C1QA": 56937,
+    "C1QC": 69833,
+    "C2orf42": 15223,
+    "C5orf46": 6987,
+    "C6orf132": 30624,
+    "CAV1": 112643,
+    "CAVIN2": 15109,
+    "CCDC6": 214773,
+    "CCDC80": 424344,
+    "CCL5": 68004,
+    "CCL8": 9989,
+    "CCND1": 898022,
+    "CCPG1": 117616,
+    "CCR7": 22357,
+    "CD14": 76249,
+    "CD163": 82773,
+    "CD19": 5749,
+    "CD247": 28758,
+    "CD27": 20249,
+    "CD274": 6651,
+    "CD3E": 106484,
+    "CD3G": 30853,
+    "CD4": 147961,
+    "CD68": 151221,
+    "CD69": 38365,
+    "CD79A": 12652,
+    "CD79B": 3558,
+    "CD80": 5134,
+    "CD83": 22679,
+    "CD86": 36447,
+    "CD8A": 72228,
+    "CD9": 325168,
+    "CD93": 83241,
+    "CDC42EP1": 17090,
+    "CDH1": 302333,
+    "CEACAM6": 420832,
+    "CEACAM8": 12457,
+    "CENPF": 57938,
+    "CLEC14A": 38778,
+    "CLEC9A": 4470,
+    "CLECL1": 6437,
+    "CLIC6": 3979,
     "CPA3": 14150,
-    "CTSG": 6269
+    "CRISPLD2": 83864,
+    "CTH": 5814,
+    "CTLA4": 21449,
+    "CTSG": 6269,
+    "CTTN": 397768,
+    "CX3CR1": 14490,
+    "CXCL12": 441230,
+    "CXCL16": 57260,
+    "CXCL5": 2105,
+    "CXCR4": 247648,
+    "CYTIP": 73990,
+    "DAPK3": 18037,
+    "DMKN": 22180,
+    "DNAAF1": 3753,
+    "DNTTIP1": 51618,
+    "DPT": 49424,
+    "DSC2": 85843,
+    "DSP": 208793,
+    "DST": 312203,
+    "DUSP2": 11875,
+    "DUSP5": 53432,
+    "EGFL7": 9073,
+    "EGFR": 52497,
+    "EIF4EBP1": 32570,
+    "ENAH": 231204,
+    "EPCAM": 735430,
+    "ERBB2": 2164898,
+    "ERN1": 72331,
+    "ESM1": 10421,
+    "ESR1": 46753,
+    "FAM107B": 147899,
+    "FAM49A": 21916,
+    "FASN": 443239,
+    "FBLN1": 141365,
+    "FCER1A": 18316,
+    "FCER1G": 164324,
+    "FCGR3A": 41565,
+    "FGL2": 112199,
+    "FLNB": 232428,
+    "FOXA1": 694630,
+    "FOXC2": 8191,
+    "FOXP3": 8069,
+    "FSTL3": 27307,
+    "GATA3": 756711,
+    "GJB2": 27698,
+    "GLIPR1": 78081,
+    "GNLY": 5453,
+    "GPR183": 75029,
+    "GZMA": 41491,
+    "GZMK": 1724,
+    "HAVCR2": 36242,
+    "HMGA1": 113554,
+    "HOOK2": 44390,
+    "HOXD8": 61701,
+    "HOXD9": 13532,
+    "HPX": 9762,
+    "IGF1": 115253,
+    "IGSF6": 60773,
+    "IL2RA": 20215,
+    "IL2RG": 67838,
+    "IL3RA": 14673,
+    "IL7R": 151259,
+    "ITGAM": 23198,
+    "ITGAX": 40576,
+    "ITM2C": 126234,
+    "JUP": 78926,
+    "KARS": 64127,
+    "KDR": 33610,
+    "KIT": 20387,
+    "KLF5": 84173,
+    "KLRB1": 55991,
+    "KLRC1": 13307,
+    "KLRD1": 17270,
+    "KLRF1": 8532,
+    "KRT14": 73591,
+    "KRT23": 27668,
+    "KRT5": 42346,
+    "KRT6B": 37911,
+    "KRT7": 1077455,
+    "KRT8": 530168,
+    "LAG3": 13483,
+    "LARS": 175179,
+    "LDHB": 132484,
+    "LGALSL": 23529,
+    "LILRA4": 6051,
+    "LPL": 38399,
+    "LPXN": 51946,
+    "LRRC15": 34570,
+    "LTB": 17357,
+    "LUM": 1087247,
+    "LY86": 10102,
+    "LYPD3": 141991,
+    "LYZ": 245251,
+    "MAP3K8": 48666,
+    "MDM2": 357597,
+    "MKI67": 41064,
+    "MLPH": 382751,
+    "MMP1": 6983,
+    "MMP12": 10943,
+    "MMP2": 270204,
+    "MMRN2": 22995,
+    "MNDA": 38798,
+    "MRC1": 69417,
+    "MS4A1": 20875,
+    "MUC6": 865,
+    "MYBPC1": 1549,
+    "MYH11": 37913,
+    "MYLK": 152937,
+    "MYO5B": 152289,
+    "MZB1": 63381,
+    "NARS": 318008,
+    "NCAM1": 2814,
+    "NDUFA4L2": 1758,
+    "NKG7": 9053,
+    "NOSTRIN": 19877,
+    "OCIAD2": 54075,
+    "OPRPN": 9863,
+    "OXTR": 12259,
+    "PCLAF": 89454,
+    "PDCD1": 631,
+    "PDCD1LG2": 7784,
+    "PDE4A": 26830,
+    "PDGFRA": 135106,
+    "PDGFRB": 159709,
+    "PDK4": 195467,
+    "PECAM1": 129969,
+    "PELI1": 45144,
+    "PGR": 6631,
+    "PIGR": 4437,
+    "PIM1": 44839,
+    "PLD4": 5406,
+    "POSTN": 972805,
+    "PPARG": 47981,
+    "PRDM1": 67601,
+    "PRF1": 9405,
+    "PTGDS": 141048,
+    "PTN": 65277,
+    "PTPRC": 172241,
+    "PTRHD1": 49153,
+    "QARS": 152696,
+    "RAB30": 36924,
+    "RAMP2": 31758,
+    "RAPGEF3": 17590,
+    "RHOH": 92976,
+    "RORC": 14208,
+    "RTKN2": 48304,
+    "RUNX1": 246228,
+    "S100A14": 245403,
+    "S100A4": 128167,
+    "S100A8": 6471,
+    "SCD": 878700,
+    "SCGB2A1": 2457,
+    "SDC4": 55168,
+    "SEC11C": 131221,
+    "SEC24A": 126851,
+    "SELL": 34868,
+    "SERHL2": 175752,
+    "SERPINA3": 264411,
+    "SERPINB9": 88259,
+    "SFRP1": 142794,
+    "SFRP4": 193474,
+    "SH3YL1": 132326,
+    "SLAMF1": 27718,
+    "SLAMF7": 55502,
+    "SLC25A37": 35103,
+    "SLC5A6": 85816,
+    "SMAP2": 88225,
+    "SMS": 193534,
+    "SNAI1": 5965,
+    "SOX17": 9521,
+    "SOX18": 4970,
+    "SPIB": 8600,
+    "SQLE": 93589,
+    "SRPK1": 98813,
+    "SSTR2": 2810,
+    "STC1": 18074,
+    "SVIL": 140457,
+    "TAC1": 15581,
+    "TACSTD2": 603691,
+    "TCEAL7": 12052,
+    "TCF4": 80418,
+    "TCF7": 27329,
+    "TCIM": 313650,
+    "TCL1A": 3624,
+    "TENT5C": 170206,
+    "TFAP2A": 90557,
+    "THAP2": 27151,
+    "TIFA": 34090,
+    "TIGIT": 11329,
+    "TIMP4": 10533,
+    "TMEM147": 171378,
+    "TNFRSF17": 7707,
+    "TOMM7": 557011,
+    "TOP2A": 90530,
+    "TPD52": 280944,
+    "TPSAB1": 15874,
+    "TRAC": 121564,
+    "TRAF4": 103299,
+    "TRAPPC3": 127098,
+    "TRIB1": 58818,
+    "TUBA4A": 99077,
+    "TUBB2B": 26245,
+    "UCP1": 753,
+    "USP53": 140359,
+    "VOPP1": 182285,
+    "VWF": 89369,
+    "WARS": 115534,
+    "ZEB1": 80818,
+    "ZEB2": 217733,
+    "ZNF562": 117419
   },
   "pairs": [
     {
-      "gene": "ERBB2",
+      "gene": "ABCC11",
       "bin_um": 25,
-      "file": "data/density/ERBB2_25um.parquet",
-      "n_bins": 64521,
-      "n_transcripts": 2164898
+      "file": "data/density/ABCC11_25um.parquet",
+      "n_bins": 27858,
+      "n_transcripts": 175973
     },
     {
-      "gene": "ERBB2",
+      "gene": "ABCC11",
       "bin_um": 50,
-      "file": "data/density/ERBB2_50um.parquet",
-      "n_bins": 16455,
-      "n_transcripts": 2164898
+      "file": "data/density/ABCC11_50um.parquet",
+      "n_bins": 11402,
+      "n_transcripts": 175973
     },
     {
-      "gene": "ERBB2",
+      "gene": "ABCC11",
       "bin_um": 100,
-      "file": "data/density/ERBB2_100um.parquet",
-      "n_bins": 4159,
-      "n_transcripts": 2164898
+      "file": "data/density/ABCC11_100um.parquet",
+      "n_bins": 3861,
+      "n_transcripts": 175973
     },
     {
-      "gene": "KRT7",
+      "gene": "ACTA2",
       "bin_um": 25,
-      "file": "data/density/KRT7_25um.parquet",
-      "n_bins": 51302,
-      "n_transcripts": 1077455
+      "file": "data/density/ACTA2_25um.parquet",
+      "n_bins": 55322,
+      "n_transcripts": 343540
     },
     {
-      "gene": "KRT7",
+      "gene": "ACTA2",
       "bin_um": 50,
-      "file": "data/density/KRT7_50um.parquet",
-      "n_bins": 15888,
-      "n_transcripts": 1077455
+      "file": "data/density/ACTA2_50um.parquet",
+      "n_bins": 16161,
+      "n_transcripts": 343540
     },
     {
-      "gene": "KRT7",
+      "gene": "ACTA2",
       "bin_um": 100,
-      "file": "data/density/KRT7_100um.parquet",
-      "n_bins": 4144,
-      "n_transcripts": 1077455
+      "file": "data/density/ACTA2_100um.parquet",
+      "n_bins": 4132,
+      "n_transcripts": 343540
     },
     {
-      "gene": "SCD",
+      "gene": "ACTG2",
       "bin_um": 25,
-      "file": "data/density/SCD_25um.parquet",
-      "n_bins": 52443,
-      "n_transcripts": 878700
+      "file": "data/density/ACTG2_25um.parquet",
+      "n_bins": 53826,
+      "n_transcripts": 295829
     },
     {
-      "gene": "SCD",
+      "gene": "ACTG2",
       "bin_um": 50,
-      "file": "data/density/SCD_50um.parquet",
-      "n_bins": 15940,
-      "n_transcripts": 878700
+      "file": "data/density/ACTG2_50um.parquet",
+      "n_bins": 15990,
+      "n_transcripts": 295829
     },
     {
-      "gene": "SCD",
+      "gene": "ACTG2",
       "bin_um": 100,
-      "file": "data/density/SCD_100um.parquet",
-      "n_bins": 4133,
-      "n_transcripts": 878700
+      "file": "data/density/ACTG2_100um.parquet",
+      "n_bins": 4118,
+      "n_transcripts": 295829
     },
     {
-      "gene": "LUM",
+      "gene": "ADAM9",
       "bin_um": 25,
-      "file": "data/density/LUM_25um.parquet",
-      "n_bins": 59993,
-      "n_transcripts": 1087247
+      "file": "data/density/ADAM9_25um.parquet",
+      "n_bins": 48741,
+      "n_transcripts": 203335
     },
     {
-      "gene": "LUM",
+      "gene": "ADAM9",
       "bin_um": 50,
-      "file": "data/density/LUM_50um.parquet",
-      "n_bins": 16251,
-      "n_transcripts": 1087247
+      "file": "data/density/ADAM9_50um.parquet",
+      "n_bins": 15808,
+      "n_transcripts": 203335
     },
     {
-      "gene": "LUM",
+      "gene": "ADAM9",
       "bin_um": 100,
-      "file": "data/density/LUM_100um.parquet",
-      "n_bins": 4136,
-      "n_transcripts": 1087247
+      "file": "data/density/ADAM9_100um.parquet",
+      "n_bins": 4123,
+      "n_transcripts": 203335
     },
     {
-      "gene": "POSTN",
+      "gene": "ADGRE5",
       "bin_um": 25,
-      "file": "data/density/POSTN_25um.parquet",
-      "n_bins": 58429,
-      "n_transcripts": 972805
+      "file": "data/density/ADGRE5_25um.parquet",
+      "n_bins": 23451,
+      "n_transcripts": 47975
     },
     {
-      "gene": "POSTN",
+      "gene": "ADGRE5",
       "bin_um": 50,
-      "file": "data/density/POSTN_50um.parquet",
-      "n_bins": 16099,
-      "n_transcripts": 972805
+      "file": "data/density/ADGRE5_50um.parquet",
+      "n_bins": 11884,
+      "n_transcripts": 47975
     },
     {
-      "gene": "POSTN",
+      "gene": "ADGRE5",
       "bin_um": 100,
-      "file": "data/density/POSTN_100um.parquet",
-      "n_bins": 4136,
-      "n_transcripts": 972805
+      "file": "data/density/ADGRE5_100um.parquet",
+      "n_bins": 3979,
+      "n_transcripts": 47975
     },
     {
-      "gene": "CCDC80",
+      "gene": "ADH1B",
       "bin_um": 25,
-      "file": "data/density/CCDC80_25um.parquet",
-      "n_bins": 50445,
-      "n_transcripts": 424344
+      "file": "data/density/ADH1B_25um.parquet",
+      "n_bins": 22209,
+      "n_transcripts": 102855
     },
     {
-      "gene": "CCDC80",
+      "gene": "ADH1B",
       "bin_um": 50,
-      "file": "data/density/CCDC80_50um.parquet",
-      "n_bins": 15147,
-      "n_transcripts": 424344
+      "file": "data/density/ADH1B_50um.parquet",
+      "n_bins": 9893,
+      "n_transcripts": 102855
     },
     {
-      "gene": "CCDC80",
+      "gene": "ADH1B",
       "bin_um": 100,
-      "file": "data/density/CCDC80_100um.parquet",
-      "n_bins": 4078,
-      "n_transcripts": 424344
+      "file": "data/density/ADH1B_100um.parquet",
+      "n_bins": 3561,
+      "n_transcripts": 102855
     },
     {
-      "gene": "LYZ",
+      "gene": "ADIPOQ",
       "bin_um": 25,
-      "file": "data/density/LYZ_25um.parquet",
-      "n_bins": 44188,
-      "n_transcripts": 245251
+      "file": "data/density/ADIPOQ_25um.parquet",
+      "n_bins": 6356,
+      "n_transcripts": 20496
     },
     {
-      "gene": "LYZ",
+      "gene": "ADIPOQ",
       "bin_um": 50,
-      "file": "data/density/LYZ_50um.parquet",
-      "n_bins": 15457,
-      "n_transcripts": 245251
+      "file": "data/density/ADIPOQ_50um.parquet",
+      "n_bins": 3550,
+      "n_transcripts": 20496
     },
     {
-      "gene": "LYZ",
+      "gene": "ADIPOQ",
       "bin_um": 100,
-      "file": "data/density/LYZ_100um.parquet",
-      "n_bins": 4125,
-      "n_transcripts": 245251
+      "file": "data/density/ADIPOQ_100um.parquet",
+      "n_bins": 1866,
+      "n_transcripts": 20496
     },
     {
-      "gene": "FCER1G",
+      "gene": "AGR3",
       "bin_um": 25,
-      "file": "data/density/FCER1G_25um.parquet",
-      "n_bins": 40466,
-      "n_transcripts": 164324
+      "file": "data/density/AGR3_25um.parquet",
+      "n_bins": 13907,
+      "n_transcripts": 46090
     },
     {
-      "gene": "FCER1G",
+      "gene": "AGR3",
       "bin_um": 50,
-      "file": "data/density/FCER1G_50um.parquet",
-      "n_bins": 15218,
-      "n_transcripts": 164324
+      "file": "data/density/AGR3_50um.parquet",
+      "n_bins": 7193,
+      "n_transcripts": 46090
     },
     {
-      "gene": "FCER1G",
+      "gene": "AGR3",
       "bin_um": 100,
-      "file": "data/density/FCER1G_100um.parquet",
-      "n_bins": 4103,
-      "n_transcripts": 164324
+      "file": "data/density/AGR3_100um.parquet",
+      "n_bins": 3235,
+      "n_transcripts": 46090
     },
     {
-      "gene": "CD68",
+      "gene": "AIF1",
       "bin_um": 25,
-      "file": "data/density/CD68_25um.parquet",
-      "n_bins": 41176,
-      "n_transcripts": 151221
+      "file": "data/density/AIF1_25um.parquet",
+      "n_bins": 36702,
+      "n_transcripts": 113343
     },
     {
-      "gene": "CD68",
+      "gene": "AIF1",
       "bin_um": 50,
-      "file": "data/density/CD68_50um.parquet",
-      "n_bins": 15353,
-      "n_transcripts": 151221
+      "file": "data/density/AIF1_50um.parquet",
+      "n_bins": 14611,
+      "n_transcripts": 113343
     },
     {
-      "gene": "CD68",
+      "gene": "AIF1",
       "bin_um": 100,
-      "file": "data/density/CD68_100um.parquet",
-      "n_bins": 4124,
-      "n_transcripts": 151221
+      "file": "data/density/AIF1_100um.parquet",
+      "n_bins": 4099,
+      "n_transcripts": 113343
     },
     {
-      "gene": "SERPINA3",
+      "gene": "AKR1C1",
       "bin_um": 25,
-      "file": "data/density/SERPINA3_25um.parquet",
-      "n_bins": 37480,
-      "n_transcripts": 264411
+      "file": "data/density/AKR1C1_25um.parquet",
+      "n_bins": 13525,
+      "n_transcripts": 19139
     },
     {
-      "gene": "SERPINA3",
+      "gene": "AKR1C1",
       "bin_um": 50,
-      "file": "data/density/SERPINA3_50um.parquet",
-      "n_bins": 14636,
-      "n_transcripts": 264411
+      "file": "data/density/AKR1C1_50um.parquet",
+      "n_bins": 9116,
+      "n_transcripts": 19139
     },
     {
-      "gene": "SERPINA3",
+      "gene": "AKR1C1",
       "bin_um": 100,
-      "file": "data/density/SERPINA3_100um.parquet",
-      "n_bins": 4079,
-      "n_transcripts": 264411
+      "file": "data/density/AKR1C1_100um.parquet",
+      "n_bins": 3799,
+      "n_transcripts": 19139
     },
     {
-      "gene": "DST",
+      "gene": "AKR1C3",
       "bin_um": 25,
-      "file": "data/density/DST_25um.parquet",
-      "n_bins": 50089,
-      "n_transcripts": 312203
+      "file": "data/density/AKR1C3_25um.parquet",
+      "n_bins": 7813,
+      "n_transcripts": 9996
     },
     {
-      "gene": "DST",
+      "gene": "AKR1C3",
       "bin_um": 50,
-      "file": "data/density/DST_50um.parquet",
-      "n_bins": 15880,
-      "n_transcripts": 312203
+      "file": "data/density/AKR1C3_50um.parquet",
+      "n_bins": 6074,
+      "n_transcripts": 9996
     },
     {
-      "gene": "DST",
+      "gene": "AKR1C3",
       "bin_um": 100,
-      "file": "data/density/DST_100um.parquet",
-      "n_bins": 4134,
-      "n_transcripts": 312203
+      "file": "data/density/AKR1C3_100um.parquet",
+      "n_bins": 3231,
+      "n_transcripts": 9996
     },
     {
-      "gene": "SFRP1",
+      "gene": "ALDH1A3",
       "bin_um": 25,
-      "file": "data/density/SFRP1_25um.parquet",
-      "n_bins": 31906,
-      "n_transcripts": 142794
+      "file": "data/density/ALDH1A3_25um.parquet",
+      "n_bins": 13724,
+      "n_transcripts": 26744
     },
     {
-      "gene": "SFRP1",
+      "gene": "ALDH1A3",
       "bin_um": 50,
-      "file": "data/density/SFRP1_50um.parquet",
-      "n_bins": 12846,
-      "n_transcripts": 142794
+      "file": "data/density/ALDH1A3_50um.parquet",
+      "n_bins": 8588,
+      "n_transcripts": 26744
     },
     {
-      "gene": "SFRP1",
+      "gene": "ALDH1A3",
       "bin_um": 100,
-      "file": "data/density/SFRP1_100um.parquet",
-      "n_bins": 3947,
-      "n_transcripts": 142794
+      "file": "data/density/ALDH1A3_100um.parquet",
+      "n_bins": 3615,
+      "n_transcripts": 26744
     },
     {
-      "gene": "IL7R",
+      "gene": "ANGPT2",
       "bin_um": 25,
-      "file": "data/density/IL7R_25um.parquet",
-      "n_bins": 27923,
-      "n_transcripts": 151259
+      "file": "data/density/ANGPT2_25um.parquet",
+      "n_bins": 8076,
+      "n_transcripts": 15728
     },
     {
-      "gene": "IL7R",
+      "gene": "ANGPT2",
       "bin_um": 50,
-      "file": "data/density/IL7R_50um.parquet",
-      "n_bins": 12512,
-      "n_transcripts": 151259
+      "file": "data/density/ANGPT2_50um.parquet",
+      "n_bins": 5704,
+      "n_transcripts": 15728
     },
     {
-      "gene": "IL7R",
+      "gene": "ANGPT2",
       "bin_um": 100,
-      "file": "data/density/IL7R_100um.parquet",
+      "file": "data/density/ANGPT2_100um.parquet",
+      "n_bins": 3064,
+      "n_transcripts": 15728
+    },
+    {
+      "gene": "ANKRD28",
+      "bin_um": 25,
+      "file": "data/density/ANKRD28_25um.parquet",
+      "n_bins": 25910,
+      "n_transcripts": 42414
+    },
+    {
+      "gene": "ANKRD28",
+      "bin_um": 50,
+      "file": "data/density/ANKRD28_50um.parquet",
+      "n_bins": 12663,
+      "n_transcripts": 42414
+    },
+    {
+      "gene": "ANKRD28",
+      "bin_um": 100,
+      "file": "data/density/ANKRD28_100um.parquet",
       "n_bins": 4010,
-      "n_transcripts": 151259
+      "n_transcripts": 42414
     },
     {
-      "gene": "PTPRC",
+      "gene": "ANKRD29",
       "bin_um": 25,
-      "file": "data/density/PTPRC_25um.parquet",
-      "n_bins": 34841,
-      "n_transcripts": 172241
+      "file": "data/density/ANKRD29_25um.parquet",
+      "n_bins": 9915,
+      "n_transcripts": 16818
     },
     {
-      "gene": "PTPRC",
+      "gene": "ANKRD29",
       "bin_um": 50,
-      "file": "data/density/PTPRC_50um.parquet",
-      "n_bins": 14242,
-      "n_transcripts": 172241
+      "file": "data/density/ANKRD29_50um.parquet",
+      "n_bins": 6978,
+      "n_transcripts": 16818
     },
     {
-      "gene": "PTPRC",
+      "gene": "ANKRD29",
       "bin_um": 100,
-      "file": "data/density/PTPRC_100um.parquet",
-      "n_bins": 4102,
-      "n_transcripts": 172241
+      "file": "data/density/ANKRD29_100um.parquet",
+      "n_bins": 3416,
+      "n_transcripts": 16818
     },
     {
-      "gene": "TRAC",
+      "gene": "ANKRD30A",
       "bin_um": 25,
-      "file": "data/density/TRAC_25um.parquet",
-      "n_bins": 31147,
-      "n_transcripts": 121564
+      "file": "data/density/ANKRD30A_25um.parquet",
+      "n_bins": 55962,
+      "n_transcripts": 656900
     },
     {
-      "gene": "TRAC",
+      "gene": "ANKRD30A",
       "bin_um": 50,
-      "file": "data/density/TRAC_50um.parquet",
-      "n_bins": 13398,
-      "n_transcripts": 121564
+      "file": "data/density/ANKRD30A_50um.parquet",
+      "n_bins": 16142,
+      "n_transcripts": 656900
     },
     {
-      "gene": "TRAC",
+      "gene": "ANKRD30A",
       "bin_um": 100,
-      "file": "data/density/TRAC_100um.parquet",
-      "n_bins": 4058,
-      "n_transcripts": 121564
+      "file": "data/density/ANKRD30A_100um.parquet",
+      "n_bins": 4154,
+      "n_transcripts": 656900
     },
     {
-      "gene": "MS4A1",
+      "gene": "APOBEC3A",
       "bin_um": 25,
-      "file": "data/density/MS4A1_25um.parquet",
-      "n_bins": 6846,
-      "n_transcripts": 20875
+      "file": "data/density/APOBEC3A_25um.parquet",
+      "n_bins": 1221,
+      "n_transcripts": 1365
     },
     {
-      "gene": "MS4A1",
+      "gene": "APOBEC3A",
       "bin_um": 50,
-      "file": "data/density/MS4A1_50um.parquet",
-      "n_bins": 4477,
-      "n_transcripts": 20875
+      "file": "data/density/APOBEC3A_50um.parquet",
+      "n_bins": 1171,
+      "n_transcripts": 1365
     },
     {
-      "gene": "MS4A1",
+      "gene": "APOBEC3A",
       "bin_um": 100,
-      "file": "data/density/MS4A1_100um.parquet",
-      "n_bins": 2388,
-      "n_transcripts": 20875
+      "file": "data/density/APOBEC3A_100um.parquet",
+      "n_bins": 1029,
+      "n_transcripts": 1365
     },
     {
-      "gene": "BANK1",
+      "gene": "APOBEC3B",
       "bin_um": 25,
-      "file": "data/density/BANK1_25um.parquet",
-      "n_bins": 7909,
-      "n_transcripts": 19121
+      "file": "data/density/APOBEC3B_25um.parquet",
+      "n_bins": 12013,
+      "n_transcripts": 15821
     },
     {
-      "gene": "BANK1",
+      "gene": "APOBEC3B",
       "bin_um": 50,
-      "file": "data/density/BANK1_50um.parquet",
-      "n_bins": 5327,
-      "n_transcripts": 19121
+      "file": "data/density/APOBEC3B_50um.parquet",
+      "n_bins": 8145,
+      "n_transcripts": 15821
     },
     {
-      "gene": "BANK1",
+      "gene": "APOBEC3B",
       "bin_um": 100,
-      "file": "data/density/BANK1_100um.parquet",
-      "n_bins": 2838,
-      "n_transcripts": 19121
+      "file": "data/density/APOBEC3B_100um.parquet",
+      "n_bins": 3490,
+      "n_transcripts": 15821
     },
     {
-      "gene": "MZB1",
+      "gene": "APOC1",
       "bin_um": 25,
-      "file": "data/density/MZB1_25um.parquet",
-      "n_bins": 19834,
-      "n_transcripts": 63381
+      "file": "data/density/APOC1_25um.parquet",
+      "n_bins": 18824,
+      "n_transcripts": 53676
     },
     {
-      "gene": "MZB1",
+      "gene": "APOC1",
       "bin_um": 50,
-      "file": "data/density/MZB1_50um.parquet",
-      "n_bins": 10441,
-      "n_transcripts": 63381
+      "file": "data/density/APOC1_50um.parquet",
+      "n_bins": 10351,
+      "n_transcripts": 53676
     },
     {
-      "gene": "MZB1",
+      "gene": "APOC1",
       "bin_um": 100,
-      "file": "data/density/MZB1_100um.parquet",
-      "n_bins": 3848,
-      "n_transcripts": 63381
+      "file": "data/density/APOC1_100um.parquet",
+      "n_bins": 3799,
+      "n_transcripts": 53676
     },
     {
       "gene": "AQP1",
@@ -475,109 +1004,1033 @@
       "n_transcripts": 131864
     },
     {
-      "gene": "PECAM1",
+      "gene": "AQP3",
       "bin_um": 25,
-      "file": "data/density/PECAM1_25um.parquet",
-      "n_bins": 33658,
-      "n_transcripts": 129969
+      "file": "data/density/AQP3_25um.parquet",
+      "n_bins": 10628,
+      "n_transcripts": 17442
     },
     {
-      "gene": "PECAM1",
+      "gene": "AQP3",
       "bin_um": 50,
-      "file": "data/density/PECAM1_50um.parquet",
-      "n_bins": 14012,
-      "n_transcripts": 129969
+      "file": "data/density/AQP3_50um.parquet",
+      "n_bins": 6961,
+      "n_transcripts": 17442
     },
     {
-      "gene": "PECAM1",
+      "gene": "AQP3",
       "bin_um": 100,
-      "file": "data/density/PECAM1_100um.parquet",
-      "n_bins": 4063,
-      "n_transcripts": 129969
+      "file": "data/density/AQP3_100um.parquet",
+      "n_bins": 3232,
+      "n_transcripts": 17442
     },
     {
-      "gene": "VWF",
+      "gene": "AR",
       "bin_um": 25,
-      "file": "data/density/VWF_25um.parquet",
-      "n_bins": 23873,
-      "n_transcripts": 89369
+      "file": "data/density/AR_25um.parquet",
+      "n_bins": 28442,
+      "n_transcripts": 111257
     },
     {
-      "gene": "VWF",
+      "gene": "AR",
       "bin_um": 50,
-      "file": "data/density/VWF_50um.parquet",
-      "n_bins": 12378,
-      "n_transcripts": 89369
+      "file": "data/density/AR_50um.parquet",
+      "n_bins": 11984,
+      "n_transcripts": 111257
     },
     {
-      "gene": "VWF",
+      "gene": "AR",
       "bin_um": 100,
-      "file": "data/density/VWF_100um.parquet",
-      "n_bins": 4015,
-      "n_transcripts": 89369
+      "file": "data/density/AR_100um.parquet",
+      "n_bins": 3977,
+      "n_transcripts": 111257
     },
     {
-      "gene": "TCL1A",
+      "gene": "AVPR1A",
       "bin_um": 25,
-      "file": "data/density/TCL1A_25um.parquet",
-      "n_bins": 2320,
-      "n_transcripts": 3624
+      "file": "data/density/AVPR1A_25um.parquet",
+      "n_bins": 5687,
+      "n_transcripts": 11491
     },
     {
-      "gene": "TCL1A",
+      "gene": "AVPR1A",
       "bin_um": 50,
-      "file": "data/density/TCL1A_50um.parquet",
-      "n_bins": 2042,
-      "n_transcripts": 3624
+      "file": "data/density/AVPR1A_50um.parquet",
+      "n_bins": 4309,
+      "n_transcripts": 11491
     },
     {
-      "gene": "TCL1A",
+      "gene": "AVPR1A",
       "bin_um": 100,
-      "file": "data/density/TCL1A_100um.parquet",
-      "n_bins": 1545,
-      "n_transcripts": 3624
+      "file": "data/density/AVPR1A_100um.parquet",
+      "n_bins": 2557,
+      "n_transcripts": 11491
     },
     {
-      "gene": "LILRA4",
+      "gene": "BACE2",
       "bin_um": 25,
-      "file": "data/density/LILRA4_25um.parquet",
-      "n_bins": 3172,
-      "n_transcripts": 6051
+      "file": "data/density/BACE2_25um.parquet",
+      "n_bins": 31881,
+      "n_transcripts": 69091
     },
     {
-      "gene": "LILRA4",
+      "gene": "BACE2",
       "bin_um": 50,
-      "file": "data/density/LILRA4_50um.parquet",
-      "n_bins": 2632,
-      "n_transcripts": 6051
+      "file": "data/density/BACE2_50um.parquet",
+      "n_bins": 14188,
+      "n_transcripts": 69091
     },
     {
-      "gene": "LILRA4",
+      "gene": "BACE2",
       "bin_um": 100,
-      "file": "data/density/LILRA4_100um.parquet",
-      "n_bins": 1842,
-      "n_transcripts": 6051
+      "file": "data/density/BACE2_100um.parquet",
+      "n_bins": 4098,
+      "n_transcripts": 69091
     },
     {
-      "gene": "SPIB",
+      "gene": "BANK1",
       "bin_um": 25,
-      "file": "data/density/SPIB_25um.parquet",
-      "n_bins": 5497,
-      "n_transcripts": 8600
+      "file": "data/density/BANK1_25um.parquet",
+      "n_bins": 7909,
+      "n_transcripts": 19121
     },
     {
-      "gene": "SPIB",
+      "gene": "BANK1",
       "bin_um": 50,
-      "file": "data/density/SPIB_50um.parquet",
-      "n_bins": 3995,
-      "n_transcripts": 8600
+      "file": "data/density/BANK1_50um.parquet",
+      "n_bins": 5327,
+      "n_transcripts": 19121
     },
     {
-      "gene": "SPIB",
+      "gene": "BANK1",
       "bin_um": 100,
-      "file": "data/density/SPIB_100um.parquet",
-      "n_bins": 2402,
-      "n_transcripts": 8600
+      "file": "data/density/BANK1_100um.parquet",
+      "n_bins": 2838,
+      "n_transcripts": 19121
+    },
+    {
+      "gene": "BASP1",
+      "bin_um": 25,
+      "file": "data/density/BASP1_25um.parquet",
+      "n_bins": 49335,
+      "n_transcripts": 183274
+    },
+    {
+      "gene": "BASP1",
+      "bin_um": 50,
+      "file": "data/density/BASP1_50um.parquet",
+      "n_bins": 15724,
+      "n_transcripts": 183274
+    },
+    {
+      "gene": "BASP1",
+      "bin_um": 100,
+      "file": "data/density/BASP1_100um.parquet",
+      "n_bins": 4112,
+      "n_transcripts": 183274
+    },
+    {
+      "gene": "C15orf48",
+      "bin_um": 25,
+      "file": "data/density/C15orf48_25um.parquet",
+      "n_bins": 7257,
+      "n_transcripts": 13815
+    },
+    {
+      "gene": "C15orf48",
+      "bin_um": 50,
+      "file": "data/density/C15orf48_50um.parquet",
+      "n_bins": 5065,
+      "n_transcripts": 13815
+    },
+    {
+      "gene": "C15orf48",
+      "bin_um": 100,
+      "file": "data/density/C15orf48_100um.parquet",
+      "n_bins": 2801,
+      "n_transcripts": 13815
+    },
+    {
+      "gene": "C1QA",
+      "bin_um": 25,
+      "file": "data/density/C1QA_25um.parquet",
+      "n_bins": 25281,
+      "n_transcripts": 56937
+    },
+    {
+      "gene": "C1QA",
+      "bin_um": 50,
+      "file": "data/density/C1QA_50um.parquet",
+      "n_bins": 12529,
+      "n_transcripts": 56937
+    },
+    {
+      "gene": "C1QA",
+      "bin_um": 100,
+      "file": "data/density/C1QA_100um.parquet",
+      "n_bins": 3983,
+      "n_transcripts": 56937
+    },
+    {
+      "gene": "C1QC",
+      "bin_um": 25,
+      "file": "data/density/C1QC_25um.parquet",
+      "n_bins": 27861,
+      "n_transcripts": 69833
+    },
+    {
+      "gene": "C1QC",
+      "bin_um": 50,
+      "file": "data/density/C1QC_50um.parquet",
+      "n_bins": 13260,
+      "n_transcripts": 69833
+    },
+    {
+      "gene": "C1QC",
+      "bin_um": 100,
+      "file": "data/density/C1QC_100um.parquet",
+      "n_bins": 4066,
+      "n_transcripts": 69833
+    },
+    {
+      "gene": "C2orf42",
+      "bin_um": 25,
+      "file": "data/density/C2orf42_25um.parquet",
+      "n_bins": 12326,
+      "n_transcripts": 15223
+    },
+    {
+      "gene": "C2orf42",
+      "bin_um": 50,
+      "file": "data/density/C2orf42_50um.parquet",
+      "n_bins": 8403,
+      "n_transcripts": 15223
+    },
+    {
+      "gene": "C2orf42",
+      "bin_um": 100,
+      "file": "data/density/C2orf42_100um.parquet",
+      "n_bins": 3604,
+      "n_transcripts": 15223
+    },
+    {
+      "gene": "C5orf46",
+      "bin_um": 25,
+      "file": "data/density/C5orf46_25um.parquet",
+      "n_bins": 4112,
+      "n_transcripts": 6987
+    },
+    {
+      "gene": "C5orf46",
+      "bin_um": 50,
+      "file": "data/density/C5orf46_50um.parquet",
+      "n_bins": 3083,
+      "n_transcripts": 6987
+    },
+    {
+      "gene": "C5orf46",
+      "bin_um": 100,
+      "file": "data/density/C5orf46_100um.parquet",
+      "n_bins": 1982,
+      "n_transcripts": 6987
+    },
+    {
+      "gene": "C6orf132",
+      "bin_um": 25,
+      "file": "data/density/C6orf132_25um.parquet",
+      "n_bins": 16739,
+      "n_transcripts": 30624
+    },
+    {
+      "gene": "C6orf132",
+      "bin_um": 50,
+      "file": "data/density/C6orf132_50um.parquet",
+      "n_bins": 8109,
+      "n_transcripts": 30624
+    },
+    {
+      "gene": "C6orf132",
+      "bin_um": 100,
+      "file": "data/density/C6orf132_100um.parquet",
+      "n_bins": 3284,
+      "n_transcripts": 30624
+    },
+    {
+      "gene": "CAV1",
+      "bin_um": 25,
+      "file": "data/density/CAV1_25um.parquet",
+      "n_bins": 32062,
+      "n_transcripts": 112643
+    },
+    {
+      "gene": "CAV1",
+      "bin_um": 50,
+      "file": "data/density/CAV1_50um.parquet",
+      "n_bins": 13801,
+      "n_transcripts": 112643
+    },
+    {
+      "gene": "CAV1",
+      "bin_um": 100,
+      "file": "data/density/CAV1_100um.parquet",
+      "n_bins": 4065,
+      "n_transcripts": 112643
+    },
+    {
+      "gene": "CAVIN2",
+      "bin_um": 25,
+      "file": "data/density/CAVIN2_25um.parquet",
+      "n_bins": 7743,
+      "n_transcripts": 15109
+    },
+    {
+      "gene": "CAVIN2",
+      "bin_um": 50,
+      "file": "data/density/CAVIN2_50um.parquet",
+      "n_bins": 5417,
+      "n_transcripts": 15109
+    },
+    {
+      "gene": "CAVIN2",
+      "bin_um": 100,
+      "file": "data/density/CAVIN2_100um.parquet",
+      "n_bins": 2929,
+      "n_transcripts": 15109
+    },
+    {
+      "gene": "CCDC6",
+      "bin_um": 25,
+      "file": "data/density/CCDC6_25um.parquet",
+      "n_bins": 45777,
+      "n_transcripts": 214773
+    },
+    {
+      "gene": "CCDC6",
+      "bin_um": 50,
+      "file": "data/density/CCDC6_50um.parquet",
+      "n_bins": 15527,
+      "n_transcripts": 214773
+    },
+    {
+      "gene": "CCDC6",
+      "bin_um": 100,
+      "file": "data/density/CCDC6_100um.parquet",
+      "n_bins": 4119,
+      "n_transcripts": 214773
+    },
+    {
+      "gene": "CCDC80",
+      "bin_um": 25,
+      "file": "data/density/CCDC80_25um.parquet",
+      "n_bins": 50445,
+      "n_transcripts": 424344
+    },
+    {
+      "gene": "CCDC80",
+      "bin_um": 50,
+      "file": "data/density/CCDC80_50um.parquet",
+      "n_bins": 15147,
+      "n_transcripts": 424344
+    },
+    {
+      "gene": "CCDC80",
+      "bin_um": 100,
+      "file": "data/density/CCDC80_100um.parquet",
+      "n_bins": 4078,
+      "n_transcripts": 424344
+    },
+    {
+      "gene": "CCL5",
+      "bin_um": 25,
+      "file": "data/density/CCL5_25um.parquet",
+      "n_bins": 22173,
+      "n_transcripts": 68004
+    },
+    {
+      "gene": "CCL5",
+      "bin_um": 50,
+      "file": "data/density/CCL5_50um.parquet",
+      "n_bins": 11101,
+      "n_transcripts": 68004
+    },
+    {
+      "gene": "CCL5",
+      "bin_um": 100,
+      "file": "data/density/CCL5_100um.parquet",
+      "n_bins": 3875,
+      "n_transcripts": 68004
+    },
+    {
+      "gene": "CCL8",
+      "bin_um": 25,
+      "file": "data/density/CCL8_25um.parquet",
+      "n_bins": 5675,
+      "n_transcripts": 9989
+    },
+    {
+      "gene": "CCL8",
+      "bin_um": 50,
+      "file": "data/density/CCL8_50um.parquet",
+      "n_bins": 4393,
+      "n_transcripts": 9989
+    },
+    {
+      "gene": "CCL8",
+      "bin_um": 100,
+      "file": "data/density/CCL8_100um.parquet",
+      "n_bins": 2609,
+      "n_transcripts": 9989
+    },
+    {
+      "gene": "CCND1",
+      "bin_um": 25,
+      "file": "data/density/CCND1_25um.parquet",
+      "n_bins": 59762,
+      "n_transcripts": 898022
+    },
+    {
+      "gene": "CCND1",
+      "bin_um": 50,
+      "file": "data/density/CCND1_50um.parquet",
+      "n_bins": 16303,
+      "n_transcripts": 898022
+    },
+    {
+      "gene": "CCND1",
+      "bin_um": 100,
+      "file": "data/density/CCND1_100um.parquet",
+      "n_bins": 4139,
+      "n_transcripts": 898022
+    },
+    {
+      "gene": "CCPG1",
+      "bin_um": 25,
+      "file": "data/density/CCPG1_25um.parquet",
+      "n_bins": 44483,
+      "n_transcripts": 117616
+    },
+    {
+      "gene": "CCPG1",
+      "bin_um": 50,
+      "file": "data/density/CCPG1_50um.parquet",
+      "n_bins": 15458,
+      "n_transcripts": 117616
+    },
+    {
+      "gene": "CCPG1",
+      "bin_um": 100,
+      "file": "data/density/CCPG1_100um.parquet",
+      "n_bins": 4115,
+      "n_transcripts": 117616
+    },
+    {
+      "gene": "CCR7",
+      "bin_um": 25,
+      "file": "data/density/CCR7_25um.parquet",
+      "n_bins": 10195,
+      "n_transcripts": 22357
+    },
+    {
+      "gene": "CCR7",
+      "bin_um": 50,
+      "file": "data/density/CCR7_50um.parquet",
+      "n_bins": 6219,
+      "n_transcripts": 22357
+    },
+    {
+      "gene": "CCR7",
+      "bin_um": 100,
+      "file": "data/density/CCR7_100um.parquet",
+      "n_bins": 2972,
+      "n_transcripts": 22357
+    },
+    {
+      "gene": "CD14",
+      "bin_um": 25,
+      "file": "data/density/CD14_25um.parquet",
+      "n_bins": 29130,
+      "n_transcripts": 76249
+    },
+    {
+      "gene": "CD14",
+      "bin_um": 50,
+      "file": "data/density/CD14_50um.parquet",
+      "n_bins": 13798,
+      "n_transcripts": 76249
+    },
+    {
+      "gene": "CD14",
+      "bin_um": 100,
+      "file": "data/density/CD14_100um.parquet",
+      "n_bins": 4083,
+      "n_transcripts": 76249
+    },
+    {
+      "gene": "CD163",
+      "bin_um": 25,
+      "file": "data/density/CD163_25um.parquet",
+      "n_bins": 28495,
+      "n_transcripts": 82773
+    },
+    {
+      "gene": "CD163",
+      "bin_um": 50,
+      "file": "data/density/CD163_50um.parquet",
+      "n_bins": 13324,
+      "n_transcripts": 82773
+    },
+    {
+      "gene": "CD163",
+      "bin_um": 100,
+      "file": "data/density/CD163_100um.parquet",
+      "n_bins": 4052,
+      "n_transcripts": 82773
+    },
+    {
+      "gene": "CD19",
+      "bin_um": 25,
+      "file": "data/density/CD19_25um.parquet",
+      "n_bins": 3638,
+      "n_transcripts": 5749
+    },
+    {
+      "gene": "CD19",
+      "bin_um": 50,
+      "file": "data/density/CD19_50um.parquet",
+      "n_bins": 2750,
+      "n_transcripts": 5749
+    },
+    {
+      "gene": "CD19",
+      "bin_um": 100,
+      "file": "data/density/CD19_100um.parquet",
+      "n_bins": 1720,
+      "n_transcripts": 5749
+    },
+    {
+      "gene": "CD247",
+      "bin_um": 25,
+      "file": "data/density/CD247_25um.parquet",
+      "n_bins": 14353,
+      "n_transcripts": 28758
+    },
+    {
+      "gene": "CD247",
+      "bin_um": 50,
+      "file": "data/density/CD247_50um.parquet",
+      "n_bins": 8332,
+      "n_transcripts": 28758
+    },
+    {
+      "gene": "CD247",
+      "bin_um": 100,
+      "file": "data/density/CD247_100um.parquet",
+      "n_bins": 3534,
+      "n_transcripts": 28758
+    },
+    {
+      "gene": "CD27",
+      "bin_um": 25,
+      "file": "data/density/CD27_25um.parquet",
+      "n_bins": 10792,
+      "n_transcripts": 20249
+    },
+    {
+      "gene": "CD27",
+      "bin_um": 50,
+      "file": "data/density/CD27_50um.parquet",
+      "n_bins": 6627,
+      "n_transcripts": 20249
+    },
+    {
+      "gene": "CD27",
+      "bin_um": 100,
+      "file": "data/density/CD27_100um.parquet",
+      "n_bins": 3085,
+      "n_transcripts": 20249
+    },
+    {
+      "gene": "CD274",
+      "bin_um": 25,
+      "file": "data/density/CD274_25um.parquet",
+      "n_bins": 5252,
+      "n_transcripts": 6651
+    },
+    {
+      "gene": "CD274",
+      "bin_um": 50,
+      "file": "data/density/CD274_50um.parquet",
+      "n_bins": 4237,
+      "n_transcripts": 6651
+    },
+    {
+      "gene": "CD274",
+      "bin_um": 100,
+      "file": "data/density/CD274_100um.parquet",
+      "n_bins": 2618,
+      "n_transcripts": 6651
+    },
+    {
+      "gene": "CD3E",
+      "bin_um": 25,
+      "file": "data/density/CD3E_25um.parquet",
+      "n_bins": 25635,
+      "n_transcripts": 106484
+    },
+    {
+      "gene": "CD3E",
+      "bin_um": 50,
+      "file": "data/density/CD3E_50um.parquet",
+      "n_bins": 12074,
+      "n_transcripts": 106484
+    },
+    {
+      "gene": "CD3E",
+      "bin_um": 100,
+      "file": "data/density/CD3E_100um.parquet",
+      "n_bins": 3965,
+      "n_transcripts": 106484
+    },
+    {
+      "gene": "CD3G",
+      "bin_um": 25,
+      "file": "data/density/CD3G_25um.parquet",
+      "n_bins": 15186,
+      "n_transcripts": 30853
+    },
+    {
+      "gene": "CD3G",
+      "bin_um": 50,
+      "file": "data/density/CD3G_50um.parquet",
+      "n_bins": 8692,
+      "n_transcripts": 30853
+    },
+    {
+      "gene": "CD3G",
+      "bin_um": 100,
+      "file": "data/density/CD3G_100um.parquet",
+      "n_bins": 3606,
+      "n_transcripts": 30853
+    },
+    {
+      "gene": "CD4",
+      "bin_um": 25,
+      "file": "data/density/CD4_25um.parquet",
+      "n_bins": 37843,
+      "n_transcripts": 147961
+    },
+    {
+      "gene": "CD4",
+      "bin_um": 50,
+      "file": "data/density/CD4_50um.parquet",
+      "n_bins": 14764,
+      "n_transcripts": 147961
+    },
+    {
+      "gene": "CD4",
+      "bin_um": 100,
+      "file": "data/density/CD4_100um.parquet",
+      "n_bins": 4110,
+      "n_transcripts": 147961
+    },
+    {
+      "gene": "CD68",
+      "bin_um": 25,
+      "file": "data/density/CD68_25um.parquet",
+      "n_bins": 41176,
+      "n_transcripts": 151221
+    },
+    {
+      "gene": "CD68",
+      "bin_um": 50,
+      "file": "data/density/CD68_50um.parquet",
+      "n_bins": 15353,
+      "n_transcripts": 151221
+    },
+    {
+      "gene": "CD68",
+      "bin_um": 100,
+      "file": "data/density/CD68_100um.parquet",
+      "n_bins": 4124,
+      "n_transcripts": 151221
+    },
+    {
+      "gene": "CD69",
+      "bin_um": 25,
+      "file": "data/density/CD69_25um.parquet",
+      "n_bins": 16052,
+      "n_transcripts": 38365
+    },
+    {
+      "gene": "CD69",
+      "bin_um": 50,
+      "file": "data/density/CD69_50um.parquet",
+      "n_bins": 8910,
+      "n_transcripts": 38365
+    },
+    {
+      "gene": "CD69",
+      "bin_um": 100,
+      "file": "data/density/CD69_100um.parquet",
+      "n_bins": 3590,
+      "n_transcripts": 38365
+    },
+    {
+      "gene": "CD79A",
+      "bin_um": 25,
+      "file": "data/density/CD79A_25um.parquet",
+      "n_bins": 6667,
+      "n_transcripts": 12652
+    },
+    {
+      "gene": "CD79A",
+      "bin_um": 50,
+      "file": "data/density/CD79A_50um.parquet",
+      "n_bins": 4542,
+      "n_transcripts": 12652
+    },
+    {
+      "gene": "CD79A",
+      "bin_um": 100,
+      "file": "data/density/CD79A_100um.parquet",
+      "n_bins": 2416,
+      "n_transcripts": 12652
+    },
+    {
+      "gene": "CD79B",
+      "bin_um": 25,
+      "file": "data/density/CD79B_25um.parquet",
+      "n_bins": 2954,
+      "n_transcripts": 3558
+    },
+    {
+      "gene": "CD79B",
+      "bin_um": 50,
+      "file": "data/density/CD79B_50um.parquet",
+      "n_bins": 2459,
+      "n_transcripts": 3558
+    },
+    {
+      "gene": "CD79B",
+      "bin_um": 100,
+      "file": "data/density/CD79B_100um.parquet",
+      "n_bins": 1685,
+      "n_transcripts": 3558
+    },
+    {
+      "gene": "CD80",
+      "bin_um": 25,
+      "file": "data/density/CD80_25um.parquet",
+      "n_bins": 3988,
+      "n_transcripts": 5134
+    },
+    {
+      "gene": "CD80",
+      "bin_um": 50,
+      "file": "data/density/CD80_50um.parquet",
+      "n_bins": 3313,
+      "n_transcripts": 5134
+    },
+    {
+      "gene": "CD80",
+      "bin_um": 100,
+      "file": "data/density/CD80_100um.parquet",
+      "n_bins": 2174,
+      "n_transcripts": 5134
+    },
+    {
+      "gene": "CD83",
+      "bin_um": 25,
+      "file": "data/density/CD83_25um.parquet",
+      "n_bins": 11690,
+      "n_transcripts": 22679
+    },
+    {
+      "gene": "CD83",
+      "bin_um": 50,
+      "file": "data/density/CD83_50um.parquet",
+      "n_bins": 7631,
+      "n_transcripts": 22679
+    },
+    {
+      "gene": "CD83",
+      "bin_um": 100,
+      "file": "data/density/CD83_100um.parquet",
+      "n_bins": 3404,
+      "n_transcripts": 22679
+    },
+    {
+      "gene": "CD86",
+      "bin_um": 25,
+      "file": "data/density/CD86_25um.parquet",
+      "n_bins": 19113,
+      "n_transcripts": 36447
+    },
+    {
+      "gene": "CD86",
+      "bin_um": 50,
+      "file": "data/density/CD86_50um.parquet",
+      "n_bins": 10783,
+      "n_transcripts": 36447
+    },
+    {
+      "gene": "CD86",
+      "bin_um": 100,
+      "file": "data/density/CD86_100um.parquet",
+      "n_bins": 3878,
+      "n_transcripts": 36447
+    },
+    {
+      "gene": "CD8A",
+      "bin_um": 25,
+      "file": "data/density/CD8A_25um.parquet",
+      "n_bins": 20971,
+      "n_transcripts": 72228
+    },
+    {
+      "gene": "CD8A",
+      "bin_um": 50,
+      "file": "data/density/CD8A_50um.parquet",
+      "n_bins": 11232,
+      "n_transcripts": 72228
+    },
+    {
+      "gene": "CD8A",
+      "bin_um": 100,
+      "file": "data/density/CD8A_100um.parquet",
+      "n_bins": 3951,
+      "n_transcripts": 72228
+    },
+    {
+      "gene": "CD9",
+      "bin_um": 25,
+      "file": "data/density/CD9_25um.parquet",
+      "n_bins": 41406,
+      "n_transcripts": 325168
+    },
+    {
+      "gene": "CD9",
+      "bin_um": 50,
+      "file": "data/density/CD9_50um.parquet",
+      "n_bins": 14733,
+      "n_transcripts": 325168
+    },
+    {
+      "gene": "CD9",
+      "bin_um": 100,
+      "file": "data/density/CD9_100um.parquet",
+      "n_bins": 4102,
+      "n_transcripts": 325168
+    },
+    {
+      "gene": "CD93",
+      "bin_um": 25,
+      "file": "data/density/CD93_25um.parquet",
+      "n_bins": 25088,
+      "n_transcripts": 83241
+    },
+    {
+      "gene": "CD93",
+      "bin_um": 50,
+      "file": "data/density/CD93_50um.parquet",
+      "n_bins": 12505,
+      "n_transcripts": 83241
+    },
+    {
+      "gene": "CD93",
+      "bin_um": 100,
+      "file": "data/density/CD93_100um.parquet",
+      "n_bins": 4020,
+      "n_transcripts": 83241
+    },
+    {
+      "gene": "CDC42EP1",
+      "bin_um": 25,
+      "file": "data/density/CDC42EP1_25um.parquet",
+      "n_bins": 12844,
+      "n_transcripts": 17090
+    },
+    {
+      "gene": "CDC42EP1",
+      "bin_um": 50,
+      "file": "data/density/CDC42EP1_50um.parquet",
+      "n_bins": 8254,
+      "n_transcripts": 17090
+    },
+    {
+      "gene": "CDC42EP1",
+      "bin_um": 100,
+      "file": "data/density/CDC42EP1_100um.parquet",
+      "n_bins": 3506,
+      "n_transcripts": 17090
+    },
+    {
+      "gene": "CDH1",
+      "bin_um": 25,
+      "file": "data/density/CDH1_25um.parquet",
+      "n_bins": 40053,
+      "n_transcripts": 302333
+    },
+    {
+      "gene": "CDH1",
+      "bin_um": 50,
+      "file": "data/density/CDH1_50um.parquet",
+      "n_bins": 14680,
+      "n_transcripts": 302333
+    },
+    {
+      "gene": "CDH1",
+      "bin_um": 100,
+      "file": "data/density/CDH1_100um.parquet",
+      "n_bins": 4111,
+      "n_transcripts": 302333
+    },
+    {
+      "gene": "CEACAM6",
+      "bin_um": 25,
+      "file": "data/density/CEACAM6_25um.parquet",
+      "n_bins": 44189,
+      "n_transcripts": 420832
+    },
+    {
+      "gene": "CEACAM6",
+      "bin_um": 50,
+      "file": "data/density/CEACAM6_50um.parquet",
+      "n_bins": 15523,
+      "n_transcripts": 420832
+    },
+    {
+      "gene": "CEACAM6",
+      "bin_um": 100,
+      "file": "data/density/CEACAM6_100um.parquet",
+      "n_bins": 4131,
+      "n_transcripts": 420832
+    },
+    {
+      "gene": "CEACAM8",
+      "bin_um": 25,
+      "file": "data/density/CEACAM8_25um.parquet",
+      "n_bins": 7838,
+      "n_transcripts": 12457
+    },
+    {
+      "gene": "CEACAM8",
+      "bin_um": 50,
+      "file": "data/density/CEACAM8_50um.parquet",
+      "n_bins": 4785,
+      "n_transcripts": 12457
+    },
+    {
+      "gene": "CEACAM8",
+      "bin_um": 100,
+      "file": "data/density/CEACAM8_100um.parquet",
+      "n_bins": 2405,
+      "n_transcripts": 12457
+    },
+    {
+      "gene": "CENPF",
+      "bin_um": 25,
+      "file": "data/density/CENPF_25um.parquet",
+      "n_bins": 18365,
+      "n_transcripts": 57938
+    },
+    {
+      "gene": "CENPF",
+      "bin_um": 50,
+      "file": "data/density/CENPF_50um.parquet",
+      "n_bins": 8964,
+      "n_transcripts": 57938
+    },
+    {
+      "gene": "CENPF",
+      "bin_um": 100,
+      "file": "data/density/CENPF_100um.parquet",
+      "n_bins": 3537,
+      "n_transcripts": 57938
+    },
+    {
+      "gene": "CLEC14A",
+      "bin_um": 25,
+      "file": "data/density/CLEC14A_25um.parquet",
+      "n_bins": 11800,
+      "n_transcripts": 38778
+    },
+    {
+      "gene": "CLEC14A",
+      "bin_um": 50,
+      "file": "data/density/CLEC14A_50um.parquet",
+      "n_bins": 7553,
+      "n_transcripts": 38778
+    },
+    {
+      "gene": "CLEC14A",
+      "bin_um": 100,
+      "file": "data/density/CLEC14A_100um.parquet",
+      "n_bins": 3496,
+      "n_transcripts": 38778
+    },
+    {
+      "gene": "CLEC9A",
+      "bin_um": 25,
+      "file": "data/density/CLEC9A_25um.parquet",
+      "n_bins": 2747,
+      "n_transcripts": 4470
+    },
+    {
+      "gene": "CLEC9A",
+      "bin_um": 50,
+      "file": "data/density/CLEC9A_50um.parquet",
+      "n_bins": 2331,
+      "n_transcripts": 4470
+    },
+    {
+      "gene": "CLEC9A",
+      "bin_um": 100,
+      "file": "data/density/CLEC9A_100um.parquet",
+      "n_bins": 1683,
+      "n_transcripts": 4470
+    },
+    {
+      "gene": "CLECL1",
+      "bin_um": 25,
+      "file": "data/density/CLECL1_25um.parquet",
+      "n_bins": 5057,
+      "n_transcripts": 6437
+    },
+    {
+      "gene": "CLECL1",
+      "bin_um": 50,
+      "file": "data/density/CLECL1_50um.parquet",
+      "n_bins": 4013,
+      "n_transcripts": 6437
+    },
+    {
+      "gene": "CLECL1",
+      "bin_um": 100,
+      "file": "data/density/CLECL1_100um.parquet",
+      "n_bins": 2472,
+      "n_transcripts": 6437
+    },
+    {
+      "gene": "CLIC6",
+      "bin_um": 25,
+      "file": "data/density/CLIC6_25um.parquet",
+      "n_bins": 3346,
+      "n_transcripts": 3979
+    },
+    {
+      "gene": "CLIC6",
+      "bin_um": 50,
+      "file": "data/density/CLIC6_50um.parquet",
+      "n_bins": 2991,
+      "n_transcripts": 3979
+    },
+    {
+      "gene": "CLIC6",
+      "bin_um": 100,
+      "file": "data/density/CLIC6_100um.parquet",
+      "n_bins": 2141,
+      "n_transcripts": 3979
     },
     {
       "gene": "CPA3",
@@ -601,6 +2054,69 @@
       "n_transcripts": 14150
     },
     {
+      "gene": "CRISPLD2",
+      "bin_um": 25,
+      "file": "data/density/CRISPLD2_25um.parquet",
+      "n_bins": 32823,
+      "n_transcripts": 83864
+    },
+    {
+      "gene": "CRISPLD2",
+      "bin_um": 50,
+      "file": "data/density/CRISPLD2_50um.parquet",
+      "n_bins": 14284,
+      "n_transcripts": 83864
+    },
+    {
+      "gene": "CRISPLD2",
+      "bin_um": 100,
+      "file": "data/density/CRISPLD2_100um.parquet",
+      "n_bins": 4069,
+      "n_transcripts": 83864
+    },
+    {
+      "gene": "CTH",
+      "bin_um": 25,
+      "file": "data/density/CTH_25um.parquet",
+      "n_bins": 5059,
+      "n_transcripts": 5814
+    },
+    {
+      "gene": "CTH",
+      "bin_um": 50,
+      "file": "data/density/CTH_50um.parquet",
+      "n_bins": 4299,
+      "n_transcripts": 5814
+    },
+    {
+      "gene": "CTH",
+      "bin_um": 100,
+      "file": "data/density/CTH_100um.parquet",
+      "n_bins": 2675,
+      "n_transcripts": 5814
+    },
+    {
+      "gene": "CTLA4",
+      "bin_um": 25,
+      "file": "data/density/CTLA4_25um.parquet",
+      "n_bins": 9845,
+      "n_transcripts": 21449
+    },
+    {
+      "gene": "CTLA4",
+      "bin_um": 50,
+      "file": "data/density/CTLA4_50um.parquet",
+      "n_bins": 6332,
+      "n_transcripts": 21449
+    },
+    {
+      "gene": "CTLA4",
+      "bin_um": 100,
+      "file": "data/density/CTLA4_100um.parquet",
+      "n_bins": 3118,
+      "n_transcripts": 21449
+    },
+    {
       "gene": "CTSG",
       "bin_um": 25,
       "file": "data/density/CTSG_25um.parquet",
@@ -620,6 +2136,4332 @@
       "file": "data/density/CTSG_100um.parquet",
       "n_bins": 1775,
       "n_transcripts": 6269
+    },
+    {
+      "gene": "CTTN",
+      "bin_um": 25,
+      "file": "data/density/CTTN_25um.parquet",
+      "n_bins": 54183,
+      "n_transcripts": 397768
+    },
+    {
+      "gene": "CTTN",
+      "bin_um": 50,
+      "file": "data/density/CTTN_50um.parquet",
+      "n_bins": 16128,
+      "n_transcripts": 397768
+    },
+    {
+      "gene": "CTTN",
+      "bin_um": 100,
+      "file": "data/density/CTTN_100um.parquet",
+      "n_bins": 4138,
+      "n_transcripts": 397768
+    },
+    {
+      "gene": "CX3CR1",
+      "bin_um": 25,
+      "file": "data/density/CX3CR1_25um.parquet",
+      "n_bins": 9147,
+      "n_transcripts": 14490
+    },
+    {
+      "gene": "CX3CR1",
+      "bin_um": 50,
+      "file": "data/density/CX3CR1_50um.parquet",
+      "n_bins": 6617,
+      "n_transcripts": 14490
+    },
+    {
+      "gene": "CX3CR1",
+      "bin_um": 100,
+      "file": "data/density/CX3CR1_100um.parquet",
+      "n_bins": 3277,
+      "n_transcripts": 14490
+    },
+    {
+      "gene": "CXCL12",
+      "bin_um": 25,
+      "file": "data/density/CXCL12_25um.parquet",
+      "n_bins": 51117,
+      "n_transcripts": 441230
+    },
+    {
+      "gene": "CXCL12",
+      "bin_um": 50,
+      "file": "data/density/CXCL12_50um.parquet",
+      "n_bins": 15527,
+      "n_transcripts": 441230
+    },
+    {
+      "gene": "CXCL12",
+      "bin_um": 100,
+      "file": "data/density/CXCL12_100um.parquet",
+      "n_bins": 4116,
+      "n_transcripts": 441230
+    },
+    {
+      "gene": "CXCL16",
+      "bin_um": 25,
+      "file": "data/density/CXCL16_25um.parquet",
+      "n_bins": 29782,
+      "n_transcripts": 57260
+    },
+    {
+      "gene": "CXCL16",
+      "bin_um": 50,
+      "file": "data/density/CXCL16_50um.parquet",
+      "n_bins": 13553,
+      "n_transcripts": 57260
+    },
+    {
+      "gene": "CXCL16",
+      "bin_um": 100,
+      "file": "data/density/CXCL16_100um.parquet",
+      "n_bins": 4060,
+      "n_transcripts": 57260
+    },
+    {
+      "gene": "CXCL5",
+      "bin_um": 25,
+      "file": "data/density/CXCL5_25um.parquet",
+      "n_bins": 1712,
+      "n_transcripts": 2105
+    },
+    {
+      "gene": "CXCL5",
+      "bin_um": 50,
+      "file": "data/density/CXCL5_50um.parquet",
+      "n_bins": 1572,
+      "n_transcripts": 2105
+    },
+    {
+      "gene": "CXCL5",
+      "bin_um": 100,
+      "file": "data/density/CXCL5_100um.parquet",
+      "n_bins": 1293,
+      "n_transcripts": 2105
+    },
+    {
+      "gene": "CXCR4",
+      "bin_um": 25,
+      "file": "data/density/CXCR4_25um.parquet",
+      "n_bins": 44742,
+      "n_transcripts": 247648
+    },
+    {
+      "gene": "CXCR4",
+      "bin_um": 50,
+      "file": "data/density/CXCR4_50um.parquet",
+      "n_bins": 15306,
+      "n_transcripts": 247648
+    },
+    {
+      "gene": "CXCR4",
+      "bin_um": 100,
+      "file": "data/density/CXCR4_100um.parquet",
+      "n_bins": 4108,
+      "n_transcripts": 247648
+    },
+    {
+      "gene": "CYTIP",
+      "bin_um": 25,
+      "file": "data/density/CYTIP_25um.parquet",
+      "n_bins": 24234,
+      "n_transcripts": 73990
+    },
+    {
+      "gene": "CYTIP",
+      "bin_um": 50,
+      "file": "data/density/CYTIP_50um.parquet",
+      "n_bins": 11652,
+      "n_transcripts": 73990
+    },
+    {
+      "gene": "CYTIP",
+      "bin_um": 100,
+      "file": "data/density/CYTIP_100um.parquet",
+      "n_bins": 3935,
+      "n_transcripts": 73990
+    },
+    {
+      "gene": "DAPK3",
+      "bin_um": 25,
+      "file": "data/density/DAPK3_25um.parquet",
+      "n_bins": 12812,
+      "n_transcripts": 18037
+    },
+    {
+      "gene": "DAPK3",
+      "bin_um": 50,
+      "file": "data/density/DAPK3_50um.parquet",
+      "n_bins": 8305,
+      "n_transcripts": 18037
+    },
+    {
+      "gene": "DAPK3",
+      "bin_um": 100,
+      "file": "data/density/DAPK3_100um.parquet",
+      "n_bins": 3485,
+      "n_transcripts": 18037
+    },
+    {
+      "gene": "DMKN",
+      "bin_um": 25,
+      "file": "data/density/DMKN_25um.parquet",
+      "n_bins": 13429,
+      "n_transcripts": 22180
+    },
+    {
+      "gene": "DMKN",
+      "bin_um": 50,
+      "file": "data/density/DMKN_50um.parquet",
+      "n_bins": 7454,
+      "n_transcripts": 22180
+    },
+    {
+      "gene": "DMKN",
+      "bin_um": 100,
+      "file": "data/density/DMKN_100um.parquet",
+      "n_bins": 3186,
+      "n_transcripts": 22180
+    },
+    {
+      "gene": "DNAAF1",
+      "bin_um": 25,
+      "file": "data/density/DNAAF1_25um.parquet",
+      "n_bins": 2881,
+      "n_transcripts": 3753
+    },
+    {
+      "gene": "DNAAF1",
+      "bin_um": 50,
+      "file": "data/density/DNAAF1_50um.parquet",
+      "n_bins": 2593,
+      "n_transcripts": 3753
+    },
+    {
+      "gene": "DNAAF1",
+      "bin_um": 100,
+      "file": "data/density/DNAAF1_100um.parquet",
+      "n_bins": 1888,
+      "n_transcripts": 3753
+    },
+    {
+      "gene": "DNTTIP1",
+      "bin_um": 25,
+      "file": "data/density/DNTTIP1_25um.parquet",
+      "n_bins": 28879,
+      "n_transcripts": 51618
+    },
+    {
+      "gene": "DNTTIP1",
+      "bin_um": 50,
+      "file": "data/density/DNTTIP1_50um.parquet",
+      "n_bins": 13084,
+      "n_transcripts": 51618
+    },
+    {
+      "gene": "DNTTIP1",
+      "bin_um": 100,
+      "file": "data/density/DNTTIP1_100um.parquet",
+      "n_bins": 4028,
+      "n_transcripts": 51618
+    },
+    {
+      "gene": "DPT",
+      "bin_um": 25,
+      "file": "data/density/DPT_25um.parquet",
+      "n_bins": 22714,
+      "n_transcripts": 49424
+    },
+    {
+      "gene": "DPT",
+      "bin_um": 50,
+      "file": "data/density/DPT_50um.parquet",
+      "n_bins": 11182,
+      "n_transcripts": 49424
+    },
+    {
+      "gene": "DPT",
+      "bin_um": 100,
+      "file": "data/density/DPT_100um.parquet",
+      "n_bins": 3775,
+      "n_transcripts": 49424
+    },
+    {
+      "gene": "DSC2",
+      "bin_um": 25,
+      "file": "data/density/DSC2_25um.parquet",
+      "n_bins": 30147,
+      "n_transcripts": 85843
+    },
+    {
+      "gene": "DSC2",
+      "bin_um": 50,
+      "file": "data/density/DSC2_50um.parquet",
+      "n_bins": 13181,
+      "n_transcripts": 85843
+    },
+    {
+      "gene": "DSC2",
+      "bin_um": 100,
+      "file": "data/density/DSC2_100um.parquet",
+      "n_bins": 4037,
+      "n_transcripts": 85843
+    },
+    {
+      "gene": "DSP",
+      "bin_um": 25,
+      "file": "data/density/DSP_25um.parquet",
+      "n_bins": 35050,
+      "n_transcripts": 208793
+    },
+    {
+      "gene": "DSP",
+      "bin_um": 50,
+      "file": "data/density/DSP_50um.parquet",
+      "n_bins": 13498,
+      "n_transcripts": 208793
+    },
+    {
+      "gene": "DSP",
+      "bin_um": 100,
+      "file": "data/density/DSP_100um.parquet",
+      "n_bins": 4060,
+      "n_transcripts": 208793
+    },
+    {
+      "gene": "DST",
+      "bin_um": 25,
+      "file": "data/density/DST_25um.parquet",
+      "n_bins": 50089,
+      "n_transcripts": 312203
+    },
+    {
+      "gene": "DST",
+      "bin_um": 50,
+      "file": "data/density/DST_50um.parquet",
+      "n_bins": 15880,
+      "n_transcripts": 312203
+    },
+    {
+      "gene": "DST",
+      "bin_um": 100,
+      "file": "data/density/DST_100um.parquet",
+      "n_bins": 4134,
+      "n_transcripts": 312203
+    },
+    {
+      "gene": "DUSP2",
+      "bin_um": 25,
+      "file": "data/density/DUSP2_25um.parquet",
+      "n_bins": 7996,
+      "n_transcripts": 11875
+    },
+    {
+      "gene": "DUSP2",
+      "bin_um": 50,
+      "file": "data/density/DUSP2_50um.parquet",
+      "n_bins": 5850,
+      "n_transcripts": 11875
+    },
+    {
+      "gene": "DUSP2",
+      "bin_um": 100,
+      "file": "data/density/DUSP2_100um.parquet",
+      "n_bins": 3026,
+      "n_transcripts": 11875
+    },
+    {
+      "gene": "DUSP5",
+      "bin_um": 25,
+      "file": "data/density/DUSP5_25um.parquet",
+      "n_bins": 26498,
+      "n_transcripts": 53432
+    },
+    {
+      "gene": "DUSP5",
+      "bin_um": 50,
+      "file": "data/density/DUSP5_50um.parquet",
+      "n_bins": 12494,
+      "n_transcripts": 53432
+    },
+    {
+      "gene": "DUSP5",
+      "bin_um": 100,
+      "file": "data/density/DUSP5_100um.parquet",
+      "n_bins": 3967,
+      "n_transcripts": 53432
+    },
+    {
+      "gene": "EGFL7",
+      "bin_um": 25,
+      "file": "data/density/EGFL7_25um.parquet",
+      "n_bins": 6066,
+      "n_transcripts": 9073
+    },
+    {
+      "gene": "EGFL7",
+      "bin_um": 50,
+      "file": "data/density/EGFL7_50um.parquet",
+      "n_bins": 4609,
+      "n_transcripts": 9073
+    },
+    {
+      "gene": "EGFL7",
+      "bin_um": 100,
+      "file": "data/density/EGFL7_100um.parquet",
+      "n_bins": 2609,
+      "n_transcripts": 9073
+    },
+    {
+      "gene": "EGFR",
+      "bin_um": 25,
+      "file": "data/density/EGFR_25um.parquet",
+      "n_bins": 26093,
+      "n_transcripts": 52497
+    },
+    {
+      "gene": "EGFR",
+      "bin_um": 50,
+      "file": "data/density/EGFR_50um.parquet",
+      "n_bins": 13102,
+      "n_transcripts": 52497
+    },
+    {
+      "gene": "EGFR",
+      "bin_um": 100,
+      "file": "data/density/EGFR_100um.parquet",
+      "n_bins": 4047,
+      "n_transcripts": 52497
+    },
+    {
+      "gene": "EIF4EBP1",
+      "bin_um": 25,
+      "file": "data/density/EIF4EBP1_25um.parquet",
+      "n_bins": 20250,
+      "n_transcripts": 32570
+    },
+    {
+      "gene": "EIF4EBP1",
+      "bin_um": 50,
+      "file": "data/density/EIF4EBP1_50um.parquet",
+      "n_bins": 10715,
+      "n_transcripts": 32570
+    },
+    {
+      "gene": "EIF4EBP1",
+      "bin_um": 100,
+      "file": "data/density/EIF4EBP1_100um.parquet",
+      "n_bins": 3843,
+      "n_transcripts": 32570
+    },
+    {
+      "gene": "ENAH",
+      "bin_um": 25,
+      "file": "data/density/ENAH_25um.parquet",
+      "n_bins": 47184,
+      "n_transcripts": 231204
+    },
+    {
+      "gene": "ENAH",
+      "bin_um": 50,
+      "file": "data/density/ENAH_50um.parquet",
+      "n_bins": 15619,
+      "n_transcripts": 231204
+    },
+    {
+      "gene": "ENAH",
+      "bin_um": 100,
+      "file": "data/density/ENAH_100um.parquet",
+      "n_bins": 4123,
+      "n_transcripts": 231204
+    },
+    {
+      "gene": "EPCAM",
+      "bin_um": 25,
+      "file": "data/density/EPCAM_25um.parquet",
+      "n_bins": 47610,
+      "n_transcripts": 735430
+    },
+    {
+      "gene": "EPCAM",
+      "bin_um": 50,
+      "file": "data/density/EPCAM_50um.parquet",
+      "n_bins": 15669,
+      "n_transcripts": 735430
+    },
+    {
+      "gene": "EPCAM",
+      "bin_um": 100,
+      "file": "data/density/EPCAM_100um.parquet",
+      "n_bins": 4142,
+      "n_transcripts": 735430
+    },
+    {
+      "gene": "ERBB2",
+      "bin_um": 25,
+      "file": "data/density/ERBB2_25um.parquet",
+      "n_bins": 64521,
+      "n_transcripts": 2164898
+    },
+    {
+      "gene": "ERBB2",
+      "bin_um": 50,
+      "file": "data/density/ERBB2_50um.parquet",
+      "n_bins": 16455,
+      "n_transcripts": 2164898
+    },
+    {
+      "gene": "ERBB2",
+      "bin_um": 100,
+      "file": "data/density/ERBB2_100um.parquet",
+      "n_bins": 4159,
+      "n_transcripts": 2164898
+    },
+    {
+      "gene": "ERN1",
+      "bin_um": 25,
+      "file": "data/density/ERN1_25um.parquet",
+      "n_bins": 30570,
+      "n_transcripts": 72331
+    },
+    {
+      "gene": "ERN1",
+      "bin_um": 50,
+      "file": "data/density/ERN1_50um.parquet",
+      "n_bins": 13607,
+      "n_transcripts": 72331
+    },
+    {
+      "gene": "ERN1",
+      "bin_um": 100,
+      "file": "data/density/ERN1_100um.parquet",
+      "n_bins": 4032,
+      "n_transcripts": 72331
+    },
+    {
+      "gene": "ESM1",
+      "bin_um": 25,
+      "file": "data/density/ESM1_25um.parquet",
+      "n_bins": 4257,
+      "n_transcripts": 10421
+    },
+    {
+      "gene": "ESM1",
+      "bin_um": 50,
+      "file": "data/density/ESM1_50um.parquet",
+      "n_bins": 3283,
+      "n_transcripts": 10421
+    },
+    {
+      "gene": "ESM1",
+      "bin_um": 100,
+      "file": "data/density/ESM1_100um.parquet",
+      "n_bins": 2092,
+      "n_transcripts": 10421
+    },
+    {
+      "gene": "ESR1",
+      "bin_um": 25,
+      "file": "data/density/ESR1_25um.parquet",
+      "n_bins": 18647,
+      "n_transcripts": 46753
+    },
+    {
+      "gene": "ESR1",
+      "bin_um": 50,
+      "file": "data/density/ESR1_50um.parquet",
+      "n_bins": 10245,
+      "n_transcripts": 46753
+    },
+    {
+      "gene": "ESR1",
+      "bin_um": 100,
+      "file": "data/density/ESR1_100um.parquet",
+      "n_bins": 3873,
+      "n_transcripts": 46753
+    },
+    {
+      "gene": "FAM107B",
+      "bin_um": 25,
+      "file": "data/density/FAM107B_25um.parquet",
+      "n_bins": 47188,
+      "n_transcripts": 147899
+    },
+    {
+      "gene": "FAM107B",
+      "bin_um": 50,
+      "file": "data/density/FAM107B_50um.parquet",
+      "n_bins": 15698,
+      "n_transcripts": 147899
+    },
+    {
+      "gene": "FAM107B",
+      "bin_um": 100,
+      "file": "data/density/FAM107B_100um.parquet",
+      "n_bins": 4114,
+      "n_transcripts": 147899
+    },
+    {
+      "gene": "FAM49A",
+      "bin_um": 25,
+      "file": "data/density/FAM49A_25um.parquet",
+      "n_bins": 15239,
+      "n_transcripts": 21916
+    },
+    {
+      "gene": "FAM49A",
+      "bin_um": 50,
+      "file": "data/density/FAM49A_50um.parquet",
+      "n_bins": 9635,
+      "n_transcripts": 21916
+    },
+    {
+      "gene": "FAM49A",
+      "bin_um": 100,
+      "file": "data/density/FAM49A_100um.parquet",
+      "n_bins": 3810,
+      "n_transcripts": 21916
+    },
+    {
+      "gene": "FASN",
+      "bin_um": 25,
+      "file": "data/density/FASN_25um.parquet",
+      "n_bins": 40421,
+      "n_transcripts": 443239
+    },
+    {
+      "gene": "FASN",
+      "bin_um": 50,
+      "file": "data/density/FASN_50um.parquet",
+      "n_bins": 14718,
+      "n_transcripts": 443239
+    },
+    {
+      "gene": "FASN",
+      "bin_um": 100,
+      "file": "data/density/FASN_100um.parquet",
+      "n_bins": 4107,
+      "n_transcripts": 443239
+    },
+    {
+      "gene": "FBLN1",
+      "bin_um": 25,
+      "file": "data/density/FBLN1_25um.parquet",
+      "n_bins": 37422,
+      "n_transcripts": 141365
+    },
+    {
+      "gene": "FBLN1",
+      "bin_um": 50,
+      "file": "data/density/FBLN1_50um.parquet",
+      "n_bins": 13698,
+      "n_transcripts": 141365
+    },
+    {
+      "gene": "FBLN1",
+      "bin_um": 100,
+      "file": "data/density/FBLN1_100um.parquet",
+      "n_bins": 3979,
+      "n_transcripts": 141365
+    },
+    {
+      "gene": "FCER1A",
+      "bin_um": 25,
+      "file": "data/density/FCER1A_25um.parquet",
+      "n_bins": 8926,
+      "n_transcripts": 18316
+    },
+    {
+      "gene": "FCER1A",
+      "bin_um": 50,
+      "file": "data/density/FCER1A_50um.parquet",
+      "n_bins": 6043,
+      "n_transcripts": 18316
+    },
+    {
+      "gene": "FCER1A",
+      "bin_um": 100,
+      "file": "data/density/FCER1A_100um.parquet",
+      "n_bins": 2949,
+      "n_transcripts": 18316
+    },
+    {
+      "gene": "FCER1G",
+      "bin_um": 25,
+      "file": "data/density/FCER1G_25um.parquet",
+      "n_bins": 40466,
+      "n_transcripts": 164324
+    },
+    {
+      "gene": "FCER1G",
+      "bin_um": 50,
+      "file": "data/density/FCER1G_50um.parquet",
+      "n_bins": 15218,
+      "n_transcripts": 164324
+    },
+    {
+      "gene": "FCER1G",
+      "bin_um": 100,
+      "file": "data/density/FCER1G_100um.parquet",
+      "n_bins": 4103,
+      "n_transcripts": 164324
+    },
+    {
+      "gene": "FCGR3A",
+      "bin_um": 25,
+      "file": "data/density/FCGR3A_25um.parquet",
+      "n_bins": 19825,
+      "n_transcripts": 41565
+    },
+    {
+      "gene": "FCGR3A",
+      "bin_um": 50,
+      "file": "data/density/FCGR3A_50um.parquet",
+      "n_bins": 11083,
+      "n_transcripts": 41565
+    },
+    {
+      "gene": "FCGR3A",
+      "bin_um": 100,
+      "file": "data/density/FCGR3A_100um.parquet",
+      "n_bins": 3912,
+      "n_transcripts": 41565
+    },
+    {
+      "gene": "FGL2",
+      "bin_um": 25,
+      "file": "data/density/FGL2_25um.parquet",
+      "n_bins": 31313,
+      "n_transcripts": 112199
+    },
+    {
+      "gene": "FGL2",
+      "bin_um": 50,
+      "file": "data/density/FGL2_50um.parquet",
+      "n_bins": 13499,
+      "n_transcripts": 112199
+    },
+    {
+      "gene": "FGL2",
+      "bin_um": 100,
+      "file": "data/density/FGL2_100um.parquet",
+      "n_bins": 4067,
+      "n_transcripts": 112199
+    },
+    {
+      "gene": "FLNB",
+      "bin_um": 25,
+      "file": "data/density/FLNB_25um.parquet",
+      "n_bins": 44618,
+      "n_transcripts": 232428
+    },
+    {
+      "gene": "FLNB",
+      "bin_um": 50,
+      "file": "data/density/FLNB_50um.parquet",
+      "n_bins": 15254,
+      "n_transcripts": 232428
+    },
+    {
+      "gene": "FLNB",
+      "bin_um": 100,
+      "file": "data/density/FLNB_100um.parquet",
+      "n_bins": 4102,
+      "n_transcripts": 232428
+    },
+    {
+      "gene": "FOXA1",
+      "bin_um": 25,
+      "file": "data/density/FOXA1_25um.parquet",
+      "n_bins": 47291,
+      "n_transcripts": 694630
+    },
+    {
+      "gene": "FOXA1",
+      "bin_um": 50,
+      "file": "data/density/FOXA1_50um.parquet",
+      "n_bins": 15327,
+      "n_transcripts": 694630
+    },
+    {
+      "gene": "FOXA1",
+      "bin_um": 100,
+      "file": "data/density/FOXA1_100um.parquet",
+      "n_bins": 4117,
+      "n_transcripts": 694630
+    },
+    {
+      "gene": "FOXC2",
+      "bin_um": 25,
+      "file": "data/density/FOXC2_25um.parquet",
+      "n_bins": 5545,
+      "n_transcripts": 8191
+    },
+    {
+      "gene": "FOXC2",
+      "bin_um": 50,
+      "file": "data/density/FOXC2_50um.parquet",
+      "n_bins": 4233,
+      "n_transcripts": 8191
+    },
+    {
+      "gene": "FOXC2",
+      "bin_um": 100,
+      "file": "data/density/FOXC2_100um.parquet",
+      "n_bins": 2552,
+      "n_transcripts": 8191
+    },
+    {
+      "gene": "FOXP3",
+      "bin_um": 25,
+      "file": "data/density/FOXP3_25um.parquet",
+      "n_bins": 5757,
+      "n_transcripts": 8069
+    },
+    {
+      "gene": "FOXP3",
+      "bin_um": 50,
+      "file": "data/density/FOXP3_50um.parquet",
+      "n_bins": 4658,
+      "n_transcripts": 8069
+    },
+    {
+      "gene": "FOXP3",
+      "bin_um": 100,
+      "file": "data/density/FOXP3_100um.parquet",
+      "n_bins": 2735,
+      "n_transcripts": 8069
+    },
+    {
+      "gene": "FSTL3",
+      "bin_um": 25,
+      "file": "data/density/FSTL3_25um.parquet",
+      "n_bins": 17513,
+      "n_transcripts": 27307
+    },
+    {
+      "gene": "FSTL3",
+      "bin_um": 50,
+      "file": "data/density/FSTL3_50um.parquet",
+      "n_bins": 10414,
+      "n_transcripts": 27307
+    },
+    {
+      "gene": "FSTL3",
+      "bin_um": 100,
+      "file": "data/density/FSTL3_100um.parquet",
+      "n_bins": 3850,
+      "n_transcripts": 27307
+    },
+    {
+      "gene": "GATA3",
+      "bin_um": 25,
+      "file": "data/density/GATA3_25um.parquet",
+      "n_bins": 52068,
+      "n_transcripts": 756711
+    },
+    {
+      "gene": "GATA3",
+      "bin_um": 50,
+      "file": "data/density/GATA3_50um.parquet",
+      "n_bins": 16049,
+      "n_transcripts": 756711
+    },
+    {
+      "gene": "GATA3",
+      "bin_um": 100,
+      "file": "data/density/GATA3_100um.parquet",
+      "n_bins": 4136,
+      "n_transcripts": 756711
+    },
+    {
+      "gene": "GJB2",
+      "bin_um": 25,
+      "file": "data/density/GJB2_25um.parquet",
+      "n_bins": 10470,
+      "n_transcripts": 27698
+    },
+    {
+      "gene": "GJB2",
+      "bin_um": 50,
+      "file": "data/density/GJB2_50um.parquet",
+      "n_bins": 6727,
+      "n_transcripts": 27698
+    },
+    {
+      "gene": "GJB2",
+      "bin_um": 100,
+      "file": "data/density/GJB2_100um.parquet",
+      "n_bins": 3231,
+      "n_transcripts": 27698
+    },
+    {
+      "gene": "GLIPR1",
+      "bin_um": 25,
+      "file": "data/density/GLIPR1_25um.parquet",
+      "n_bins": 32420,
+      "n_transcripts": 78081
+    },
+    {
+      "gene": "GLIPR1",
+      "bin_um": 50,
+      "file": "data/density/GLIPR1_50um.parquet",
+      "n_bins": 13852,
+      "n_transcripts": 78081
+    },
+    {
+      "gene": "GLIPR1",
+      "bin_um": 100,
+      "file": "data/density/GLIPR1_100um.parquet",
+      "n_bins": 4054,
+      "n_transcripts": 78081
+    },
+    {
+      "gene": "GNLY",
+      "bin_um": 25,
+      "file": "data/density/GNLY_25um.parquet",
+      "n_bins": 2839,
+      "n_transcripts": 5453
+    },
+    {
+      "gene": "GNLY",
+      "bin_um": 50,
+      "file": "data/density/GNLY_50um.parquet",
+      "n_bins": 2441,
+      "n_transcripts": 5453
+    },
+    {
+      "gene": "GNLY",
+      "bin_um": 100,
+      "file": "data/density/GNLY_100um.parquet",
+      "n_bins": 1811,
+      "n_transcripts": 5453
+    },
+    {
+      "gene": "GPR183",
+      "bin_um": 25,
+      "file": "data/density/GPR183_25um.parquet",
+      "n_bins": 26026,
+      "n_transcripts": 75029
+    },
+    {
+      "gene": "GPR183",
+      "bin_um": 50,
+      "file": "data/density/GPR183_50um.parquet",
+      "n_bins": 12256,
+      "n_transcripts": 75029
+    },
+    {
+      "gene": "GPR183",
+      "bin_um": 100,
+      "file": "data/density/GPR183_100um.parquet",
+      "n_bins": 3986,
+      "n_transcripts": 75029
+    },
+    {
+      "gene": "GZMA",
+      "bin_um": 25,
+      "file": "data/density/GZMA_25um.parquet",
+      "n_bins": 15352,
+      "n_transcripts": 41491
+    },
+    {
+      "gene": "GZMA",
+      "bin_um": 50,
+      "file": "data/density/GZMA_50um.parquet",
+      "n_bins": 8835,
+      "n_transcripts": 41491
+    },
+    {
+      "gene": "GZMA",
+      "bin_um": 100,
+      "file": "data/density/GZMA_100um.parquet",
+      "n_bins": 3642,
+      "n_transcripts": 41491
+    },
+    {
+      "gene": "GZMK",
+      "bin_um": 25,
+      "file": "data/density/GZMK_25um.parquet",
+      "n_bins": 1585,
+      "n_transcripts": 1724
+    },
+    {
+      "gene": "GZMK",
+      "bin_um": 50,
+      "file": "data/density/GZMK_50um.parquet",
+      "n_bins": 1459,
+      "n_transcripts": 1724
+    },
+    {
+      "gene": "GZMK",
+      "bin_um": 100,
+      "file": "data/density/GZMK_100um.parquet",
+      "n_bins": 1138,
+      "n_transcripts": 1724
+    },
+    {
+      "gene": "HAVCR2",
+      "bin_um": 25,
+      "file": "data/density/HAVCR2_25um.parquet",
+      "n_bins": 18191,
+      "n_transcripts": 36242
+    },
+    {
+      "gene": "HAVCR2",
+      "bin_um": 50,
+      "file": "data/density/HAVCR2_50um.parquet",
+      "n_bins": 10515,
+      "n_transcripts": 36242
+    },
+    {
+      "gene": "HAVCR2",
+      "bin_um": 100,
+      "file": "data/density/HAVCR2_100um.parquet",
+      "n_bins": 3892,
+      "n_transcripts": 36242
+    },
+    {
+      "gene": "HMGA1",
+      "bin_um": 25,
+      "file": "data/density/HMGA1_25um.parquet",
+      "n_bins": 38293,
+      "n_transcripts": 113554
+    },
+    {
+      "gene": "HMGA1",
+      "bin_um": 50,
+      "file": "data/density/HMGA1_50um.parquet",
+      "n_bins": 14427,
+      "n_transcripts": 113554
+    },
+    {
+      "gene": "HMGA1",
+      "bin_um": 100,
+      "file": "data/density/HMGA1_100um.parquet",
+      "n_bins": 4079,
+      "n_transcripts": 113554
+    },
+    {
+      "gene": "HOOK2",
+      "bin_um": 25,
+      "file": "data/density/HOOK2_25um.parquet",
+      "n_bins": 21378,
+      "n_transcripts": 44390
+    },
+    {
+      "gene": "HOOK2",
+      "bin_um": 50,
+      "file": "data/density/HOOK2_50um.parquet",
+      "n_bins": 10776,
+      "n_transcripts": 44390
+    },
+    {
+      "gene": "HOOK2",
+      "bin_um": 100,
+      "file": "data/density/HOOK2_100um.parquet",
+      "n_bins": 3877,
+      "n_transcripts": 44390
+    },
+    {
+      "gene": "HOXD8",
+      "bin_um": 25,
+      "file": "data/density/HOXD8_25um.parquet",
+      "n_bins": 29326,
+      "n_transcripts": 61701
+    },
+    {
+      "gene": "HOXD8",
+      "bin_um": 50,
+      "file": "data/density/HOXD8_50um.parquet",
+      "n_bins": 13249,
+      "n_transcripts": 61701
+    },
+    {
+      "gene": "HOXD8",
+      "bin_um": 100,
+      "file": "data/density/HOXD8_100um.parquet",
+      "n_bins": 4034,
+      "n_transcripts": 61701
+    },
+    {
+      "gene": "HOXD9",
+      "bin_um": 25,
+      "file": "data/density/HOXD9_25um.parquet",
+      "n_bins": 6874,
+      "n_transcripts": 13532
+    },
+    {
+      "gene": "HOXD9",
+      "bin_um": 50,
+      "file": "data/density/HOXD9_50um.parquet",
+      "n_bins": 5022,
+      "n_transcripts": 13532
+    },
+    {
+      "gene": "HOXD9",
+      "bin_um": 100,
+      "file": "data/density/HOXD9_100um.parquet",
+      "n_bins": 2843,
+      "n_transcripts": 13532
+    },
+    {
+      "gene": "HPX",
+      "bin_um": 25,
+      "file": "data/density/HPX_25um.parquet",
+      "n_bins": 7040,
+      "n_transcripts": 9762
+    },
+    {
+      "gene": "HPX",
+      "bin_um": 50,
+      "file": "data/density/HPX_50um.parquet",
+      "n_bins": 4586,
+      "n_transcripts": 9762
+    },
+    {
+      "gene": "HPX",
+      "bin_um": 100,
+      "file": "data/density/HPX_100um.parquet",
+      "n_bins": 2285,
+      "n_transcripts": 9762
+    },
+    {
+      "gene": "IGF1",
+      "bin_um": 25,
+      "file": "data/density/IGF1_25um.parquet",
+      "n_bins": 34930,
+      "n_transcripts": 115253
+    },
+    {
+      "gene": "IGF1",
+      "bin_um": 50,
+      "file": "data/density/IGF1_50um.parquet",
+      "n_bins": 13635,
+      "n_transcripts": 115253
+    },
+    {
+      "gene": "IGF1",
+      "bin_um": 100,
+      "file": "data/density/IGF1_100um.parquet",
+      "n_bins": 3987,
+      "n_transcripts": 115253
+    },
+    {
+      "gene": "IGSF6",
+      "bin_um": 25,
+      "file": "data/density/IGSF6_25um.parquet",
+      "n_bins": 25342,
+      "n_transcripts": 60773
+    },
+    {
+      "gene": "IGSF6",
+      "bin_um": 50,
+      "file": "data/density/IGSF6_50um.parquet",
+      "n_bins": 12575,
+      "n_transcripts": 60773
+    },
+    {
+      "gene": "IGSF6",
+      "bin_um": 100,
+      "file": "data/density/IGSF6_100um.parquet",
+      "n_bins": 4012,
+      "n_transcripts": 60773
+    },
+    {
+      "gene": "IL2RA",
+      "bin_um": 25,
+      "file": "data/density/IL2RA_25um.parquet",
+      "n_bins": 13843,
+      "n_transcripts": 20215
+    },
+    {
+      "gene": "IL2RA",
+      "bin_um": 50,
+      "file": "data/density/IL2RA_50um.parquet",
+      "n_bins": 9018,
+      "n_transcripts": 20215
+    },
+    {
+      "gene": "IL2RA",
+      "bin_um": 100,
+      "file": "data/density/IL2RA_100um.parquet",
+      "n_bins": 3586,
+      "n_transcripts": 20215
+    },
+    {
+      "gene": "IL2RG",
+      "bin_um": 25,
+      "file": "data/density/IL2RG_25um.parquet",
+      "n_bins": 23604,
+      "n_transcripts": 67838
+    },
+    {
+      "gene": "IL2RG",
+      "bin_um": 50,
+      "file": "data/density/IL2RG_50um.parquet",
+      "n_bins": 11403,
+      "n_transcripts": 67838
+    },
+    {
+      "gene": "IL2RG",
+      "bin_um": 100,
+      "file": "data/density/IL2RG_100um.parquet",
+      "n_bins": 3905,
+      "n_transcripts": 67838
+    },
+    {
+      "gene": "IL3RA",
+      "bin_um": 25,
+      "file": "data/density/IL3RA_25um.parquet",
+      "n_bins": 8034,
+      "n_transcripts": 14673
+    },
+    {
+      "gene": "IL3RA",
+      "bin_um": 50,
+      "file": "data/density/IL3RA_50um.parquet",
+      "n_bins": 5737,
+      "n_transcripts": 14673
+    },
+    {
+      "gene": "IL3RA",
+      "bin_um": 100,
+      "file": "data/density/IL3RA_100um.parquet",
+      "n_bins": 3031,
+      "n_transcripts": 14673
+    },
+    {
+      "gene": "IL7R",
+      "bin_um": 25,
+      "file": "data/density/IL7R_25um.parquet",
+      "n_bins": 27923,
+      "n_transcripts": 151259
+    },
+    {
+      "gene": "IL7R",
+      "bin_um": 50,
+      "file": "data/density/IL7R_50um.parquet",
+      "n_bins": 12512,
+      "n_transcripts": 151259
+    },
+    {
+      "gene": "IL7R",
+      "bin_um": 100,
+      "file": "data/density/IL7R_100um.parquet",
+      "n_bins": 4010,
+      "n_transcripts": 151259
+    },
+    {
+      "gene": "ITGAM",
+      "bin_um": 25,
+      "file": "data/density/ITGAM_25um.parquet",
+      "n_bins": 14413,
+      "n_transcripts": 23198
+    },
+    {
+      "gene": "ITGAM",
+      "bin_um": 50,
+      "file": "data/density/ITGAM_50um.parquet",
+      "n_bins": 9341,
+      "n_transcripts": 23198
+    },
+    {
+      "gene": "ITGAM",
+      "bin_um": 100,
+      "file": "data/density/ITGAM_100um.parquet",
+      "n_bins": 3790,
+      "n_transcripts": 23198
+    },
+    {
+      "gene": "ITGAX",
+      "bin_um": 25,
+      "file": "data/density/ITGAX_25um.parquet",
+      "n_bins": 16860,
+      "n_transcripts": 40576
+    },
+    {
+      "gene": "ITGAX",
+      "bin_um": 50,
+      "file": "data/density/ITGAX_50um.parquet",
+      "n_bins": 9715,
+      "n_transcripts": 40576
+    },
+    {
+      "gene": "ITGAX",
+      "bin_um": 100,
+      "file": "data/density/ITGAX_100um.parquet",
+      "n_bins": 3765,
+      "n_transcripts": 40576
+    },
+    {
+      "gene": "ITM2C",
+      "bin_um": 25,
+      "file": "data/density/ITM2C_25um.parquet",
+      "n_bins": 39426,
+      "n_transcripts": 126234
+    },
+    {
+      "gene": "ITM2C",
+      "bin_um": 50,
+      "file": "data/density/ITM2C_50um.parquet",
+      "n_bins": 15143,
+      "n_transcripts": 126234
+    },
+    {
+      "gene": "ITM2C",
+      "bin_um": 100,
+      "file": "data/density/ITM2C_100um.parquet",
+      "n_bins": 4105,
+      "n_transcripts": 126234
+    },
+    {
+      "gene": "JUP",
+      "bin_um": 25,
+      "file": "data/density/JUP_25um.parquet",
+      "n_bins": 30793,
+      "n_transcripts": 78926
+    },
+    {
+      "gene": "JUP",
+      "bin_um": 50,
+      "file": "data/density/JUP_50um.parquet",
+      "n_bins": 12795,
+      "n_transcripts": 78926
+    },
+    {
+      "gene": "JUP",
+      "bin_um": 100,
+      "file": "data/density/JUP_100um.parquet",
+      "n_bins": 3998,
+      "n_transcripts": 78926
+    },
+    {
+      "gene": "KARS",
+      "bin_um": 25,
+      "file": "data/density/KARS_25um.parquet",
+      "n_bins": 33476,
+      "n_transcripts": 64127
+    },
+    {
+      "gene": "KARS",
+      "bin_um": 50,
+      "file": "data/density/KARS_50um.parquet",
+      "n_bins": 14156,
+      "n_transcripts": 64127
+    },
+    {
+      "gene": "KARS",
+      "bin_um": 100,
+      "file": "data/density/KARS_100um.parquet",
+      "n_bins": 4082,
+      "n_transcripts": 64127
+    },
+    {
+      "gene": "KDR",
+      "bin_um": 25,
+      "file": "data/density/KDR_25um.parquet",
+      "n_bins": 12586,
+      "n_transcripts": 33610
+    },
+    {
+      "gene": "KDR",
+      "bin_um": 50,
+      "file": "data/density/KDR_50um.parquet",
+      "n_bins": 8170,
+      "n_transcripts": 33610
+    },
+    {
+      "gene": "KDR",
+      "bin_um": 100,
+      "file": "data/density/KDR_100um.parquet",
+      "n_bins": 3622,
+      "n_transcripts": 33610
+    },
+    {
+      "gene": "KIT",
+      "bin_um": 25,
+      "file": "data/density/KIT_25um.parquet",
+      "n_bins": 9142,
+      "n_transcripts": 20387
+    },
+    {
+      "gene": "KIT",
+      "bin_um": 50,
+      "file": "data/density/KIT_50um.parquet",
+      "n_bins": 6343,
+      "n_transcripts": 20387
+    },
+    {
+      "gene": "KIT",
+      "bin_um": 100,
+      "file": "data/density/KIT_100um.parquet",
+      "n_bins": 3128,
+      "n_transcripts": 20387
+    },
+    {
+      "gene": "KLF5",
+      "bin_um": 25,
+      "file": "data/density/KLF5_25um.parquet",
+      "n_bins": 26457,
+      "n_transcripts": 84173
+    },
+    {
+      "gene": "KLF5",
+      "bin_um": 50,
+      "file": "data/density/KLF5_50um.parquet",
+      "n_bins": 11131,
+      "n_transcripts": 84173
+    },
+    {
+      "gene": "KLF5",
+      "bin_um": 100,
+      "file": "data/density/KLF5_100um.parquet",
+      "n_bins": 3811,
+      "n_transcripts": 84173
+    },
+    {
+      "gene": "KLRB1",
+      "bin_um": 25,
+      "file": "data/density/KLRB1_25um.parquet",
+      "n_bins": 19222,
+      "n_transcripts": 55991
+    },
+    {
+      "gene": "KLRB1",
+      "bin_um": 50,
+      "file": "data/density/KLRB1_50um.parquet",
+      "n_bins": 10212,
+      "n_transcripts": 55991
+    },
+    {
+      "gene": "KLRB1",
+      "bin_um": 100,
+      "file": "data/density/KLRB1_100um.parquet",
+      "n_bins": 3809,
+      "n_transcripts": 55991
+    },
+    {
+      "gene": "KLRC1",
+      "bin_um": 25,
+      "file": "data/density/KLRC1_25um.parquet",
+      "n_bins": 7709,
+      "n_transcripts": 13307
+    },
+    {
+      "gene": "KLRC1",
+      "bin_um": 50,
+      "file": "data/density/KLRC1_50um.parquet",
+      "n_bins": 5618,
+      "n_transcripts": 13307
+    },
+    {
+      "gene": "KLRC1",
+      "bin_um": 100,
+      "file": "data/density/KLRC1_100um.parquet",
+      "n_bins": 2999,
+      "n_transcripts": 13307
+    },
+    {
+      "gene": "KLRD1",
+      "bin_um": 25,
+      "file": "data/density/KLRD1_25um.parquet",
+      "n_bins": 8782,
+      "n_transcripts": 17270
+    },
+    {
+      "gene": "KLRD1",
+      "bin_um": 50,
+      "file": "data/density/KLRD1_50um.parquet",
+      "n_bins": 6056,
+      "n_transcripts": 17270
+    },
+    {
+      "gene": "KLRD1",
+      "bin_um": 100,
+      "file": "data/density/KLRD1_100um.parquet",
+      "n_bins": 3079,
+      "n_transcripts": 17270
+    },
+    {
+      "gene": "KLRF1",
+      "bin_um": 25,
+      "file": "data/density/KLRF1_25um.parquet",
+      "n_bins": 6174,
+      "n_transcripts": 8532
+    },
+    {
+      "gene": "KLRF1",
+      "bin_um": 50,
+      "file": "data/density/KLRF1_50um.parquet",
+      "n_bins": 4846,
+      "n_transcripts": 8532
+    },
+    {
+      "gene": "KLRF1",
+      "bin_um": 100,
+      "file": "data/density/KLRF1_100um.parquet",
+      "n_bins": 2791,
+      "n_transcripts": 8532
+    },
+    {
+      "gene": "KRT14",
+      "bin_um": 25,
+      "file": "data/density/KRT14_25um.parquet",
+      "n_bins": 14762,
+      "n_transcripts": 73591
+    },
+    {
+      "gene": "KRT14",
+      "bin_um": 50,
+      "file": "data/density/KRT14_50um.parquet",
+      "n_bins": 7892,
+      "n_transcripts": 73591
+    },
+    {
+      "gene": "KRT14",
+      "bin_um": 100,
+      "file": "data/density/KRT14_100um.parquet",
+      "n_bins": 3323,
+      "n_transcripts": 73591
+    },
+    {
+      "gene": "KRT23",
+      "bin_um": 25,
+      "file": "data/density/KRT23_25um.parquet",
+      "n_bins": 7960,
+      "n_transcripts": 27668
+    },
+    {
+      "gene": "KRT23",
+      "bin_um": 50,
+      "file": "data/density/KRT23_50um.parquet",
+      "n_bins": 5351,
+      "n_transcripts": 27668
+    },
+    {
+      "gene": "KRT23",
+      "bin_um": 100,
+      "file": "data/density/KRT23_100um.parquet",
+      "n_bins": 2878,
+      "n_transcripts": 27668
+    },
+    {
+      "gene": "KRT5",
+      "bin_um": 25,
+      "file": "data/density/KRT5_25um.parquet",
+      "n_bins": 10491,
+      "n_transcripts": 42346
+    },
+    {
+      "gene": "KRT5",
+      "bin_um": 50,
+      "file": "data/density/KRT5_50um.parquet",
+      "n_bins": 5867,
+      "n_transcripts": 42346
+    },
+    {
+      "gene": "KRT5",
+      "bin_um": 100,
+      "file": "data/density/KRT5_100um.parquet",
+      "n_bins": 2813,
+      "n_transcripts": 42346
+    },
+    {
+      "gene": "KRT6B",
+      "bin_um": 25,
+      "file": "data/density/KRT6B_25um.parquet",
+      "n_bins": 10567,
+      "n_transcripts": 37911
+    },
+    {
+      "gene": "KRT6B",
+      "bin_um": 50,
+      "file": "data/density/KRT6B_50um.parquet",
+      "n_bins": 6153,
+      "n_transcripts": 37911
+    },
+    {
+      "gene": "KRT6B",
+      "bin_um": 100,
+      "file": "data/density/KRT6B_100um.parquet",
+      "n_bins": 2835,
+      "n_transcripts": 37911
+    },
+    {
+      "gene": "KRT7",
+      "bin_um": 25,
+      "file": "data/density/KRT7_25um.parquet",
+      "n_bins": 51302,
+      "n_transcripts": 1077455
+    },
+    {
+      "gene": "KRT7",
+      "bin_um": 50,
+      "file": "data/density/KRT7_50um.parquet",
+      "n_bins": 15888,
+      "n_transcripts": 1077455
+    },
+    {
+      "gene": "KRT7",
+      "bin_um": 100,
+      "file": "data/density/KRT7_100um.parquet",
+      "n_bins": 4144,
+      "n_transcripts": 1077455
+    },
+    {
+      "gene": "KRT8",
+      "bin_um": 25,
+      "file": "data/density/KRT8_25um.parquet",
+      "n_bins": 41435,
+      "n_transcripts": 530168
+    },
+    {
+      "gene": "KRT8",
+      "bin_um": 50,
+      "file": "data/density/KRT8_50um.parquet",
+      "n_bins": 14913,
+      "n_transcripts": 530168
+    },
+    {
+      "gene": "KRT8",
+      "bin_um": 100,
+      "file": "data/density/KRT8_100um.parquet",
+      "n_bins": 4143,
+      "n_transcripts": 530168
+    },
+    {
+      "gene": "LAG3",
+      "bin_um": 25,
+      "file": "data/density/LAG3_25um.parquet",
+      "n_bins": 10658,
+      "n_transcripts": 13483
+    },
+    {
+      "gene": "LAG3",
+      "bin_um": 50,
+      "file": "data/density/LAG3_50um.parquet",
+      "n_bins": 7918,
+      "n_transcripts": 13483
+    },
+    {
+      "gene": "LAG3",
+      "bin_um": 100,
+      "file": "data/density/LAG3_100um.parquet",
+      "n_bins": 3642,
+      "n_transcripts": 13483
+    },
+    {
+      "gene": "LARS",
+      "bin_um": 25,
+      "file": "data/density/LARS_25um.parquet",
+      "n_bins": 46030,
+      "n_transcripts": 175179
+    },
+    {
+      "gene": "LARS",
+      "bin_um": 50,
+      "file": "data/density/LARS_50um.parquet",
+      "n_bins": 15396,
+      "n_transcripts": 175179
+    },
+    {
+      "gene": "LARS",
+      "bin_um": 100,
+      "file": "data/density/LARS_100um.parquet",
+      "n_bins": 4109,
+      "n_transcripts": 175179
+    },
+    {
+      "gene": "LDHB",
+      "bin_um": 25,
+      "file": "data/density/LDHB_25um.parquet",
+      "n_bins": 42847,
+      "n_transcripts": 132484
+    },
+    {
+      "gene": "LDHB",
+      "bin_um": 50,
+      "file": "data/density/LDHB_50um.parquet",
+      "n_bins": 15157,
+      "n_transcripts": 132484
+    },
+    {
+      "gene": "LDHB",
+      "bin_um": 100,
+      "file": "data/density/LDHB_100um.parquet",
+      "n_bins": 4096,
+      "n_transcripts": 132484
+    },
+    {
+      "gene": "LGALSL",
+      "bin_um": 25,
+      "file": "data/density/LGALSL_25um.parquet",
+      "n_bins": 16091,
+      "n_transcripts": 23529
+    },
+    {
+      "gene": "LGALSL",
+      "bin_um": 50,
+      "file": "data/density/LGALSL_50um.parquet",
+      "n_bins": 9485,
+      "n_transcripts": 23529
+    },
+    {
+      "gene": "LGALSL",
+      "bin_um": 100,
+      "file": "data/density/LGALSL_100um.parquet",
+      "n_bins": 3641,
+      "n_transcripts": 23529
+    },
+    {
+      "gene": "LILRA4",
+      "bin_um": 25,
+      "file": "data/density/LILRA4_25um.parquet",
+      "n_bins": 3172,
+      "n_transcripts": 6051
+    },
+    {
+      "gene": "LILRA4",
+      "bin_um": 50,
+      "file": "data/density/LILRA4_50um.parquet",
+      "n_bins": 2632,
+      "n_transcripts": 6051
+    },
+    {
+      "gene": "LILRA4",
+      "bin_um": 100,
+      "file": "data/density/LILRA4_100um.parquet",
+      "n_bins": 1842,
+      "n_transcripts": 6051
+    },
+    {
+      "gene": "LPL",
+      "bin_um": 25,
+      "file": "data/density/LPL_25um.parquet",
+      "n_bins": 15614,
+      "n_transcripts": 38399
+    },
+    {
+      "gene": "LPL",
+      "bin_um": 50,
+      "file": "data/density/LPL_50um.parquet",
+      "n_bins": 8821,
+      "n_transcripts": 38399
+    },
+    {
+      "gene": "LPL",
+      "bin_um": 100,
+      "file": "data/density/LPL_100um.parquet",
+      "n_bins": 3670,
+      "n_transcripts": 38399
+    },
+    {
+      "gene": "LPXN",
+      "bin_um": 25,
+      "file": "data/density/LPXN_25um.parquet",
+      "n_bins": 25500,
+      "n_transcripts": 51946
+    },
+    {
+      "gene": "LPXN",
+      "bin_um": 50,
+      "file": "data/density/LPXN_50um.parquet",
+      "n_bins": 12554,
+      "n_transcripts": 51946
+    },
+    {
+      "gene": "LPXN",
+      "bin_um": 100,
+      "file": "data/density/LPXN_100um.parquet",
+      "n_bins": 4014,
+      "n_transcripts": 51946
+    },
+    {
+      "gene": "LRRC15",
+      "bin_um": 25,
+      "file": "data/density/LRRC15_25um.parquet",
+      "n_bins": 16353,
+      "n_transcripts": 34570
+    },
+    {
+      "gene": "LRRC15",
+      "bin_um": 50,
+      "file": "data/density/LRRC15_50um.parquet",
+      "n_bins": 9049,
+      "n_transcripts": 34570
+    },
+    {
+      "gene": "LRRC15",
+      "bin_um": 100,
+      "file": "data/density/LRRC15_100um.parquet",
+      "n_bins": 3524,
+      "n_transcripts": 34570
+    },
+    {
+      "gene": "LTB",
+      "bin_um": 25,
+      "file": "data/density/LTB_25um.parquet",
+      "n_bins": 9029,
+      "n_transcripts": 17357
+    },
+    {
+      "gene": "LTB",
+      "bin_um": 50,
+      "file": "data/density/LTB_50um.parquet",
+      "n_bins": 5511,
+      "n_transcripts": 17357
+    },
+    {
+      "gene": "LTB",
+      "bin_um": 100,
+      "file": "data/density/LTB_100um.parquet",
+      "n_bins": 2775,
+      "n_transcripts": 17357
+    },
+    {
+      "gene": "LUM",
+      "bin_um": 25,
+      "file": "data/density/LUM_25um.parquet",
+      "n_bins": 59993,
+      "n_transcripts": 1087247
+    },
+    {
+      "gene": "LUM",
+      "bin_um": 50,
+      "file": "data/density/LUM_50um.parquet",
+      "n_bins": 16251,
+      "n_transcripts": 1087247
+    },
+    {
+      "gene": "LUM",
+      "bin_um": 100,
+      "file": "data/density/LUM_100um.parquet",
+      "n_bins": 4136,
+      "n_transcripts": 1087247
+    },
+    {
+      "gene": "LY86",
+      "bin_um": 25,
+      "file": "data/density/LY86_25um.parquet",
+      "n_bins": 7836,
+      "n_transcripts": 10102
+    },
+    {
+      "gene": "LY86",
+      "bin_um": 50,
+      "file": "data/density/LY86_50um.parquet",
+      "n_bins": 5950,
+      "n_transcripts": 10102
+    },
+    {
+      "gene": "LY86",
+      "bin_um": 100,
+      "file": "data/density/LY86_100um.parquet",
+      "n_bins": 3164,
+      "n_transcripts": 10102
+    },
+    {
+      "gene": "LYPD3",
+      "bin_um": 25,
+      "file": "data/density/LYPD3_25um.parquet",
+      "n_bins": 30203,
+      "n_transcripts": 141991
+    },
+    {
+      "gene": "LYPD3",
+      "bin_um": 50,
+      "file": "data/density/LYPD3_50um.parquet",
+      "n_bins": 12404,
+      "n_transcripts": 141991
+    },
+    {
+      "gene": "LYPD3",
+      "bin_um": 100,
+      "file": "data/density/LYPD3_100um.parquet",
+      "n_bins": 4001,
+      "n_transcripts": 141991
+    },
+    {
+      "gene": "LYZ",
+      "bin_um": 25,
+      "file": "data/density/LYZ_25um.parquet",
+      "n_bins": 44188,
+      "n_transcripts": 245251
+    },
+    {
+      "gene": "LYZ",
+      "bin_um": 50,
+      "file": "data/density/LYZ_50um.parquet",
+      "n_bins": 15457,
+      "n_transcripts": 245251
+    },
+    {
+      "gene": "LYZ",
+      "bin_um": 100,
+      "file": "data/density/LYZ_100um.parquet",
+      "n_bins": 4125,
+      "n_transcripts": 245251
+    },
+    {
+      "gene": "MAP3K8",
+      "bin_um": 25,
+      "file": "data/density/MAP3K8_25um.parquet",
+      "n_bins": 27134,
+      "n_transcripts": 48666
+    },
+    {
+      "gene": "MAP3K8",
+      "bin_um": 50,
+      "file": "data/density/MAP3K8_50um.parquet",
+      "n_bins": 13224,
+      "n_transcripts": 48666
+    },
+    {
+      "gene": "MAP3K8",
+      "bin_um": 100,
+      "file": "data/density/MAP3K8_100um.parquet",
+      "n_bins": 4023,
+      "n_transcripts": 48666
+    },
+    {
+      "gene": "MDM2",
+      "bin_um": 25,
+      "file": "data/density/MDM2_25um.parquet",
+      "n_bins": 54082,
+      "n_transcripts": 357597
+    },
+    {
+      "gene": "MDM2",
+      "bin_um": 50,
+      "file": "data/density/MDM2_50um.parquet",
+      "n_bins": 16004,
+      "n_transcripts": 357597
+    },
+    {
+      "gene": "MDM2",
+      "bin_um": 100,
+      "file": "data/density/MDM2_100um.parquet",
+      "n_bins": 4126,
+      "n_transcripts": 357597
+    },
+    {
+      "gene": "MKI67",
+      "bin_um": 25,
+      "file": "data/density/MKI67_25um.parquet",
+      "n_bins": 20271,
+      "n_transcripts": 41064
+    },
+    {
+      "gene": "MKI67",
+      "bin_um": 50,
+      "file": "data/density/MKI67_50um.parquet",
+      "n_bins": 10485,
+      "n_transcripts": 41064
+    },
+    {
+      "gene": "MKI67",
+      "bin_um": 100,
+      "file": "data/density/MKI67_100um.parquet",
+      "n_bins": 3820,
+      "n_transcripts": 41064
+    },
+    {
+      "gene": "MLPH",
+      "bin_um": 25,
+      "file": "data/density/MLPH_25um.parquet",
+      "n_bins": 37420,
+      "n_transcripts": 382751
+    },
+    {
+      "gene": "MLPH",
+      "bin_um": 50,
+      "file": "data/density/MLPH_50um.parquet",
+      "n_bins": 14086,
+      "n_transcripts": 382751
+    },
+    {
+      "gene": "MLPH",
+      "bin_um": 100,
+      "file": "data/density/MLPH_100um.parquet",
+      "n_bins": 4088,
+      "n_transcripts": 382751
+    },
+    {
+      "gene": "MMP1",
+      "bin_um": 25,
+      "file": "data/density/MMP1_25um.parquet",
+      "n_bins": 3402,
+      "n_transcripts": 6983
+    },
+    {
+      "gene": "MMP1",
+      "bin_um": 50,
+      "file": "data/density/MMP1_50um.parquet",
+      "n_bins": 2692,
+      "n_transcripts": 6983
+    },
+    {
+      "gene": "MMP1",
+      "bin_um": 100,
+      "file": "data/density/MMP1_100um.parquet",
+      "n_bins": 1809,
+      "n_transcripts": 6983
+    },
+    {
+      "gene": "MMP12",
+      "bin_um": 25,
+      "file": "data/density/MMP12_25um.parquet",
+      "n_bins": 3571,
+      "n_transcripts": 10943
+    },
+    {
+      "gene": "MMP12",
+      "bin_um": 50,
+      "file": "data/density/MMP12_50um.parquet",
+      "n_bins": 2792,
+      "n_transcripts": 10943
+    },
+    {
+      "gene": "MMP12",
+      "bin_um": 100,
+      "file": "data/density/MMP12_100um.parquet",
+      "n_bins": 1904,
+      "n_transcripts": 10943
+    },
+    {
+      "gene": "MMP2",
+      "bin_um": 25,
+      "file": "data/density/MMP2_25um.parquet",
+      "n_bins": 49199,
+      "n_transcripts": 270204
+    },
+    {
+      "gene": "MMP2",
+      "bin_um": 50,
+      "file": "data/density/MMP2_50um.parquet",
+      "n_bins": 15249,
+      "n_transcripts": 270204
+    },
+    {
+      "gene": "MMP2",
+      "bin_um": 100,
+      "file": "data/density/MMP2_100um.parquet",
+      "n_bins": 4094,
+      "n_transcripts": 270204
+    },
+    {
+      "gene": "MMRN2",
+      "bin_um": 25,
+      "file": "data/density/MMRN2_25um.parquet",
+      "n_bins": 9885,
+      "n_transcripts": 22995
+    },
+    {
+      "gene": "MMRN2",
+      "bin_um": 50,
+      "file": "data/density/MMRN2_50um.parquet",
+      "n_bins": 6713,
+      "n_transcripts": 22995
+    },
+    {
+      "gene": "MMRN2",
+      "bin_um": 100,
+      "file": "data/density/MMRN2_100um.parquet",
+      "n_bins": 3286,
+      "n_transcripts": 22995
+    },
+    {
+      "gene": "MNDA",
+      "bin_um": 25,
+      "file": "data/density/MNDA_25um.parquet",
+      "n_bins": 19148,
+      "n_transcripts": 38798
+    },
+    {
+      "gene": "MNDA",
+      "bin_um": 50,
+      "file": "data/density/MNDA_50um.parquet",
+      "n_bins": 10748,
+      "n_transcripts": 38798
+    },
+    {
+      "gene": "MNDA",
+      "bin_um": 100,
+      "file": "data/density/MNDA_100um.parquet",
+      "n_bins": 3878,
+      "n_transcripts": 38798
+    },
+    {
+      "gene": "MRC1",
+      "bin_um": 25,
+      "file": "data/density/MRC1_25um.parquet",
+      "n_bins": 24235,
+      "n_transcripts": 69417
+    },
+    {
+      "gene": "MRC1",
+      "bin_um": 50,
+      "file": "data/density/MRC1_50um.parquet",
+      "n_bins": 11907,
+      "n_transcripts": 69417
+    },
+    {
+      "gene": "MRC1",
+      "bin_um": 100,
+      "file": "data/density/MRC1_100um.parquet",
+      "n_bins": 3923,
+      "n_transcripts": 69417
+    },
+    {
+      "gene": "MS4A1",
+      "bin_um": 25,
+      "file": "data/density/MS4A1_25um.parquet",
+      "n_bins": 6846,
+      "n_transcripts": 20875
+    },
+    {
+      "gene": "MS4A1",
+      "bin_um": 50,
+      "file": "data/density/MS4A1_50um.parquet",
+      "n_bins": 4477,
+      "n_transcripts": 20875
+    },
+    {
+      "gene": "MS4A1",
+      "bin_um": 100,
+      "file": "data/density/MS4A1_100um.parquet",
+      "n_bins": 2388,
+      "n_transcripts": 20875
+    },
+    {
+      "gene": "MUC6",
+      "bin_um": 25,
+      "file": "data/density/MUC6_25um.parquet",
+      "n_bins": 775,
+      "n_transcripts": 865
+    },
+    {
+      "gene": "MUC6",
+      "bin_um": 50,
+      "file": "data/density/MUC6_50um.parquet",
+      "n_bins": 739,
+      "n_transcripts": 865
+    },
+    {
+      "gene": "MUC6",
+      "bin_um": 100,
+      "file": "data/density/MUC6_100um.parquet",
+      "n_bins": 676,
+      "n_transcripts": 865
+    },
+    {
+      "gene": "MYBPC1",
+      "bin_um": 25,
+      "file": "data/density/MYBPC1_25um.parquet",
+      "n_bins": 1312,
+      "n_transcripts": 1549
+    },
+    {
+      "gene": "MYBPC1",
+      "bin_um": 50,
+      "file": "data/density/MYBPC1_50um.parquet",
+      "n_bins": 1234,
+      "n_transcripts": 1549
+    },
+    {
+      "gene": "MYBPC1",
+      "bin_um": 100,
+      "file": "data/density/MYBPC1_100um.parquet",
+      "n_bins": 1039,
+      "n_transcripts": 1549
+    },
+    {
+      "gene": "MYH11",
+      "bin_um": 25,
+      "file": "data/density/MYH11_25um.parquet",
+      "n_bins": 11918,
+      "n_transcripts": 37913
+    },
+    {
+      "gene": "MYH11",
+      "bin_um": 50,
+      "file": "data/density/MYH11_50um.parquet",
+      "n_bins": 6997,
+      "n_transcripts": 37913
+    },
+    {
+      "gene": "MYH11",
+      "bin_um": 100,
+      "file": "data/density/MYH11_100um.parquet",
+      "n_bins": 3137,
+      "n_transcripts": 37913
+    },
+    {
+      "gene": "MYLK",
+      "bin_um": 25,
+      "file": "data/density/MYLK_25um.parquet",
+      "n_bins": 31815,
+      "n_transcripts": 152937
+    },
+    {
+      "gene": "MYLK",
+      "bin_um": 50,
+      "file": "data/density/MYLK_50um.parquet",
+      "n_bins": 13873,
+      "n_transcripts": 152937
+    },
+    {
+      "gene": "MYLK",
+      "bin_um": 100,
+      "file": "data/density/MYLK_100um.parquet",
+      "n_bins": 4087,
+      "n_transcripts": 152937
+    },
+    {
+      "gene": "MYO5B",
+      "bin_um": 25,
+      "file": "data/density/MYO5B_25um.parquet",
+      "n_bins": 29506,
+      "n_transcripts": 152289
+    },
+    {
+      "gene": "MYO5B",
+      "bin_um": 50,
+      "file": "data/density/MYO5B_50um.parquet",
+      "n_bins": 11999,
+      "n_transcripts": 152289
+    },
+    {
+      "gene": "MYO5B",
+      "bin_um": 100,
+      "file": "data/density/MYO5B_100um.parquet",
+      "n_bins": 3970,
+      "n_transcripts": 152289
+    },
+    {
+      "gene": "MZB1",
+      "bin_um": 25,
+      "file": "data/density/MZB1_25um.parquet",
+      "n_bins": 19834,
+      "n_transcripts": 63381
+    },
+    {
+      "gene": "MZB1",
+      "bin_um": 50,
+      "file": "data/density/MZB1_50um.parquet",
+      "n_bins": 10441,
+      "n_transcripts": 63381
+    },
+    {
+      "gene": "MZB1",
+      "bin_um": 100,
+      "file": "data/density/MZB1_100um.parquet",
+      "n_bins": 3848,
+      "n_transcripts": 63381
+    },
+    {
+      "gene": "NARS",
+      "bin_um": 25,
+      "file": "data/density/NARS_25um.parquet",
+      "n_bins": 50370,
+      "n_transcripts": 318008
+    },
+    {
+      "gene": "NARS",
+      "bin_um": 50,
+      "file": "data/density/NARS_50um.parquet",
+      "n_bins": 15806,
+      "n_transcripts": 318008
+    },
+    {
+      "gene": "NARS",
+      "bin_um": 100,
+      "file": "data/density/NARS_100um.parquet",
+      "n_bins": 4122,
+      "n_transcripts": 318008
+    },
+    {
+      "gene": "NCAM1",
+      "bin_um": 25,
+      "file": "data/density/NCAM1_25um.parquet",
+      "n_bins": 2300,
+      "n_transcripts": 2814
+    },
+    {
+      "gene": "NCAM1",
+      "bin_um": 50,
+      "file": "data/density/NCAM1_50um.parquet",
+      "n_bins": 2093,
+      "n_transcripts": 2814
+    },
+    {
+      "gene": "NCAM1",
+      "bin_um": 100,
+      "file": "data/density/NCAM1_100um.parquet",
+      "n_bins": 1620,
+      "n_transcripts": 2814
+    },
+    {
+      "gene": "NDUFA4L2",
+      "bin_um": 25,
+      "file": "data/density/NDUFA4L2_25um.parquet",
+      "n_bins": 1560,
+      "n_transcripts": 1758
+    },
+    {
+      "gene": "NDUFA4L2",
+      "bin_um": 50,
+      "file": "data/density/NDUFA4L2_50um.parquet",
+      "n_bins": 1439,
+      "n_transcripts": 1758
+    },
+    {
+      "gene": "NDUFA4L2",
+      "bin_um": 100,
+      "file": "data/density/NDUFA4L2_100um.parquet",
+      "n_bins": 1179,
+      "n_transcripts": 1758
+    },
+    {
+      "gene": "NKG7",
+      "bin_um": 25,
+      "file": "data/density/NKG7_25um.parquet",
+      "n_bins": 6078,
+      "n_transcripts": 9053
+    },
+    {
+      "gene": "NKG7",
+      "bin_um": 50,
+      "file": "data/density/NKG7_50um.parquet",
+      "n_bins": 4593,
+      "n_transcripts": 9053
+    },
+    {
+      "gene": "NKG7",
+      "bin_um": 100,
+      "file": "data/density/NKG7_100um.parquet",
+      "n_bins": 2663,
+      "n_transcripts": 9053
+    },
+    {
+      "gene": "NOSTRIN",
+      "bin_um": 25,
+      "file": "data/density/NOSTRIN_25um.parquet",
+      "n_bins": 10003,
+      "n_transcripts": 19877
+    },
+    {
+      "gene": "NOSTRIN",
+      "bin_um": 50,
+      "file": "data/density/NOSTRIN_50um.parquet",
+      "n_bins": 6723,
+      "n_transcripts": 19877
+    },
+    {
+      "gene": "NOSTRIN",
+      "bin_um": 100,
+      "file": "data/density/NOSTRIN_100um.parquet",
+      "n_bins": 3210,
+      "n_transcripts": 19877
+    },
+    {
+      "gene": "OCIAD2",
+      "bin_um": 25,
+      "file": "data/density/OCIAD2_25um.parquet",
+      "n_bins": 26349,
+      "n_transcripts": 54075
+    },
+    {
+      "gene": "OCIAD2",
+      "bin_um": 50,
+      "file": "data/density/OCIAD2_50um.parquet",
+      "n_bins": 11624,
+      "n_transcripts": 54075
+    },
+    {
+      "gene": "OCIAD2",
+      "bin_um": 100,
+      "file": "data/density/OCIAD2_100um.parquet",
+      "n_bins": 3851,
+      "n_transcripts": 54075
+    },
+    {
+      "gene": "OPRPN",
+      "bin_um": 25,
+      "file": "data/density/OPRPN_25um.parquet",
+      "n_bins": 4165,
+      "n_transcripts": 9863
+    },
+    {
+      "gene": "OPRPN",
+      "bin_um": 50,
+      "file": "data/density/OPRPN_50um.parquet",
+      "n_bins": 2967,
+      "n_transcripts": 9863
+    },
+    {
+      "gene": "OPRPN",
+      "bin_um": 100,
+      "file": "data/density/OPRPN_100um.parquet",
+      "n_bins": 1791,
+      "n_transcripts": 9863
+    },
+    {
+      "gene": "OXTR",
+      "bin_um": 25,
+      "file": "data/density/OXTR_25um.parquet",
+      "n_bins": 8034,
+      "n_transcripts": 12259
+    },
+    {
+      "gene": "OXTR",
+      "bin_um": 50,
+      "file": "data/density/OXTR_50um.parquet",
+      "n_bins": 5441,
+      "n_transcripts": 12259
+    },
+    {
+      "gene": "OXTR",
+      "bin_um": 100,
+      "file": "data/density/OXTR_100um.parquet",
+      "n_bins": 2664,
+      "n_transcripts": 12259
+    },
+    {
+      "gene": "PCLAF",
+      "bin_um": 25,
+      "file": "data/density/PCLAF_25um.parquet",
+      "n_bins": 25707,
+      "n_transcripts": 89454
+    },
+    {
+      "gene": "PCLAF",
+      "bin_um": 50,
+      "file": "data/density/PCLAF_50um.parquet",
+      "n_bins": 11408,
+      "n_transcripts": 89454
+    },
+    {
+      "gene": "PCLAF",
+      "bin_um": 100,
+      "file": "data/density/PCLAF_100um.parquet",
+      "n_bins": 3898,
+      "n_transcripts": 89454
+    },
+    {
+      "gene": "PDCD1",
+      "bin_um": 25,
+      "file": "data/density/PDCD1_25um.parquet",
+      "n_bins": 586,
+      "n_transcripts": 631
+    },
+    {
+      "gene": "PDCD1",
+      "bin_um": 50,
+      "file": "data/density/PDCD1_50um.parquet",
+      "n_bins": 557,
+      "n_transcripts": 631
+    },
+    {
+      "gene": "PDCD1",
+      "bin_um": 100,
+      "file": "data/density/PDCD1_100um.parquet",
+      "n_bins": 493,
+      "n_transcripts": 631
+    },
+    {
+      "gene": "PDCD1LG2",
+      "bin_um": 25,
+      "file": "data/density/PDCD1LG2_25um.parquet",
+      "n_bins": 6328,
+      "n_transcripts": 7784
+    },
+    {
+      "gene": "PDCD1LG2",
+      "bin_um": 50,
+      "file": "data/density/PDCD1LG2_50um.parquet",
+      "n_bins": 4993,
+      "n_transcripts": 7784
+    },
+    {
+      "gene": "PDCD1LG2",
+      "bin_um": 100,
+      "file": "data/density/PDCD1LG2_100um.parquet",
+      "n_bins": 2843,
+      "n_transcripts": 7784
+    },
+    {
+      "gene": "PDE4A",
+      "bin_um": 25,
+      "file": "data/density/PDE4A_25um.parquet",
+      "n_bins": 18894,
+      "n_transcripts": 26830
+    },
+    {
+      "gene": "PDE4A",
+      "bin_um": 50,
+      "file": "data/density/PDE4A_50um.parquet",
+      "n_bins": 11040,
+      "n_transcripts": 26830
+    },
+    {
+      "gene": "PDE4A",
+      "bin_um": 100,
+      "file": "data/density/PDE4A_100um.parquet",
+      "n_bins": 3921,
+      "n_transcripts": 26830
+    },
+    {
+      "gene": "PDGFRA",
+      "bin_um": 25,
+      "file": "data/density/PDGFRA_25um.parquet",
+      "n_bins": 36016,
+      "n_transcripts": 135106
+    },
+    {
+      "gene": "PDGFRA",
+      "bin_um": 50,
+      "file": "data/density/PDGFRA_50um.parquet",
+      "n_bins": 14078,
+      "n_transcripts": 135106
+    },
+    {
+      "gene": "PDGFRA",
+      "bin_um": 100,
+      "file": "data/density/PDGFRA_100um.parquet",
+      "n_bins": 4050,
+      "n_transcripts": 135106
+    },
+    {
+      "gene": "PDGFRB",
+      "bin_um": 25,
+      "file": "data/density/PDGFRB_25um.parquet",
+      "n_bins": 37741,
+      "n_transcripts": 159709
+    },
+    {
+      "gene": "PDGFRB",
+      "bin_um": 50,
+      "file": "data/density/PDGFRB_50um.parquet",
+      "n_bins": 14259,
+      "n_transcripts": 159709
+    },
+    {
+      "gene": "PDGFRB",
+      "bin_um": 100,
+      "file": "data/density/PDGFRB_100um.parquet",
+      "n_bins": 4032,
+      "n_transcripts": 159709
+    },
+    {
+      "gene": "PDK4",
+      "bin_um": 25,
+      "file": "data/density/PDK4_25um.parquet",
+      "n_bins": 46745,
+      "n_transcripts": 195467
+    },
+    {
+      "gene": "PDK4",
+      "bin_um": 50,
+      "file": "data/density/PDK4_50um.parquet",
+      "n_bins": 15737,
+      "n_transcripts": 195467
+    },
+    {
+      "gene": "PDK4",
+      "bin_um": 100,
+      "file": "data/density/PDK4_100um.parquet",
+      "n_bins": 4115,
+      "n_transcripts": 195467
+    },
+    {
+      "gene": "PECAM1",
+      "bin_um": 25,
+      "file": "data/density/PECAM1_25um.parquet",
+      "n_bins": 33658,
+      "n_transcripts": 129969
+    },
+    {
+      "gene": "PECAM1",
+      "bin_um": 50,
+      "file": "data/density/PECAM1_50um.parquet",
+      "n_bins": 14012,
+      "n_transcripts": 129969
+    },
+    {
+      "gene": "PECAM1",
+      "bin_um": 100,
+      "file": "data/density/PECAM1_100um.parquet",
+      "n_bins": 4063,
+      "n_transcripts": 129969
+    },
+    {
+      "gene": "PELI1",
+      "bin_um": 25,
+      "file": "data/density/PELI1_25um.parquet",
+      "n_bins": 26566,
+      "n_transcripts": 45144
+    },
+    {
+      "gene": "PELI1",
+      "bin_um": 50,
+      "file": "data/density/PELI1_50um.parquet",
+      "n_bins": 12728,
+      "n_transcripts": 45144
+    },
+    {
+      "gene": "PELI1",
+      "bin_um": 100,
+      "file": "data/density/PELI1_100um.parquet",
+      "n_bins": 3998,
+      "n_transcripts": 45144
+    },
+    {
+      "gene": "PGR",
+      "bin_um": 25,
+      "file": "data/density/PGR_25um.parquet",
+      "n_bins": 4780,
+      "n_transcripts": 6631
+    },
+    {
+      "gene": "PGR",
+      "bin_um": 50,
+      "file": "data/density/PGR_50um.parquet",
+      "n_bins": 3875,
+      "n_transcripts": 6631
+    },
+    {
+      "gene": "PGR",
+      "bin_um": 100,
+      "file": "data/density/PGR_100um.parquet",
+      "n_bins": 2403,
+      "n_transcripts": 6631
+    },
+    {
+      "gene": "PIGR",
+      "bin_um": 25,
+      "file": "data/density/PIGR_25um.parquet",
+      "n_bins": 2038,
+      "n_transcripts": 4437
+    },
+    {
+      "gene": "PIGR",
+      "bin_um": 50,
+      "file": "data/density/PIGR_50um.parquet",
+      "n_bins": 1560,
+      "n_transcripts": 4437
+    },
+    {
+      "gene": "PIGR",
+      "bin_um": 100,
+      "file": "data/density/PIGR_100um.parquet",
+      "n_bins": 1150,
+      "n_transcripts": 4437
+    },
+    {
+      "gene": "PIM1",
+      "bin_um": 25,
+      "file": "data/density/PIM1_25um.parquet",
+      "n_bins": 24186,
+      "n_transcripts": 44839
+    },
+    {
+      "gene": "PIM1",
+      "bin_um": 50,
+      "file": "data/density/PIM1_50um.parquet",
+      "n_bins": 12382,
+      "n_transcripts": 44839
+    },
+    {
+      "gene": "PIM1",
+      "bin_um": 100,
+      "file": "data/density/PIM1_100um.parquet",
+      "n_bins": 3984,
+      "n_transcripts": 44839
+    },
+    {
+      "gene": "PLD4",
+      "bin_um": 25,
+      "file": "data/density/PLD4_25um.parquet",
+      "n_bins": 4135,
+      "n_transcripts": 5406
+    },
+    {
+      "gene": "PLD4",
+      "bin_um": 50,
+      "file": "data/density/PLD4_50um.parquet",
+      "n_bins": 3449,
+      "n_transcripts": 5406
+    },
+    {
+      "gene": "PLD4",
+      "bin_um": 100,
+      "file": "data/density/PLD4_100um.parquet",
+      "n_bins": 2245,
+      "n_transcripts": 5406
+    },
+    {
+      "gene": "POSTN",
+      "bin_um": 25,
+      "file": "data/density/POSTN_25um.parquet",
+      "n_bins": 58429,
+      "n_transcripts": 972805
+    },
+    {
+      "gene": "POSTN",
+      "bin_um": 50,
+      "file": "data/density/POSTN_50um.parquet",
+      "n_bins": 16099,
+      "n_transcripts": 972805
+    },
+    {
+      "gene": "POSTN",
+      "bin_um": 100,
+      "file": "data/density/POSTN_100um.parquet",
+      "n_bins": 4136,
+      "n_transcripts": 972805
+    },
+    {
+      "gene": "PPARG",
+      "bin_um": 25,
+      "file": "data/density/PPARG_25um.parquet",
+      "n_bins": 26042,
+      "n_transcripts": 47981
+    },
+    {
+      "gene": "PPARG",
+      "bin_um": 50,
+      "file": "data/density/PPARG_50um.parquet",
+      "n_bins": 13285,
+      "n_transcripts": 47981
+    },
+    {
+      "gene": "PPARG",
+      "bin_um": 100,
+      "file": "data/density/PPARG_100um.parquet",
+      "n_bins": 4046,
+      "n_transcripts": 47981
+    },
+    {
+      "gene": "PRDM1",
+      "bin_um": 25,
+      "file": "data/density/PRDM1_25um.parquet",
+      "n_bins": 25704,
+      "n_transcripts": 67601
+    },
+    {
+      "gene": "PRDM1",
+      "bin_um": 50,
+      "file": "data/density/PRDM1_50um.parquet",
+      "n_bins": 12156,
+      "n_transcripts": 67601
+    },
+    {
+      "gene": "PRDM1",
+      "bin_um": 100,
+      "file": "data/density/PRDM1_100um.parquet",
+      "n_bins": 3995,
+      "n_transcripts": 67601
+    },
+    {
+      "gene": "PRF1",
+      "bin_um": 25,
+      "file": "data/density/PRF1_25um.parquet",
+      "n_bins": 6509,
+      "n_transcripts": 9405
+    },
+    {
+      "gene": "PRF1",
+      "bin_um": 50,
+      "file": "data/density/PRF1_50um.parquet",
+      "n_bins": 4802,
+      "n_transcripts": 9405
+    },
+    {
+      "gene": "PRF1",
+      "bin_um": 100,
+      "file": "data/density/PRF1_100um.parquet",
+      "n_bins": 2689,
+      "n_transcripts": 9405
+    },
+    {
+      "gene": "PTGDS",
+      "bin_um": 25,
+      "file": "data/density/PTGDS_25um.parquet",
+      "n_bins": 31910,
+      "n_transcripts": 141048
+    },
+    {
+      "gene": "PTGDS",
+      "bin_um": 50,
+      "file": "data/density/PTGDS_50um.parquet",
+      "n_bins": 12415,
+      "n_transcripts": 141048
+    },
+    {
+      "gene": "PTGDS",
+      "bin_um": 100,
+      "file": "data/density/PTGDS_100um.parquet",
+      "n_bins": 3851,
+      "n_transcripts": 141048
+    },
+    {
+      "gene": "PTN",
+      "bin_um": 25,
+      "file": "data/density/PTN_25um.parquet",
+      "n_bins": 20618,
+      "n_transcripts": 65277
+    },
+    {
+      "gene": "PTN",
+      "bin_um": 50,
+      "file": "data/density/PTN_50um.parquet",
+      "n_bins": 11101,
+      "n_transcripts": 65277
+    },
+    {
+      "gene": "PTN",
+      "bin_um": 100,
+      "file": "data/density/PTN_100um.parquet",
+      "n_bins": 3935,
+      "n_transcripts": 65277
+    },
+    {
+      "gene": "PTPRC",
+      "bin_um": 25,
+      "file": "data/density/PTPRC_25um.parquet",
+      "n_bins": 34841,
+      "n_transcripts": 172241
+    },
+    {
+      "gene": "PTPRC",
+      "bin_um": 50,
+      "file": "data/density/PTPRC_50um.parquet",
+      "n_bins": 14242,
+      "n_transcripts": 172241
+    },
+    {
+      "gene": "PTPRC",
+      "bin_um": 100,
+      "file": "data/density/PTPRC_100um.parquet",
+      "n_bins": 4102,
+      "n_transcripts": 172241
+    },
+    {
+      "gene": "PTRHD1",
+      "bin_um": 25,
+      "file": "data/density/PTRHD1_25um.parquet",
+      "n_bins": 25830,
+      "n_transcripts": 49153
+    },
+    {
+      "gene": "PTRHD1",
+      "bin_um": 50,
+      "file": "data/density/PTRHD1_50um.parquet",
+      "n_bins": 11908,
+      "n_transcripts": 49153
+    },
+    {
+      "gene": "PTRHD1",
+      "bin_um": 100,
+      "file": "data/density/PTRHD1_100um.parquet",
+      "n_bins": 3916,
+      "n_transcripts": 49153
+    },
+    {
+      "gene": "QARS",
+      "bin_um": 25,
+      "file": "data/density/QARS_25um.parquet",
+      "n_bins": 44803,
+      "n_transcripts": 152696
+    },
+    {
+      "gene": "QARS",
+      "bin_um": 50,
+      "file": "data/density/QARS_50um.parquet",
+      "n_bins": 15398,
+      "n_transcripts": 152696
+    },
+    {
+      "gene": "QARS",
+      "bin_um": 100,
+      "file": "data/density/QARS_100um.parquet",
+      "n_bins": 4111,
+      "n_transcripts": 152696
+    },
+    {
+      "gene": "RAB30",
+      "bin_um": 25,
+      "file": "data/density/RAB30_25um.parquet",
+      "n_bins": 22671,
+      "n_transcripts": 36924
+    },
+    {
+      "gene": "RAB30",
+      "bin_um": 50,
+      "file": "data/density/RAB30_50um.parquet",
+      "n_bins": 12028,
+      "n_transcripts": 36924
+    },
+    {
+      "gene": "RAB30",
+      "bin_um": 100,
+      "file": "data/density/RAB30_100um.parquet",
+      "n_bins": 3969,
+      "n_transcripts": 36924
+    },
+    {
+      "gene": "RAMP2",
+      "bin_um": 25,
+      "file": "data/density/RAMP2_25um.parquet",
+      "n_bins": 11823,
+      "n_transcripts": 31758
+    },
+    {
+      "gene": "RAMP2",
+      "bin_um": 50,
+      "file": "data/density/RAMP2_50um.parquet",
+      "n_bins": 7497,
+      "n_transcripts": 31758
+    },
+    {
+      "gene": "RAMP2",
+      "bin_um": 100,
+      "file": "data/density/RAMP2_100um.parquet",
+      "n_bins": 3434,
+      "n_transcripts": 31758
+    },
+    {
+      "gene": "RAPGEF3",
+      "bin_um": 25,
+      "file": "data/density/RAPGEF3_25um.parquet",
+      "n_bins": 11654,
+      "n_transcripts": 17590
+    },
+    {
+      "gene": "RAPGEF3",
+      "bin_um": 50,
+      "file": "data/density/RAPGEF3_50um.parquet",
+      "n_bins": 7236,
+      "n_transcripts": 17590
+    },
+    {
+      "gene": "RAPGEF3",
+      "bin_um": 100,
+      "file": "data/density/RAPGEF3_100um.parquet",
+      "n_bins": 3166,
+      "n_transcripts": 17590
+    },
+    {
+      "gene": "RHOH",
+      "bin_um": 25,
+      "file": "data/density/RHOH_25um.parquet",
+      "n_bins": 32457,
+      "n_transcripts": 92976
+    },
+    {
+      "gene": "RHOH",
+      "bin_um": 50,
+      "file": "data/density/RHOH_50um.parquet",
+      "n_bins": 13049,
+      "n_transcripts": 92976
+    },
+    {
+      "gene": "RHOH",
+      "bin_um": 100,
+      "file": "data/density/RHOH_100um.parquet",
+      "n_bins": 3979,
+      "n_transcripts": 92976
+    },
+    {
+      "gene": "RORC",
+      "bin_um": 25,
+      "file": "data/density/RORC_25um.parquet",
+      "n_bins": 10597,
+      "n_transcripts": 14208
+    },
+    {
+      "gene": "RORC",
+      "bin_um": 50,
+      "file": "data/density/RORC_50um.parquet",
+      "n_bins": 7290,
+      "n_transcripts": 14208
+    },
+    {
+      "gene": "RORC",
+      "bin_um": 100,
+      "file": "data/density/RORC_100um.parquet",
+      "n_bins": 3344,
+      "n_transcripts": 14208
+    },
+    {
+      "gene": "RTKN2",
+      "bin_um": 25,
+      "file": "data/density/RTKN2_25um.parquet",
+      "n_bins": 20436,
+      "n_transcripts": 48304
+    },
+    {
+      "gene": "RTKN2",
+      "bin_um": 50,
+      "file": "data/density/RTKN2_50um.parquet",
+      "n_bins": 10152,
+      "n_transcripts": 48304
+    },
+    {
+      "gene": "RTKN2",
+      "bin_um": 100,
+      "file": "data/density/RTKN2_100um.parquet",
+      "n_bins": 3734,
+      "n_transcripts": 48304
+    },
+    {
+      "gene": "RUNX1",
+      "bin_um": 25,
+      "file": "data/density/RUNX1_25um.parquet",
+      "n_bins": 54142,
+      "n_transcripts": 246228
+    },
+    {
+      "gene": "RUNX1",
+      "bin_um": 50,
+      "file": "data/density/RUNX1_50um.parquet",
+      "n_bins": 16078,
+      "n_transcripts": 246228
+    },
+    {
+      "gene": "RUNX1",
+      "bin_um": 100,
+      "file": "data/density/RUNX1_100um.parquet",
+      "n_bins": 4127,
+      "n_transcripts": 246228
+    },
+    {
+      "gene": "S100A14",
+      "bin_um": 25,
+      "file": "data/density/S100A14_25um.parquet",
+      "n_bins": 39933,
+      "n_transcripts": 245403
+    },
+    {
+      "gene": "S100A14",
+      "bin_um": 50,
+      "file": "data/density/S100A14_50um.parquet",
+      "n_bins": 14624,
+      "n_transcripts": 245403
+    },
+    {
+      "gene": "S100A14",
+      "bin_um": 100,
+      "file": "data/density/S100A14_100um.parquet",
+      "n_bins": 4114,
+      "n_transcripts": 245403
+    },
+    {
+      "gene": "S100A4",
+      "bin_um": 25,
+      "file": "data/density/S100A4_25um.parquet",
+      "n_bins": 38349,
+      "n_transcripts": 128167
+    },
+    {
+      "gene": "S100A4",
+      "bin_um": 50,
+      "file": "data/density/S100A4_50um.parquet",
+      "n_bins": 14760,
+      "n_transcripts": 128167
+    },
+    {
+      "gene": "S100A4",
+      "bin_um": 100,
+      "file": "data/density/S100A4_100um.parquet",
+      "n_bins": 4107,
+      "n_transcripts": 128167
+    },
+    {
+      "gene": "S100A8",
+      "bin_um": 25,
+      "file": "data/density/S100A8_25um.parquet",
+      "n_bins": 3331,
+      "n_transcripts": 6471
+    },
+    {
+      "gene": "S100A8",
+      "bin_um": 50,
+      "file": "data/density/S100A8_50um.parquet",
+      "n_bins": 2673,
+      "n_transcripts": 6471
+    },
+    {
+      "gene": "S100A8",
+      "bin_um": 100,
+      "file": "data/density/S100A8_100um.parquet",
+      "n_bins": 1844,
+      "n_transcripts": 6471
+    },
+    {
+      "gene": "SCD",
+      "bin_um": 25,
+      "file": "data/density/SCD_25um.parquet",
+      "n_bins": 52443,
+      "n_transcripts": 878700
+    },
+    {
+      "gene": "SCD",
+      "bin_um": 50,
+      "file": "data/density/SCD_50um.parquet",
+      "n_bins": 15940,
+      "n_transcripts": 878700
+    },
+    {
+      "gene": "SCD",
+      "bin_um": 100,
+      "file": "data/density/SCD_100um.parquet",
+      "n_bins": 4133,
+      "n_transcripts": 878700
+    },
+    {
+      "gene": "SCGB2A1",
+      "bin_um": 25,
+      "file": "data/density/SCGB2A1_25um.parquet",
+      "n_bins": 1838,
+      "n_transcripts": 2457
+    },
+    {
+      "gene": "SCGB2A1",
+      "bin_um": 50,
+      "file": "data/density/SCGB2A1_50um.parquet",
+      "n_bins": 1421,
+      "n_transcripts": 2457
+    },
+    {
+      "gene": "SCGB2A1",
+      "bin_um": 100,
+      "file": "data/density/SCGB2A1_100um.parquet",
+      "n_bins": 963,
+      "n_transcripts": 2457
+    },
+    {
+      "gene": "SDC4",
+      "bin_um": 25,
+      "file": "data/density/SDC4_25um.parquet",
+      "n_bins": 27720,
+      "n_transcripts": 55168
+    },
+    {
+      "gene": "SDC4",
+      "bin_um": 50,
+      "file": "data/density/SDC4_50um.parquet",
+      "n_bins": 12973,
+      "n_transcripts": 55168
+    },
+    {
+      "gene": "SDC4",
+      "bin_um": 100,
+      "file": "data/density/SDC4_100um.parquet",
+      "n_bins": 4053,
+      "n_transcripts": 55168
+    },
+    {
+      "gene": "SEC11C",
+      "bin_um": 25,
+      "file": "data/density/SEC11C_25um.parquet",
+      "n_bins": 40342,
+      "n_transcripts": 131221
+    },
+    {
+      "gene": "SEC11C",
+      "bin_um": 50,
+      "file": "data/density/SEC11C_50um.parquet",
+      "n_bins": 14658,
+      "n_transcripts": 131221
+    },
+    {
+      "gene": "SEC11C",
+      "bin_um": 100,
+      "file": "data/density/SEC11C_100um.parquet",
+      "n_bins": 4090,
+      "n_transcripts": 131221
+    },
+    {
+      "gene": "SEC24A",
+      "bin_um": 25,
+      "file": "data/density/SEC24A_25um.parquet",
+      "n_bins": 39898,
+      "n_transcripts": 126851
+    },
+    {
+      "gene": "SEC24A",
+      "bin_um": 50,
+      "file": "data/density/SEC24A_50um.parquet",
+      "n_bins": 14400,
+      "n_transcripts": 126851
+    },
+    {
+      "gene": "SEC24A",
+      "bin_um": 100,
+      "file": "data/density/SEC24A_100um.parquet",
+      "n_bins": 4068,
+      "n_transcripts": 126851
+    },
+    {
+      "gene": "SELL",
+      "bin_um": 25,
+      "file": "data/density/SELL_25um.parquet",
+      "n_bins": 15169,
+      "n_transcripts": 34868
+    },
+    {
+      "gene": "SELL",
+      "bin_um": 50,
+      "file": "data/density/SELL_50um.parquet",
+      "n_bins": 8739,
+      "n_transcripts": 34868
+    },
+    {
+      "gene": "SELL",
+      "bin_um": 100,
+      "file": "data/density/SELL_100um.parquet",
+      "n_bins": 3611,
+      "n_transcripts": 34868
+    },
+    {
+      "gene": "SERHL2",
+      "bin_um": 25,
+      "file": "data/density/SERHL2_25um.parquet",
+      "n_bins": 30763,
+      "n_transcripts": 175752
+    },
+    {
+      "gene": "SERHL2",
+      "bin_um": 50,
+      "file": "data/density/SERHL2_50um.parquet",
+      "n_bins": 12133,
+      "n_transcripts": 175752
+    },
+    {
+      "gene": "SERHL2",
+      "bin_um": 100,
+      "file": "data/density/SERHL2_100um.parquet",
+      "n_bins": 3938,
+      "n_transcripts": 175752
+    },
+    {
+      "gene": "SERPINA3",
+      "bin_um": 25,
+      "file": "data/density/SERPINA3_25um.parquet",
+      "n_bins": 37480,
+      "n_transcripts": 264411
+    },
+    {
+      "gene": "SERPINA3",
+      "bin_um": 50,
+      "file": "data/density/SERPINA3_50um.parquet",
+      "n_bins": 14636,
+      "n_transcripts": 264411
+    },
+    {
+      "gene": "SERPINA3",
+      "bin_um": 100,
+      "file": "data/density/SERPINA3_100um.parquet",
+      "n_bins": 4079,
+      "n_transcripts": 264411
+    },
+    {
+      "gene": "SERPINB9",
+      "bin_um": 25,
+      "file": "data/density/SERPINB9_25um.parquet",
+      "n_bins": 36735,
+      "n_transcripts": 88259
+    },
+    {
+      "gene": "SERPINB9",
+      "bin_um": 50,
+      "file": "data/density/SERPINB9_50um.parquet",
+      "n_bins": 14559,
+      "n_transcripts": 88259
+    },
+    {
+      "gene": "SERPINB9",
+      "bin_um": 100,
+      "file": "data/density/SERPINB9_100um.parquet",
+      "n_bins": 4081,
+      "n_transcripts": 88259
+    },
+    {
+      "gene": "SFRP1",
+      "bin_um": 25,
+      "file": "data/density/SFRP1_25um.parquet",
+      "n_bins": 31906,
+      "n_transcripts": 142794
+    },
+    {
+      "gene": "SFRP1",
+      "bin_um": 50,
+      "file": "data/density/SFRP1_50um.parquet",
+      "n_bins": 12846,
+      "n_transcripts": 142794
+    },
+    {
+      "gene": "SFRP1",
+      "bin_um": 100,
+      "file": "data/density/SFRP1_100um.parquet",
+      "n_bins": 3947,
+      "n_transcripts": 142794
+    },
+    {
+      "gene": "SFRP4",
+      "bin_um": 25,
+      "file": "data/density/SFRP4_25um.parquet",
+      "n_bins": 34847,
+      "n_transcripts": 193474
+    },
+    {
+      "gene": "SFRP4",
+      "bin_um": 50,
+      "file": "data/density/SFRP4_50um.parquet",
+      "n_bins": 13254,
+      "n_transcripts": 193474
+    },
+    {
+      "gene": "SFRP4",
+      "bin_um": 100,
+      "file": "data/density/SFRP4_100um.parquet",
+      "n_bins": 4019,
+      "n_transcripts": 193474
+    },
+    {
+      "gene": "SH3YL1",
+      "bin_um": 25,
+      "file": "data/density/SH3YL1_25um.parquet",
+      "n_bins": 38444,
+      "n_transcripts": 132326
+    },
+    {
+      "gene": "SH3YL1",
+      "bin_um": 50,
+      "file": "data/density/SH3YL1_50um.parquet",
+      "n_bins": 14633,
+      "n_transcripts": 132326
+    },
+    {
+      "gene": "SH3YL1",
+      "bin_um": 100,
+      "file": "data/density/SH3YL1_100um.parquet",
+      "n_bins": 4108,
+      "n_transcripts": 132326
+    },
+    {
+      "gene": "SLAMF1",
+      "bin_um": 25,
+      "file": "data/density/SLAMF1_25um.parquet",
+      "n_bins": 15025,
+      "n_transcripts": 27718
+    },
+    {
+      "gene": "SLAMF1",
+      "bin_um": 50,
+      "file": "data/density/SLAMF1_50um.parquet",
+      "n_bins": 8974,
+      "n_transcripts": 27718
+    },
+    {
+      "gene": "SLAMF1",
+      "bin_um": 100,
+      "file": "data/density/SLAMF1_100um.parquet",
+      "n_bins": 3717,
+      "n_transcripts": 27718
+    },
+    {
+      "gene": "SLAMF7",
+      "bin_um": 25,
+      "file": "data/density/SLAMF7_25um.parquet",
+      "n_bins": 17762,
+      "n_transcripts": 55502
+    },
+    {
+      "gene": "SLAMF7",
+      "bin_um": 50,
+      "file": "data/density/SLAMF7_50um.parquet",
+      "n_bins": 9705,
+      "n_transcripts": 55502
+    },
+    {
+      "gene": "SLAMF7",
+      "bin_um": 100,
+      "file": "data/density/SLAMF7_100um.parquet",
+      "n_bins": 3764,
+      "n_transcripts": 55502
+    },
+    {
+      "gene": "SLC25A37",
+      "bin_um": 25,
+      "file": "data/density/SLC25A37_25um.parquet",
+      "n_bins": 20758,
+      "n_transcripts": 35103
+    },
+    {
+      "gene": "SLC25A37",
+      "bin_um": 50,
+      "file": "data/density/SLC25A37_50um.parquet",
+      "n_bins": 11154,
+      "n_transcripts": 35103
+    },
+    {
+      "gene": "SLC25A37",
+      "bin_um": 100,
+      "file": "data/density/SLC25A37_100um.parquet",
+      "n_bins": 3888,
+      "n_transcripts": 35103
+    },
+    {
+      "gene": "SLC5A6",
+      "bin_um": 25,
+      "file": "data/density/SLC5A6_25um.parquet",
+      "n_bins": 29497,
+      "n_transcripts": 85816
+    },
+    {
+      "gene": "SLC5A6",
+      "bin_um": 50,
+      "file": "data/density/SLC5A6_50um.parquet",
+      "n_bins": 12641,
+      "n_transcripts": 85816
+    },
+    {
+      "gene": "SLC5A6",
+      "bin_um": 100,
+      "file": "data/density/SLC5A6_100um.parquet",
+      "n_bins": 4017,
+      "n_transcripts": 85816
+    },
+    {
+      "gene": "SMAP2",
+      "bin_um": 25,
+      "file": "data/density/SMAP2_25um.parquet",
+      "n_bins": 35672,
+      "n_transcripts": 88225
+    },
+    {
+      "gene": "SMAP2",
+      "bin_um": 50,
+      "file": "data/density/SMAP2_50um.parquet",
+      "n_bins": 14383,
+      "n_transcripts": 88225
+    },
+    {
+      "gene": "SMAP2",
+      "bin_um": 100,
+      "file": "data/density/SMAP2_100um.parquet",
+      "n_bins": 4086,
+      "n_transcripts": 88225
+    },
+    {
+      "gene": "SMS",
+      "bin_um": 25,
+      "file": "data/density/SMS_25um.parquet",
+      "n_bins": 44902,
+      "n_transcripts": 193534
+    },
+    {
+      "gene": "SMS",
+      "bin_um": 50,
+      "file": "data/density/SMS_50um.parquet",
+      "n_bins": 15429,
+      "n_transcripts": 193534
+    },
+    {
+      "gene": "SMS",
+      "bin_um": 100,
+      "file": "data/density/SMS_100um.parquet",
+      "n_bins": 4123,
+      "n_transcripts": 193534
+    },
+    {
+      "gene": "SNAI1",
+      "bin_um": 25,
+      "file": "data/density/SNAI1_25um.parquet",
+      "n_bins": 4588,
+      "n_transcripts": 5965
+    },
+    {
+      "gene": "SNAI1",
+      "bin_um": 50,
+      "file": "data/density/SNAI1_50um.parquet",
+      "n_bins": 3764,
+      "n_transcripts": 5965
+    },
+    {
+      "gene": "SNAI1",
+      "bin_um": 100,
+      "file": "data/density/SNAI1_100um.parquet",
+      "n_bins": 2386,
+      "n_transcripts": 5965
+    },
+    {
+      "gene": "SOX17",
+      "bin_um": 25,
+      "file": "data/density/SOX17_25um.parquet",
+      "n_bins": 5524,
+      "n_transcripts": 9521
+    },
+    {
+      "gene": "SOX17",
+      "bin_um": 50,
+      "file": "data/density/SOX17_50um.parquet",
+      "n_bins": 4341,
+      "n_transcripts": 9521
+    },
+    {
+      "gene": "SOX17",
+      "bin_um": 100,
+      "file": "data/density/SOX17_100um.parquet",
+      "n_bins": 2639,
+      "n_transcripts": 9521
+    },
+    {
+      "gene": "SOX18",
+      "bin_um": 25,
+      "file": "data/density/SOX18_25um.parquet",
+      "n_bins": 3874,
+      "n_transcripts": 4970
+    },
+    {
+      "gene": "SOX18",
+      "bin_um": 50,
+      "file": "data/density/SOX18_50um.parquet",
+      "n_bins": 3251,
+      "n_transcripts": 4970
+    },
+    {
+      "gene": "SOX18",
+      "bin_um": 100,
+      "file": "data/density/SOX18_100um.parquet",
+      "n_bins": 2174,
+      "n_transcripts": 4970
+    },
+    {
+      "gene": "SPIB",
+      "bin_um": 25,
+      "file": "data/density/SPIB_25um.parquet",
+      "n_bins": 5497,
+      "n_transcripts": 8600
+    },
+    {
+      "gene": "SPIB",
+      "bin_um": 50,
+      "file": "data/density/SPIB_50um.parquet",
+      "n_bins": 3995,
+      "n_transcripts": 8600
+    },
+    {
+      "gene": "SPIB",
+      "bin_um": 100,
+      "file": "data/density/SPIB_100um.parquet",
+      "n_bins": 2402,
+      "n_transcripts": 8600
+    },
+    {
+      "gene": "SQLE",
+      "bin_um": 25,
+      "file": "data/density/SQLE_25um.parquet",
+      "n_bins": 32179,
+      "n_transcripts": 93589
+    },
+    {
+      "gene": "SQLE",
+      "bin_um": 50,
+      "file": "data/density/SQLE_50um.parquet",
+      "n_bins": 13132,
+      "n_transcripts": 93589
+    },
+    {
+      "gene": "SQLE",
+      "bin_um": 100,
+      "file": "data/density/SQLE_100um.parquet",
+      "n_bins": 4015,
+      "n_transcripts": 93589
+    },
+    {
+      "gene": "SRPK1",
+      "bin_um": 25,
+      "file": "data/density/SRPK1_25um.parquet",
+      "n_bins": 36426,
+      "n_transcripts": 98813
+    },
+    {
+      "gene": "SRPK1",
+      "bin_um": 50,
+      "file": "data/density/SRPK1_50um.parquet",
+      "n_bins": 14070,
+      "n_transcripts": 98813
+    },
+    {
+      "gene": "SRPK1",
+      "bin_um": 100,
+      "file": "data/density/SRPK1_100um.parquet",
+      "n_bins": 4068,
+      "n_transcripts": 98813
+    },
+    {
+      "gene": "SSTR2",
+      "bin_um": 25,
+      "file": "data/density/SSTR2_25um.parquet",
+      "n_bins": 2297,
+      "n_transcripts": 2810
+    },
+    {
+      "gene": "SSTR2",
+      "bin_um": 50,
+      "file": "data/density/SSTR2_50um.parquet",
+      "n_bins": 2062,
+      "n_transcripts": 2810
+    },
+    {
+      "gene": "SSTR2",
+      "bin_um": 100,
+      "file": "data/density/SSTR2_100um.parquet",
+      "n_bins": 1612,
+      "n_transcripts": 2810
+    },
+    {
+      "gene": "STC1",
+      "bin_um": 25,
+      "file": "data/density/STC1_25um.parquet",
+      "n_bins": 9689,
+      "n_transcripts": 18074
+    },
+    {
+      "gene": "STC1",
+      "bin_um": 50,
+      "file": "data/density/STC1_50um.parquet",
+      "n_bins": 5272,
+      "n_transcripts": 18074
+    },
+    {
+      "gene": "STC1",
+      "bin_um": 100,
+      "file": "data/density/STC1_100um.parquet",
+      "n_bins": 2388,
+      "n_transcripts": 18074
+    },
+    {
+      "gene": "SVIL",
+      "bin_um": 25,
+      "file": "data/density/SVIL_25um.parquet",
+      "n_bins": 44675,
+      "n_transcripts": 140457
+    },
+    {
+      "gene": "SVIL",
+      "bin_um": 50,
+      "file": "data/density/SVIL_50um.parquet",
+      "n_bins": 15341,
+      "n_transcripts": 140457
+    },
+    {
+      "gene": "SVIL",
+      "bin_um": 100,
+      "file": "data/density/SVIL_100um.parquet",
+      "n_bins": 4107,
+      "n_transcripts": 140457
+    },
+    {
+      "gene": "TAC1",
+      "bin_um": 25,
+      "file": "data/density/TAC1_25um.parquet",
+      "n_bins": 8350,
+      "n_transcripts": 15581
+    },
+    {
+      "gene": "TAC1",
+      "bin_um": 50,
+      "file": "data/density/TAC1_50um.parquet",
+      "n_bins": 5999,
+      "n_transcripts": 15581
+    },
+    {
+      "gene": "TAC1",
+      "bin_um": 100,
+      "file": "data/density/TAC1_100um.parquet",
+      "n_bins": 3129,
+      "n_transcripts": 15581
+    },
+    {
+      "gene": "TACSTD2",
+      "bin_um": 25,
+      "file": "data/density/TACSTD2_25um.parquet",
+      "n_bins": 45020,
+      "n_transcripts": 603691
+    },
+    {
+      "gene": "TACSTD2",
+      "bin_um": 50,
+      "file": "data/density/TACSTD2_50um.parquet",
+      "n_bins": 15441,
+      "n_transcripts": 603691
+    },
+    {
+      "gene": "TACSTD2",
+      "bin_um": 100,
+      "file": "data/density/TACSTD2_100um.parquet",
+      "n_bins": 4147,
+      "n_transcripts": 603691
+    },
+    {
+      "gene": "TCEAL7",
+      "bin_um": 25,
+      "file": "data/density/TCEAL7_25um.parquet",
+      "n_bins": 9130,
+      "n_transcripts": 12052
+    },
+    {
+      "gene": "TCEAL7",
+      "bin_um": 50,
+      "file": "data/density/TCEAL7_50um.parquet",
+      "n_bins": 6712,
+      "n_transcripts": 12052
+    },
+    {
+      "gene": "TCEAL7",
+      "bin_um": 100,
+      "file": "data/density/TCEAL7_100um.parquet",
+      "n_bins": 3295,
+      "n_transcripts": 12052
+    },
+    {
+      "gene": "TCF4",
+      "bin_um": 25,
+      "file": "data/density/TCF4_25um.parquet",
+      "n_bins": 31275,
+      "n_transcripts": 80418
+    },
+    {
+      "gene": "TCF4",
+      "bin_um": 50,
+      "file": "data/density/TCF4_50um.parquet",
+      "n_bins": 13304,
+      "n_transcripts": 80418
+    },
+    {
+      "gene": "TCF4",
+      "bin_um": 100,
+      "file": "data/density/TCF4_100um.parquet",
+      "n_bins": 4007,
+      "n_transcripts": 80418
+    },
+    {
+      "gene": "TCF7",
+      "bin_um": 25,
+      "file": "data/density/TCF7_25um.parquet",
+      "n_bins": 15031,
+      "n_transcripts": 27329
+    },
+    {
+      "gene": "TCF7",
+      "bin_um": 50,
+      "file": "data/density/TCF7_50um.parquet",
+      "n_bins": 8766,
+      "n_transcripts": 27329
+    },
+    {
+      "gene": "TCF7",
+      "bin_um": 100,
+      "file": "data/density/TCF7_100um.parquet",
+      "n_bins": 3582,
+      "n_transcripts": 27329
+    },
+    {
+      "gene": "TCIM",
+      "bin_um": 25,
+      "file": "data/density/TCIM_25um.parquet",
+      "n_bins": 45468,
+      "n_transcripts": 313650
+    },
+    {
+      "gene": "TCIM",
+      "bin_um": 50,
+      "file": "data/density/TCIM_50um.parquet",
+      "n_bins": 15553,
+      "n_transcripts": 313650
+    },
+    {
+      "gene": "TCIM",
+      "bin_um": 100,
+      "file": "data/density/TCIM_100um.parquet",
+      "n_bins": 4129,
+      "n_transcripts": 313650
+    },
+    {
+      "gene": "TCL1A",
+      "bin_um": 25,
+      "file": "data/density/TCL1A_25um.parquet",
+      "n_bins": 2320,
+      "n_transcripts": 3624
+    },
+    {
+      "gene": "TCL1A",
+      "bin_um": 50,
+      "file": "data/density/TCL1A_50um.parquet",
+      "n_bins": 2042,
+      "n_transcripts": 3624
+    },
+    {
+      "gene": "TCL1A",
+      "bin_um": 100,
+      "file": "data/density/TCL1A_100um.parquet",
+      "n_bins": 1545,
+      "n_transcripts": 3624
+    },
+    {
+      "gene": "TENT5C",
+      "bin_um": 25,
+      "file": "data/density/TENT5C_25um.parquet",
+      "n_bins": 35838,
+      "n_transcripts": 170206
+    },
+    {
+      "gene": "TENT5C",
+      "bin_um": 50,
+      "file": "data/density/TENT5C_50um.parquet",
+      "n_bins": 14012,
+      "n_transcripts": 170206
+    },
+    {
+      "gene": "TENT5C",
+      "bin_um": 100,
+      "file": "data/density/TENT5C_100um.parquet",
+      "n_bins": 4084,
+      "n_transcripts": 170206
+    },
+    {
+      "gene": "TFAP2A",
+      "bin_um": 25,
+      "file": "data/density/TFAP2A_25um.parquet",
+      "n_bins": 28636,
+      "n_transcripts": 90557
+    },
+    {
+      "gene": "TFAP2A",
+      "bin_um": 50,
+      "file": "data/density/TFAP2A_50um.parquet",
+      "n_bins": 11489,
+      "n_transcripts": 90557
+    },
+    {
+      "gene": "TFAP2A",
+      "bin_um": 100,
+      "file": "data/density/TFAP2A_100um.parquet",
+      "n_bins": 3817,
+      "n_transcripts": 90557
+    },
+    {
+      "gene": "THAP2",
+      "bin_um": 25,
+      "file": "data/density/THAP2_25um.parquet",
+      "n_bins": 18444,
+      "n_transcripts": 27151
+    },
+    {
+      "gene": "THAP2",
+      "bin_um": 50,
+      "file": "data/density/THAP2_50um.parquet",
+      "n_bins": 10421,
+      "n_transcripts": 27151
+    },
+    {
+      "gene": "THAP2",
+      "bin_um": 100,
+      "file": "data/density/THAP2_100um.parquet",
+      "n_bins": 3770,
+      "n_transcripts": 27151
+    },
+    {
+      "gene": "TIFA",
+      "bin_um": 25,
+      "file": "data/density/TIFA_25um.parquet",
+      "n_bins": 21107,
+      "n_transcripts": 34090
+    },
+    {
+      "gene": "TIFA",
+      "bin_um": 50,
+      "file": "data/density/TIFA_50um.parquet",
+      "n_bins": 11091,
+      "n_transcripts": 34090
+    },
+    {
+      "gene": "TIFA",
+      "bin_um": 100,
+      "file": "data/density/TIFA_100um.parquet",
+      "n_bins": 3847,
+      "n_transcripts": 34090
+    },
+    {
+      "gene": "TIGIT",
+      "bin_um": 25,
+      "file": "data/density/TIGIT_25um.parquet",
+      "n_bins": 6883,
+      "n_transcripts": 11329
+    },
+    {
+      "gene": "TIGIT",
+      "bin_um": 50,
+      "file": "data/density/TIGIT_50um.parquet",
+      "n_bins": 4849,
+      "n_transcripts": 11329
+    },
+    {
+      "gene": "TIGIT",
+      "bin_um": 100,
+      "file": "data/density/TIGIT_100um.parquet",
+      "n_bins": 2699,
+      "n_transcripts": 11329
+    },
+    {
+      "gene": "TIMP4",
+      "bin_um": 25,
+      "file": "data/density/TIMP4_25um.parquet",
+      "n_bins": 7236,
+      "n_transcripts": 10533
+    },
+    {
+      "gene": "TIMP4",
+      "bin_um": 50,
+      "file": "data/density/TIMP4_50um.parquet",
+      "n_bins": 5491,
+      "n_transcripts": 10533
+    },
+    {
+      "gene": "TIMP4",
+      "bin_um": 100,
+      "file": "data/density/TIMP4_100um.parquet",
+      "n_bins": 3013,
+      "n_transcripts": 10533
+    },
+    {
+      "gene": "TMEM147",
+      "bin_um": 25,
+      "file": "data/density/TMEM147_25um.parquet",
+      "n_bins": 45578,
+      "n_transcripts": 171378
+    },
+    {
+      "gene": "TMEM147",
+      "bin_um": 50,
+      "file": "data/density/TMEM147_50um.parquet",
+      "n_bins": 15327,
+      "n_transcripts": 171378
+    },
+    {
+      "gene": "TMEM147",
+      "bin_um": 100,
+      "file": "data/density/TMEM147_100um.parquet",
+      "n_bins": 4101,
+      "n_transcripts": 171378
+    },
+    {
+      "gene": "TNFRSF17",
+      "bin_um": 25,
+      "file": "data/density/TNFRSF17_25um.parquet",
+      "n_bins": 4717,
+      "n_transcripts": 7707
+    },
+    {
+      "gene": "TNFRSF17",
+      "bin_um": 50,
+      "file": "data/density/TNFRSF17_50um.parquet",
+      "n_bins": 3561,
+      "n_transcripts": 7707
+    },
+    {
+      "gene": "TNFRSF17",
+      "bin_um": 100,
+      "file": "data/density/TNFRSF17_100um.parquet",
+      "n_bins": 2144,
+      "n_transcripts": 7707
+    },
+    {
+      "gene": "TOMM7",
+      "bin_um": 25,
+      "file": "data/density/TOMM7_25um.parquet",
+      "n_bins": 61025,
+      "n_transcripts": 557011
+    },
+    {
+      "gene": "TOMM7",
+      "bin_um": 50,
+      "file": "data/density/TOMM7_50um.parquet",
+      "n_bins": 16328,
+      "n_transcripts": 557011
+    },
+    {
+      "gene": "TOMM7",
+      "bin_um": 100,
+      "file": "data/density/TOMM7_100um.parquet",
+      "n_bins": 4140,
+      "n_transcripts": 557011
+    },
+    {
+      "gene": "TOP2A",
+      "bin_um": 25,
+      "file": "data/density/TOP2A_25um.parquet",
+      "n_bins": 22121,
+      "n_transcripts": 90530
+    },
+    {
+      "gene": "TOP2A",
+      "bin_um": 50,
+      "file": "data/density/TOP2A_50um.parquet",
+      "n_bins": 10051,
+      "n_transcripts": 90530
+    },
+    {
+      "gene": "TOP2A",
+      "bin_um": 100,
+      "file": "data/density/TOP2A_100um.parquet",
+      "n_bins": 3740,
+      "n_transcripts": 90530
+    },
+    {
+      "gene": "TPD52",
+      "bin_um": 25,
+      "file": "data/density/TPD52_25um.parquet",
+      "n_bins": 43297,
+      "n_transcripts": 280944
+    },
+    {
+      "gene": "TPD52",
+      "bin_um": 50,
+      "file": "data/density/TPD52_50um.parquet",
+      "n_bins": 15043,
+      "n_transcripts": 280944
+    },
+    {
+      "gene": "TPD52",
+      "bin_um": 100,
+      "file": "data/density/TPD52_100um.parquet",
+      "n_bins": 4113,
+      "n_transcripts": 280944
+    },
+    {
+      "gene": "TPSAB1",
+      "bin_um": 25,
+      "file": "data/density/TPSAB1_25um.parquet",
+      "n_bins": 8372,
+      "n_transcripts": 15874
+    },
+    {
+      "gene": "TPSAB1",
+      "bin_um": 50,
+      "file": "data/density/TPSAB1_50um.parquet",
+      "n_bins": 5959,
+      "n_transcripts": 15874
+    },
+    {
+      "gene": "TPSAB1",
+      "bin_um": 100,
+      "file": "data/density/TPSAB1_100um.parquet",
+      "n_bins": 3066,
+      "n_transcripts": 15874
+    },
+    {
+      "gene": "TRAC",
+      "bin_um": 25,
+      "file": "data/density/TRAC_25um.parquet",
+      "n_bins": 31147,
+      "n_transcripts": 121564
+    },
+    {
+      "gene": "TRAC",
+      "bin_um": 50,
+      "file": "data/density/TRAC_50um.parquet",
+      "n_bins": 13398,
+      "n_transcripts": 121564
+    },
+    {
+      "gene": "TRAC",
+      "bin_um": 100,
+      "file": "data/density/TRAC_100um.parquet",
+      "n_bins": 4058,
+      "n_transcripts": 121564
+    },
+    {
+      "gene": "TRAF4",
+      "bin_um": 25,
+      "file": "data/density/TRAF4_25um.parquet",
+      "n_bins": 30835,
+      "n_transcripts": 103299
+    },
+    {
+      "gene": "TRAF4",
+      "bin_um": 50,
+      "file": "data/density/TRAF4_50um.parquet",
+      "n_bins": 12738,
+      "n_transcripts": 103299
+    },
+    {
+      "gene": "TRAF4",
+      "bin_um": 100,
+      "file": "data/density/TRAF4_100um.parquet",
+      "n_bins": 4029,
+      "n_transcripts": 103299
+    },
+    {
+      "gene": "TRAPPC3",
+      "bin_um": 25,
+      "file": "data/density/TRAPPC3_25um.parquet",
+      "n_bins": 43335,
+      "n_transcripts": 127098
+    },
+    {
+      "gene": "TRAPPC3",
+      "bin_um": 50,
+      "file": "data/density/TRAPPC3_50um.parquet",
+      "n_bins": 15198,
+      "n_transcripts": 127098
+    },
+    {
+      "gene": "TRAPPC3",
+      "bin_um": 100,
+      "file": "data/density/TRAPPC3_100um.parquet",
+      "n_bins": 4104,
+      "n_transcripts": 127098
+    },
+    {
+      "gene": "TRIB1",
+      "bin_um": 25,
+      "file": "data/density/TRIB1_25um.parquet",
+      "n_bins": 27571,
+      "n_transcripts": 58818
+    },
+    {
+      "gene": "TRIB1",
+      "bin_um": 50,
+      "file": "data/density/TRIB1_50um.parquet",
+      "n_bins": 12754,
+      "n_transcripts": 58818
+    },
+    {
+      "gene": "TRIB1",
+      "bin_um": 100,
+      "file": "data/density/TRIB1_100um.parquet",
+      "n_bins": 4006,
+      "n_transcripts": 58818
+    },
+    {
+      "gene": "TUBA4A",
+      "bin_um": 25,
+      "file": "data/density/TUBA4A_25um.parquet",
+      "n_bins": 38365,
+      "n_transcripts": 99077
+    },
+    {
+      "gene": "TUBA4A",
+      "bin_um": 50,
+      "file": "data/density/TUBA4A_50um.parquet",
+      "n_bins": 14622,
+      "n_transcripts": 99077
+    },
+    {
+      "gene": "TUBA4A",
+      "bin_um": 100,
+      "file": "data/density/TUBA4A_100um.parquet",
+      "n_bins": 4108,
+      "n_transcripts": 99077
+    },
+    {
+      "gene": "TUBB2B",
+      "bin_um": 25,
+      "file": "data/density/TUBB2B_25um.parquet",
+      "n_bins": 16658,
+      "n_transcripts": 26245
+    },
+    {
+      "gene": "TUBB2B",
+      "bin_um": 50,
+      "file": "data/density/TUBB2B_50um.parquet",
+      "n_bins": 9055,
+      "n_transcripts": 26245
+    },
+    {
+      "gene": "TUBB2B",
+      "bin_um": 100,
+      "file": "data/density/TUBB2B_100um.parquet",
+      "n_bins": 3613,
+      "n_transcripts": 26245
+    },
+    {
+      "gene": "UCP1",
+      "bin_um": 25,
+      "file": "data/density/UCP1_25um.parquet",
+      "n_bins": 677,
+      "n_transcripts": 753
+    },
+    {
+      "gene": "UCP1",
+      "bin_um": 50,
+      "file": "data/density/UCP1_50um.parquet",
+      "n_bins": 659,
+      "n_transcripts": 753
+    },
+    {
+      "gene": "UCP1",
+      "bin_um": 100,
+      "file": "data/density/UCP1_100um.parquet",
+      "n_bins": 605,
+      "n_transcripts": 753
+    },
+    {
+      "gene": "USP53",
+      "bin_um": 25,
+      "file": "data/density/USP53_25um.parquet",
+      "n_bins": 38306,
+      "n_transcripts": 140359
+    },
+    {
+      "gene": "USP53",
+      "bin_um": 50,
+      "file": "data/density/USP53_50um.parquet",
+      "n_bins": 14607,
+      "n_transcripts": 140359
+    },
+    {
+      "gene": "USP53",
+      "bin_um": 100,
+      "file": "data/density/USP53_100um.parquet",
+      "n_bins": 4101,
+      "n_transcripts": 140359
+    },
+    {
+      "gene": "VOPP1",
+      "bin_um": 25,
+      "file": "data/density/VOPP1_25um.parquet",
+      "n_bins": 48780,
+      "n_transcripts": 182285
+    },
+    {
+      "gene": "VOPP1",
+      "bin_um": 50,
+      "file": "data/density/VOPP1_50um.parquet",
+      "n_bins": 15593,
+      "n_transcripts": 182285
+    },
+    {
+      "gene": "VOPP1",
+      "bin_um": 100,
+      "file": "data/density/VOPP1_100um.parquet",
+      "n_bins": 4118,
+      "n_transcripts": 182285
+    },
+    {
+      "gene": "VWF",
+      "bin_um": 25,
+      "file": "data/density/VWF_25um.parquet",
+      "n_bins": 23873,
+      "n_transcripts": 89369
+    },
+    {
+      "gene": "VWF",
+      "bin_um": 50,
+      "file": "data/density/VWF_50um.parquet",
+      "n_bins": 12378,
+      "n_transcripts": 89369
+    },
+    {
+      "gene": "VWF",
+      "bin_um": 100,
+      "file": "data/density/VWF_100um.parquet",
+      "n_bins": 4015,
+      "n_transcripts": 89369
+    },
+    {
+      "gene": "WARS",
+      "bin_um": 25,
+      "file": "data/density/WARS_25um.parquet",
+      "n_bins": 41016,
+      "n_transcripts": 115534
+    },
+    {
+      "gene": "WARS",
+      "bin_um": 50,
+      "file": "data/density/WARS_50um.parquet",
+      "n_bins": 14781,
+      "n_transcripts": 115534
+    },
+    {
+      "gene": "WARS",
+      "bin_um": 100,
+      "file": "data/density/WARS_100um.parquet",
+      "n_bins": 4097,
+      "n_transcripts": 115534
+    },
+    {
+      "gene": "ZEB1",
+      "bin_um": 25,
+      "file": "data/density/ZEB1_25um.parquet",
+      "n_bins": 32443,
+      "n_transcripts": 80818
+    },
+    {
+      "gene": "ZEB1",
+      "bin_um": 50,
+      "file": "data/density/ZEB1_50um.parquet",
+      "n_bins": 13667,
+      "n_transcripts": 80818
+    },
+    {
+      "gene": "ZEB1",
+      "bin_um": 100,
+      "file": "data/density/ZEB1_100um.parquet",
+      "n_bins": 4026,
+      "n_transcripts": 80818
+    },
+    {
+      "gene": "ZEB2",
+      "bin_um": 25,
+      "file": "data/density/ZEB2_25um.parquet",
+      "n_bins": 47330,
+      "n_transcripts": 217733
+    },
+    {
+      "gene": "ZEB2",
+      "bin_um": 50,
+      "file": "data/density/ZEB2_50um.parquet",
+      "n_bins": 15527,
+      "n_transcripts": 217733
+    },
+    {
+      "gene": "ZEB2",
+      "bin_um": 100,
+      "file": "data/density/ZEB2_100um.parquet",
+      "n_bins": 4119,
+      "n_transcripts": 217733
+    },
+    {
+      "gene": "ZNF562",
+      "bin_um": 25,
+      "file": "data/density/ZNF562_25um.parquet",
+      "n_bins": 38228,
+      "n_transcripts": 117419
+    },
+    {
+      "gene": "ZNF562",
+      "bin_um": 50,
+      "file": "data/density/ZNF562_50um.parquet",
+      "n_bins": 14537,
+      "n_transcripts": 117419
+    },
+    {
+      "gene": "ZNF562",
+      "bin_um": 100,
+      "file": "data/density/ZNF562_100um.parquet",
+      "n_bins": 4094,
+      "n_transcripts": 117419
     }
   ]
 }

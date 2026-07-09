@@ -17,6 +17,10 @@ jazzPanda output/
 *.h5ad
 xenium_hbreast_seu.Rds
 
+# Fat raw expression matrix (280 genes × all cells, ~55 MB); the committed
+# artifact is the subsampled data/embeddings/marker_expr.parquet.
+data/embeddings/marker_expr.csv
+
 # ── Python ──────────────────────────────────────────────────────────────────
 .venv/
 venv/

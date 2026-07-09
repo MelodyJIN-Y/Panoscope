@@ -35,6 +35,7 @@ from agent.types import ClusterVerdict, Note
 # through agent.data). Field layout, per data check:
 #   marker_expr.csv : cell_id (int) + one float column per demo marker
 # --------------------------------------------------------------------------- #
+_MARKER_EXPR_PARQUET = cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet"
 _MARKER_EXPR_CSV = cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.csv"
 _DENSITY_INDEX = cfg.DATA_DIR_PATH / "density" / "_index.json"
 
@@ -163,22 +164,22 @@ def available_density_markers() -> list[str]:
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
 def marker_expr_df() -> pd.DataFrame:
-    """Per-cell expression for the demo markers (cell_id + one column per marker).
-
-    Read once and cached; ``marker_expr_col`` slices a single gene out of it so
-    the UMAP feature view never re-reads the CSV.
+    """Per-cell expression for ALL panel genes (cell_id + one column per gene),
+    on a cluster-stratified cell subsample. Read once and cached; parquet-first
+    (the committed artifact), CSV fallback for a raw prep output.
     """
+    if _MARKER_EXPR_PARQUET.exists():
+        return pd.read_parquet(_MARKER_EXPR_PARQUET)
     return pd.read_csv(_MARKER_EXPR_CSV)
 
 
 @_cache_data(show_spinner=False)
 def marker_expr_col(gene: str) -> Optional[pd.DataFrame]:
-    """Return (cell_id, value) for one demo marker, or None if not exported.
+    """Return (cell_id, value) for one marker, or None if not exported.
 
     ``value`` is the log-normalized expression column named exactly ``gene``
-    (case-insensitive match). Returns None rather than raising when the gene is
-    not among the exported demo markers, so the UMAP feature panel can show its
-    empty state instead of erroring.
+    (case-insensitive match). Returns None rather than raising when the gene has
+    no exported expression, so the feature panel can show its empty state.
     """
     df = marker_expr_df()
     col = None
@@ -190,6 +191,26 @@ def marker_expr_col(gene: str) -> Optional[pd.DataFrame]:
     if col is None or "cell_id" not in df.columns:
         return None
     return df[["cell_id", col]].rename(columns={col: "value"})
+
+
+@_cache_data(show_spinner=False)
+def available_expr_markers() -> list[str]:
+    """Gene names with per-cell expression exported (feature-UMAP / violin) —
+    all panel genes now, minus the ``cell_id`` key."""
+    return [c for c in marker_expr_df().columns if c != "cell_id"]
+
+
+@_cache_data(show_spinner=False)
+def expr_by_cluster(gene: str) -> Optional[pd.DataFrame]:
+    """Return (value, cluster) per cell for one gene, for the across-cluster
+    violin. Joins the gene's expression onto the authoritative cluster labels
+    (``cells_df`` on ``cell_id``). None if the gene has no exported expression.
+    """
+    col = marker_expr_col(gene)
+    if col is None:
+        return None
+    cl = cells_df()[["cell_id", "cluster"]]
+    return col.merge(cl, on="cell_id", how="inner")
 
 
 # --------------------------------------------------------------------------- #
@@ -262,6 +283,8 @@ __all__ = [
     "available_density_markers",
     "marker_expr_df",
     "marker_expr_col",
+    "available_expr_markers",
+    "expr_by_cluster",
     "verdict_for",
     "all_verdicts",
     "verdict_csv",

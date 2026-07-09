@@ -204,15 +204,24 @@ cat("\n")
 #     Panel-absence discipline: only export markers actually in the assay;
 #     a gene missing from the assay is reported, never faked with zeros.
 # --------------------------------------------------------------------------- #
+# ALL panel genes (280) so any pinned marker can drive the feature-UMAP + violin.
+MARKERS_TOP_CSV <- file.path("data", "jazzpanda", "markers_top.csv")
+assert_exists(MARKERS_TOP_CSV, "markers_top.csv")
+PANEL_GENES <- unique(as.character(
+  read.csv(MARKERS_TOP_CSV, check.names = FALSE)$gene))
+assert_true(length(PANEL_GENES) > 0L, "no panel genes read from markers_top.csv")
+
 assay <- SeuratObject::DefaultAssay(seu1)
 gene_universe <- rownames(seu1)
-present <- DEMO_MARKERS[DEMO_MARKERS %in% gene_universe]
-missing <- DEMO_MARKERS[!DEMO_MARKERS %in% gene_universe]
+present <- PANEL_GENES[PANEL_GENES %in% gene_universe]
+missing <- PANEL_GENES[!PANEL_GENES %in% gene_universe]
 if (length(missing) > 0L) {
-  cat("    NOTE: DEMO_MARKERS not in assay (skipped, not faked):",
-      paste(missing, collapse = ", "), "\n")
+  cat("    NOTE: panel genes not in assay (skipped, not faked):",
+      length(missing), "\n")
 }
-assert_true(length(present) > 0L, "none of DEMO_MARKERS present in assay")
+assert_true(length(present) > 0L, "none of the panel genes present in assay")
+cat("    panel genes present in assay:", length(present), "of",
+    length(PANEL_GENES), "\n")
 
 # 'data' = log-normalized layer. GetAssayData returns genes x cells; transpose.
 expr <- SeuratObject::GetAssayData(seu1, assay = assay, layer = "data")[present, , drop = FALSE]
@@ -220,15 +229,30 @@ expr_t <- as.matrix(Matrix::t(expr))          # cells x genes
 assert_true(nrow(expr_t) == length(hb1_cells),
             "marker_expr: cell count mismatch vs hb1 subset")
 
-marker_out <- data.frame(
+marker_full <- data.frame(
   cell_id = cell_id_from_name(rownames(expr_t)),
-  stringsAsFactors = FALSE
+  stringsAsFactors = FALSE, check.names = FALSE
 )
-for (g in present) marker_out[[g]] <- as.numeric(expr_t[, g])
-
-assert_true(!any(is.na(marker_out$cell_id)), "marker_expr: NA cell_id")
-assert_true(nrow(marker_out) == nrow(umap_out),
+for (g in present) marker_full[[g]] <- as.numeric(expr_t[, g])
+assert_true(!any(is.na(marker_full$cell_id)), "marker_expr: NA cell_id")
+assert_true(nrow(marker_full) == nrow(umap_out),
             "marker_expr row count != umap row count (both = hb1 cells)")
+
+# ---- cluster-STRATIFIED subsample (deterministic) so the committed matrix stays
+# lean + fresh-clone-friendly; small clusters kept in full so every violin is
+# legible; the feature-UMAP already downsamples the background -> visually lossless.
+set.seed(0)
+mk_cluster <- unname(AUTH_CLUSTER[rownames(expr_t)])
+mk_cluster[is.na(mk_cluster)] <- ""            # unassigned cells kept as own group
+CAP_PER_CLUSTER <- 5000L
+keep_idx <- sort(unlist(
+  lapply(split(seq_len(nrow(marker_full)), mk_cluster), function(idx) {
+    if (length(idx) <= CAP_PER_CLUSTER) idx else sample(idx, CAP_PER_CLUSTER)
+  }),
+  use.names = FALSE))
+marker_out <- marker_full[keep_idx, , drop = FALSE]
+cat(sprintf("    stratified subsample: %d of %d hb1 cells (cap %d/cluster)\n",
+            nrow(marker_out), nrow(marker_full), CAP_PER_CLUSTER))
 
 write.csv(marker_out, OUT_MARKEREXPR, row.names = FALSE)
 cat("    wrote", OUT_MARKEREXPR, "rows:", nrow(marker_out),
@@ -244,5 +268,5 @@ cat("== DONE ==\n")
 cat(sprintf("cells.csv        : %d rows  (assert %d) OK\n", nrow(cells_out), SAMPLE1_N_CELLS))
 cat(sprintf("umap.csv         : %d rows,  %d cols  (%d authoritatively labeled, %d unassigned)\n",
             nrow(umap_out), ncol(umap_out), n_labeled, n_unlabeled))
-cat(sprintf("marker_expr.csv  : %d rows,  %d marker cols (%d requested, %d missing)\n",
-            nrow(marker_out), length(present), length(DEMO_MARKERS), length(missing)))
+cat(sprintf("marker_expr.csv  : %d rows (subsample),  %d marker cols (%d panel genes, %d missing from assay)\n",
+            nrow(marker_out), length(present), length(PANEL_GENES), length(missing)))

@@ -81,6 +81,15 @@ def _assert_inputs_exist() -> None:
         )
 
 
+def _all_panel_genes() -> list[str]:
+    """All analyzed panel genes (from the tidy top-marker table) so EVERY marker
+    the app can pin gets a precomputed density frame — not just the demo set.
+    Sorted and unique (280 genes for the Xenium breast panel)."""
+    from agent import data as agent_data
+
+    return sorted(agent_data.load_markers()["gene"].astype(str).unique())
+
+
 def _is_control(feature_name: str) -> bool:
     """True if a feature name is a negative-control / blank / antisense probe."""
     low = feature_name.lower()
@@ -234,14 +243,16 @@ def main() -> None:
     _assert_inputs_exist()
     DENSITY_DIR.mkdir(parents=True, exist_ok=True)
 
-    demo_markers = list(config.DEMO_MARKERS)
+    # ALL analyzed panel genes (not just the demo set) so every marker the app
+    # can pin has a precomputed density frame. (Variable kept as demo_markers for
+    # the downstream loop; it now holds all 280 panel genes.)
+    demo_markers = _all_panel_genes()
     demo_set = frozenset(demo_markers)
     print(
-        f"[precompute_density] {len(demo_markers)} demo markers, bins "
+        f"[precompute_density] {len(demo_markers)} panel genes, bins "
         f"{BIN_SIZES_UM} µm, qv>= {QV_MIN}",
         flush=True,
     )
-    print(f"[precompute_density] markers: {demo_markers}", flush=True)
 
     # ---- single streaming pass ----
     per_gene_xy = _stream_demo_transcripts(demo_set)
