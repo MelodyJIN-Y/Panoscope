@@ -95,9 +95,19 @@ html, body, .stApp {{
 .block-container {{ padding: 12px 20px 24px; max-width: 100%; }}
 
 /* ---- brand / header ---- */
-.pano-brand {{ font-family: var(--sans); font-weight: 700; font-size: 15px; }}
+.pano-brand {{
+  font-family: var(--sans); font-weight: 700; font-size: 16px;
+  letter-spacing: -.01em; display: flex; align-items: center; color: var(--ink);
+}}
 .pano-brand .d {{ color: var(--accent); }}
-.pano-ctx {{ font-family: var(--mono); font-size: 11px; color: var(--muted); }}
+.pano-mark {{
+  display: inline-block; width: 18px; height: 18px; border-radius: 5px; flex: none;
+  background: linear-gradient(135deg, var(--accent) 0%, #0B5B65 100%);
+  margin-right: 9px;
+}}
+.pano-ctx {{ font-family: var(--mono); font-size: 10.5px; color: var(--faint); margin-top: 3px; }}
+/* App bar — a real header strip with a hairline under it. */
+.st-key-pano_appbar {{ border-bottom: 1px solid var(--hair); padding-bottom: 8px; margin-bottom: 12px; }}
 .pano-eyebrow {{
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .1em; color: var(--faint); font-weight: 500; margin: 0 0 12px;
@@ -291,27 +301,41 @@ div[class*="st-key-seldot_"] button[data-testid="stBaseButton-primary"] {{
  * the selected row uses type="primary", restyled here to a LIGHT accent (not the
  * solid-teal primary), scoped tightly enough to beat the global primary rule. */
 .st-key-pano_rail {{ display: flex; flex-direction: column; gap: 1px; }}
-.st-key-pano_rail [data-testid="stHorizontalBlock"] {{ gap: 4px; align-items: center; }}
-.st-key-pano_rail [data-testid="stColumn"] {{ padding: 0; }}
-.pano-raildot {{
-  width: 9px; height: 9px; border-radius: 50%; margin: 0 auto; flex: none;
-}}
+/* One chromeless, LEFT-aligned button per cluster. The colour dot is the button's
+ * ::before (coloured per cluster via the st-key-rail_cN class below), so dot + name
+ * sit on one line, aligned. Shrinking the label child (flex 0 1 auto, width auto)
+ * lets justify-content:flex-start pack dot+name left. Selected row = a simple
+ * accent-soft tint (like a selected gene row), no left bar/bracket.
+ * NB: the per-cluster dot colours mirror ui/format.py CLUSTER_COLORS. */
 .st-key-pano_rail div[data-testid="stButton"] > button {{
   background: transparent !important; border: 0 !important; box-shadow: none !important;
-  justify-content: flex-start !important; text-align: left !important;
-  padding: 7px 9px !important; min-height: 0 !important;
+  min-height: 0 !important; padding: 6px 10px !important; border-radius: 7px !important;
   font-family: var(--sans) !important; font-size: 13px !important; font-weight: 500 !important;
-  color: var(--ink) !important; border-radius: 7px !important;
-  border-left: 2px solid transparent !important;
+  color: var(--ink) !important;
+  display: flex !important; align-items: center !important; justify-content: flex-start !important;
   transition: background 140ms ease;
 }}
-.st-key-pano_rail div[data-testid="stButton"] > button:hover {{
-  background: var(--hair2) !important;
+.st-key-pano_rail div[data-testid="stButton"] > button > div {{
+  flex: 0 1 auto !important; width: auto !important;
+  justify-content: flex-start !important; text-align: left !important;
 }}
+.st-key-pano_rail div[data-testid="stButton"] > button::before {{
+  content: ''; width: 9px; height: 9px; border-radius: 50%; flex: none;
+  margin-right: 9px; background: var(--faint);
+}}
+.st-key-rail_c1 button::before {{ background: #FC8D62 !important; }}
+.st-key-rail_c2 button::before {{ background: #66C2A5 !important; }}
+.st-key-rail_c3 button::before {{ background: #8DA0CB !important; }}
+.st-key-rail_c4 button::before {{ background: #E78AC3 !important; }}
+.st-key-rail_c5 button::before {{ background: #A6D854 !important; }}
+.st-key-rail_c6 button::before {{ background: #87CEEB !important; }}
+.st-key-rail_c7 button::before {{ background: #7D26CD !important; }}
+.st-key-rail_c8 button::before {{ background: #E5C498 !important; }}
+.st-key-rail_c9 button::before {{ background: #0000FF !important; }}
+.st-key-pano_rail div[data-testid="stButton"] > button:hover {{ background: var(--hair2) !important; }}
 .st-key-pano_rail div[data-testid="stButton"] > button[kind="primary"],
 .st-key-pano_rail button[data-testid="stBaseButton-primary"] {{
-  background: var(--accent-soft) !important; color: var(--accent) !important;
-  border-left-color: var(--accent) !important; font-weight: 700 !important;
+  background: var(--accent-soft) !important; color: var(--accent) !important; font-weight: 700 !important;
 }}
 .st-key-pano_rail div[data-testid="stButton"] > button:focus-visible {{
   outline: 2px solid var(--accent) !important; outline-offset: -2px;

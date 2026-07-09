@@ -24,17 +24,16 @@ the ``pano-raildot`` span. Streamlit is imported lazily inside ``render_rail`` s
 
 from __future__ import annotations
 
-import html
 from typing import Optional
 
 from agent.config import CLUSTER_KEY, CLUSTER_ORDER
 from agent.types import ClusterVerdict
 
-from ui import data_access, format as fmt, state
+from ui import data_access, state
 
-# The rail dot uses the cluster's own palette colour (``fmt.cluster_color``), so
-# the dot beside a cluster name matches that cluster's colour in the cell map,
-# UMAP, and violin — a single visual key across the whole app.
+# The rail dot is the cluster button's CSS ``::before`` (coloured per cluster in
+# ui/theme.py to match that cluster's colour in the cell map, UMAP, and dot plot),
+# so the dot beside a cluster name is a single visual key across the whole app.
 
 
 def _cluster_label(cluster: str) -> str:
@@ -43,14 +42,6 @@ def _cluster_label(cluster: str) -> str:
     if entry:
         return entry["cell_type"].replace("_", " ")
     return cluster
-
-
-def _dot_html(color: str, title: str) -> str:
-    """The small confidence dot for a rail row (pure, escaped title)."""
-    return (
-        f'<div class="pano-raildot" style="background:{color}" '
-        f'title="{html.escape(title)}"></div>'
-    )
 
 
 def render_rail() -> Optional[str]:
@@ -81,23 +72,23 @@ def render_rail() -> Optional[str]:
             if verdict is not None:
                 name = verdict.cell_type.replace("_", " ")
                 label = f"{name}  ⚑" if verdict.verify else name
-                dot = _dot_html(fmt.cluster_color(cluster), name)
             else:
                 label = _cluster_label(cluster)
-                dot = _dot_html(fmt.cluster_color(cluster), _cluster_label(cluster))
 
-            dot_col, btn_col = st.columns([0.14, 0.86], vertical_alignment="center")
-            with dot_col:
-                st.markdown(dot, unsafe_allow_html=True)
-            with btn_col:
-                st.button(
-                    label,
-                    key=f"rail_{cluster}",
-                    type="primary" if is_sel else "secondary",
-                    use_container_width=True,
-                    on_click=state.set_selected_cluster,
-                    args=(cluster,),
-                )
+            # One chromeless button per cluster. The colour dot is the button's
+            # ``::before`` (theme, coloured per cluster via the ``st-key-rail_cN``
+            # class), so it sits right next to the left-aligned name — perfectly
+            # aligned. The selected row is a simple accent tint (like a selected
+            # gene row), no left bar. Button key ``rail_<cluster>`` drives the dot
+            # colour rule.
+            st.button(
+                label,
+                key=f"rail_{cluster}",
+                type="primary" if is_sel else "secondary",
+                use_container_width=True,
+                on_click=state.set_selected_cluster,
+                args=(cluster,),
+            )
 
     return state.get_selected_cluster()
 

@@ -45,44 +45,47 @@ def _top_bar(page: str) -> None:
     The tabs are chromeless buttons styled (theme ``.st-key-pano_topnav``) into a
     top tab strip — the active one (``type="primary"``) gets an accent underline.
     """
-    brand_col, tabs_col = st.columns([0.3, 0.7], vertical_alignment="center")
-    with brand_col:
-        st.markdown(
-            '<div class="pano-brand">Pano<span class="d">·</span>scope</div>'
-            '<div class="pano-ctx">Xenium breast · 280 genes · 9 clusters · sample 1</div>',
-            unsafe_allow_html=True,
-        )
-    with tabs_col:
-        with st.container(key="pano_topnav"):
-            t_examine, t_summary, t_lab = st.columns(3)
-            with t_examine:
-                st.button(
-                    "🔬 Examine cluster",
-                    key="nav_examine",
-                    type="primary" if page == _PAGE_EXAMINE else "secondary",
-                    use_container_width=True,
-                    on_click=_set_page,
-                    args=(_PAGE_EXAMINE,),
-                )
-            with t_summary:
-                st.button(
-                    "📋 Summary",
-                    key="nav_summary",
-                    type="primary" if page == _PAGE_SUMMARY else "secondary",
-                    use_container_width=True,
-                    on_click=_set_page,
-                    args=(_PAGE_SUMMARY,),
-                )
-            with t_lab:
-                n_notes = len(dax.read_notes())
-                st.button(
-                    f"📒 Lab knowledge · {n_notes}",
-                    key="nav_lab",
-                    type="primary" if page == _PAGE_LAB else "secondary",
-                    use_container_width=True,
-                    on_click=_set_page,
-                    args=(_PAGE_LAB,),
-                )
+    with st.container(key="pano_appbar"):
+        brand_col, tabs_col = st.columns([0.34, 0.66], vertical_alignment="center")
+        with brand_col:
+            st.markdown(
+                '<div class="pano-brand"><span class="pano-mark"></span>'
+                'Pano<span class="d">·</span>scope</div>'
+                '<div class="pano-ctx">Xenium breast · 280 genes · 9 clusters · sample 1</div>',
+                unsafe_allow_html=True,
+            )
+        with tabs_col:
+            with st.container(key="pano_topnav"):
+                # Order: Summary · Examine cluster · Lab knowledge.
+                t_summary, t_examine, t_lab = st.columns(3)
+                with t_summary:
+                    st.button(
+                        "Summary",
+                        key="nav_summary",
+                        type="primary" if page == _PAGE_SUMMARY else "secondary",
+                        use_container_width=True,
+                        on_click=_set_page,
+                        args=(_PAGE_SUMMARY,),
+                    )
+                with t_examine:
+                    st.button(
+                        "Examine cluster",
+                        key="nav_examine",
+                        type="primary" if page == _PAGE_EXAMINE else "secondary",
+                        use_container_width=True,
+                        on_click=_set_page,
+                        args=(_PAGE_EXAMINE,),
+                    )
+                with t_lab:
+                    n_notes = len(dax.read_notes())
+                    st.button(
+                        f"Lab knowledge · {n_notes}",
+                        key="nav_lab",
+                        type="primary" if page == _PAGE_LAB else "secondary",
+                        use_container_width=True,
+                        on_click=_set_page,
+                        args=(_PAGE_LAB,),
+                    )
 
 
 def _examine_body() -> None:
