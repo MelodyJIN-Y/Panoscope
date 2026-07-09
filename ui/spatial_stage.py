@@ -73,15 +73,22 @@ from ui import state
 _MAX_BG_POINTS = 45_000
 
 _FADE_COLOR = "#D3D8DC"        # non-selected cells on the cell map (muted grey)
-_HIGHLIGHT_LINE = "#161B20"    # thin outline on selected-cluster cells (ink)
-_DENSITY_COLORSCALE = [        # matches the wireframe teal ramp (#EAF3F4 -> #0F5B65)
-    [0.0, "#EAF3F4"],
-    [0.25, "#B7CDD0"],
-    [0.5, "#7FB0B6"],
-    [0.75, "#3C8F99"],
-    [1.0, "#0F5B65"],
+# Plasma (matplotlib) — HIGHER = BRIGHTER, LOWER = DARKER: low = deep purple,
+# high = bright yellow (the viridis "plasma" ramp; hot spots read bright). Shared
+# by the transcript-density hex bins, the feature-UMAP, and the dotplot so the
+# spatial value plots read on one perceptual ramp. A sqrt transform on the value
+# (applied where each is drawn, matching trans="sqrt") lifts the low end so sparse
+# signal stays visible.
+_PLASMA = [
+    [0.0, "#0D0887"],
+    [0.2, "#7E03A8"],
+    [0.4, "#CC4778"],
+    [0.6, "#F1605D"],
+    [0.8, "#FCA636"],
+    [1.0, "#F0F921"],
 ]
-_EXPR_COLORSCALE = _DENSITY_COLORSCALE  # same low->high teal ramp for feature UMAP
+_DENSITY_COLORSCALE = _PLASMA
+_EXPR_COLORSCALE = _PLASMA    # feature UMAP + dotplot share the same ramp
 
 # Panel heights. The tissue panels (cell map / density) are square-locked images
 # (7520×5470 µm ⇒ W:H ≈ 1.375); the ratio lock does the shaping, this is only the
@@ -125,6 +132,15 @@ _STAGE_CSS = """
   color: var(--faint, #9AA3AB); margin: 2px 0 2px; letter-spacing: .02em;
 }
 .ptitle b { color: var(--accent, #0F7B87); font-weight: 600; }
+.ctrl-lbl {
+  font-family: var(--mono, ui-monospace, monospace); font-size: 11px;
+  color: var(--faint, #9AA3AB); text-transform: uppercase; letter-spacing: .06em;
+}
+.stage-legend {
+  font-family: var(--mono, ui-monospace, monospace); font-size: 10.5px;
+  color: var(--faint, #9AA3AB); line-height: 1.5;
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+}
 .pempty {
   display: flex; align-items: center; justify-content: center; text-align: center;
   font-family: var(--mono, ui-monospace, monospace); font-size: 12px;
@@ -264,6 +280,45 @@ def _legend_line(html: str) -> None:
     st.markdown(f'<div class="plegend">{html}</div>', unsafe_allow_html=True)
 
 
+def _fmt_val(v: float) -> str:
+    """Format a colorbar tick value with magnitude-appropriate precision."""
+    if v == 0:
+        return "0"
+    av = abs(v)
+    if av >= 100:
+        return f"{v:.0f}"
+    if av >= 1:
+        return f"{v:.1f}"
+    if av >= 0.01:
+        return f"{v:.2f}"
+    return f"{v:.3f}"
+
+
+def _sqrt_colorbar(vmax: float, title: str) -> dict:
+    """A compact right-edge colorbar for a sqrt-mapped value.
+
+    Tick POSITIONS sit on the sqrt scale (matching the sqrt colour transform) but
+    the LABELS are the real values, so the colourbar reads in true units. Three
+    ticks (0, mid, max) keep it legible in a small panel.
+    """
+    vmax = float(vmax) if vmax and vmax > 0 else 1.0
+    orig = [0.0, vmax * 0.5, vmax]
+    return dict(
+        title=dict(
+            text=title, side="right",
+            font=dict(family="IBM Plex Mono, monospace", size=9),
+        ),
+        thickness=7,
+        len=0.62,
+        x=1.0,
+        xpad=3,
+        outlinewidth=0,
+        tickvals=[v ** 0.5 for v in orig],
+        ticktext=[_fmt_val(v) for v in orig],
+        tickfont=dict(family="IBM Plex Mono, monospace", size=8),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Display-only downsample of a background frame (never touches selected cluster)
 # --------------------------------------------------------------------------- #
@@ -339,7 +394,7 @@ def _render_cell_map(cluster: str) -> None:
             x=bg["x"],
             y=bg["y"],
             mode="markers",
-            marker=dict(size=2.2, color=_FADE_COLOR, opacity=0.55),
+            marker=dict(size=1.6, color=_FADE_COLOR, opacity=0.55),
             customdata=bg["cell_type"],
             hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
@@ -354,7 +409,7 @@ def _render_cell_map(cluster: str) -> None:
             x=sel["x"],
             y=sel["y"],
             mode="markers",
-            marker=dict(size=3.4, color=sel_color, opacity=0.95),
+            marker=dict(size=2.4, color=sel_color, opacity=0.95),
             customdata=sel["cell_type"],
             hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
@@ -395,8 +450,8 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
 
     if feature and gene and expr is not None:
         _umap_feature(fig, go, view, expr, cluster)
+        # Legend is shared once in the control row above (no per-panel legend).
         st.plotly_chart(fig, use_container_width=True, config=_plot_config())
-        _legend_line('low <span class="grad"></span> high')
         return
 
     # Cluster-coloured UMAP: Row 1 default, or a gene row whose expression is
@@ -426,7 +481,7 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
             x=bg["umap_1"],
             y=bg["umap_2"],
             mode="markers",
-            marker=dict(size=2.2, color=_FADE_COLOR, opacity=0.5),
+            marker=dict(size=1.6, color=_FADE_COLOR, opacity=0.5),
             customdata=bg["cell_type"],
             hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
@@ -438,7 +493,7 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
             x=sel["umap_1"],
             y=sel["umap_2"],
             mode="markers",
-            marker=dict(size=3.2, color=fmt.cluster_color(cluster), opacity=0.95),
+            marker=dict(size=2.4, color=fmt.cluster_color(cluster), opacity=0.95),
             customdata=sel["cell_type"],
             hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
@@ -450,50 +505,61 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
 def _umap_feature(
     fig: Any, go: Any, view: pd.DataFrame, expr: pd.DataFrame, cluster: str
 ) -> None:
-    """Colour the UMAP by per-cell marker expression (teal low->high ramp).
+    """Colour the UMAP by per-cell marker expression (plasma low->high ramp).
 
-    ``expr`` is (cell_id, value). Merged onto the view by cell_id so only cells
-    with an exported value are coloured; the selected cluster is outlined on top.
+    ``expr`` is (cell_id, value). A feature plot in two layers so higher=brighter
+    reads cleanly on a light panel and there is no dark blob:
+
+    * NON-expressing cells (value <= 0 or no exported value) are a light-grey base
+      that recedes — not dark purple, which would swamp the plot.
+    * EXPRESSING cells (value > 0) are drawn ON TOP, sqrt-transformed and coloured
+      plasma (dark = low, bright = high), in ascending order so the brightest
+      cells land last and stay visible.
+
+    No cluster outline: the Row-1 UMAP already shows where the cluster sits, and a
+    dark outline over a large cluster collapses into a black mass.
     """
     merged = view.merge(expr, on="cell_id", how="left")
     vals = merged["value"]
-    has_vals = bool(vals.notna().any())
+    is_pos = vals > 0
+    off = merged[~is_pos]
+    pos = merged[is_pos].sort_values("value", ascending=True)
+
+    # Base: non-expressing cells, muted grey so they recede into the panel.
     fig.add_trace(
         go.Scattergl(
-            x=merged["umap_1"],
-            y=merged["umap_2"],
+            x=off["umap_1"],
+            y=off["umap_2"],
             mode="markers",
-            marker=dict(
-                size=2.8,
-                color=vals,
-                colorscale=_EXPR_COLORSCALE,
-                cmin=float(vals.min()) if has_vals else 0.0,
-                cmax=float(vals.max()) if has_vals else 1.0,
-                opacity=0.85,
-                showscale=False,
-            ),
+            marker=dict(size=1.8, color=_FADE_COLOR, opacity=0.5),
             hoverinfo="skip",
             showlegend=False,
-            name="expression",
+            name="not expressing",
         )
     )
-    # Outline the selected cluster so it stays legible over the feature colouring.
-    sel = merged[merged["cluster"] == cluster]
-    fig.add_trace(
-        go.Scattergl(
-            x=sel["umap_1"],
-            y=sel["umap_2"],
-            mode="markers",
-            marker=dict(
-                size=3.4,
-                color="rgba(0,0,0,0)",
-                line=dict(width=0.7, color=_HIGHLIGHT_LINE),
-            ),
-            hoverinfo="skip",
-            showlegend=False,
-            name=f"{cluster} outline",
+    # Expressing cells on top, plasma sqrt (higher = brighter) with a numeric colorbar.
+    if not pos.empty:
+        pos_sqrt = pos["value"].clip(lower=0) ** 0.5
+        fig.add_trace(
+            go.Scattergl(
+                x=pos["umap_1"],
+                y=pos["umap_2"],
+                mode="markers",
+                marker=dict(
+                    size=2.4,
+                    color=pos_sqrt,
+                    colorscale=_EXPR_COLORSCALE,
+                    cmin=0.0,
+                    cmax=float(pos_sqrt.max()),
+                    opacity=0.92,
+                    showscale=True,
+                    colorbar=_sqrt_colorbar(float(pos["value"].max()), "expr"),
+                ),
+                hoverinfo="skip",
+                showlegend=False,
+                name="expression",
+            )
         )
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -502,7 +568,7 @@ def _umap_feature(
 def _render_density(gene: str) -> None:
     """Precomputed transcript density for ``gene`` as an area-normalized map.
 
-    The global 25 / 50 / 100 µm bin control (``_render_bin_control``) picks which
+    The global 25 / 50 / 100 µm bin control (``_render_density_controls``) picks which
     *precomputed* frame this reads; the colour is that frame's ``density``
     (transcripts / µm²) so bins are comparable across sizes. If the gene has no
     precomputed density frame, show an honest placeholder — never a synthesized
@@ -512,7 +578,7 @@ def _render_density(gene: str) -> None:
     st = _st()
     go = _go()
 
-    # Bin size is a single GLOBAL viewing control (``_render_bin_control``, drawn
+    # Bin size is a single GLOBAL viewing control (``_render_density_controls``, drawn
     # once above the gene rows), so this panel just reads it — no per-panel control
     # to offset the density plot from its feature-UMAP neighbour.
     bin_um = state.get_bin_um()
@@ -530,10 +596,14 @@ def _render_density(gene: str) -> None:
         return
 
     dens = hb["density"]
+    # sqrt transform on the density for the colour mapping (trans="sqrt"): it lifts
+    # the low end so sparse bins stay visible. The hover still shows the REAL count
+    # and density — the transform is display-only and never changes a value.
+    dens_sqrt = dens.clip(lower=0) ** 0.5
     fig = go.Figure(layout=_tissue_layout(go))
     # Square markers on the precomputed bin centres. Marker size scales with the
     # bin (bigger bins -> bigger tiles) purely for legibility; the COLOUR is the
-    # area-normalized density and is the only thing that encodes signal.
+    # sqrt of the area-normalized density and is the only thing that encodes signal.
     tile = _DENSITY_TILE_PX.get(int(bin_um), 7)
     fig.add_trace(
         go.Scattergl(
@@ -543,12 +613,15 @@ def _render_density(gene: str) -> None:
             marker=dict(
                 size=tile,
                 symbol="square",
-                color=dens,
+                color=dens_sqrt,
                 colorscale=_DENSITY_COLORSCALE,
                 cmin=0.0,
-                cmax=float(dens.max()) if dens.notna().any() else 1.0,
+                cmax=float(dens_sqrt.max()) if dens_sqrt.notna().any() else 1.0,
                 opacity=0.92,
-                showscale=False,
+                showscale=True,
+                colorbar=_sqrt_colorbar(
+                    float(dens.max()) if dens.notna().any() else 1.0, "tx/µm²"
+                ),
             ),
             customdata=hb[["count", "density"]].to_numpy(),
             hovertemplate=(
@@ -560,10 +633,9 @@ def _render_density(gene: str) -> None:
         )
     )
 
+    # No per-panel legend: the shared control+legend row above every gene row
+    # carries the ramp and the units once (see _render_density_controls).
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
-    _legend_line(
-        f'{bin_um} µm bins · tx/µm² · low <span class="grad"></span> high'
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -618,6 +690,13 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
     pct_max = max(1.0, float(df["pct"].max()))
     sizeref = 2.0 * pct_max / (max_px ** 2)
     mean_max = float(df["mean"].max())
+    # sqrt colour transform (trans="sqrt"): colour the dots by sqrt(mean), but keep
+    # the colourbar labelled in REAL mean units so the axis stays honest.
+    mean_sqrt = df["mean"].clip(lower=0) ** 0.5
+    cmax_sqrt = float(mean_sqrt.max()) if mean_sqrt.notna().any() and mean_sqrt.max() > 0 else 1.0
+    _bar_orig = [0.0, mean_max * 0.25, mean_max * 0.5, mean_max] if mean_max > 0 else [0.0, 1.0]
+    _bar_tickvals = [v ** 0.5 for v in _bar_orig]
+    _bar_ticktext = [f"{v:.1f}" for v in _bar_orig]
     height = max(160, 74 + len(gene_order) * 46)
 
     fig = go.Figure(layout=_base_layout(go, showlegend=False, height=height))
@@ -631,10 +710,10 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
                 sizemode="area",
                 sizeref=sizeref,
                 sizemin=3,
-                color=df["mean"],
+                color=mean_sqrt,
                 colorscale=_EXPR_COLORSCALE,
                 cmin=0.0,
-                cmax=mean_max if mean_max > 0 else 1.0,
+                cmax=cmax_sqrt,
                 showscale=True,
                 colorbar=dict(
                     title=dict(
@@ -644,6 +723,8 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
                     ),
                     thickness=8,
                     len=0.7,
+                    tickvals=_bar_tickvals,
+                    ticktext=_bar_ticktext,
                     tickfont=dict(family="IBM Plex Mono, monospace", size=9),
                 ),
                 line=dict(width=0),
@@ -690,25 +771,25 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
 # --------------------------------------------------------------------------- #
 # Global density bin control (one control for every density panel)
 # --------------------------------------------------------------------------- #
-def _render_bin_control() -> None:
-    """One 25 / 50 / 100 µm density-bin selector for the whole grid.
+def _render_density_controls() -> None:
+    """One tidy row for the whole density section: the bin-size selector beside a
+    single shared colour legend.
 
-    Bin size is a global viewing control (it picks which precomputed frame every
-    density panel reads — it never re-bins a value). Rendered once, above the gene
-    rows, it reads fresh in the same run, so all density panels update together and
-    each stays aligned with its feature-UMAP neighbour.
+    Bin size is ONE global viewing control — the same size is used for every
+    selected gene (it picks which precomputed frame each density panel reads, never
+    re-binning a value). Rendering it once here, with the legend, means the gene
+    rows below carry no repeated control and no per-panel legend.
     """
     st = _st()
     sizes = list(state.BIN_SIZES_UM)
     current = state.get_bin_um()
     idx = sizes.index(current) if current in sizes else sizes.index(state.DEFAULT_BIN_UM)
 
-    label_col, radio_col = st.columns([0.6, 0.4], vertical_alignment="center")
-    with label_col:
-        st.markdown(
-            '<div class="ptitle">Transcript detections · bin size</div>',
-            unsafe_allow_html=True,
-        )
+    lbl_col, radio_col, _spacer = st.columns(
+        [0.13, 0.5, 0.37], vertical_alignment="center"
+    )
+    with lbl_col:
+        st.markdown('<div class="ctrl-lbl">Bin size</div>', unsafe_allow_html=True)
     with radio_col:
         picked = st.radio(
             "Density bin size (µm)",
@@ -720,6 +801,7 @@ def _render_bin_control() -> None:
             key="bin_um_global",
         )
     # Read fresh in the same run — the density panels below pick it up immediately.
+    # Each panel carries its own numeric colorbar, so no shared text legend here.
     state.set_bin_um(picked)
 
 
@@ -768,8 +850,8 @@ def render_spatial_stage(cluster: str) -> None:
     # Breathing room between the cell-level row and the transcript hex-bin rows.
     st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
 
-    # Single global density bin control (one row, above all density panels).
-    _render_bin_control()
+    # Single tidy control+legend row (one bin size for every gene, shared legend).
+    _render_density_controls()
 
     # One small-multiple row per selected marker: density (tissue) | feature UMAP.
     for gene in markers:

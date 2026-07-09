@@ -108,12 +108,22 @@ html, body, .stApp {{
 /* The real Panoscope logo mark (assets/panoscope_logo.png), embedded inline. */
 .pano-logo {{ width: 30px; height: 30px; margin-right: 10px; flex: none; object-fit: contain; }}
 .pano-ctx {{ font-family: var(--mono); font-size: 10.5px; color: var(--faint); margin-top: 3px; }}
-/* Right-aligned dataset context chip in the app bar. */
-.pano-ctx-chip {{ display: flex; flex-direction: column; align-items: flex-end; line-height: 1.4; }}
-.pano-ctx-main {{ font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 500; }}
+/* Right-aligned dataset context — a bordered pill with a live-status dot. */
+.pano-ctx-wrap {{ display: flex; justify-content: flex-end; }}
+.pano-ctx-chip {{
+  display: inline-flex; align-items: center; gap: 9px;
+  background: var(--paper); border: 1px solid var(--hair);
+  border-radius: 10px; padding: 6px 12px;
+}}
+.pano-ctx-chip::before {{
+  content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}}
+.pano-ctx-text {{ display: flex; flex-direction: column; line-height: 1.35; }}
+.pano-ctx-main {{ font-family: var(--mono); font-size: 11px; color: var(--ink); font-weight: 600; }}
 .pano-ctx-sub {{ font-family: var(--mono); font-size: 10px; color: var(--faint); }}
 /* App bar — a real header strip with a hairline under it. */
-.st-key-pano_appbar {{ border-bottom: 1px solid var(--hair); padding-bottom: 8px; margin-bottom: 12px; }}
+.st-key-pano_appbar {{ border-bottom: 1px solid var(--hair); padding: 4px 0 11px; margin-bottom: 14px; }}
 .pano-eyebrow {{
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .1em; color: var(--faint); font-weight: 500; margin: 0 0 12px;
@@ -211,10 +221,11 @@ html, body, .stApp {{
   padding: 4px 0 4px 10px; font-size: 12px; color: var(--muted);
 }}
 
-/* ---- density legend grad (area-normalized teal ramp) ---- */
+/* ---- density/expression legend grad (plasma: low dark purple -> high bright yellow) ---- */
 .grad {{
-  display: inline-block; width: 70px; height: 8px; border-radius: 3px;
-  background: linear-gradient(90deg, #EAF3F4, var(--c-vh));
+  display: inline-block; width: 64px; height: 8px; border-radius: 3px;
+  background: linear-gradient(90deg,
+    #0D0887 0%, #7E03A8 20%, #CC4778 40%, #F1605D 60%, #FCA636 80%, #F0F921 100%);
 }}
 
 /* ---- accent buttons (primary actions) ---- */
@@ -347,21 +358,27 @@ div[class*="st-key-seldot_"] button[data-testid="stBaseButton-primary"] {{
   outline: 2px solid var(--accent) !important; outline-offset: -2px;
 }}
 
-/* (2b) TOP NAV — Examine/Summary rendered as a chromeless top tab strip; the
- * active tab (type="primary") gets an accent underline instead of a solid fill. */
-.st-key-pano_topnav [data-testid="stHorizontalBlock"] {{ gap: 2px; }}
+/* (2b) TOP NAV — a compact, centered segmented control; the active tab
+ * (type="primary") is a soft-accent pill. Modern, professional, app-like. */
+.st-key-pano_topnav {{
+  max-width: 440px; margin: 0 auto;
+  background: var(--paper); border: 1px solid var(--hair);
+  border-radius: 11px; padding: 3px;
+}}
+.st-key-pano_topnav [data-testid="stHorizontalBlock"] {{ gap: 3px; }}
 .st-key-pano_topnav div[data-testid="stButton"] > button {{
   background: transparent !important; border: 0 !important; box-shadow: none !important;
-  border-bottom: 2px solid transparent !important; border-radius: 0 !important;
-  padding: 8px 10px !important; min-height: 0 !important;
+  border-radius: 8px !important; padding: 7px 12px !important; min-height: 0 !important;
   font-family: var(--sans) !important; font-size: 13px !important; font-weight: 500 !important;
-  color: var(--muted) !important;
+  color: var(--muted) !important; transition: background 120ms ease, color 120ms ease;
 }}
-.st-key-pano_topnav div[data-testid="stButton"] > button:hover {{ color: var(--ink) !important; }}
+.st-key-pano_topnav div[data-testid="stButton"] > button:hover {{
+  color: var(--ink) !important; background: var(--hair2) !important;
+}}
 .st-key-pano_topnav div[data-testid="stButton"] > button[kind="primary"],
 .st-key-pano_topnav button[data-testid="stBaseButton-primary"] {{
-  background: transparent !important; color: var(--accent) !important;
-  border-bottom: 2px solid var(--accent) !important; font-weight: 700 !important;
+  background: var(--accent-soft) !important; color: var(--accent) !important;
+  border-radius: 8px !important; font-weight: 600 !important;
 }}
 
 /* (3) CONDENSED SOURCES LINE — one small muted mono line under a chat turn,
