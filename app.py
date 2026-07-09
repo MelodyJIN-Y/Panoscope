@@ -11,6 +11,10 @@ shared across pages natively (one script run per rerun), so the selected cluster
 """
 from __future__ import annotations
 
+import base64
+from functools import lru_cache
+from pathlib import Path
+
 import streamlit as st
 
 from ui import (
@@ -26,6 +30,21 @@ from ui import (
     theme,
     verdict_header,
 )
+
+# Brand assets (the Panoscope logo mark + the with-text logo live in assets/).
+_ASSETS = Path(__file__).resolve().parent / "assets"
+_LOGO_MARK = _ASSETS / "panoscope_logo.png"
+
+
+@lru_cache(maxsize=2)
+def _logo_data_uri(name: str) -> str:
+    """Base64 data URI for a brand PNG so it embeds inline in the header HTML
+    (Streamlit's strict CSP blocks external asset requests). '' if missing."""
+    path = _ASSETS / name
+    if not path.exists():
+        return ""
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+
 
 # Active top-tab page. A plain session-state key (nav state, not domain state).
 _K_PAGE = "active_page"
@@ -46,12 +65,18 @@ def _top_bar(page: str) -> None:
     top tab strip — the active one (``type="primary"``) gets an accent underline.
     """
     with st.container(key="pano_appbar"):
-        brand_col, tabs_col = st.columns([0.34, 0.66], vertical_alignment="center")
+        brand_col, tabs_col, ctx_col = st.columns(
+            [0.27, 0.46, 0.27], vertical_alignment="center"
+        )
         with brand_col:
+            logo = _logo_data_uri("panoscope_logo.png")
+            mark = (
+                f'<img class="pano-logo" src="{logo}" alt="Panoscope logo"/>'
+                if logo
+                else '<span class="pano-mark"></span>'
+            )
             st.markdown(
-                '<div class="pano-brand"><span class="pano-mark"></span>'
-                'Pano<span class="d">·</span>scope</div>'
-                '<div class="pano-ctx">Xenium breast · 280 genes · 9 clusters · sample 1</div>',
+                f'<div class="pano-brand">{mark}Panoscope</div>',
                 unsafe_allow_html=True,
             )
         with tabs_col:
@@ -86,6 +111,14 @@ def _top_bar(page: str) -> None:
                         on_click=_set_page,
                         args=(_PAGE_LAB,),
                     )
+        with ctx_col:
+            st.markdown(
+                '<div class="pano-ctx-chip">'
+                '<span class="pano-ctx-main">Xenium human breast · sample 1</span>'
+                '<span class="pano-ctx-sub">280 genes · 9 clusters · jazzPanda markers</span>'
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
 
 def _examine_body() -> None:
@@ -105,7 +138,11 @@ def _examine_body() -> None:
 
 
 # ── One script run per rerun (no st.navigation / sidebar) ──────────────────
-st.set_page_config(page_title="Panoscope", page_icon="🔬", layout="wide")
+st.set_page_config(
+    page_title="Panoscope",
+    page_icon=str(_LOGO_MARK) if _LOGO_MARK.exists() else "🔬",
+    layout="wide",
+)
 theme.inject_css()
 state.init_state()
 

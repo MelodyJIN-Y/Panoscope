@@ -105,7 +105,13 @@ html, body, .stApp {{
   background: linear-gradient(135deg, var(--accent) 0%, #0B5B65 100%);
   margin-right: 9px;
 }}
+/* The real Panoscope logo mark (assets/panoscope_logo.png), embedded inline. */
+.pano-logo {{ width: 30px; height: 30px; margin-right: 10px; flex: none; object-fit: contain; }}
 .pano-ctx {{ font-family: var(--mono); font-size: 10.5px; color: var(--faint); margin-top: 3px; }}
+/* Right-aligned dataset context chip in the app bar. */
+.pano-ctx-chip {{ display: flex; flex-direction: column; align-items: flex-end; line-height: 1.4; }}
+.pano-ctx-main {{ font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 500; }}
+.pano-ctx-sub {{ font-family: var(--mono); font-size: 10px; color: var(--faint); }}
 /* App bar — a real header strip with a hairline under it. */
 .st-key-pano_appbar {{ border-bottom: 1px solid var(--hair); padding-bottom: 8px; margin-bottom: 12px; }}
 .pano-eyebrow {{
