@@ -79,6 +79,44 @@ def _resolve_page() -> str:
     return page
 
 
+def _restore_selection_from_url() -> None:
+    """On a fresh session (a browser refresh), restore the selected cluster and that
+    cluster's selected markers + gene sets from the URL, so a refresh keeps what the
+    biologist selected instead of resetting to defaults. Runs once per session.
+    """
+    if st.session_state.get("_sel_restored"):
+        return
+    st.session_state["_sel_restored"] = True
+    qp = st.query_params
+    c = qp.get("cluster")
+    if c:
+        state.set_selected_cluster(c)  # ignores an unknown id (fail-closed)
+    cluster = state.get_selected_cluster()
+    markers = qp.get("m")
+    if markers:
+        state.set_selected_markers(cluster, [g for g in markers.split(",") if g])
+    pathways = qp.get("pw")
+    if pathways:
+        state.set_selected_pathways(cluster, [s for s in pathways.split(",") if s])
+
+
+def _sync_selection_to_url() -> None:
+    """Mirror the current cluster + its selections to the URL (write only on change,
+    so a refresh restores them without triggering redundant reruns)."""
+    qp = st.query_params
+    cluster = state.get_selected_cluster()
+    if qp.get("cluster") != cluster:
+        qp["cluster"] = cluster
+    for key, values in (("m", state.get_selected_markers(cluster)),
+                        ("pw", state.get_selected_pathways(cluster))):
+        joined = ",".join(values)
+        if joined:
+            if qp.get(key) != joined:
+                qp[key] = joined
+        elif key in qp:
+            del qp[key]
+
+
 def _top_bar(page: str) -> None:
     """The single top bar: brand · Examine / Summary / Lab knowledge tabs.
 
@@ -177,8 +215,9 @@ theme.inject_css()
 state.init_state()
 
 # on_click tab handlers have already fired, so this reads the fresh page. On a
-# hard refresh (session_state wiped) the tab is restored from the ?page= URL param.
+# hard refresh (session_state wiped) the tab + selections are restored from the URL.
 page = _resolve_page()
+_restore_selection_from_url()
 _top_bar(page)
 
 if page == _PAGE_SUMMARY:
@@ -189,3 +228,6 @@ elif page == _PAGE_LAB:
     lab_knowledge.render_lab_page()
 else:
     _examine_body()
+
+# Mirror the current cluster + its selections to the URL so a refresh restores them.
+_sync_selection_to_url()

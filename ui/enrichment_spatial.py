@@ -73,16 +73,16 @@ def _render_set_feature_umap(cluster: str, genes: tuple[str, ...]) -> None:
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
 
 
-def render_pathway_spatial(cluster: str, pathway: Any) -> None:
-    """Render the spatial stage for ``pathway`` (a PathwayEvidence) in ``cluster``.
+def render_pathways_spatial(cluster: str, pathways: list) -> None:
+    """Render the spatial stage for the SELECTED ``pathways`` in ``cluster``.
 
-    ``pathway.leading_edge`` are the driving genes; the views aggregate them so the
-    biologist can see where the program lives on the tissue relative to the cluster.
+    Mirrors the marker small-multiples: Row 1 is the cluster context (cell map +
+    cluster UMAP), then one leading-edge row per selected pathway (its driving genes
+    summed on tissue + in expression space), then a dot plot of the union of the
+    selected programs' leading-edge genes across all nine clusters.
     """
     st = _st()
     _inject_stage_css()
-    genes = tuple(pathway.leading_edge)
-    short = _short(pathway.gene_set)
 
     # Row 1 — cluster context (same as the marker page).
     r1_left, r1_right = st.columns(2, gap="medium")
@@ -93,29 +93,45 @@ def render_pathway_spatial(cluster: str, pathway: Any) -> None:
         _panel_title("UMAP <span style='color:var(--faint)'>· clusters</span>")
         _render_umap(cluster, feature=False)
 
-    if not genes:
-        _empty_panel("this pathway has no leading-edge genes to map", height=140)
+    if not pathways:
+        _empty_panel(
+            "select one or more enriched programs above (○ → ●) to map their leading-edge "
+            "genes on the tissue — is the program in this cluster's cells, or bleeding in "
+            "from a neighbour?",
+            height=120,
+        )
         return
 
     st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
     _render_density_controls()
 
-    # Row 2 — the pinned program's leading edge on tissue + in expression space.
-    r2_left, r2_right = st.columns(2, gap="medium")
-    with r2_left:
-        _panel_title(f"<b>{short}</b> leading-edge transcript density")
-        _render_set_density(genes)
-    with r2_right:
-        _panel_title(f"<b>{short}</b> leading-edge activity <span style='color:var(--faint)'>· UMAP</span>")
-        _render_set_feature_umap(cluster, genes)
+    # One small-multiple row per selected program: leading-edge density | activity UMAP.
+    all_genes: list[str] = []
+    for p in pathways:
+        genes = tuple(p.leading_edge)
+        short = _short(p.gene_set)
+        r_left, r_right = st.columns(2, gap="medium")
+        with r_left:
+            _panel_title(f"<b>{short}</b> leading-edge transcript density")
+            _render_set_density(genes)
+        with r_right:
+            _panel_title(
+                f"<b>{short}</b> leading-edge activity <span style='color:var(--faint)'>· UMAP</span>"
+            )
+            _render_set_feature_umap(cluster, genes)
+        for g in genes:
+            if g not in all_genes:
+                all_genes.append(g)
+
     _legend_line(
-        "leading-edge = the driving genes (" + ", ".join(genes)
-        + ") · density is the summed, area-normalized transcript signal (a view, not the enrichment score)"
+        "leading-edge = each program's driving genes · density is the summed, "
+        "area-normalized transcript signal (a view, not the enrichment score)"
     )
 
-    # Dot plot: the leading-edge genes' expression across all nine clusters.
-    _panel_title("Leading-edge genes across clusters")
-    _render_dotplot(list(genes), cluster)
+    # Dot plot: the union of the selected programs' leading-edge genes across clusters.
+    if all_genes:
+        _panel_title("Leading-edge genes across clusters")
+        _render_dotplot(all_genes[:14], cluster)
 
 
-__all__ = ["render_pathway_spatial"]
+__all__ = ["render_pathways_spatial"]

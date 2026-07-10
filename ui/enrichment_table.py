@@ -5,8 +5,9 @@ selection), the **center stage** (the cluster's enrichment header + a pinnable
 pathway table + the pinned pathway's leading-edge spatial views), and a **side
 column** with the cross-cluster pathway themes.
 
-Pinning a pathway is a viewing control (``ui.state.toggle_pinned_pathway``): it
-drives the spatial stage (``ui.enrichment_spatial``) and nothing else. Every value
+Selecting pathways is a viewing control (``ui.state.toggle_pathway``, a per-cluster
+multi-select): it drives the spatial stage (``ui.enrichment_spatial``) small-multiples
+and nothing else. Every value
 is read off the enrichment records (``ui.data_access``); this module computes
 nothing and never generates biology text (the per-pathway note is the pipeline's,
 live-cited). Each pathway carries its panel-scope caveat; only gated sets show.
@@ -136,20 +137,20 @@ def _num_html(p: PathwayEvidence) -> str:
     return f'<div class="pano-enr-num"><span class="s">{p.score:.2f}</span>{q}{cov}</div>'
 
 
-def _render_pathway_rows(st, cluster: str, pathways, pinned: str | None, suggestive: bool) -> None:
+def _render_pathway_rows(st, cluster: str, pathways, suggestive: bool) -> None:
     for p in pathways:
-        is_pinned = p.gene_set == pinned
-        key = f"pwrow_{'sug_' if suggestive else ''}{'on' if is_pinned else 'off'}_{p.gene_set}"
+        selected = state.is_pathway_selected(cluster, p.gene_set)
+        key = f"pwrow_{'sug_' if suggestive else ''}{'on' if selected else 'off'}_{p.gene_set}"
         with st.container(key=key):
             c_name, c_num, c_bio = st.columns(_ROW_COLS, vertical_alignment="top")
             with c_name:
                 if st.button(
                     _short(p.gene_set),
-                    key=f"pin_{p.gene_set}",
-                    type="primary" if is_pinned else "secondary",
+                    key=f"pwsel_{p.gene_set}",
+                    type="primary" if selected else "secondary",
                     use_container_width=True,
                 ):
-                    state.toggle_pinned_pathway(cluster, p.gene_set)
+                    state.toggle_pathway(cluster, p.gene_set)
                     st.rerun()
             with c_num:
                 st.markdown(_num_html(p), unsafe_allow_html=True)
@@ -159,19 +160,18 @@ def _render_pathway_rows(st, cluster: str, pathways, pinned: str | None, suggest
 
 
 def _render_center(st, ce: ClusterEnrichment) -> None:
+    from ui.verdict_header import _idline  # reuse the marker id line, verbatim
+
     css, _ = fmt.confidence_chip(ce.confidence)
-    verify = ' <span class="pano-verify">&#9873; re-check</span>' if ce.verify else ""
-    color = fmt.cluster_color(ce.cluster)
-    top = _short(ce.top_theme) if ce.top_theme else "none clears the gate"
+    verify = f' <span class="pano-verify">{html.escape(fmt.verify_badge(True))}</span>' if ce.verify else ""
+    tops = [_short(p.gene_set) for p in ce.enriched[:3]]
+    rationale = ("Enriched for " + ", ".join(tops) + ".") if tops else "No program clears the enrichment gate."
+    # Same simple header as the marker verdict: id line, big call + a pill, a one-liner.
     st.markdown(
-        f'<div class="pano-enr-eyebrow">Pathway enrichment · panel-scoped</div>'
-        f'<div class="pano-enr-head"><span class="dot" style="color:{color}">&#9679;</span>'
-        f'<span class="cid">{html.escape(ce.cluster)}</span>'
-        f'<span class="ct">{html.escape(ce.cell_type)}</span>'
+        f'<div class="pano-idline">{html.escape(_idline(ce.cluster))}</div>'
+        f'<div class="pano-verdict"><h1>{html.escape(ce.cell_type)}</h1>'
         f'<span class="cf {css}">{html.escape(ce.confidence)} enrichment</span>{verify}</div>'
-        f'<div class="pano-enr-sub"><span class="lbl">method:</span> '
-        f'{html.escape(_METHOD_LABEL.get(ce.method, ce.method))} · '
-        f'<span class="lbl">top program:</span> {html.escape(top)}</div>',
+        f'<div class="pano-rat">{html.escape(rationale)}</div>',
         unsafe_allow_html=True,
     )
 
@@ -182,29 +182,21 @@ def _render_center(st, ce: ClusterEnrichment) -> None:
 
     with st.container(key="pwhead"):
         h1, h2, h3 = st.columns(_ROW_COLS)
-        h1.markdown('<span class="pano-enr-hrow">Program · pin to map</span>', unsafe_allow_html=True)
+        h1.markdown('<span class="pano-enr-hrow">Program · select to map</span>', unsafe_allow_html=True)
         h2.markdown('<span class="pano-enr-hrow">score · q · cov</span>', unsafe_allow_html=True)
         h3.markdown('<span class="pano-enr-hrow">biology · relevance (cited)</span>', unsafe_allow_html=True)
 
-    pinned = state.get_pinned_pathway(ce.cluster)
-    _render_pathway_rows(st, ce.cluster, ce.enriched, pinned, suggestive=False)
+    _render_pathway_rows(st, ce.cluster, ce.enriched, suggestive=False)
     if ce.suggestive:
         st.markdown('<div class="pano-enr-sug">suggestive · re-check (below the strict bar)</div>',
                     unsafe_allow_html=True)
-        _render_pathway_rows(st, ce.cluster, ce.suggestive, pinned, suggestive=True)
+        _render_pathway_rows(st, ce.cluster, ce.suggestive, suggestive=True)
 
-    # The pinned program's leading edge on tissue (the spatial stage).
-    pathway = next((p for p in (*ce.enriched, *ce.suggestive) if p.gene_set == pinned), None)
-    st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
-    if pathway is not None:
-        enrichment_spatial.render_pathway_spatial(ce.cluster, pathway)
-    else:
-        st.markdown(
-            '<div class="pano-enr-pinhint">pin a program above (○ → ●) to see its leading-edge '
-            "genes on the tissue — is the enriched program in this cluster's cells, or bleeding in "
-            "from a neighbour?</div>",
-            unsafe_allow_html=True,
-        )
+    # The selected programs' leading edge on tissue (spatial stage — small-multiples).
+    selected = state.active_pathways(ce.cluster)
+    chosen = [p for p in (*ce.enriched, *ce.suggestive) if p.gene_set in selected]
+    st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
+    enrichment_spatial.render_pathways_spatial(ce.cluster, chosen)
 
 
 # --------------------------------------------------------------------------- #

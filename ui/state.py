@@ -30,7 +30,7 @@ from agent.config import CLUSTER_ORDER
 # --------------------------------------------------------------------------- #
 K_SELECTED_CLUSTER = "selected_cluster"
 K_SELECTED_MARKERS = "selected_markers"
-K_PINNED_PATHWAY = "pinned_pathway"
+K_SELECTED_PATHWAYS = "selected_pathways"
 K_BIN_UM = "bin_um"
 K_CHAT_THREAD = "chat_thread"
 K_PENDING_DRAFT = "pending_draft"
@@ -59,7 +59,7 @@ DEFAULT_MARKER_CAP = 4
 _DEFAULTS: dict[str, Any] = {
     K_SELECTED_CLUSTER: DEFAULT_CLUSTER,
     K_SELECTED_MARKERS: dict,   # {cluster: [gene, ...]} — per-cluster multi-select
-    K_PINNED_PATHWAY: dict,     # {cluster: gene_set} — one pinned pathway per cluster
+    K_SELECTED_PATHWAYS: dict,  # {cluster: [gene_set, ...]} — per-cluster multi-select
     K_BIN_UM: DEFAULT_BIN_UM,
     K_CHAT_THREAD: dict,        # {cluster_id: [msg, ...]} — one thread per cluster
     K_PENDING_DRAFT: dict,      # {cluster_id: NoteDraft} — note awaiting confirm
@@ -111,29 +111,43 @@ def set_selected_cluster(cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Pinned pathway — the enrichment analog of the selected marker: ONE pinned
-# gene set per cluster drives the Pathways spatial views (its leading edge on
-# tissue). Pinning is a VIEWING control: it mutates one map key, nothing else.
+# Selected pathways — the enrichment analog of selected markers: a per-cluster
+# MULTI-select of enriched gene sets. Each selected set drives one leading-edge
+# small-multiple on the Pathways spatial stage. Selecting is a VIEWING control:
+# it mutates one map key, nothing else. Order is preserved (selection order).
 # --------------------------------------------------------------------------- #
-def get_pinned_pathway(cluster: str) -> Optional[str]:
-    """Return the pinned pathway (gene-set name) for ``cluster``, or None."""
-    return _ss().get(K_PINNED_PATHWAY, {}).get(cluster)
+def get_selected_pathways(cluster: str) -> list[str]:
+    """Return a copy of the gene sets selected FOR ``cluster``, in selection order."""
+    return list(_ss().get(K_SELECTED_PATHWAYS, {}).get(cluster, []))
 
 
-def set_pinned_pathway(cluster: str, gene_set: Optional[str]) -> None:
-    """Pin ``gene_set`` for ``cluster`` (or clear with None). Viewing-control only."""
-    pins = dict(_ss().get(K_PINNED_PATHWAY, {}))
-    if gene_set is None:
-        pins.pop(cluster, None)
+def toggle_pathway(cluster: str, gene_set: str) -> None:
+    """Add ``gene_set`` to ``cluster``'s selection if absent, else remove it (order kept)."""
+    sel = dict(_ss().get(K_SELECTED_PATHWAYS, {}))
+    cur = list(sel.get(cluster, []))
+    if gene_set in cur:
+        cur.remove(gene_set)
     else:
-        pins[cluster] = gene_set
-    _ss()[K_PINNED_PATHWAY] = pins
+        cur.append(gene_set)
+    sel[cluster] = cur
+    _ss()[K_SELECTED_PATHWAYS] = sel
 
 
-def toggle_pinned_pathway(cluster: str, gene_set: str) -> None:
-    """Pin ``gene_set`` if not already pinned for ``cluster``, else unpin it."""
-    current = get_pinned_pathway(cluster)
-    set_pinned_pathway(cluster, None if current == gene_set else gene_set)
+def is_pathway_selected(cluster: str, gene_set: str) -> bool:
+    """True if ``gene_set`` is selected for ``cluster``."""
+    return gene_set in _ss().get(K_SELECTED_PATHWAYS, {}).get(cluster, [])
+
+
+def set_selected_pathways(cluster: str, gene_sets: list[str]) -> None:
+    """Replace ``cluster``'s selected gene sets (used to restore from the URL)."""
+    sel = dict(_ss().get(K_SELECTED_PATHWAYS, {}))
+    sel[cluster] = list(gene_sets)
+    _ss()[K_SELECTED_PATHWAYS] = sel
+
+
+def active_pathways(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
+    """The selected pathways for ``cluster``, capped for small-multiples legibility."""
+    return get_selected_pathways(cluster)[:cap]
 
 
 # --------------------------------------------------------------------------- #
@@ -150,6 +164,13 @@ def get_selected_markers(cluster: str) -> list[str]:
     anything is selected for that cluster.
     """
     return list(_ss().get(K_SELECTED_MARKERS, {}).get(cluster, []))
+
+
+def set_selected_markers(cluster: str, genes: list[str]) -> None:
+    """Replace ``cluster``'s selected markers (used to restore from the URL)."""
+    sel = dict(_ss().get(K_SELECTED_MARKERS, {}))
+    sel[cluster] = list(genes)
+    _ss()[K_SELECTED_MARKERS] = sel
 
 
 def toggle_marker(cluster: str, gene: str) -> None:
@@ -367,12 +388,15 @@ __all__ = [
     # cluster
     "get_selected_cluster",
     "set_selected_cluster",
-    # pinned pathway (enrichment viewing control — no recompute)
-    "get_pinned_pathway",
-    "set_pinned_pathway",
-    "toggle_pinned_pathway",
+    # selected pathways (enrichment multi-select viewing control — no recompute)
+    "get_selected_pathways",
+    "toggle_pathway",
+    "is_pathway_selected",
+    "set_selected_pathways",
+    "active_pathways",
     # marker multi-select (viewing controls — no recompute)
     "get_selected_markers",
+    "set_selected_markers",
     "toggle_marker",
     "is_marker_selected",
     "clear_markers",
