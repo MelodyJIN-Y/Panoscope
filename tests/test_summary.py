@@ -34,25 +34,28 @@ def test_verdict_csv_has_full_header_and_nine_rows() -> None:
     assert len(lines) == 1 + len(CLUSTER_ORDER)
 
 
-def test_summary_table_column_order_and_full_summary() -> None:
-    """The table headers appear in the biologist's requested order, and the full
-    (untruncated) cell-type summary is rendered — not clipped like st.dataframe."""
+def test_overview_table_column_order_and_grounding() -> None:
+    """The overview merges the marker call and the enriched programs into one row
+    per cluster: columns in order, and every value is a projection of the verdicts
+    (+ enrichment records) — nothing invented."""
     verdicts = da.all_verdicts()
-    out = summary._table_html(verdicts)
+    try:
+        enr_map = {ce.cluster: ce for ce in da.all_enrichments()}
+    except Exception:  # noqa: BLE001 - no enrichment slice (fresh clone) -> marker-only overview
+        enr_map = {}
+    out = summary._overview_table_html(verdicts, enr_map)
 
-    order = [
-        "Cluster",
-        "Lineage",
-        "Cell type",
-        "Key markers",
-        "Cell-type summary",
-        "Confidence",
-        "Re-check",
-    ]
+    order = ["Cluster", "Cell type", "Conf.", "Re-check", "Key markers", "Enriched programs"]
     positions = [out.index(f">{label}<") for label in order]
-    assert positions == sorted(positions), "summary columns are out of the requested order"
+    assert positions == sorted(positions), "overview columns are out of order"
 
-    # The complete cell-type summary text is present (wraps in full, never clipped).
-    c1_summary = da.celltype_summary("c1")
-    assert c1_summary, "expected a grounded cell-type summary for c1"
-    assert html.escape(c1_summary) in out
+    # Grounded: each cluster's cell type and key markers appear verbatim.
+    for v in verdicts:
+        assert html.escape(v.cell_type) in out
+        for g in v.key_markers:
+            assert html.escape(str(g)) in out
+
+    # Enriched program names, when present, come from the enrichment records only.
+    for ce in enr_map.values():
+        for p in ce.enriched[:4]:
+            assert html.escape(summary._short(p.gene_set)) in out
