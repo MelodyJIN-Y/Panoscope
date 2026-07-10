@@ -153,6 +153,11 @@ _CONVO_CSS = """
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .08em; color: var(--accent); font-weight: 600; margin-bottom: 6px;
 }
+.draft-type {
+  display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700;
+  color: var(--accent); background: var(--paper); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 2px 8px; margin-bottom: 7px;
+}
 .draft-claim { font-size: 13px; line-height: 1.5; color: var(--ink); font-weight: 500; margin-bottom: 8px; }
 .draft-lbl {
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
@@ -452,6 +457,7 @@ def _render_draft_card(cluster: str) -> None:
     with st.container(key="conv_draft"):
         st.markdown(
             '<div class="draft-eyebrow">Draft to save · confirm scope &amp; basis</div>'
+            f'<div class="draft-type">{_draft_type_line(draft)}</div>'
             f'<div class="draft-claim">{html.escape(draft.claim)}</div>',
             unsafe_allow_html=True,
         )
@@ -510,6 +516,35 @@ def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
             label_visibility="collapsed",
         )
     return val_by_label.get(picked, default_value)
+
+
+_DRAFT_TYPE_LABELS = {
+    "celltype_override": "Cell-type override",
+    "marker_reinterpretation": "Marker note",
+    "program_reinterpretation": "Program note",
+    "marker_convention": "Marker convention",
+    "validation": "Validation",
+    "confidence_adjustment": "Confidence note",
+    "exclude": "Exclude",
+    "cross_cluster": "Cross-cluster",
+}
+
+
+def _draft_type_line(draft: Any) -> str:
+    """The inferred type + anchor, shown so the biologist sees what the agent read
+    (e.g. 'Marker note · POSTN', 'Program note · G2M Checkpoint', 'Cross-cluster · c5 + c7')."""
+    name = _DRAFT_TYPE_LABELS.get(getattr(draft, "type", "celltype_override"), "Note")
+    anchors: list[str] = []
+    if getattr(draft, "subject_markers", ()):
+        anchors.append(" · ".join(draft.subject_markers))
+    if getattr(draft, "subject_gene_sets", ()):
+        anchors.append(" · ".join(
+            gs.replace("HALLMARK_", "").replace("_", " ").title() for gs in draft.subject_gene_sets
+        ))
+    if getattr(draft, "subject_clusters", ()):
+        anchors.append(" + ".join(draft.subject_clusters))
+    anchor = " · ".join(a for a in anchors if a)
+    return html.escape(name + (f" · {anchor}" if anchor else ""))
 
 
 def _draft_nonce(draft: Any) -> int:

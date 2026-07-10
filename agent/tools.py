@@ -599,6 +599,9 @@ def _draft_payload(draft) -> dict[str, Any]:
         "dataset": draft.dataset,
         "subject_cell_type": draft.subject_cell_type,
         "subject_markers": list(draft.subject_markers),
+        "type": draft.type,
+        "subject_gene_sets": list(draft.subject_gene_sets),
+        "subject_clusters": list(draft.subject_clusters),
         "tension": {
             "thin": t.thin,
             "query": t.query,
@@ -606,6 +609,12 @@ def _draft_payload(draft) -> dict[str, Any]:
             "dissent": _cites(t.dissent),
         },
     }
+
+
+_NOTE_TYPES = (
+    "celltype_override", "marker_reinterpretation", "program_reinterpretation",
+    "marker_convention", "validation", "confidence_adjustment", "exclude", "cross_cluster",
+)
 
 
 def memory_draft(
@@ -616,15 +625,19 @@ def memory_draft(
     cluster: Optional[str] = None,
     subject_cell_type: Optional[str] = None,
     subject_markers: Optional[list[str]] = None,
+    note_type: str = "celltype_override",
+    subject_gene_sets: Optional[list[str]] = None,
+    subject_clusters: Optional[list[str]] = None,
     dataset: str = cfg.DATASET_ID,
 ) -> Envelope:
     """PROPOSE a lab note (reconciled against the literature) WITHOUT saving it.
 
-    Capture-at-override, step one: record the claim, its inferred scope/basis, and
-    cross-check the claim against the literature (real PMIDs, agree/dissent). The
+    Capture-at-override, step one: record the claim, its inferred TYPE (one of the
+    eight note kinds) and anchor (a gene / gene set / cluster set), its scope/basis,
+    and cross-check the claim against the literature (real PMIDs, agree/dissent). The
     biologist then confirms scope/basis/status in the chat and only THEN is it
-    persisted. Nothing is written here. Use this at an override/correction — never
-    persist a note the biologist has not confirmed.
+    persisted. Nothing is written here. Use this at an override/correction/validation/
+    convention — never persist a note the biologist has not confirmed.
     """
     if not claim or not str(claim).strip():
         return _fail("memory_draft requires a non-empty claim")
@@ -632,6 +645,8 @@ def memory_draft(
         return _fail(f"invalid scope {scope!r}; must be cluster|dataset|lab")
     if basis not in ("paper", "own_validation", "convention"):
         return _fail(f"invalid basis {basis!r}; must be paper|own_validation|convention")
+    if note_type not in _NOTE_TYPES:
+        return _fail(f"invalid note_type {note_type!r}; must be one of {_NOTE_TYPES}")
 
     lit_fn = _literature_search_fn()
     try:
@@ -643,6 +658,9 @@ def memory_draft(
             cluster=cluster,
             subject_cell_type=subject_cell_type,
             subject_markers=subject_markers,
+            note_type=note_type,  # type: ignore[arg-type]
+            subject_gene_sets=subject_gene_sets,
+            subject_clusters=subject_clusters,
             dataset=dataset,
             literature_search=lit_fn,
         )
@@ -905,19 +923,38 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "name": "memory_draft",
         "description": (
-            "PROPOSE a lab note at a biologist override/correction and cross-check the claim "
-            "against the literature (real PMIDs, agree/dissent) — but DO NOT persist it. The "
-            "biologist confirms scope and basis in the chat and only then is it saved, so "
-            "nothing hits disk on your word alone. Use this (never persist directly) whenever "
-            "the biologist overrides, corrects, or asks to record a call: give the claim, your "
-            "best-inferred scope (cluster|dataset|lab) and basis (paper|own_validation|"
-            "convention), and — for cluster scope — the cluster. Then tell the biologist you "
-            "have drafted it and to confirm scope/basis below. Keep the disagreement visible."
+            "PROPOSE a lab note when the biologist ASSERTS a judgment that diverges from, "
+            "sharpens, or scopes the grounded default — and cross-check the claim against the "
+            "literature (real PMIDs, agree/dissent) — but DO NOT persist it. The biologist "
+            "confirms scope and basis in the chat and only then is it saved; nothing hits disk "
+            "on your word. Classify the assertion into ONE note_type and infer its anchor:\n"
+            "- celltype_override: rejects/replaces the cell-type call.\n"
+            "- marker_reinterpretation: what ONE marker means HERE (call unchanged) — set "
+            "subject_markers=[that gene].\n"
+            "- program_reinterpretation: an enriched program re-read as co-infiltration/"
+            "cross-lineage — set subject_gene_sets=[that HALLMARK set].\n"
+            "- marker_convention: a panel/tissue trust rule about a marker beyond this cluster "
+            "(scope dataset|lab) — set subject_markers=[that gene].\n"
+            "- validation: an own assay (IHC/flow) confirms the call — basis=own_validation.\n"
+            "- confidence_adjustment: the biologist's confidence stance, numbers unchanged (this "
+            "note NEVER changes a number; it is an overlay).\n"
+            "- exclude: exclude a cluster (doublet/artifact).\n"
+            "- cross_cluster: two+ clusters are one population — scope=dataset, "
+            "subject_clusters=[the cluster ids].\n"
+            "Do NOT draft for questions, acknowledgements, view commands, or mid-thought hedges. "
+            "Then tell the biologist you drafted it and to confirm scope/basis below. Keep the "
+            "disagreement visible."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "claim": {"type": "string", "description": "The correction/claim in plain words."},
+                "note_type": {
+                    "type": "string",
+                    "enum": list(_NOTE_TYPES),
+                    "default": "celltype_override",
+                    "description": "Which of the eight kinds of lab knowledge this is.",
+                },
                 "scope": {
                     "type": "string",
                     "enum": ["cluster", "dataset", "lab"],
@@ -944,7 +981,20 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "subject_markers": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Markers the note is about (optional).",
+                    "description": "Gene(s) the note anchors to (marker_reinterpretation, "
+                    "marker_convention).",
+                },
+                "subject_gene_sets": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "HALLMARK gene set(s) the note anchors to "
+                    "(program_reinterpretation).",
+                },
+                "subject_clusters": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "The cluster ids a cross_cluster note belongs to (it fires on "
+                    "each of them).",
                 },
             },
             "required": ["claim", "scope", "basis"],

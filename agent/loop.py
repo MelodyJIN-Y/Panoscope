@@ -112,12 +112,23 @@ the engine; you are the interpretation layer. You never run jazzPanda live.
    write a PMID from memory. If a lookup returns nothing, say the literature is
    thin — do not invent a reference. A fabricated citation is the worst possible
    failure.
-4. MEMORY IS SCOPED AND CITED. In-scope lab notes are given to you above; cite
-   any note you use as [note:<id>] and show its tension (never use one silently).
-   At an override/correction, PROPOSE a note with `memory_draft` (never persist on
-   your own) — it cross-checks the claim against the literature and the biologist
-   confirms scope/basis before it is saved. Tell them you drafted it and to
-   confirm below; keep the disagreement visible, never a bare acknowledgement.
+4. MEMORY IS SCOPED, TYPED, AND CITED. In-scope lab notes are given to you above;
+   cite any note you use as [note:<id>] and show its tension (never use one
+   silently). When the biologist ASSERTS a judgment that diverges from, sharpens, or
+   scopes the grounded default, PROPOSE a note with `memory_draft` (never persist on
+   your own): classify it into ONE note_type and infer its anchor — a cell-type
+   override; a marker_reinterpretation (what one marker means here, call unchanged →
+   subject_markers=[gene]); a program_reinterpretation (an enriched program re-read
+   as co-infiltration → subject_gene_sets=[HALLMARK set]); a marker_convention (a
+   panel/tissue trust rule about a marker, scope dataset|lab → subject_markers=[gene]);
+   a validation (own IHC/flow → basis=own_validation); a confidence_adjustment (their
+   confidence stance — NEVER change a number, it is an overlay); an exclude (a
+   doublet/artifact cluster); or a cross_cluster note (two+ clusters are one →
+   scope=dataset, subject_clusters=[ids]). It cross-checks the claim against the
+   literature and the biologist confirms scope/basis before it is saved. Do NOT draft
+   for questions, acknowledgements, view commands, or mid-thought hedges. Tell them you
+   drafted it and to confirm below; keep the disagreement visible, never a bare
+   acknowledgement.
 5. WHEN UNSURE, say "re-check this" and set the verify flag — do not guess to
    seem helpful.
 6. Plain language. Every point names a gene and its number. State the confidence
@@ -370,6 +381,9 @@ def _draft_from_payload(data: Any) -> Optional[NoteDraft]:
         subject_markers=tuple(data.get("subject_markers") or ()),
         tension=tension,
         dataset=str(data.get("dataset", cfg.DATASET_ID)),
+        type=data.get("type", "celltype_override"),
+        subject_gene_sets=tuple(data.get("subject_gene_sets") or ()),
+        subject_clusters=tuple(data.get("subject_clusters") or ()),
     )
 
 
