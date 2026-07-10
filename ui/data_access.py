@@ -340,10 +340,40 @@ def all_verdicts() -> list[ClusterVerdict]:
     return [verdict_for(c) for c in CLUSTER_ORDER]
 
 
-@_cache_data(show_spinner=False)
+def _excluded_clusters() -> set:
+    """Clusters carrying a firing `exclude` lab note. Applied at COMPOSITION only — the
+    deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md)."""
+    from agent import memory
+
+    try:
+        return {
+            n.scope_ref.cluster
+            for n in memory.read_notes()
+            if getattr(n, "type", "") == "exclude" and n.scope == "cluster" and n.scope_ref.cluster
+        }
+    except Exception:  # noqa: BLE001 - a malformed note must never break the export
+        return set()
+
+
+def composed_verdicts() -> list[ClusterVerdict]:
+    """``all_verdicts()`` with the exclude overlay applied (``exclude=True`` where an
+    exclude note fires). Returns NEW objects — the cached verdicts are never mutated,
+    so the deterministic output stays intact and only the composed export changes.
+    NOT cached: exclude notes are added at runtime and must reflect immediately."""
+    excluded = _excluded_clusters()
+    if not excluded:
+        return all_verdicts()
+    import dataclasses
+
+    return [
+        dataclasses.replace(v, exclude=True) if v.cluster in excluded else v
+        for v in all_verdicts()
+    ]
+
+
 def verdict_csv() -> str:
-    """The 11-column CSV export for all clusters (cached)."""
-    return agent_verdict.to_csv(all_verdicts())
+    """The 11-column CSV export, with any `exclude` notes applied at composition."""
+    return agent_verdict.to_csv(composed_verdicts())
 
 
 @_cache_data(show_spinner=False)
