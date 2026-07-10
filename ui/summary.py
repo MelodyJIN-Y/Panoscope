@@ -2,21 +2,23 @@
 
 Both workflows land here. The page reads like a manuscript you finalise:
 
-* a **contents rail** on the left (every cluster, then the dataset-level sections:
-  cross-cluster check, caveats, lab notes) — click to focus one section;
-* a **right pane** with one scannable *overview* table (marker call + enriched
-  programs in a single row per cluster) on top, then the editor for the *one*
-  selected section below it.
+* a **contents rail** on the left — ``Overall`` (the whole-dataset map + the
+  cross-cluster check), then every cluster, then ``Caveats`` and ``Lab notes``;
+* a **right pane** that shows exactly one section at a time: the Overall page is
+  the merged overview table + the editable global check; a cluster page is that
+  cluster's editable identity+programs write-up; the dataset pages are their own
+  editors / note cards.
 
 Grounding is preserved end to end — nothing here computes a value. The overview is
 a straight projection of :func:`ui.data_access.all_verdicts` +
-:func:`~ui.data_access.all_enrichments`; each per-section draft is
+:func:`~ui.data_access.all_enrichments`; each draft is
 :func:`ui.report.default_cluster_summary` / ``global_check_text`` / ``caveats_text``
 (live-cited, PMID-carrying); the exports are byte-for-byte what you edit.
 
 "Auto-seed, edits win": each editable region seeds once from the latest draft and
-then keeps your edits. One "refresh all" button re-drafts every region from the
-freshest calls, programs, and lab notes.
+then keeps your edits (held in plain ``wsval_*`` session keys, so switching sections
+never drops one). One "refresh all" re-drafts every region from the freshest calls,
+programs, and lab notes.
 
 Streamlit is imported lazily inside the render function so ``import ui.summary``
 works with no server running.
@@ -53,15 +55,13 @@ _PDF_LABEL = "⬇  PDF"
 _PDF_NAME = "panoscope_interpretation.pdf"
 _PDF_MIME = "application/pdf"
 
-# Fixed (dataset-level) rail sections, after the per-cluster ones.
-_SEC_GLOBAL = "global"
+# Rail sections. "overall" hosts the overview + the (editable) cross-cluster check;
+# then one entry per cluster; then the two dataset-level editors/cards.
+_SEC_OVERALL = "overall"
 _SEC_CAVEATS = "caveats"
 _SEC_NOTES = "labnotes"
-_FIXED_SECTIONS = (
-    (_SEC_GLOBAL, "Cross-cluster check"),
-    (_SEC_CAVEATS, "Caveats"),
-    (_SEC_NOTES, "Lab notes"),
-)
+_DATASET_SECTIONS = ((_SEC_CAVEATS, "Caveats"), (_SEC_NOTES, "Lab notes"))
+_ED_GLOBAL = "global"   # editor name for the cross-cluster check (lives on Overall)
 _K_ACTIVE = "sum_active_section"  # which rail item is focused
 
 # Overview table columns (merged marker + enrichment). (label, width%)
@@ -83,21 +83,21 @@ _SUMMARY_CSS = """
 .pano-sum-meta .n { color: var(--ink); font-weight: 600; }
 .pano-sum-meta .sep { color: var(--hair); }
 
-/* Top action cluster: refresh + the two report downloads, right-aligned. */
-.st-key-pano_actions { display: flex; justify-content: flex-end; align-items: center;
-  gap: 8px; height: 100%; }
-.st-key-pano_actions button { border-radius: 9px !important; white-space: nowrap; }
-.st-key-pano_actions .st-key-pano_refresh button { background: transparent !important;
-  border: 1px solid var(--hair) !important; color: var(--faint) !important; box-shadow: none !important; }
-.st-key-pano_actions .st-key-pano_refresh button:hover { color: var(--accent) !important;
-  border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+/* Top action buttons (refresh + Word + PDF) — laid out in three columns. */
+.st-key-btn_ws_refresh button, .st-key-dl_docx button, .st-key-dl_pdf button {
+  border-radius: 9px !important; font-size: 12px !important; white-space: nowrap;
+  min-height: 0 !important; padding: 7px 10px !important; }
+.st-key-btn_ws_refresh button { background: transparent !important; border: 1px solid var(--hair) !important;
+  color: var(--faint) !important; box-shadow: none !important; }
+.st-key-btn_ws_refresh button:hover { color: var(--accent) !important; border-color: var(--accent) !important;
+  background: var(--accent-soft) !important; }
 
 /* Left contents rail — a sticky table of contents of buttons. */
 .st-key-pano_rail { position: sticky; top: 68px; align-self: start;
   border: 1px solid var(--hair); border-radius: 14px; background: var(--paper);
   padding: 10px 10px 12px; }
 .pano-rail-lbl { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase;
-  letter-spacing: .12em; color: var(--faint); font-weight: 600; margin: 8px 4px 4px; }
+  letter-spacing: .12em; color: var(--faint); font-weight: 600; margin: 12px 4px 4px; }
 .pano-rail-lbl:first-child { margin-top: 2px; }
 .st-key-pano_rail button { justify-content: flex-start !important; text-align: left !important;
   border: 0 !important; box-shadow: none !important; background: transparent !important;
@@ -138,23 +138,20 @@ _SUMMARY_CSS = """
   font-size: 11px !important; padding: 4px 11px !important; min-height: 0 !important; }
 .st-key-pano_csv button:hover { color: var(--accent) !important; border-color: var(--accent) !important; }
 
-/* Focused editor — one section visible at a time (the rest are hidden but kept
-   mounted so their text_area state survives). Show rule uses !important to beat
-   the attribute-selector's higher specificity. */
-div[class*="st-key-ed_"] { display: none; }
-.pano-ed-hr { border: 0; border-top: 1px solid var(--hair); margin: 26px 0 4px; }
+/* Focused editor. */
+.pano-ed-hr { border: 0; border-top: 1px solid var(--hair); margin: 24px 0 4px; }
 .pano-ed-eyebrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-  letter-spacing: .11em; color: var(--accent); font-weight: 600; margin: 6px 0 8px; }
-.pano-ws-head { display: flex; align-items: baseline; gap: 10px; padding: 0 0 8px; flex-wrap: wrap; }
+  letter-spacing: .11em; color: var(--accent); font-weight: 600; margin: 4px 0 10px; }
+.pano-ws-head { display: flex; align-items: baseline; gap: 10px; padding: 0 0 10px; flex-wrap: wrap; }
 .pano-ws-head .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .pano-ws-head .cid { font-family: var(--mono); font-size: 11px; color: var(--faint); }
-.pano-ws-head .ct { font-size: 17px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+.pano-ws-head .ct { font-size: 18px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
 .pano-ws-head .cf { font-size: 10px; padding: 2px 8px; }
 .pano-ed-hint { font-size: 11.5px; color: var(--faint); margin: 6px 0 0; }
-div[class*="st-key-ws_"] textarea { font-family: var(--sans) !important; font-size: 13.5px !important;
+div[class*="st-key-wsw_"] textarea { font-family: var(--sans) !important; font-size: 13.5px !important;
   line-height: 1.65 !important; border-radius: 12px !important; border: 1px solid var(--hair) !important;
   background: #FCFCFD !important; color: var(--ink) !important; }
-div[class*="st-key-ws_"] textarea:focus { border-color: var(--accent) !important;
+div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px var(--accent-soft) !important; background: var(--paper) !important; }
 
 /* Lab-note cards (read-only, inside the Lab notes section). */
@@ -237,29 +234,28 @@ def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict) -> str:
 
 def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -> str:
     color = fmt.cluster_color(cluster)
+    css, _ = fmt.confidence_chip(confidence)
     flag = ' <span class="pano-sum-flag">⚑ re-check</span>' if verify else ""
     return (
         f'<div class="pano-ws-head"><span class="dot" style="background:{color}"></span>'
         f'<span class="cid">{html.escape(cluster)}</span>'
         f'<span class="ct">{html.escape(cell_type)}</span>'
-        f'<span class="cf {_conf_pill_css(confidence)}">{html.escape(confidence)}</span>{flag}</div>'
+        f'<span class="cf {css}">{html.escape(confidence)}</span>{flag}</div>'
     )
 
 
-def _conf_pill_css(confidence: str) -> str:
-    css, _ = fmt.confidence_chip(confidence)
-    return css
-
-
 # --------------------------------------------------------------------------- #
-# Editable working space (session-backed; edits win).
+# Editable working space — one section rendered at a time; edits held in plain
+# ``wsval_*`` keys so navigating away never drops them.
 # --------------------------------------------------------------------------- #
 def _reset_ws_all(defaults: dict) -> None:
-    """on_click: re-draft EVERY working-space region from its freshest auto-seed."""
+    """on_click: re-draft EVERY region from its freshest auto-seed. Pops the mounted
+    widget key so the visible editor re-seeds from the new default."""
     import streamlit as st
 
-    for key, default in defaults.items():
-        st.session_state[key] = default
+    for name, default in defaults.items():
+        st.session_state[f"wsval_{name}"] = default
+        st.session_state.pop(f"wsw_{name}", None)
 
 
 def _set_active(section: str) -> None:
@@ -269,12 +265,20 @@ def _set_active(section: str) -> None:
     st.session_state[_K_ACTIVE] = section
 
 
-def _seed_editable(st, key: str, default: str, height: int) -> None:
-    """Seed the region once, then let edits persist. All regions stay mounted (the
-    inactive ones are CSS-hidden) so switching sections never drops an edit."""
-    if key not in st.session_state:
-        st.session_state[key] = default
-    st.text_area("edit", key=key, height=height, label_visibility="collapsed")
+def _editor(st, name: str, default: str, height: int) -> None:
+    """Render one editable region. Canonical text lives in ``wsval_{name}`` (a plain
+    key that survives when the widget is unmounted); the ``wsw_{name}`` widget seeds
+    from it. The caller reconciles ``wsval`` from ``wsw`` before this runs."""
+    vkey = f"wsval_{name}"
+    if vkey not in st.session_state:
+        st.session_state[vkey] = default
+    val = st.text_area("edit", value=st.session_state[vkey], key=f"wsw_{name}",
+                       height=height, label_visibility="collapsed")
+    st.session_state[vkey] = val
+
+
+def _eyebrow(st, text: str) -> None:
+    st.markdown(f'<div class="pano-ed-eyebrow">{html.escape(text)}</div>', unsafe_allow_html=True)
 
 
 def _render_lab_note_cards(st, notes: list) -> None:
@@ -296,20 +300,18 @@ def _render_lab_note_cards(st, notes: list) -> None:
         )
 
 
-def _eyebrow(st, text: str) -> None:
-    st.markdown(f'<div class="pano-ed-eyebrow">{html.escape(text)}</div>', unsafe_allow_html=True)
-
-
 # --------------------------------------------------------------------------- #
 # Page
 # --------------------------------------------------------------------------- #
 def render_summary_page() -> None:
-    """Two-pane report editor: contents rail + overview table + focused editor."""
+    """Two-pane report editor: contents rail (Overall + clusters + dataset) on the
+    left, one focused section on the right."""
     import streamlit as st
 
     st.markdown(f"<style>{_SUMMARY_CSS}</style>", unsafe_allow_html=True)
 
     verdicts = da.all_verdicts()
+    sec_by_id = {v.cluster: v for v in verdicts}
     n_flagged = sum(1 for v in verdicts if v.verify)
     try:
         n_panel = len(da.panel_names())
@@ -329,30 +331,34 @@ def render_summary_page() -> None:
     except Exception:  # noqa: BLE001
         themes = None
     ws_defaults: dict[str, str] = {
-        f"ws_{s.cluster}": report.default_cluster_summary(s) for s in rep.sections
+        s.cluster: report.default_cluster_summary(s) for s in rep.sections
     }
-    ws_defaults["ws_global"] = report.global_check_text(da.holistic(), themes)
-    ws_defaults["ws_caveats"] = report.caveats_text(verdicts, enr_map, n_panel)
+    ws_defaults[_ED_GLOBAL] = report.global_check_text(da.holistic(), themes)
+    ws_defaults[_SEC_CAVEATS] = report.caveats_text(verdicts, enr_map, n_panel)
 
-    # Active rail section (default: first cluster).
-    default_active = rep.sections[0].cluster if rep.sections else _SEC_GLOBAL
-    active = st.session_state.get(_K_ACTIVE, default_active)
+    # Reconcile canonical text from the (possibly just-edited) mounted widget BEFORE
+    # exports are built, so a download always reflects the latest keystrokes.
+    for name in ws_defaults:
+        wkey = f"wsw_{name}"
+        if wkey in st.session_state:
+            st.session_state[f"wsval_{name}"] = st.session_state[wkey]
 
-    # Edited text (session wins over the fresh default) — what exports.
-    def _val(key: str) -> str:
-        return st.session_state.get(key, ws_defaults[key])
+    def _val(name: str) -> str:
+        return st.session_state.get(f"wsval_{name}", ws_defaults[name])
+
+    active = st.session_state.get(_K_ACTIVE, _SEC_OVERALL)
 
     export_sections = [
-        (s.cluster, s.cell_type, s.confidence, s.verify, _val(f"ws_{s.cluster}"))
+        (s.cluster, s.cell_type, s.confidence, s.verify, _val(s.cluster))
         for s in rep.sections
     ]
     ga = datetime.date.today().isoformat()
     exp_kw = dict(dataset=rep.dataset, generated_at=ga,
-                  global_check=_val("ws_global"), caveats=_val("ws_caveats"),
+                  global_check=_val(_ED_GLOBAL), caveats=_val(_SEC_CAVEATS),
                   lab_notes=rep.dataset_notes)
 
-    # ---- Top bar: title + meta | refresh + Word + PDF -------------------- #
-    head_col, act_col = st.columns([0.60, 0.40], vertical_alignment="center")
+    # ---- Top bar: title + meta | [refresh] [Word] [PDF] ------------------ #
+    head_col, act_col = st.columns([0.58, 0.42], vertical_alignment="center")
     with head_col:
         flagged_txt = (f'<span class="n">{n_flagged}</span> flagged for re-check'
                        if n_flagged else "none flagged")
@@ -365,72 +371,70 @@ def render_summary_page() -> None:
             unsafe_allow_html=True,
         )
     with act_col:
-        with st.container(key="pano_actions"):
-            with st.container(key="pano_refresh"):
-                st.button("↻ refresh all", key="btn_ws_refresh",
-                          on_click=_reset_ws_all, args=(ws_defaults,),
-                          help="Re-draft every region from the latest calls, programs, and lab notes.")
+        b_ref, b_doc, b_pdf = st.columns(3)
+        with b_ref:
+            st.button("↻ refresh", key="btn_ws_refresh", use_container_width=True,
+                      on_click=_reset_ws_all, args=(ws_defaults,),
+                      help="Re-draft every region from the latest calls, programs, and lab notes.")
+        with b_doc:
             st.download_button(_DOCX_LABEL, report.working_docx(export_sections, **exp_kw),
-                               _DOCX_NAME, _DOCX_MIME, key="dl_docx")
+                               _DOCX_NAME, _DOCX_MIME, key="dl_docx", use_container_width=True)
+        with b_pdf:
             st.download_button(_PDF_LABEL, report.working_pdf(export_sections, **exp_kw),
-                               _PDF_NAME, _PDF_MIME, key="dl_pdf")
+                               _PDF_NAME, _PDF_MIME, key="dl_pdf", use_container_width=True)
 
     st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
 
-    # ---- Two panes: contents rail | overview + focused editor ------------ #
+    # ---- Two panes: contents rail | focused section ---------------------- #
     rail_col, pane_col = st.columns([0.24, 0.76], gap="large")
 
     with rail_col:
         with st.container(key="pano_rail"):
+            st.markdown('<div class="pano-rail-lbl">Report</div>', unsafe_allow_html=True)
+            st.button("Overall", key="nav_overall", use_container_width=True,
+                      type="primary" if active == _SEC_OVERALL else "secondary",
+                      on_click=_set_active, args=(_SEC_OVERALL,))
             st.markdown('<div class="pano-rail-lbl">Clusters</div>', unsafe_allow_html=True)
             for s in rep.sections:
                 label = f"{s.cluster} · {s.cell_type}" + ("  ⚑" if s.verify else "")
                 st.button(label, key=f"nav_{s.cluster}", use_container_width=True,
                           type="primary" if active == s.cluster else "secondary",
                           on_click=_set_active, args=(s.cluster,))
-            st.markdown('<div class="pano-rail-lbl">Report</div>', unsafe_allow_html=True)
-            for sec, label in _FIXED_SECTIONS:
+            st.markdown('<div class="pano-rail-lbl">Dataset</div>', unsafe_allow_html=True)
+            for sec, label in _DATASET_SECTIONS:
                 st.button(label, key=f"nav_{sec}", use_container_width=True,
                           type="primary" if active == sec else "secondary",
                           on_click=_set_active, args=(sec,))
 
     with pane_col:
-        # Overview: the one scannable map (always visible context).
-        st.markdown('<div class="pano-ov-cap">Overview · marker call + enriched programs</div>',
-                    unsafe_allow_html=True)
-        st.markdown(_overview_table_html(verdicts, enr_map), unsafe_allow_html=True)
-        with st.container(key="pano_csv"):
-            st.download_button(_CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME, key="dl_csv")
-
-        st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
-
-        # Focused editors — every section stays mounted; CSS shows only `active`.
-        # (Show rule injected per-run; !important beats the attribute selector.)
-        st.markdown(f"<style>.st-key-ed_{html.escape(active)}{{display:block !important;}}</style>",
-                    unsafe_allow_html=True)
-
-        for s in rep.sections:
-            with st.container(key=f"ed_{s.cluster}"):
-                _eyebrow(st, "Cluster interpretation · identity + programs")
-                st.markdown(_ws_head_html(s.cluster, s.cell_type, s.confidence, s.verify),
-                            unsafe_allow_html=True)
-                _seed_editable(st, f"ws_{s.cluster}", ws_defaults[f"ws_{s.cluster}"], height=260)
-                st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
-                            f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
-
-        with st.container(key=f"ed_{_SEC_GLOBAL}"):
+        if active == _SEC_OVERALL:
+            st.markdown('<div class="pano-ov-cap">Overview · marker call + enriched programs</div>',
+                        unsafe_allow_html=True)
+            st.markdown(_overview_table_html(verdicts, enr_map), unsafe_allow_html=True)
+            with st.container(key="pano_csv"):
+                st.download_button(_CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME, key="dl_csv")
+            st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             _eyebrow(st, "Dataset · cross-cluster global check")
-            _seed_editable(st, "ws_global", ws_defaults["ws_global"], height=240)
+            _editor(st, _ED_GLOBAL, ws_defaults[_ED_GLOBAL], height=240)
 
-        with st.container(key=f"ed_{_SEC_CAVEATS}"):
+        elif active in sec_by_id:
+            s = sec_by_id[active]
+            _eyebrow(st, "Cluster interpretation · identity + programs")
+            st.markdown(_ws_head_html(s.cluster, s.cell_type, s.confidence, s.verify),
+                        unsafe_allow_html=True)
+            _editor(st, s.cluster, ws_defaults[s.cluster], height=320)
+            st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
+                        f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
+
+        elif active == _SEC_CAVEATS:
             _eyebrow(st, "Dataset · caveats")
-            _seed_editable(st, "ws_caveats", ws_defaults["ws_caveats"], height=260)
+            _editor(st, _SEC_CAVEATS, ws_defaults[_SEC_CAVEATS], height=300)
 
-        with st.container(key=f"ed_{_SEC_NOTES}"):
+        else:  # _SEC_NOTES (or any stale value) -> lab notes
             _eyebrow(st, "Lab knowledge · your saved notes")
             st.markdown('<div class="pano-ed-hint" style="margin:0 0 10px">Captured when you override '
-                        "or confirm a call in the chat; compiled into the write-up above and the "
-                        "exported report.</div>", unsafe_allow_html=True)
+                        "or confirm a call in the chat; compiled into the write-up and the exported "
+                        "report.</div>", unsafe_allow_html=True)
             _render_lab_note_cards(st, da.read_notes())
 
 
