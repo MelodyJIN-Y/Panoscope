@@ -630,6 +630,14 @@ class PanoscopeAgent:
 
         base = self._fallback.opening(target)  # deterministic, grounded
 
+        # Fast path: the pipeline's precomputed, live-cited cell-type note. Its PMID
+        # was verified live at build time and the base is grounded by construction,
+        # so this is trusted — NO network, no live re-verify at open time (matching
+        # the Pathways opening). The live CHAT is unaffected and stays fully live.
+        pre = self._precomputed_opening(base, target)
+        if pre is not None:
+            return pre
+
         enriched = self._enrich_opening(base, target)
         candidate = enriched if enriched is not None else base
 
@@ -643,12 +651,14 @@ class PanoscopeAgent:
     def _enrich_opening(
         self, base: AgentResponse, cluster: str
     ) -> Optional[AgentResponse]:
-        """Add ONE real literature citation to the opening, or None on any failure.
+        """Add ONE real literature citation to the opening via a LIVE lookup, or None
+        on any failure.
 
-        Uses the loop's own literature search (the same tool the chat loop uses),
-        so a PMID only ever comes from a live connector lookup. Everything is
-        wrapped: a down/slow connector yields None and the caller keeps the pure
-        verdict opening — the demo never blocks.
+        This is the fallback path used only when no precomputed cell-type note exists
+        (``opening_interpretation`` tries :meth:`_precomputed_opening` first). Uses the
+        loop's own literature search (the same tool the chat loop uses), so a PMID only
+        ever comes from a real connector lookup. Everything is wrapped: a down/slow
+        connector yields None and the caller keeps the pure verdict opening.
         """
         op = base  # alias
         pin = op.pin_marker
@@ -682,6 +692,73 @@ class PanoscopeAgent:
         )
         lit_line = (
             f" Literature: {pin} as a {cell_type} marker — PMID:{pmid}"
+            f"{' (' + cite.title + ')' if cite.title else ''}."
+        )
+        new_sidecar = GroundingSidecar(
+            numbers=op.grounding.numbers,
+            markers=op.grounding.markers,
+            pmids=op.grounding.pmids + (pmid,),
+            notes_used=op.grounding.notes_used,
+        )
+        lit_source = Source(
+            kind="lit",
+            ref=pmid,
+            value=cite.title,
+            detail=f"{cite.authors} ({cite.year}) {cite.journal}".strip(),
+        )
+        return AgentResponse(
+            text=op.text + lit_line,
+            sources=op.sources + (lit_source,),
+            verify=op.verify,
+            grounding=new_sidecar,
+            pin_marker=op.pin_marker,
+            citations=op.citations + (cite,),
+            note_written=None,
+            used_fallback=False,
+            opening=True,
+        )
+
+    @staticmethod
+    def _load_celltype_note(cluster: str) -> Optional[dict]:
+        """The pipeline's precomputed cell-type note for ``cluster`` (keys: summary,
+        pmid, citation), or None. Fail-soft: no tree / import issue -> None (live path)."""
+        try:
+            from pipeline import store  # lazy: avoids an import cycle with pipeline
+
+            notes = store.load_celltype_notes(cfg.DATASET_ID)
+        except Exception:  # noqa: BLE001 - no tree / not importable -> live lookup
+            return None
+        note = (notes or {}).get(cluster)
+        return note if isinstance(note, dict) else None
+
+    def _precomputed_opening(
+        self, base: AgentResponse, cluster: str
+    ) -> Optional[AgentResponse]:
+        """Enrich the opening from the precomputed, live-cited cell-type note — no
+        network. None if there is no precomputed note with a real PMID (the caller
+        then does a live lookup). The PMID is real: it was fetched live in the
+        pipeline's notes stage, so this keeps the confident floor (never from memory)."""
+        note = self._load_celltype_note(cluster)
+        if not note:
+            return None
+        pmid = str(note.get("pmid", "") or "").strip()
+        if not pmid.isdigit():
+            return None
+
+        op = base
+        cinfo = note.get("citation") or {}
+        cell_type = cfg.CLUSTER_KEY[cluster]["cell_type"].replace("_", " ")
+        cite = Citation(
+            pmid=pmid,
+            title=str(cinfo.get("title", "")),
+            authors=str(cinfo.get("authors", "")),
+            year=int(cinfo["year"]) if str(cinfo.get("year", "")).isdigit() else 0,
+            journal=str(cinfo.get("journal", "")),
+            url=str(cinfo.get("url", "")) or f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+            is_real=True,
+        )
+        lit_line = (
+            f" Literature: {cell_type} biology — PMID:{pmid}"
             f"{' (' + cite.title + ')' if cite.title else ''}."
         )
         new_sidecar = GroundingSidecar(
