@@ -58,12 +58,16 @@ def render_pathway_conversation(cluster: str) -> None:
     _render_header(cluster)
     st.markdown(
         '<div class="conv-hint">Ask about this cluster\'s enriched programs — what they '
-        "mean, whether they fit the cell type, or which look cross-lineage. Answers cite "
-        "live literature.</div>",
+        "mean, whether they fit the cell type, or which look cross-lineage. Reinterpret a "
+        "program (e.g. co-infiltration, not the cluster's own) and I draft a note to save. "
+        "Answers cite live literature.</div>",
         unsafe_allow_html=True,
     )
     with st.container(key="conv_thread"):
         _render_thread(cluster)
+    # Same two-tap confirm card as the marker chat, on this cluster's pathway thread —
+    # so a program_reinterpretation captured here never collides with the marker draft.
+    convo._render_draft_card(cluster, thread_key=_thread_key(cluster))
     _render_ask_box(cluster)
 
 
@@ -222,6 +226,10 @@ def _submit(cluster: str, query: str) -> None:
     text = _FALLBACK_TEXT if getattr(resp, "used_fallback", False) else resp.text
     keep = None if getattr(resp, "used_fallback", False) else resp
     state.append_message(key, {"role": "agent", "text": text, "resp": keep})
+    # If the agent proposed a note (e.g. a program_reinterpretation), stash it under
+    # this pathway thread so the confirm card renders; nothing saves until confirmed.
+    if keep is not None and getattr(resp, "note_draft", None) is not None:
+        state.set_pending_draft(key, resp.note_draft)
 
 
 def _safe_chat(cluster: str, query: str):
