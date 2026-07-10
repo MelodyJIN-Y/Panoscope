@@ -114,7 +114,8 @@ def test_tool_schemas_match_dispatch():
     assert names <= set(tools._DISPATCH)
     assert "memory_write" not in names
     assert "memory_draft" in names
-    assert len(tools.TOOL_SCHEMAS) == 7
+    assert "discriminate_call" in names
+    assert len(tools.TOOL_SCHEMAS) == 8
     for schema in tools.TOOL_SCHEMAS:
         assert "name" in schema and "description" in schema and "input_schema" in schema
         assert schema["input_schema"]["type"] == "object"

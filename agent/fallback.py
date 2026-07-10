@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from agent import discriminate
 from agent.types import (
     AgentResponse,
     ClusterVerdict,
@@ -178,6 +179,22 @@ def fallback_opening(cluster: str) -> AgentResponse:
 
     sources = _marker_sources(drivers) + _offpanel_sources(notes)
     sidecar = _sidecar(drivers, notes)
+
+    # Proactive "what would settle it": append only when there is a genuine rival
+    # to name — a shaky call (verify) or real mixed signal (a rival marker peaks
+    # here). Deterministic + grounded, so it survives with no network.
+    d = discriminate.discriminate(cluster)
+    if d.alt_B is not None and (op.verify or d.b_here):
+        text += discriminate.settle_line(d)
+        d_sources, d_numbers, d_markers = _discrimination_grounding(d, include_support=False)
+        sources = sources + d_sources
+        sidecar = GroundingSidecar(
+            numbers=sidecar.numbers + d_numbers,
+            markers=sidecar.markers + d_markers,
+            pmids=sidecar.pmids,
+            notes_used=sidecar.notes_used,
+        )
+
     pin = drivers[0].gene if drivers else None
 
     return AgentResponse(
@@ -325,6 +342,109 @@ def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
     )
 
 
+# --------------------------------------------------------------------------- #
+# "What would settle it" — the discriminator, as a grounded fallback answer
+# --------------------------------------------------------------------------- #
+# Free-text cell-type hints -> canonical map key. Ordered: 'myoepithelial' is
+# checked before generic terms so it wins over a bare 'epithelial'-like match.
+_TYPE_HINTS: tuple[tuple[str, str], ...] = (
+    ("myoepithelial", "Myoepithelial"),
+    ("tumor", "Tumor"),
+    ("tumour", "Tumor"),
+    ("fibroblast", "Stromal"),
+    ("stromal", "Stromal"),
+    ("caf", "Stromal"),
+    ("macrophage", "Macrophages"),
+    ("tam", "Macrophages"),
+    ("t cell", "T_Cells"),
+    ("t-cell", "T_Cells"),
+    ("b cell", "B_Cells"),
+    ("b-cell", "B_Cells"),
+    ("endothelial", "Endothelial"),
+    ("endothelium", "Endothelial"),
+    ("dendritic", "Dendritic"),
+    ("mast", "Mast_Cells"),
+)
+
+
+def _alts_from_query(query: str) -> list[str]:
+    """All canonical cell types named in a free-text question, in table order.
+
+    The fallback has no LLM to parse the query, so it scans for cell-type names the
+    biologist may have named (e.g. 'is this tumor or myoepithelial'). The caller
+    drops the cluster's own call and takes the rest as the alternative; when none
+    remains, the discriminator derives the rival from the cluster's own markers.
+    """
+    q = (query or "").lower()
+    out: list[str] = []
+    for hint, key in _TYPE_HINTS:
+        if hint in q and key not in out:
+            out.append(key)
+    return out
+
+
+def _discrimination_grounding(d, include_support: bool = True):
+    """Grounded (sources, numbers, marker-vocab) for a Discrimination.
+
+    Numbers are attached ONLY to markers that peak in this cluster (supporting_A /
+    b_here); elsewhere / off-panel markers contribute vocabulary but no statistic.
+    ``include_support=False`` omits supporting_A (used when the caller already
+    grounded the drivers, e.g. the opening).
+    """
+    numbered = (*(d.supporting_A if include_support else ()), *d.b_here)
+    numbers: list[tuple[str, str, float]] = []
+    for m in numbered:
+        numbers.append((m.gene, "glm_coef", float(m.glm_coef)))
+        numbers.append((m.gene, "pearson", float(m.pearson)))
+    marker_names = tuple(
+        m.gene
+        for m in (
+            *(d.supporting_A if include_support else ()),
+            *d.b_here,
+            *d.b_elsewhere,
+            *d.offpanel_absent,
+        )
+    )
+    sources = tuple(
+        Source(
+            kind="jz",
+            ref=m.gene,
+            value=_FMT.format(m.glm_coef),
+            detail=f"glm_coef {_FMT.format(m.glm_coef)}, pearson {_FMT.format(m.pearson)}",
+        )
+        for m in numbered
+    ) + tuple(
+        Source(kind="panel", ref=m.gene, value="off-panel", detail="off-panel — never measured")
+        for m in d.offpanel_absent
+    )
+    return sources, tuple(numbers), marker_names
+
+
+def _settle_answer(v: ClusterVerdict, query: str) -> AgentResponse:
+    """Grounded 'what would settle it' answer: name the discriminating markers.
+
+    Derives the rival from the biologist's wording if present, else from the
+    cluster's own markers. Quotes numbers only for markers that peak here, flags
+    off-panel genes (never recommends an experiment), and always clears the floor.
+    """
+    alts = [t for t in _alts_from_query(query) if t != v.cell_type]
+    d = discriminate.discriminate(v.cluster, alts[0] if alts else None)
+    sources, numbers, marker_names = _discrimination_grounding(d, include_support=True)
+    sidecar = GroundingSidecar(numbers=numbers, markers=marker_names, pmids=(), notes_used=())
+    pin = d.supporting_A[0].gene if d.supporting_A else None
+    return AgentResponse(
+        text=discriminate.settle_summary(d),
+        sources=sources,
+        verify=v.verify,
+        grounding=sidecar,
+        pin_marker=pin,
+        citations=(),
+        note_written=None,
+        used_fallback=True,
+        opening=False,
+    )
+
+
 # Intent -> builder. Each builder takes a ClusterVerdict and returns an
 # AgentResponse (or None to defer to the generic fallback).
 _INTENT_BUILDERS = {
@@ -338,6 +458,13 @@ _INTENT_BUILDERS = {
 # so more specific beats sit ahead of generic ones.
 _INTENT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("doublet", ("doublet", "mixture", "mixed cell", "two cell", "contamination")),
+    (
+        "settle",
+        ("settle", "could this be", "could it be", "might it be", "might this be",
+         "distinguish", "differentiate", "tell apart", "tell it from", "rule out",
+         "rule in", "versus", " vs ", "confused with", "what separates",
+         "what would decide", "how do i tell", "how to tell"),
+    ),
     (
         "offpanel",
         ("off-panel", "off panel", "missing marker", "not measured", "absent",
@@ -365,6 +492,10 @@ def _classify(query: str) -> Optional[str]:
         for kw in keywords:
             if kw in q:
                 return intent
+    # No canned intent matched, but if the biologist named a specific cell type,
+    # read it as a "what would settle it" comparison against that alternative.
+    if _alts_from_query(q):
+        return "settle"
     return None
 
 
@@ -384,6 +515,10 @@ def fallback_answer(query: str, cluster: str) -> Optional[AgentResponse]:
     if intent is None:
         return None
     v = verdict_for_cluster(cluster)
+    if intent == "settle":
+        # The settle answer needs the query text (to pick up a named alternative),
+        # so it is built here rather than through the ClusterVerdict-only table.
+        return _settle_answer(v, query)
     builder = _INTENT_BUILDERS[intent]
     return builder(v)
 

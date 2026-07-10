@@ -1,4 +1,4 @@
-"""The seven agent tools — Anthropic tool schemas + grounded Python impls.
+"""The agent tools — Anthropic tool schemas + grounded Python impls.
 
 The tool-use loop (``agent/loop.py``) hands the model :data:`TOOL_SCHEMAS` and,
 for every tool call the model makes, invokes :func:`dispatch`. Each tool returns
@@ -34,6 +34,7 @@ from typing import Any, Callable, Iterable, Optional
 
 from agent import config as cfg
 from agent import data
+from agent import discriminate
 from agent import memory
 from agent.types import Citation, Source
 
@@ -660,6 +661,76 @@ def memory_draft(
 
 
 # --------------------------------------------------------------------------- #
+# 9. discriminate_call — "what would settle it"
+# --------------------------------------------------------------------------- #
+def _discriminator_sources(d) -> tuple[Source, ...]:
+    """Grounded Sources for a discrimination: jz numbers only for own top markers,
+    a locating jz fact for elsewhere-markers, panel-absence for off-panel markers."""
+    srcs: list[Source] = []
+    for m in (*d.supporting_A, *d.b_here):  # top markers of THIS cluster -> real numbers
+        srcs.append(
+            Source(
+                kind="jz",
+                ref=m.gene,
+                value=f"{m.glm_coef:.2f}",
+                detail=f"top_cluster {m.top_cluster}, glm_coef {m.glm_coef:.4f}, pearson {m.pearson:.4f}",
+            )
+        )
+    for m in d.b_elsewhere:  # measured, localizes elsewhere -> a fact, not a number here
+        srcs.append(
+            Source(
+                kind="jz",
+                ref=m.gene,
+                value=str(m.top_cluster),
+                detail=f"on panel; localizes to {m.top_cluster}, not {d.cluster}",
+            )
+        )
+    for m in d.offpanel_absent:  # never measured -> panel-absence
+        srcs.append(
+            Source(kind="panel", ref=m.gene, value="False", detail="off-panel — never measured")
+        )
+    return tuple(srcs)
+
+
+def discriminate_call(cluster: str, alt_cell_type: Optional[str] = None) -> Envelope:
+    """Name the markers that would SETTLE an ambiguous call (call vs an alternative).
+
+    Deterministic, grounded in this cluster's own jazzPanda markers + the panel.
+    Buckets: markers supporting the call here (with numbers), alternative-type
+    markers that are on the panel but localize to another cluster (measured, argue
+    against the alternative — no number here), and alternative-type markers that
+    are OFF-PANEL (never measured, only flagged). If ``alt_cell_type`` is omitted,
+    the strongest rival evident in the cluster's own markers is used (or none).
+    """
+    cl = str(cluster).strip() if cluster else None
+    if not cl:
+        return _fail("discriminate_call requires a cluster")
+    if cl not in cfg.KNOWN_CLUSTERS:
+        return _fail(f"unknown cluster {cl!r}; known: {sorted(cfg.KNOWN_CLUSTERS)}")
+
+    d = discriminate.discriminate(cl, alt_cell_type)
+
+    def _num(ms) -> list[dict[str, Any]]:
+        return [{"gene": m.gene, "glm_coef": m.glm_coef, "pearson": m.pearson} for m in ms]
+
+    payload = {
+        "cluster": d.cluster,
+        "call": d.call_A,
+        "alternative": d.alt_B,
+        "settleable_on_panel": d.settleable_on_panel,
+        "reason": d.reason,
+        "supports_call": _num(d.supporting_A),
+        "alt_markers_here": _num(d.b_here),
+        "alt_markers_elsewhere": [
+            {"gene": m.gene, "localizes_to": m.top_cluster} for m in d.b_elsewhere
+        ],
+        "alt_markers_offpanel": [m.gene for m in d.offpanel_absent],
+        "summary": discriminate.settle_summary(d),
+    }
+    return _ok(payload, _discriminator_sources(d))
+
+
+# --------------------------------------------------------------------------- #
 # Dispatch table + Anthropic tool schemas
 # --------------------------------------------------------------------------- #
 _DISPATCH: dict[str, Callable[..., Envelope]] = {
@@ -671,6 +742,7 @@ _DISPATCH: dict[str, Callable[..., Envelope]] = {
     "memory_read": memory_read,
     "memory_write": memory_write,
     "memory_draft": memory_draft,
+    "discriminate_call": discriminate_call,
 }
 
 
@@ -878,6 +950,39 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "required": ["claim", "scope", "basis"],
         },
     },
+    {
+        "name": "discriminate_call",
+        "description": (
+            "When a cluster's cell-type call is ambiguous — the biologist asks 'could this be X?' or "
+            "'what would settle it?', or the call is flagged verify — return the markers that separate "
+            "the call from an alternative, each classified against what was actually measured. Give the "
+            "cluster (c1..c9) and, if the biologist named one, the alternative cell type. The tool returns: "
+            "supports_call (markers backing the call HERE, with jazzPanda numbers you may quote), "
+            "alt_markers_here (alternative-type markers that are also top markers here — genuine rival "
+            "signal, numbers quotable), alt_markers_elsewhere (alternative-type markers on the panel but "
+            "localizing to another cluster — measured, so they argue AGAINST the alternative; there is NO "
+            "number for this cluster, never quote one), and alt_markers_offpanel (alternative-type markers "
+            "that are OFF-PANEL — never measured). Rules: quote numbers ONLY from supports_call / "
+            "alt_markers_here; for off-panel markers say 'never measured' and DO NOT suggest experiments or "
+            "bench assays — only flag them; then add ONE live citation via literature_search for the claim "
+            "that these markers distinguish the two cell types."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cluster": {"type": "string", "description": "Cluster id c1..c9."},
+                "alt_cell_type": {
+                    "type": "string",
+                    "description": (
+                        "The competing cell type to test against, if the biologist named one "
+                        "(e.g. 'Myoepithelial', 'T cells'). Omit to let the tool derive the strongest "
+                        "rival from the cluster's own markers."
+                    ),
+                },
+            },
+            "required": ["cluster"],
+        },
+    },
 ]
 
 # Sanity: every model-facing schema must have a dispatch entry. The reverse need
@@ -905,6 +1010,7 @@ __all__ = [
     "memory_read",
     "memory_write",
     "memory_draft",
+    "discriminate_call",
     "set_literature_search",
     "set_memory_base_dir",
     "memory_base_dir",

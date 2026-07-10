@@ -23,6 +23,7 @@ works with no server running.
 
 from __future__ import annotations
 
+import datetime
 import html
 
 from agent.types import ClusterVerdict
@@ -30,6 +31,7 @@ from agent.types import ClusterVerdict
 from ui import data_access as da
 from ui import format as fmt
 from ui import holistic
+from ui import report
 
 # --------------------------------------------------------------------------- #
 # Copy — page headings. Constants so prose never drifts.
@@ -42,6 +44,22 @@ _SUB = (
 _DOWNLOAD_LABEL = "⬇  Download annotations (CSV)"
 _DOWNLOAD_NAME = "panoscope_annotations.csv"
 _DOWNLOAD_MIME = "text/csv"
+
+# The dedicated interpretation summary (fourth region) — a reviewable write-up
+# assembled from the durable per-cluster interpretation, downloadable as Word/PDF.
+_REPORT_TITLE = "Interpretation summary"
+_REPORT_SUB = (
+    "A dedicated write-up assembled from the agent's per-cluster interpretation: the call and "
+    "confidence, the driving markers and their numbers, what would settle any shaky call, the "
+    "live-cited cell-type biology, and your saved lab notes with their tension. Review it here, "
+    "then download it as an editable Word document or a locked PDF."
+)
+_DOCX_LABEL = "⬇  Download report (Word)"
+_DOCX_NAME = "panoscope_interpretation.docx"
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_PDF_LABEL = "⬇  Download report (PDF)"
+_PDF_NAME = "panoscope_interpretation.pdf"
+_PDF_MIME = "application/pdf"
 
 # Column order the biologist asked for: Cluster, Lineage, Cell type, Key markers,
 # Cell-type summary, Confidence, Re-check. (key, header, width%)
@@ -102,6 +120,13 @@ _SUMMARY_CSS = """
 /* Right-align the CSV download under the table. */
 .st-key-pano_dl { display: flex; justify-content: flex-end; margin-top: 14px; }
 .st-key-pano_dl button { border-radius: 9px !important; }
+/* The interpretation-summary region header + its two report downloads. */
+.pano-report-head { font-family: var(--sans); font-size: 19px; font-weight: 700;
+                    color: var(--ink); letter-spacing: -.01em; margin: 30px 0 4px; }
+.pano-report-sub { font-size: 12.5px; color: var(--muted); line-height: 1.55;
+                   max-width: 82ch; margin: 0 0 14px; }
+.st-key-pano_report_dl { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.st-key-pano_report_dl button { border-radius: 9px !important; }
 """
 
 
@@ -214,6 +239,29 @@ def render_summary_page() -> None:
         )
 
     holistic.render_holistic_review()
+
+    # --- Fourth region: the dedicated interpretation summary ---------------- #
+    # Assembled from the durable, already-grounded artifacts (verdicts + cited
+    # cell-type notes + the discriminator's "what would settle it" + lab notes +
+    # the holistic review). No live network at build/download time. Read notes
+    # FRESH (uncached) so a just-saved note appears in the report immediately.
+    rep = report.build_report(
+        verdicts=verdicts,
+        celltype_notes=da.celltype_notes(),
+        notes=da.read_notes(),
+        holistic=da.holistic(),
+        panel_size=n_panel,
+        generated_at=datetime.date.today().isoformat(),
+    )
+    st.markdown(
+        f'<div class="pano-report-head">{html.escape(_REPORT_TITLE)}</div>'
+        f'<div class="pano-report-sub">{html.escape(_REPORT_SUB)}</div>',
+        unsafe_allow_html=True,
+    )
+    report.render_report_html(rep)
+    with st.container(key="pano_report_dl"):
+        st.download_button(_DOCX_LABEL, report.report_to_docx(rep), _DOCX_NAME, _DOCX_MIME)
+        st.download_button(_PDF_LABEL, report.report_to_pdf(rep), _PDF_NAME, _PDF_MIME)
 
 
 __all__ = ["render_summary_page"]

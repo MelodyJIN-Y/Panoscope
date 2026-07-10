@@ -121,6 +121,19 @@ Modifiers:
 
 Confidence labels (fixed set): **Very High, High, Medium-High, Medium, Low.** Low or ambiguous clusters get `verify = TRUE`.
 
+### 3e. When a call is ambiguous: name what would settle it
+
+When a cluster is `verify = TRUE`, its markers span more than one lineage, or the biologist proposes a different cell type, do not stop at "re-check this" — say **what would settle it**. Use `discriminate_call` (give the cluster and, if the biologist named one, the alternative cell type). It returns, grounded in this cluster's own markers:
+
+- **markers that support the call here**, with their jazzPanda numbers → quote these.
+- **alternative-type markers that also peak here** (`alt_markers_here`), with numbers → quote these; the call is genuinely ambiguous toward the alternative.
+- **alternative-type markers on the panel that localize to another cluster** (`alt_markers_elsewhere`) → they *were* measured, and the alternative's program lives in *that* cluster, not this one — this argues **against** the alternative. State where they localize; **never attach a jazzPanda number to this cluster for them** (that number was never computed here).
+- **alternative-type markers that are off-panel** (`alt_markers_offpanel`) → never measured. **Flag them by name** and say they cannot decide the call (panel-absence rule). Do **not** suggest running an experiment, an antibody/IHC, or any bench assay — only flag that the marker is off-panel.
+
+Then add one real, live citation (Step 5) for the claim that these markers distinguish the two cell types. The biologist decides; you lay out the measured evidence for and against, honestly labelled.
+
+**Never quote a jazzPanda number for a gene that is not one of this cluster's own top markers** — a marker's coefficient exists only for its own winning cluster.
+
 ## Step 4: Holistic review: does the whole set make sense?
 
 After annotating every cluster individually, STOP and review the complete set together. Individual calls can look fine in isolation but tell an incoherent story as a whole. Revise as needed.
