@@ -27,9 +27,10 @@ from __future__ import annotations
 import html
 from typing import Optional
 
-from agent.holistic import HolisticReview, Refinement, holistic_review
+from agent.holistic import HolisticReview, Refinement
 from agent.types import Citation
 
+from ui import data_access
 from ui import paper_drawer
 from ui import state
 
@@ -243,7 +244,7 @@ def render_holistic_review() -> None:
     import streamlit as st
 
     _inject_local_css()
-    review = holistic_review()
+    review = data_access.holistic()
 
     with st.container():
         st.markdown(

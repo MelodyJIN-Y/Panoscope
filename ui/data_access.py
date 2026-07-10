@@ -313,6 +313,26 @@ def celltype_summary(cluster: str) -> str:
     return str(note.get("summary") or "")
 
 
+@_cache_data(show_spinner=False)
+def holistic():
+    """The cross-cluster holistic review (Step 4), cached once per session.
+
+    Prefers the review PERSISTED by the pipeline (``interp/holistic.json``); falls
+    back to computing it live when the tree is absent. The review is deterministic,
+    so the persisted object is byte-faithful to the computed one
+    (``tests/test_pipeline.py`` round-trip gate) — reading it just avoids
+    recomputation and makes the review a portable dataset artifact. The one live
+    piece (the refinement's citation) is still fetched at render time in
+    ``ui.holistic``; this returns only the grounded coherence + refinement data.
+    """
+    from agent import holistic as agent_holistic
+
+    from pipeline import store
+
+    persisted = store.load_holistic()
+    return persisted if persisted is not None else agent_holistic.holistic_review()
+
+
 # --------------------------------------------------------------------------- #
 # Agent (chat) — singleton resource, survives reruns.
 # --------------------------------------------------------------------------- #
@@ -380,6 +400,9 @@ __all__ = [
     "verdict_for",
     "all_verdicts",
     "verdict_csv",
+    "celltype_notes",
+    "celltype_summary",
+    "holistic",
     "get_agent",
     "read_notes",
     "notes_in_scope",

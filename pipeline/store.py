@@ -13,10 +13,11 @@ from pathlib import Path
 from typing import Optional
 
 from agent import config as cfg
+from agent.holistic import HolisticReview
 from agent.types import ClusterVerdict
 
 from pipeline import paths
-from pipeline.serialize import verdict_from_dict
+from pipeline.serialize import holistic_from_dict, verdict_from_dict
 
 
 def load_verdict(
@@ -50,6 +51,25 @@ def load_all_verdicts(
             return None
         out.append(v)
     return out
+
+
+def load_holistic(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> Optional[HolisticReview]:
+    """Return the persisted holistic review (Step 4), or None if absent/unreadable.
+
+    The review is deterministic (Tier A), so the persisted object is byte-faithful
+    to the freshly computed one (``tests/test_pipeline.py`` round-trip gate). The
+    UI reads this tree-first and only falls back to computing it live when absent.
+    """
+    p = paths.holistic_json(dataset_id, root)
+    if not p.exists():
+        return None
+    try:
+        return holistic_from_dict(json.loads(p.read_text(encoding="utf-8")))
+    except Exception:  # noqa: BLE001 - fail soft; caller recomputes live
+        return None
 
 
 def load_celltype_notes(

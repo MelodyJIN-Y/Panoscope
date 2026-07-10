@@ -43,16 +43,41 @@ def _num_html(ev: MarkerEvidence) -> str:
     )
 
 
-def _bio_html(cluster: str, gene: str) -> str:
-    """The biology cell: the precomputed grounded note + its real citation.
+# The one jazzPanda-derived caveat we surface as a specificity badge: the gene's
+# transcripts correlate more with ANOTHER cluster's spatial pattern than with this
+# one (max_gc_corr > pearson). The skill treats this as a specificity caveat — the
+# marker also marks another lineage — so we flag it at a glance.
+_SPECIFICITY_CAVEAT = "localizes better with another cluster"
 
-    Reads ``data_access.gene_note`` (precomputed, cited). Never generates text: a
-    gene without a note shows an em dash. A thin-literature note is labelled
-    honestly; a verify-flagged note carries a small check marker.
+
+def _caveat_badge(ev: MarkerEvidence) -> str:
+    """A small specificity badge when jazzPanda says this marker localizes better
+    with another cluster (Tier-A evidence, not the note). Empty otherwise."""
+    if _SPECIFICITY_CAVEAT in ev.caveats:
+        return (
+            ' <span class="pano-bio-caveat" '
+            'title="jazzPanda: transcripts localize better with another cluster '
+            '(max_gc_corr &gt; pearson) — also marks another lineage">'
+            "also marks another cluster</span>"
+        )
+    return ""
+
+
+def _bio_html(cluster: str, ev: MarkerEvidence) -> str:
+    """The biology cell: the precomputed grounded note + its real citation + a
+    jazzPanda-derived specificity badge.
+
+    Reads ``data_access.gene_note`` (precomputed, cited) for the prose; never
+    generates text. The specificity badge is driven off the verdict's own
+    ``ev.caveats`` (Tier A), so it shows even when a gene has no biology note. A
+    thin-literature note is labelled honestly; a verify-flagged note carries a
+    small check marker.
     """
-    note = data_access.gene_note(cluster, gene)
+    caveat = _caveat_badge(ev)
+    note = data_access.gene_note(cluster, ev.gene)
     if not note or not note.get("summary"):
-        return '<div class="pano-ev-bio empty"></div>'
+        # No prose, but a grounded caveat still belongs here if present.
+        return f'<div class="pano-ev-bio empty">{caveat}</div>'
 
     summary = html.escape(str(note["summary"]))
     pmid = note.get("pmid")
@@ -69,7 +94,7 @@ def _bio_html(cluster: str, gene: str) -> str:
         if note.get("verify")
         else ""
     )
-    return f'<div class="pano-ev-bio">{summary} {cite}{verify}</div>'
+    return f'<div class="pano-ev-bio">{summary} {cite}{verify}{caveat}</div>'
 
 
 # --------------------------------------------------------------------------- #
@@ -100,6 +125,15 @@ _EVIDENCE_CSS = """
 .pano-bio-cite:hover { text-decoration: underline; }
 .pano-bio-thin { font-family: var(--mono); font-size: 10px; color: var(--faint); }
 .pano-bio-verify { font-family: var(--mono); font-size: 10px; color: var(--absent); }
+/* Specificity badge: this marker localizes better with another cluster
+   (jazzPanda max_gc_corr > pearson). A small outlined amber chip — cautionary,
+   not alarming, and visually distinct from the teal canonical tag. */
+.pano-bio-caveat {
+  display: inline-block; font-family: var(--mono); font-size: 9px;
+  letter-spacing: .02em; color: var(--absent); border: 1px solid var(--absent);
+  border-radius: 4px; padding: 0 5px; margin-left: 2px; white-space: nowrap;
+  vertical-align: baseline; opacity: .9;
+}
 .pano-ev-empty {
   font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
 }
@@ -226,7 +260,7 @@ def _render_marker_rows(st, rows, cluster: str) -> None:
             with n_col:
                 st.markdown(_num_html(ev), unsafe_allow_html=True)
             with b_col:
-                st.markdown(_bio_html(cluster, ev.gene), unsafe_allow_html=True)
+                st.markdown(_bio_html(cluster, ev), unsafe_allow_html=True)
 
 
 __all__ = ["render_evidence_table"]

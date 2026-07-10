@@ -2,8 +2,9 @@
 """Print the Panoscope calibration table as Markdown, for the README.
 
 One row per cluster (c1..c9), straight from ``verdict_for_cluster`` — no
-invented values. Columns: Cluster, Cell type, Confidence, Verify, Driving
-markers (the canonical drivers with their real jazzPanda glm_coef).
+invented values. The table itself is built by ``pipeline.calibration`` (the same
+builder the pipeline writes into each dataset tree as ``interp/calibration.md``),
+so the README table and the per-dataset artifact can never drift.
 
 Usage:
     .venv/bin/python scripts/calibration_table.py
@@ -26,52 +27,13 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from agent import config as cfg  # noqa: E402
 from agent import verdict as V  # noqa: E402
-from agent.types import ClusterVerdict  # noqa: E402
-
-# How many driving canonical markers to name per row (keeps the table readable).
-MAX_DRIVERS: int = 3
-
-COLUMNS: tuple[str, ...] = (
-    "Cluster",
-    "Cell type",
-    "Confidence",
-    "Verify",
-    "Driving markers",
-)
-
-
-def _driving_markers_cell(verdict: ClusterVerdict) -> str:
-    """Render the driving canonical markers as ``GENE (glm N.NN)`` list.
-
-    Uses the same driving-marker list the verdict already computed, so the
-    numbers trace to jazzPanda's glm_coef and nothing is re-derived here.
-    """
-    drivers = verdict.opening.driving_markers[:MAX_DRIVERS]
-    if not drivers:
-        return "—"
-    return ", ".join(f"{d.gene} (glm {d.glm_coef:.2f})" for d in drivers)
-
-
-def _row(verdict: ClusterVerdict) -> tuple[str, ...]:
-    return (
-        verdict.cluster,
-        verdict.cell_type,
-        verdict.confidence,
-        "TRUE" if verdict.verify else "FALSE",
-        _driving_markers_cell(verdict),
-    )
+from pipeline.calibration import calibration_markdown  # noqa: E402
 
 
 def build_markdown() -> str:
     """Return the full Markdown calibration table for c1..c9."""
-    rows = [_row(V.verdict_for_cluster(c)) for c in cfg.CLUSTER_ORDER]
-
-    lines: list[str] = []
-    lines.append("| " + " | ".join(COLUMNS) + " |")
-    lines.append("| " + " | ".join("---" for _ in COLUMNS) + " |")
-    for row in rows:
-        lines.append("| " + " | ".join(row) + " |")
-    return "\n".join(lines)
+    verdicts = [V.verdict_for_cluster(c) for c in cfg.CLUSTER_ORDER]
+    return calibration_markdown(verdicts)
 
 
 def main() -> None:

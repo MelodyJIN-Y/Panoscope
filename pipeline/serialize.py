@@ -13,6 +13,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
+from agent.holistic import HolisticReview, Refinement
 from agent.types import (
     ClusterVerdict,
     LiteratureHook,
@@ -113,4 +114,38 @@ def verdict_from_dict(d: dict[str, Any]) -> ClusterVerdict:
         band_basis=d["band_basis"],
         demotions=tuple(d["demotions"]),
         source_trace=tuple(d["source_trace"]),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# HolisticReview <-> JSON-safe dict (Step 4, deterministic Tier A). Same
+# tuple-faithful round-trip discipline as the verdict: a persisted review must
+# reload EQUAL to the freshly computed one.
+# --------------------------------------------------------------------------- #
+def holistic_to_dict(r: HolisticReview) -> dict[str, Any]:
+    """Return a JSON-safe dict for a HolisticReview (tuples -> lists)."""
+    return dataclasses.asdict(r)
+
+
+def _refinement_from_dict(d: dict[str, Any]) -> Refinement:
+    return Refinement(
+        cluster=d["cluster"],
+        from_call=d["from_call"],
+        to_call=d["to_call"],
+        evidence_markers=tuple(d.get("evidence_markers", ())),
+        rationale=d["rationale"],
+        lit_query=d["lit_query"],
+    )
+
+
+def holistic_from_dict(d: dict[str, Any]) -> HolisticReview:
+    """Rebuild a HolisticReview from :func:`holistic_to_dict` output.
+
+    Every tuple field is restored as a tuple so the result compares EQUAL to a
+    freshly computed review (frozen-dataclass equality).
+    """
+    return HolisticReview(
+        coherence_notes=tuple(d.get("coherence_notes", ())),
+        refinements=tuple(_refinement_from_dict(x) for x in d.get("refinements", ())),
+        set_is_coherent=d["set_is_coherent"],
     )

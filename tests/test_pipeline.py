@@ -11,12 +11,18 @@ from __future__ import annotations
 import json
 
 from agent import config as cfg
+from agent import holistic as agent_holistic
 from agent import verdict as agent_verdict
 
 from pipeline import paths
 from pipeline import run as pipeline_run
 from pipeline import store
-from pipeline.serialize import verdict_from_dict, verdict_to_dict
+from pipeline.serialize import (
+    holistic_from_dict,
+    holistic_to_dict,
+    verdict_from_dict,
+    verdict_to_dict,
+)
 from pipeline.stages.validate import validate
 
 
@@ -60,3 +66,35 @@ def test_run_writes_tree_and_store_reads_faithfully(tmp_path):
 def test_store_returns_none_when_absent(tmp_path):
     assert store.load_verdict("c1", cfg.DATASET_ID, root=tmp_path) is None
     assert store.load_all_verdicts(cfg.DATASET_ID, root=tmp_path) is None
+    assert store.load_holistic(cfg.DATASET_ID, root=tmp_path) is None
+
+
+def test_holistic_roundtrip_equals_computed():
+    review = agent_holistic.holistic_review()
+    assert holistic_from_dict(holistic_to_dict(review)) == review
+
+
+def test_holistic_roundtrip_through_json():
+    review = agent_holistic.holistic_review()
+    again = holistic_from_dict(json.loads(json.dumps(holistic_to_dict(review))))
+    assert again == review
+
+
+def test_run_writes_holistic_and_calibration(tmp_path):
+    pipeline_run.run(cfg.DATASET_ID, root=tmp_path)
+
+    # Holistic review persisted and reads back byte-faithful to the computed one.
+    hp = paths.holistic_json(cfg.DATASET_ID, tmp_path)
+    assert hp.exists()
+    assert store.load_holistic(cfg.DATASET_ID, root=tmp_path) == agent_holistic.holistic_review()
+
+    # Calibration table: header + one row per cluster, and it names the flagged call.
+    cal = paths.calibration_md(cfg.DATASET_ID, tmp_path).read_text()
+    assert cal.startswith("| Cluster")
+    assert len([ln for ln in cal.splitlines() if ln.startswith("| c")]) == len(cfg.CLUSTER_ORDER)
+    assert "TRUE" in cal  # at least one verify=TRUE call is present (anti-rubber-stamp)
+
+    # Both are recorded as manifest artifacts (self-describing tree).
+    man = json.loads(paths.manifest_json(cfg.DATASET_ID, tmp_path).read_text())
+    assert "interp/holistic.json" in man["artifacts"]
+    assert "interp/calibration.md" in man["artifacts"]

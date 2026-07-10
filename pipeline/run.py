@@ -1,10 +1,14 @@
 """Pipeline entrypoint — one run per dataset.
 
-    python -m pipeline.run --dataset xenium_hbreast_sample1
+    python -m pipeline.run --dataset xenium_hbreast_sample1           # deterministic
+    python -m pipeline.run --dataset xenium_hbreast_sample1 --notes   # + live notes
 
-Slice 1 stages: validate inputs (Stage 0) -> copy raw inputs for provenance ->
-persist verdicts + verdicts.csv (Stage 4) -> write the manifest. Deterministic
-end to end (no network). Later slices add the viz precompute and live-cited notes.
+Deterministic path (default, no network): validate inputs (Stage 0) -> copy raw
+inputs for provenance -> collect viz frames into the tree -> persist verdicts +
+verdicts.csv (Stage 4) -> write the Step-4 interp artifacts (holistic.json +
+calibration.md) -> write the manifest. ``--notes`` additionally runs the one LIVE
+stage (real-PubMed cell-type + per-marker biology notes) before the manifest, so
+those files are hashed into it too.
 """
 
 from __future__ import annotations
@@ -20,9 +24,12 @@ import pandas as pd
 
 from agent import config as cfg
 from agent import data
+from agent import holistic as agent_holistic
 
+from pipeline import calibration as calibration_mod
 from pipeline import manifest as manifest_mod
 from pipeline import paths
+from pipeline import serialize
 from pipeline.stages.validate import validate
 from pipeline.stages.verdicts import run_verdicts
 from pipeline.stages.viz import collect_viz
@@ -77,8 +84,51 @@ def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, A
     return prov
 
 
-def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
-    """Run the pipeline for ``dataset_id``; return the dataset directory."""
+def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path]) -> None:
+    """Write the deterministic Step-4 interp artifacts (no network).
+
+    ``holistic.json`` — the cross-cluster review (coherence notes + the one
+    grounded refinement), serialized faithfully. ``calibration.md`` — the
+    commit-vs-flag calibration table, a pure projection of ``verdicts``. Both are
+    Tier A: they read only jazzPanda output / the cluster key, never the network.
+    """
+    idir = paths.interp_dir(dataset_id, root)
+    idir.mkdir(parents=True, exist_ok=True)
+    review = agent_holistic.holistic_review()
+    paths.holistic_json(dataset_id, root).write_text(
+        json.dumps(serialize.holistic_to_dict(review), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    paths.calibration_md(dataset_id, root).write_text(
+        calibration_mod.calibration_markdown(list(verdicts)) + "\n", encoding="utf-8"
+    )
+
+
+def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
+    """Run the LIVE notes stage (cell-type + per-marker biology, real PubMed).
+
+    Imported lazily so the deterministic pipeline never pulls in the agent loop /
+    MCP session. Resumable and fail-soft inside the stage: a slow or failed
+    lookup degrades to an honest deterministic clause, never a fabricated PMID.
+    """
+    from pipeline.stages import notes as notes_stage
+
+    notes_stage.run_celltype_notes(dataset_id, root)
+    notes_stage.run_gene_notes(dataset_id, root)
+
+
+def run(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+    notes: bool = False,
+) -> Path:
+    """Run the pipeline for ``dataset_id``; return the dataset directory.
+
+    Deterministic by default (validate -> inputs -> viz -> verdicts -> holistic +
+    calibration -> manifest). Pass ``notes=True`` to also run the LIVE notes stage
+    (real-PubMed cell-type + per-marker biology notes) before the manifest, so
+    the notes are hashed into it too.
+    """
     ddir = paths.dataset_dir(dataset_id, root)
     ddir.mkdir(parents=True, exist_ok=True)
 
@@ -86,6 +136,9 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
     inputs = _copy_inputs(dataset_id, root)
     vdir = collect_viz(dataset_id, root)  # ensure viz frames live in the tree
     verdicts = run_verdicts(dataset_id, root)
+    _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
+    if notes:
+        _run_notes(dataset_id, root)  # LIVE: cell-type + per-marker biology notes
 
     # Hash every derived artifact for the manifest.
     artifacts: dict[str, dict[str, Any]] = {}
@@ -97,6 +150,13 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
         "sha256": manifest_mod.sha256_file(csvp),
         "rows": len(verdicts),
     }
+    # Interp artifacts: holistic + calibration always present (deterministic);
+    # the two notes files are hashed when a --notes run produced them (or a prior
+    # one left them in the tree).
+    for name in ("holistic.json", "calibration.md", "celltype_notes.json", "gene_notes.json"):
+        f = paths.interp_dir(dataset_id, root) / name
+        if f.exists():
+            artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
     # Small viz frames are hashed; the 840 hexbin frames are recorded by count.
     for name in ("cells.parquet", "cells.csv", "umap.parquet", "umap.csv", "expr.parquet"):
         f = vdir / name
@@ -146,9 +206,14 @@ def run(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the Panoscope per-dataset pipeline.")
     ap.add_argument("--dataset", default=cfg.DATASET_ID, help="dataset id")
+    ap.add_argument(
+        "--notes",
+        action="store_true",
+        help="also run the LIVE notes stage (real-PubMed cell-type + per-marker biology)",
+    )
     args = ap.parse_args()
-    ddir = run(args.dataset)
-    print(f"[pipeline] wrote {ddir}")
+    ddir = run(args.dataset, notes=args.notes)
+    print(f"[pipeline] wrote {ddir}" + (" (+ live notes)" if args.notes else ""))
 
 
 if __name__ == "__main__":

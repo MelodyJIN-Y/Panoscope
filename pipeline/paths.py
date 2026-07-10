@@ -54,5 +54,13 @@ def verdicts_csv(dataset_id: str, root: Optional[Path] = None) -> Path:
     return interp_dir(dataset_id, root) / "verdicts.csv"
 
 
+def holistic_json(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "holistic.json"
+
+
+def calibration_md(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "calibration.md"
+
+
 def manifest_json(dataset_id: str, root: Optional[Path] = None) -> Path:
     return dataset_dir(dataset_id, root) / "manifest.json"
