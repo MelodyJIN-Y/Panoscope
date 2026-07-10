@@ -137,11 +137,11 @@ div[class*="st-key-ws_"] textarea { font-family: var(--sans) !important; font-si
   background: #FCFCFD !important; color: var(--ink) !important; }
 div[class*="st-key-ws_"] textarea:focus { border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px var(--accent-soft) !important; background: var(--paper) !important; }
-div[class*="st-key-wsref_"] { display: flex; justify-content: flex-end; margin-top: -6px; }
-div[class*="st-key-wsref_"] button { background: transparent !important; border: 1px solid var(--hair) !important;
-  color: var(--faint) !important; box-shadow: none !important; min-height: 0 !important; padding: 3px 11px !important;
-  border-radius: 7px !important; font-family: var(--mono) !important; font-size: 10px !important; }
-div[class*="st-key-wsref_"] button:hover { color: var(--accent) !important; border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+.st-key-pano_ws_refresh { display: flex; justify-content: flex-end; margin: -8px 0 6px; }
+.st-key-pano_ws_refresh button { background: transparent !important; border: 1px solid var(--hair) !important;
+  color: var(--faint) !important; box-shadow: none !important; min-height: 0 !important; padding: 4px 12px !important;
+  border-radius: 7px !important; font-family: var(--mono) !important; font-size: 10.5px !important; }
+.st-key-pano_ws_refresh button:hover { color: var(--accent) !important; border-color: var(--accent) !important; background: var(--accent-soft) !important; }
 .st-key-pano_ws_dl { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
 .st-key-pano_ws_dl button { border-radius: 9px !important; }
 .pano-lk-card { border: 1px solid var(--hair); border-radius: 11px; padding: 11px 13px; margin: 8px 0; background: var(--paper); max-width: 84ch; }
@@ -255,23 +255,25 @@ def _enrichment_table_html(enrichments: list) -> str:
     )
 
 
-def _reset_ws(key: str, default: str) -> None:
-    """on_click: reset one working-space region to the latest auto-seed."""
+def _reset_ws_all(defaults: dict) -> None:
+    """on_click: reset EVERY working-space region to its freshest auto-seed at once.
+
+    ``defaults`` is the {session_key: latest-draft} map computed this render, so one
+    button re-drafts the whole write-up (e.g. after chatting saved a new lab note)
+    without touching regions the biologist has not edited differently."""
     import streamlit as st
 
-    st.session_state[key] = default
+    for key, default in defaults.items():
+        st.session_state[key] = default
 
 
-def _editable(st, key: str, default: str, height: int) -> str:
+def _editable(st, key: str, default: str, height: int) -> None:
     """An auto-seeded, directly editable region. Seeds from ``default`` once; the
-    biologist's edits then persist (edits win). A '↻ refresh from latest' pulls the
-    freshest auto-seed (e.g. after chatting saved a new note), replacing the text."""
+    biologist's edits then persist (edits win). The single working-space refresh
+    button re-seeds every region from the latest draft."""
     if key not in st.session_state:
         st.session_state[key] = default
-    txt = st.text_area("edit", key=key, height=height, label_visibility="collapsed")
-    with st.container(key=f"wsref_{key}"):
-        st.button("↻ refresh from latest", key=f"btn_{key}", on_click=_reset_ws, args=(key, default))
-    return txt
+    st.text_area("edit", key=key, height=height, label_visibility="collapsed")
 
 
 def _sec_head(st, kicker: str, title: str, note: str = "") -> None:
@@ -347,14 +349,31 @@ def render_summary_page() -> None:
         st.markdown('<div class="pano-lk-empty">No enrichment result for this dataset yet.</div>',
                     unsafe_allow_html=True)
 
-    # 3) Working space — editable per-cluster synthesis + global check + caveats
+    # 3) Working space — editable per-cluster synthesis + global check + caveats.
+    # Compute every region's latest auto-seed up front so ONE refresh button can
+    # re-draft the whole write-up at once.
+    rep = report.build_report_from_sources(generated_at=datetime.date.today().isoformat())
+    try:
+        themes = da.pathway_themes()
+    except Exception:  # noqa: BLE001
+        themes = None
+    enr_map = {ce.cluster: ce for ce in enrichments}
+    ws_defaults: dict[str, str] = {
+        f"ws_{s.cluster}": report.default_cluster_summary(s) for s in rep.sections
+    }
+    ws_defaults["ws_global"] = report.global_check_text(da.holistic(), themes)
+    ws_defaults["ws_caveats"] = report.caveats_text(verdicts, enr_map, n_panel)
+
     _sec_head(st, "Working space · editable", "Final interpretation",
               "Auto-drafted per cluster from both workflows (identity from markers · programs from "
               "enrichment · live-cited biology) and your lab notes. Edit any region directly; your "
-              "edits persist. As you chat on the Marker genes / Pathways pages, use ↻ to pull the "
-              "latest. This is exactly what exports below.")
+              "edits persist. This is exactly what exports below.")
+    with st.container(key="pano_ws_refresh"):
+        st.button("↻ refresh all from latest", key="btn_ws_refresh",
+                  on_click=_reset_ws_all, args=(ws_defaults,),
+                  help="Re-draft every region below from the latest calls, programs, and lab notes "
+                       "(e.g. after chatting on the Marker genes / Pathways pages).")
 
-    rep = report.build_report_from_sources(generated_at=datetime.date.today().isoformat())
     for s in rep.sections:
         color = fmt.cluster_color(s.cluster)
         css, _ = fmt.confidence_chip(s.confidence)
@@ -366,18 +385,13 @@ def render_summary_page() -> None:
             f'<span class="cf {css}">{html.escape(s.confidence)}</span>{flag}</div>',
             unsafe_allow_html=True,
         )
-        _editable(st, f"ws_{s.cluster}", report.default_cluster_summary(s), height=200)
+        _editable(st, f"ws_{s.cluster}", ws_defaults[f"ws_{s.cluster}"], height=200)
 
-    try:
-        themes = da.pathway_themes()
-    except Exception:  # noqa: BLE001
-        themes = None
     _sec_head(st, "Working space", "Cross-cluster global check")
-    _editable(st, "ws_global", report.global_check_text(da.holistic(), themes), height=180)
+    _editable(st, "ws_global", ws_defaults["ws_global"], height=180)
 
-    enr_map = {ce.cluster: ce for ce in enrichments}
     _sec_head(st, "Working space", "Caveats")
-    _editable(st, "ws_caveats", report.caveats_text(verdicts, enr_map, n_panel), height=200)
+    _editable(st, "ws_caveats", ws_defaults["ws_caveats"], height=200)
 
     # Export the EDITED working space (per-cluster + global check + caveats + lab notes).
     export_sections = [
