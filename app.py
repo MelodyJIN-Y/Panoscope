@@ -45,16 +45,36 @@ def _logo_data_uri(name: str) -> str:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
 
 
-# Active top-tab page. A plain session-state key (nav state, not domain state).
+# Active top-tab page. Held in session state for snappy in-session switching AND
+# mirrored to the URL query param (?page=) so a full browser refresh restores the
+# tab instead of dropping back to the default — the tab is also shareable now.
 _K_PAGE = "active_page"
 _PAGE_EXAMINE = "examine"
 _PAGE_SUMMARY = "summary"
 _PAGE_LAB = "lab"
+_VALID_PAGES = (_PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_LAB)
 
 
 def _set_page(page: str) -> None:
     """on_click handler for a top tab — fires before the rerun renders."""
     st.session_state[_K_PAGE] = page
+    st.query_params["page"] = page  # keep the URL in sync so a refresh persists the tab
+
+
+def _resolve_page() -> str:
+    """The active tab, restoring it from the URL after a browser refresh.
+
+    session_state is wiped on a hard refresh but the ``?page=`` query param
+    survives, so on a fresh session we seed the tab from the URL (validated), then
+    keep the URL mirrored to the current tab.
+    """
+    if _K_PAGE not in st.session_state:
+        url_page = st.query_params.get("page")
+        st.session_state[_K_PAGE] = url_page if url_page in _VALID_PAGES else _PAGE_EXAMINE
+    page = st.session_state[_K_PAGE]
+    if st.query_params.get("page") != page:
+        st.query_params["page"] = page
+    return page
 
 
 def _top_bar(page: str) -> None:
@@ -145,8 +165,9 @@ st.set_page_config(
 theme.inject_css()
 state.init_state()
 
-# on_click tab handlers have already fired, so this reads the fresh page.
-page = st.session_state.get(_K_PAGE, _PAGE_EXAMINE)
+# on_click tab handlers have already fired, so this reads the fresh page. On a
+# hard refresh (session_state wiped) the tab is restored from the ?page= URL param.
+page = _resolve_page()
 _top_bar(page)
 
 if page == _PAGE_SUMMARY:
