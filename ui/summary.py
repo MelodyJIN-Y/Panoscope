@@ -153,6 +153,15 @@ div[class*="st-key-savrow_"] button:hover { filter: brightness(1.06); }
   background: var(--absent-bg); border-left: 2px solid var(--absent); border-radius: 0 6px 6px 0;
   padding: 6px 10px; }
 .pano-notecite { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+/* Holistic-review refinements (capture as an override note). */
+.pano-refine { font-size: 12.5px; color: var(--ink); margin: 12px 0 4px; }
+.pano-refine .cid { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-right: 6px; }
+.pano-refine .rat { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; max-width: 84ch; }
+div[class*="st-key-refbtn_"] { margin: 2px 0 10px; }
+div[class*="st-key-refbtn_"] button { background: transparent !important; border: 1px solid var(--accent) !important;
+  color: var(--accent) !important; box-shadow: none !important; min-height: 0 !important; padding: 5px 14px !important;
+  border-radius: 8px !important; font-size: 12px !important; }
+div[class*="st-key-refbtn_"] button:hover { background: var(--accent-soft) !important; }
 
 /* Overview table (marker + programs merged). */
 .pano-ov-cap { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
@@ -426,6 +435,34 @@ def _save_now() -> None:
     st.session_state.pop("_sum_saved_snapshot", None)
 
 
+def _draft_refinement(r) -> None:
+    """on_click: draft a celltype_override from a holistic refinement (its from_call ->
+    to_call), reconciled against the literature, and stash it on the cluster's holistic
+    thread so the same two-tap confirm card renders. Saved with trigger=holistic_review.
+    A refinement is a within-lineage subtype sharpening, so lineage/category are left to
+    the computed values (subject_cell_type carries the new call)."""
+    from agent import memory
+    from ui import state
+
+    lit = None
+    try:
+        from agent import tools
+
+        lit = tools._literature_search_fn()
+    except Exception:  # noqa: BLE001 - no connector -> honest thin tension
+        lit = None
+    try:
+        draft = memory.draft_note(
+            claim=f"Refine {r.cluster} from {r.from_call} to {r.to_call} — {r.rationale}",
+            scope="cluster", basis="convention", cluster=r.cluster,
+            note_type="celltype_override", subject_cell_type=r.to_call,
+            literature_search=lit,
+        )
+        state.set_pending_draft(f"holistic::{r.cluster}", draft)
+    except Exception:  # noqa: BLE001 - never crash the page on a bad refinement
+        pass
+
+
 def _editor(st, name: str, default: str, height: int) -> None:
     """Render one editable region. Canonical text lives in ``wsval_{name}`` (a plain
     key that survives when the widget is unmounted); the ``wsw_{name}`` widget seeds
@@ -643,6 +680,30 @@ def render_summary_page() -> None:
             _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
                     height=_autoheight(_val(_ED_GLOBAL), min_lines=10))
             _save_button(st, _ED_GLOBAL)
+
+            # Refinements the holistic pass proposes — capture one as an override note
+            # through the same two-tap confirm card (trigger=holistic_review); once saved
+            # it composes across the summary like any override.
+            hol = da.holistic()
+            refs = list(getattr(hol, "refinements", ()) or []) if hol else []
+            if refs:
+                from ui import conversation as convo
+
+                st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
+                _eyebrow(st, "Holistic review · refinements to consider")
+                for r in refs:
+                    st.markdown(
+                        f'<div class="pano-refine"><span class="cid">{html.escape(r.cluster)}</span> '
+                        f'{html.escape(r.from_call)} &rarr; <b>{html.escape(r.to_call)}</b>'
+                        f'<div class="rat">{html.escape(r.rationale)}</div></div>',
+                        unsafe_allow_html=True)
+                    with st.container(key=f"refbtn_{r.cluster}"):
+                        st.button(f"Draft {r.to_call} override for {r.cluster}",
+                                  key=f"drefine_{r.cluster}", on_click=_draft_refinement, args=(r,),
+                                  help="Draft this refinement as a cell-type override; confirm "
+                                       "scope/basis below, then it reflects across the summary.")
+                    convo._render_draft_card(r.cluster, thread_key=f"holistic::{r.cluster}",
+                                             trigger="holistic_review")
 
         elif active in sec_by_id:
             s = sec_by_id[active]

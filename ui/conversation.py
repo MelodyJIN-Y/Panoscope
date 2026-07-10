@@ -481,13 +481,15 @@ def _run_agent_turn(cluster: str, query: str) -> None:
 # Nothing is persisted until Save; Discard drops the draft. Sits between the
 # thread and the ask box so a pending decision is always in view.
 # --------------------------------------------------------------------------- #
-def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None) -> None:
+def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
+                       trigger: str = "override") -> None:
     """Render the pending note draft (if any) as a confirm card with toggles.
 
     ``thread_key`` is the pending-draft slot + message target (defaults to ``cluster``);
     the Pathways chat passes its ``pw::{cluster}`` thread so its draft never collides
     with the marker chat's. ``cluster`` stays the real cluster for the scope label and
-    the saved note's cluster.
+    the saved note's cluster. ``trigger`` records where the note was born (``override``
+    from a chat, ``holistic_review`` from a refinement capture).
     """
     import dataclasses
 
@@ -536,7 +538,7 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None) -> Non
             status=status,
             cluster=cluster if scope == "cluster" else None,
         )
-        _save_pending_draft(key, edited)
+        _save_pending_draft(key, edited, trigger)
         _rerun(st)
 
 
@@ -630,13 +632,14 @@ def _pmid_links(cites) -> str:
     )
 
 
-def _save_pending_draft(thread_key: str, edited: Any) -> None:
+def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override") -> None:
     """Persist the confirmed draft and post an inline saved confirmation.
 
     ``thread_key`` is the pending-draft slot / message target (the cluster for the
-    marker chat, ``pw::{cluster}`` for the Pathways chat)."""
+    marker chat, ``pw::{cluster}`` for the Pathways chat). ``trigger`` records the
+    note's origin (chat override vs holistic-review refinement)."""
     try:
-        note = dax.save_note_draft(edited)
+        note = dax.save_note_draft(edited, trigger=trigger)
     except Exception:  # noqa: BLE001 - surface a clean message, never crash the pane
         state.clear_pending_draft(thread_key)
         state.append_message(
