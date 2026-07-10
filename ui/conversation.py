@@ -367,6 +367,7 @@ def _linkify_citations(text: str) -> str:
     Each PMID becomes a clickable anchor to pubmed.ncbi.nlm.nih.gov (new tab) —
     the citation is one click away inline, so no separate citation box is needed.
     """
+    text = _plain_prose(text)
     parts: list[str] = []
     last = 0
     for m in _PMID_RE.finditer(text):
@@ -378,7 +379,25 @@ def _linkify_citations(text: str) -> str:
         )
         last = m.end()
     parts.append(html.escape(text[last:]))
-    return "".join(parts)
+    # Newlines -> <br> so NOTHING sits at a line start for Streamlit's markdown to
+    # promote into a giant header / table. The chat renders as plain prose, always.
+    return "".join(parts).replace("\n", "<br>")
+
+
+_MD_STRIP = re.compile(r"^\s{0,3}(#{1,6}\s*|>\s?|[-*+]\s+|\d+\.\s+)")
+
+
+def _plain_prose(text: str) -> str:
+    """Neutralise markdown block syntax so a chat reply can't render as a document
+    (giant header, table). Strips leading header/quote/bullet markers per line and
+    drops pure table-separator rows (``|---|---|``); the chat is conversational prose."""
+    out: list[str] = []
+    for line in text.split("\n"):
+        s = line.strip()
+        if "|" in s and set(s) <= {"|", "-", ":", " "}:  # a table separator row
+            continue
+        out.append(_MD_STRIP.sub("", line))
+    return "\n".join(out)
 
 
 # --------------------------------------------------------------------------- #
