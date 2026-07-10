@@ -5,7 +5,7 @@ The Streamlit surface for the annotation-confidence layer: a 3-pane shell
 ``agent`` modules. This package owns only presentation and session state — it
 never computes a marker, a number, or a confidence value. Every value it shows
 traces to ``agent.data`` (jazzPanda output + panel), ``agent.verdict``, or a
-stored lab note read through ``agent.memory``.
+stored note read through ``agent.memory``.
 
 Foundation modules (import-safe with no server running):
 - ``ui.state``       — session_state schema + typed accessors + ``init_state()``

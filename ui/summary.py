@@ -3,7 +3,7 @@
 Both workflows land here. The page reads like a manuscript you finalise:
 
 * a **contents rail** on the left — ``Overall`` (the whole-dataset map + the
-  cross-cluster check), then every cluster, then ``Caveats`` and ``Lab notes``;
+  cross-cluster check), then every cluster, then ``Caveats`` and ``My notes``;
 * a **right pane** that shows exactly one section at a time: the Overall page is
   the merged overview table + the editable global check; a cluster page is that
   cluster's editable identity+programs write-up; the dataset pages are their own
@@ -18,7 +18,7 @@ a straight projection of :func:`ui.data_access.all_verdicts` +
 "Auto-seed, edits win": each editable region seeds once from the latest draft and
 then keeps your edits (held in plain ``wsval_*`` session keys, so switching sections
 never drops one). One "refresh all" re-drafts every region from the freshest calls,
-programs, and lab notes.
+programs, and my notes.
 
 Streamlit is imported lazily inside the render function so ``import ui.summary``
 works with no server running.
@@ -69,7 +69,7 @@ _ED_MAX_PX = 1600
 _SEC_OVERALL = "overall"
 _SEC_CAVEATS = "caveats"
 _SEC_NOTES = "labnotes"
-_DATASET_SECTIONS = ((_SEC_CAVEATS, "Caveats"), (_SEC_NOTES, "Lab notes"))
+_DATASET_SECTIONS = ((_SEC_CAVEATS, "Caveats"), (_SEC_NOTES, "My notes"))
 _ED_GLOBAL = "global"   # editor name for the cross-cluster check (lives on Overall)
 _K_ACTIVE = "sum_active_section"  # which rail item is focused
 
@@ -146,7 +146,7 @@ div[class*="st-key-savrow_"] button:hover { filter: brightness(1.06); }
   padding: 2px 6px; border-radius: 5px; font-weight: 700; margin-left: 7px; vertical-align: middle; }
 .pano-tier.enriched { background: var(--accent-soft); color: var(--accent); }
 .pano-tier.suggestive { background: #FBF3E3; color: #9A6B12; }
-/* A lab note anchored beneath its driver / program row. */
+/* A note anchored beneath its driver / program row. */
 .pano-sum-table tr.pano-anchor-row td { padding-top: 0 !important; padding-bottom: 10px !important;
   border-bottom: 1px solid var(--hair2); }
 .pano-anchornote { font-size: 11.5px; line-height: 1.5; color: var(--absent);
@@ -209,7 +209,7 @@ div[class*="st-key-wsw_"] textarea { font-family: var(--sans) !important; font-s
 div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px var(--accent-soft) !important; background: var(--paper) !important; }
 
-/* Lab-note cards (read-only, inside the Lab notes section). */
+/* Note cards (read-only, inside the My notes section). */
 .pano-lk-card { border: 1px solid var(--hair); border-radius: 11px; padding: 11px 13px;
   margin: 8px 0; background: var(--paper); }
 .pano-lk-claim { font-size: 13px; color: var(--ink); line-height: 1.5; }
@@ -260,7 +260,7 @@ def _programs_cell(ce) -> str:
 
 def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, overrides: dict = None) -> str:
     """The one scannable map: per cluster, the marker call and the enriched programs.
-    A confirmed cell-type override shows the new call with a 'lab' tag and the computed
+    A confirmed cell-type override shows the new call with a 'yours' tag and the computed
     call it replaced (tension visible), never a silent swap."""
     overrides = overrides or {}
     cols = "".join(f'<col style="width:{w}%">' for _, w in _OVERVIEW_COLS)
@@ -273,7 +273,7 @@ def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, override
         ov = overrides.get(v.cluster)
         if ov:
             ct += (f' <span class="pano-ov-lab" title="your override; computed: '
-                   f'{html.escape(ov["computed_call"])}">lab</span>')
+                   f'{html.escape(ov["computed_call"])}">yours</span>')
             was = f'was {html.escape(ov["computed_call"])}'
             if ov["dissent"]:
                 was += f' · {ov["dissent"]} lit. dissent'
@@ -306,7 +306,7 @@ def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -
 
 
 def _anchored_note_html(notes: list) -> str:
-    """A caveat line for lab notes anchored to a gene/program: the claim + [note:id] +
+    """A caveat line for my notes anchored to a gene/program: the claim + [note:id] +
     the literature tension, rendered beneath the driver row it modifies."""
     if not notes:
         return ""
@@ -320,7 +320,7 @@ def _anchored_note_html(notes: list) -> str:
         else:
             tension = ""
         bits.append(
-            f'⚑ lab note: {html.escape(n.claim)} '
+            f'⚑ note: {html.escape(n.claim)} '
             f'<span class="pano-notecite">[note:{html.escape(n.id[:6])}]</span>{tension}'
         )
     return '<div class="pano-anchornote">' + "<br>".join(bits) + "</div>"
@@ -328,7 +328,7 @@ def _anchored_note_html(notes: list) -> str:
 
 def _marker_evidence_table_html(v: ClusterVerdict, notes: dict = None) -> str:
     """The cluster's marker evidence with jazzPanda stats — top genes by glm_coef.
-    A grounded projection of ``ClusterVerdict.evidence``; nothing invented. Any lab note
+    A grounded projection of ``ClusterVerdict.evidence``; nothing invented. Any note
     anchored to a gene renders as a caveat row directly beneath that gene's driver row."""
     gene_notes = (notes or {}).get("gene", {})
     ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[:8]
@@ -358,7 +358,7 @@ def _marker_evidence_table_html(v: ClusterVerdict, notes: dict = None) -> str:
 
 def _enrichment_evidence_table_html(ce, notes: dict = None) -> str:
     """The cluster's enriched (and suggestive) programs with jazzPanda stats +
-    panel coverage. A grounded projection of ``ClusterEnrichment``. A lab note anchored
+    panel coverage. A grounded projection of ``ClusterEnrichment``. A note anchored
     to a gene set renders as a caveat row directly beneath that program's row."""
     set_notes = (notes or {}).get("gene_set", {})
     if ce is None:
@@ -502,7 +502,7 @@ def _render_lab_note_cards(st, notes: list) -> None:
         return
     for n in sorted(notes, key=lambda x: (x.created_at, x.id), reverse=True):
         scope = (f"cluster {n.scope_ref.cluster}" if n.scope == "cluster" and n.scope_ref.cluster
-                 else {"dataset": "this dataset", "lab": "lab-wide"}.get(n.scope, n.scope))
+                 else {"dataset": "this dataset", "lab": "all datasets"}.get(n.scope, n.scope))
         date = n.created_at.split("T", 1)[0] if n.created_at else "n/a"
         st.markdown(
             f'<div class="pano-lk-card"><div class="pano-lk-claim">{html.escape(n.claim)}</div>'
@@ -633,7 +633,7 @@ def render_summary_page() -> None:
             st.download_button(
                 _DOCX_LABEL, report.working_docx(export_sections, **exp_kw),
                 _DOCX_NAME, _DOCX_MIME, key="dl_docx", use_container_width=True,
-                help="Your edited narrative — every cluster, the global check, caveats, and lab notes.")
+                help="Your edited narrative — every cluster, the global check, caveats, and my notes.")
         with b_csv:
             st.download_button(
                 _CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME,
@@ -645,7 +645,7 @@ def render_summary_page() -> None:
     with st.container(key="pano_redraft"):
         st.button("↻ re-draft all from latest", key="btn_ws_refresh",
                   on_click=_reset_ws_all, args=(ws_defaults, rep.dataset),
-                  help="Rebuild every region from the latest calls, programs, and lab notes — replaces your current edits.")
+                  help="Rebuild every region from the latest calls, programs, and my notes — replaces your current edits.")
 
     st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
@@ -721,7 +721,7 @@ def render_summary_page() -> None:
             _save_button(st, s.cluster)
 
             # ...then the read-only jazzPanda evidence it rests on, for reference, with
-            # any lab note anchored beneath the exact driver / program it modifies.
+            # any note anchored beneath the exact driver / program it modifies.
             anch = da.anchored_notes(s.cluster)
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             st.markdown(
@@ -741,8 +741,8 @@ def render_summary_page() -> None:
                     height=_autoheight(_val(_SEC_CAVEATS), min_lines=13))
             _save_button(st, _SEC_CAVEATS)
 
-        else:  # _SEC_NOTES (or any stale value) -> lab notes
-            _eyebrow(st, "Lab notes · your saved notes")
+        else:  # _SEC_NOTES (or any stale value) -> my notes
+            _eyebrow(st, "My notes · your saved notes")
             st.markdown('<div class="pano-ed-hint" style="margin:0 0 10px">Captured when you override '
                         "or confirm a call in the chat; compiled into the write-up and the exported "
                         "report.</div>", unsafe_allow_html=True)

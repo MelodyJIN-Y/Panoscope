@@ -116,7 +116,7 @@ def render_verdict(cluster: str) -> None:
     * the grounded rationale that names the driving markers.
 
     Agreement / question / override happens in the conversation pane (the agent
-    captures a scope-enforced lab note); this header never recomputes a verdict.
+    captures a scope-enforced note); this header never recomputes a verdict.
     """
     import streamlit as st
 

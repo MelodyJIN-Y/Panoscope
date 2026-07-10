@@ -1,6 +1,6 @@
 """Persist chat threads to disk so a browser refresh doesn't lose the conversation.
 
-The DURABLE lab knowledge is the notes under ``context/`` — the chat is a working
+The DURABLE knowledge is the notes under ``context/`` — the chat is a working
 transcript. We keep a lightweight per-dataset copy (gitignored) so a reload restores
 what was said. Only the render-relevant fields are stored (role, text, the source
 KINDS, and the verify flag); a minimal ``resp`` is rehydrated for the bubble. Pending

@@ -341,7 +341,7 @@ def all_verdicts() -> list[ClusterVerdict]:
 
 
 def _excluded_clusters() -> set:
-    """Clusters carrying a firing `exclude` lab note. Applied at COMPOSITION only — the
+    """Clusters carrying a firing `exclude` note. Applied at COMPOSITION only — the
     deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md)."""
     from agent import memory
 
@@ -376,7 +376,7 @@ def _override_notes() -> dict:
 
 
 def composed_verdicts() -> list[ClusterVerdict]:
-    """``all_verdicts()`` with the lab's confirmed overlays applied — ``exclude`` notes
+    """``all_verdicts()`` with your confirmed overlays applied — ``exclude`` notes
     and ``celltype_override`` notes (new cell type + lineage/category; verify flagged
     only when the literature dissents). Returns NEW objects; the cached deterministic
     verdicts are never mutated, so the computed output stays intact and only the
@@ -565,7 +565,7 @@ def get_agent() -> Any:
 # Notes — NOT cached (mutate on save). Always a fresh read.
 # --------------------------------------------------------------------------- #
 def read_notes() -> list[Note]:
-    """Read all lab notes fresh from disk (never cached — notes mutate on save)."""
+    """Read all notes fresh from disk (never cached — notes mutate on save)."""
     from agent import memory
 
     return memory.read_notes()
@@ -579,7 +579,7 @@ def notes_in_scope(cluster: Optional[str]) -> list[Note]:
 
 
 def save_note_draft(draft: Any, trigger: str = "override") -> Note:
-    """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a lab note.
+    """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a note.
 
     The second half of capture-at-override: the confirm card produced a (possibly
     edited) draft, and this writes it via ``agent.memory.save_draft`` into the SAME

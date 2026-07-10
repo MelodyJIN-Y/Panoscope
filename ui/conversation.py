@@ -12,7 +12,7 @@ The agent's *knowledge* of the whole annotation is NOT carried by this log — i
 comes from the grounded global-interpretation block in the system prompt
 (``agent.loop._cluster_context``). So a per-cluster thread costs the agent no
 global awareness: it still knows every cluster's call and confidence, and durable
-overrides persist across clusters through scope-enforced lab notes, not the chat.
+overrides persist across clusters through scope-enforced notes, not the chat.
 
 Override-at-chat: the biologist just tells the agent ("this is CAF, our own
 data"); the agent's ``memory_write`` tool persists a scope-enforced note and its
@@ -51,7 +51,7 @@ _SRC_NAME: dict[str, str] = {
     "jz": "jazzPanda",
     "panel": "panel",
     "lit": "PubMed",
-    "mem": "lab note",
+    "mem": "note",
 }
 # Fixed left-to-right order for the condensed line (grounded floor first).
 _SRC_ORDER: tuple[str, ...] = ("jz", "panel", "lit", "mem")
@@ -72,7 +72,7 @@ _STATUS_OPTS: tuple[tuple[str, str], ...] = (
 )
 _SCOPE_SAVED_LABEL: dict[str, str] = {
     "dataset": "this dataset",
-    "lab": "lab-wide",
+    "lab": "all datasets",
 }
 _BASIS_SAVED_LABEL: dict[str, str] = {
     "own_validation": "our own data",
@@ -193,7 +193,7 @@ def render_conversation(cluster: str) -> None:
     st.markdown(
         '<div class="conv-hint">Agree, question, or override this call by telling '
         "the agent below &rarr; it keeps your call, cross-checks the literature, "
-        "and saves it to Lab notes.</div>",
+        "and saves it to My notes.</div>",
         unsafe_allow_html=True,
     )
 
@@ -345,7 +345,7 @@ def _sources_line_html(sources: tuple[Source, ...]) -> str:
     """ONE condensed provenance line for a turn (empty when no sources).
 
     Names only the source KINDS present (deduped), e.g.
-    ``Sources jazzPanda · PubMed · lab note`` — the numbers stay inline in the
+    ``Sources jazzPanda · PubMed · note`` — the numbers stay inline in the
     prose and cited PMIDs stay clickable via the buttons below.
     """
     kinds_present = {s.kind for s in sources}
@@ -408,7 +408,7 @@ def _render_ask_box(cluster: str) -> None:
 
     Appends the user turn to THIS cluster's thread, calls ``agent.loop.chat`` with
     only this cluster's history, appends the grounded answer, applies any pin the
-    agent chose, and — if the turn wrote a lab note — confirms the save inline.
+    agent chose, and — if the turn wrote a note — confirms the save inline.
     """
     import streamlit as st
 
@@ -504,7 +504,7 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
     scope_opts = (
         (f"this cluster ({cluster})", "cluster"),
         ("this dataset", "dataset"),
-        ("lab-wide", "lab"),
+        ("all datasets", "lab"),
     )
     with st.container(key="conv_draft"):
         st.markdown(
@@ -652,7 +652,7 @@ def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override")
 
 
 def _saved_line(note: Any) -> str:
-    """The 'Saved to Lab notes · scope · basis · status' confirmation line."""
+    """The 'Saved to My notes · scope · basis · status' confirmation line."""
     if note.scope == "cluster" and note.scope_ref.cluster:
         scope_txt = f"cluster {note.scope_ref.cluster}"
     else:
@@ -664,7 +664,7 @@ def _saved_line(note: Any) -> str:
     else:
         tension = "literature thin, recorded as-is"
     return (
-        f"Saved to Lab notes · {scope_txt} · {basis_txt} · {note.status}. "
+        f"Saved to My notes · {scope_txt} · {basis_txt} · {note.status}. "
         f"Literature: {tension}. It is cited whenever it applies."
     )
 

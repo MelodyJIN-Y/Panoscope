@@ -6,7 +6,7 @@ biologist reviews on-page and downloads as .docx and PDF.
 
 It is assembled ENTIRELY from durable, already-grounded artifacts — the per-cluster
 verdicts (jazzPanda numbers), the cited cell-type biology notes, the deterministic
-"what would settle it" line for shaky calls, the lab's own notes with their
+"what would settle it" line for shaky calls, your own notes with their
 agree/dissent citations, and the cross-cluster holistic review. There is **no live
 network at build/download time**: nothing is fetched, nothing is recomputed, so the
 report is reproducible and unit-testable, yet it still reads as "what came out of
@@ -34,7 +34,7 @@ from agent.types import ClusterVerdict, MarkerEvidence, Note
 # Inlined here (rather than importing ui.lab_knowledge) so this module's pure
 # functions stay free of Streamlit / data_access.
 # --------------------------------------------------------------------------- #
-_SCOPE_LABEL = {"cluster": "cluster", "dataset": "this dataset", "lab": "lab-wide"}
+_SCOPE_LABEL = {"cluster": "cluster", "dataset": "this dataset", "lab": "all datasets"}
 _BASIS_LABEL = {"paper": "a paper", "own_validation": "our own data", "convention": "convention"}
 _STATUS_LABEL = {"firm": "firm rule", "tentative": "tentative"}
 
@@ -346,7 +346,7 @@ def report_html(report: ReportModel) -> str:
     parts.append("</div>")
 
     if report.dataset_notes:
-        parts.append('<div style="margin-top:14px"><strong>Lab notes (dataset / lab-wide)</strong>')
+        parts.append('<div style="margin-top:14px"><strong>My notes (dataset / all datasets)</strong>')
         for nl in report.dataset_notes:
             parts.append(_note_html(nl))
         parts.append("</div>")
@@ -417,7 +417,7 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
         lines.append(("body", f"- {r}"))
 
     if report.dataset_notes:
-        lines.append(("h2", "Lab notes (dataset / lab-wide)"))
+        lines.append(("h2", "My notes (dataset / all datasets)"))
         for nl in report.dataset_notes:
             lines.append(("note", _note_text(nl)))
     return lines
@@ -503,7 +503,7 @@ def default_cluster_summary(s: ClusterSection) -> str:
     marker cell-type call + its drivers + cited biology — *what the cell is*) and
     PROGRAMS (the enriched gene sets + their cited biology — *what the cell is
     doing*, panel-scoped), then any what-would-settle-it line and this cluster's
-    lab notes. Plain text with PMID:xxx inline (linkified on-page, kept verbatim in
+    your notes. Plain text with PMID:xxx inline (linkified on-page, kept verbatim in
     the exported document). The concordance read (do the programs fit the call?) is
     carried by the per-program biology, which flags cross-lineage signal explicitly.
     """
@@ -529,7 +529,7 @@ def default_cluster_summary(s: ClusterSection) -> str:
         paras.append(f"What would settle it — {s.settle}")
     for nl in s.notes:
         t = f" — {nl.tension}" if nl.tension else ""
-        paras.append(f'Lab note — "{nl.claim}" ({nl.scope} · {nl.basis} · {nl.status}){t}.')
+        paras.append(f'Note — "{nl.claim}" ({nl.scope} · {nl.basis} · {nl.status}){t}.')
     return "\n\n".join(paras)
 
 
@@ -564,7 +564,7 @@ def _working_lines(
         lines.append(("h2", "Caveats"))
         lines.extend(_blocks(caveats))
     if lab_notes:
-        lines.append(("h2", "Lab notes (dataset / lab-wide)"))
+        lines.append(("h2", "My notes (dataset / all datasets)"))
         for nl in lab_notes:
             lines.append(("note", _note_text(nl)))
     return lines

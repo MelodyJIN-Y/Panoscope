@@ -64,7 +64,7 @@ def _caveat_badge(ev: MarkerEvidence) -> str:
 
 
 def _lab_note_html(notes: list) -> str:
-    """A caveat line for lab notes anchored to this gene (claim + [note:id] + tension),
+    """A caveat line for notes anchored to this gene (claim + [note:id] + tension),
     shown in the biology cell so the biologist's correction sits with the marker."""
     if not notes:
         return ""
@@ -78,7 +78,7 @@ def _lab_note_html(notes: list) -> str:
         else:
             tension = ""
         bits.append(
-            f'&#9873; lab note: {html.escape(n.claim)} '
+            f'&#9873; note: {html.escape(n.claim)} '
             f'<span class="pano-ev-notecite">[note:{html.escape(n.id[:6])}]</span>{tension}'
         )
     return '<div class="pano-ev-labnote">' + "<br>".join(bits) + "</div>"
@@ -86,7 +86,7 @@ def _lab_note_html(notes: list) -> str:
 
 def _bio_html(cluster: str, ev: MarkerEvidence, anchored: dict = None) -> str:
     """The biology cell: the precomputed grounded note + its real citation + a
-    jazzPanda-derived specificity badge, plus any lab note the biologist anchored to
+    jazzPanda-derived specificity badge, plus any note the biologist anchored to
     this gene.
 
     Reads ``data_access.gene_note`` (precomputed, cited) for the prose; never
@@ -99,7 +99,7 @@ def _bio_html(cluster: str, ev: MarkerEvidence, anchored: dict = None) -> str:
     lab = _lab_note_html((anchored or {}).get("gene", {}).get(ev.gene))
     note = data_access.gene_note(cluster, ev.gene)
     if not note or not note.get("summary"):
-        # No prose, but a grounded caveat / lab note still belongs here if present.
+        # No prose, but a grounded caveat / note still belongs here if present.
         return f'<div class="pano-ev-bio empty">{caveat}{lab}</div>'
 
     summary = html.escape(str(note["summary"]))
@@ -148,7 +148,7 @@ _EVIDENCE_CSS = """
 .pano-bio-cite:hover { text-decoration: underline; }
 .pano-bio-thin { font-family: var(--mono); font-size: 10px; color: var(--faint); }
 .pano-bio-verify { font-family: var(--mono); font-size: 10px; color: var(--absent); }
-/* A biologist's lab note anchored to this gene, shown beneath the biology. */
+/* A biologist's note anchored to this gene, shown beneath the biology. */
 .pano-ev-labnote { font-size: 11px; line-height: 1.45; color: var(--absent);
   background: var(--absent-bg); border-left: 2px solid var(--absent); border-radius: 0 5px 5px 0;
   padding: 4px 8px; margin-top: 6px; }
@@ -269,7 +269,7 @@ def _render_marker_rows(st, rows, cluster: str) -> None:
     evidence table renders BEFORE the spatial stage in the same run, so the grid
     sees the change immediately. No recompute.
     """
-    anchored = data_access.anchored_notes(cluster)  # lab notes indexed by gene, read once
+    anchored = data_access.anchored_notes(cluster)  # notes indexed by gene, read once
     for ev in rows:
         is_selected = state.is_marker_selected(cluster, ev.gene)
         # Canonical markers get a `canonical` tag after the gene name via CSS
