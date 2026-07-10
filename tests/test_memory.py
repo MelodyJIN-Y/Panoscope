@@ -360,3 +360,78 @@ def test_save_draft_cluster_scope_requires_cluster(base: Path):
     bad = dataclasses.replace(draft, scope="cluster", cluster=None)
     with pytest.raises(ValueError):
         memory.save_draft(bad, base_dir=base)
+
+
+# --------------------------------------------------------------------------- #
+# Typed / anchored notes (docs/note-capture-design.md)
+# --------------------------------------------------------------------------- #
+def test_typed_note_round_trips_with_anchors(base: Path):
+    """A program_reinterpretation note keeps its type + gene-set anchor through disk."""
+    note = memory.create_note(
+        claim="This EMT program is co-infiltration from the tumor front, not the fibroblasts' own",
+        scope="cluster",
+        basis="paper",
+        status="firm",
+        cluster="c2",
+        note_type="program_reinterpretation",
+        subject_gene_sets=["HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION"],
+        dataset=DATASET,
+        base_dir=base,
+    )
+    (loaded,) = [n for n in memory.read_notes(base) if n.id == note.id]
+    assert loaded == note
+    assert loaded.type == "program_reinterpretation"
+    assert loaded.subject_gene_sets == ("HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION",)
+
+
+def test_cross_cluster_note_fires_only_on_its_anchor_set(base: Path):
+    """A cross_cluster note (dataset scope, anchored to c5+c7) fires on c5 and c7, never c1."""
+    note = memory.create_note(
+        claim="c5 and c7 are the same population, clustering over-split them",
+        scope="dataset",
+        basis="own_validation",
+        status="firm",
+        note_type="cross_cluster",
+        subject_clusters=["c5", "c7"],
+        dataset=DATASET,
+        base_dir=base,
+    )
+    assert memory.note_in_scope(note, cluster="c5", dataset=DATASET)
+    assert memory.note_in_scope(note, cluster="c7", dataset=DATASET)
+    assert not memory.note_in_scope(note, cluster="c1", dataset=DATASET)  # not dataset-wide
+    # and apply_notes routes through the same gate
+    assert note.id in {n.id for n in memory.apply_notes("c7", dataset=DATASET, base_dir=base)}
+    assert note.id not in {n.id for n in memory.apply_notes("c1", dataset=DATASET, base_dir=base)}
+
+
+def test_gene_set_enters_the_reconcile_query(base: Path):
+    """A program note's gene set drives the literature query (so it is cross-checked)."""
+    seen = {}
+
+    def _spy(query: str):
+        seen["query"] = query
+        return []
+
+    draft = memory.draft_note(
+        claim="co-infiltration, not intrinsic",
+        scope="cluster",
+        basis="paper",
+        cluster="c2",
+        note_type="program_reinterpretation",
+        subject_gene_sets=["HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION"],
+        dataset=DATASET,
+        literature_search=_spy,
+    )
+    assert "epithelial mesenchymal transition" in seen["query"].lower()
+    assert draft.tension.thin is True  # the spy returned nothing -> honestly thin, not faked
+
+
+def test_note_never_carries_a_grounded_number():
+    """Guardrail: the Note object has no numeric field a note could fabricate."""
+    import dataclasses
+
+    numeric_fields = {
+        f.name for f in dataclasses.fields(Note)
+        if f.type in ("float", "int") or "score" in f.name or "confidence" in f.name
+    }
+    assert numeric_fields == set(), f"Note must carry no grounded number; found {numeric_fields}"

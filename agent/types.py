@@ -19,6 +19,18 @@ MarkerRole = Literal["supports", "expected_absent", "off_panel"]
 Scope = Literal["cluster", "dataset", "lab"]
 Basis = Literal["paper", "own_validation", "convention"]
 Status = Literal["firm", "tentative"]
+# The kind of lab-knowledge a note captures (see docs/note-capture-design.md). The
+# type routes a note to render next to its anchor and never mutates a grounded number.
+NoteType = Literal[
+    "celltype_override",        # the cell-type call is rejected/replaced
+    "marker_reinterpretation",  # what ONE marker means here (call unchanged); anchor = gene
+    "program_reinterpretation", # an enriched program re-read as co-infiltration; anchor = gene_set
+    "marker_convention",        # a panel/tissue trust convention about a marker; anchor = gene
+    "validation",               # an own-validation (IHC/flow) reinforcing the call
+    "confidence_adjustment",    # the biologist's confidence stance (overlay ONLY, never the number)
+    "exclude",                  # exclude a cluster (doublet/artifact); applied at report composition
+    "cross_cluster",            # two+ clusters are one population; anchor = a set of clusters
+]
 
 
 # --------------------------------------------------------------------------- #
@@ -166,6 +178,11 @@ class Note:
     created_at: str
     trigger: Literal["override", "manual_add", "holistic_review"]
     supersedes: Optional[str]
+    # Typed/anchored capture (docs/note-capture-design.md). All optional-with-defaults,
+    # so every existing note JSON still parses. NONE may carry a grounded number.
+    type: NoteType = "celltype_override"
+    subject_gene_sets: tuple[str, ...] = ()   # enrichment anchor (HALLMARK_*), the marker analog
+    subject_clusters: tuple[str, ...] = ()    # anchor SET for cross_cluster (fires on each)
 
 
 @dataclass(frozen=True)
@@ -187,6 +204,11 @@ class NoteDraft:
     subject_markers: tuple[str, ...]
     tension: Tension
     dataset: str
+    # Typed/anchored capture — mirrors Note; carried through save_draft (defaults keep
+    # the existing override path unchanged).
+    type: NoteType = "celltype_override"
+    subject_gene_sets: tuple[str, ...] = ()
+    subject_clusters: tuple[str, ...] = ()
 
 
 # --------------------------------------------------------------------------- #
