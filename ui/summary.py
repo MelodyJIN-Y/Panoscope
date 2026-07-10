@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import datetime
 import html
+import math
 
 from agent.types import ClusterVerdict
 
@@ -45,12 +46,23 @@ _SUB = (
     "biology claim is live-cited, nothing here recomputes a value."
 )
 
-_DOCX_LABEL = "⬇  Word"
+# Two exports of DIFFERENT kinds: the editable narrative (Word), and the
+# machine-readable verdict table (CSV, R-importable — the structured call, NOT the
+# free-text edits).
+_DOCX_LABEL = "⬇  Report (Word)"
 _DOCX_NAME = "panoscope_interpretation.docx"
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-_PDF_LABEL = "⬇  PDF"
-_PDF_NAME = "panoscope_interpretation.pdf"
-_PDF_MIME = "application/pdf"
+_CSV_LABEL = "⬇  Annotations (CSV)"
+_CSV_NAME = "panoscope_annotations.csv"
+_CSV_MIME = "text/csv"
+
+# Editor auto-height: 13.5px font * 1.65 line-height ≈ 22px/line; the wide 0.76 pane
+# fits ~150 chars/line, so we estimate at 110 (a safe under-count → a little headroom,
+# never a clip). Sizes each box to its content so nothing hides below an inner scroll.
+_WRAP_CHARS = 110
+_PX_PER_LINE = 22
+_ED_PAD = 28
+_ED_MAX_PX = 1600
 
 # Rail sections. "overall" hosts the overview + the (editable) cross-cluster check;
 # then one entry per cluster; then the two dataset-level editors/cards.
@@ -79,15 +91,27 @@ _SUMMARY_CSS = """
                  display: flex; gap: 9px; align-items: center; margin: 0; }
 .pano-sum-meta .n { color: var(--ink); font-weight: 600; }
 .pano-sum-meta .sep { color: var(--hair); }
+.pano-sum-saved { color: var(--faint); }
+.pano-sum-saved .err { color: var(--absent); }
 
-/* Top action buttons (refresh + Word + PDF) — laid out in three columns. */
-.st-key-btn_ws_refresh button, .st-key-dl_docx button, .st-key-dl_pdf button {
+/* Export cluster: two downloads (Word report, CSV table). */
+.st-key-dl_docx button, .st-key-dl_csv button {
   border-radius: 9px !important; font-size: 12px !important; white-space: nowrap;
   min-height: 0 !important; padding: 7px 10px !important; }
-.st-key-btn_ws_refresh button { background: transparent !important; border: 1px solid var(--hair) !important;
-  color: var(--faint) !important; box-shadow: none !important; }
-.st-key-btn_ws_refresh button:hover { color: var(--accent) !important; border-color: var(--accent) !important;
-  background: var(--accent-soft) !important; }
+/* Per-region Save button — right-aligned directly under its editor. */
+div[class*="st-key-savrow_"] { display: flex; justify-content: flex-end; margin: 8px 0 2px; }
+div[class*="st-key-savrow_"] button { background: var(--accent) !important; color: #fff !important;
+  border: 0 !important; box-shadow: none !important; min-height: 0 !important; padding: 6px 22px !important;
+  border-radius: 8px !important; font-size: 12px !important; font-weight: 600 !important; }
+div[class*="st-key-savrow_"] button:hover { filter: brightness(1.06); }
+/* The re-draft control — quiet, left-aligned, clearly separate from the exports. */
+.st-key-pano_redraft { display: flex; justify-content: flex-start; margin: 8px 0 0; }
+.st-key-pano_redraft button { background: transparent !important; border: 1px solid var(--hair) !important;
+  color: var(--faint) !important; box-shadow: none !important; min-height: 0 !important;
+  padding: 4px 11px !important; border-radius: 7px !important; font-family: var(--mono) !important;
+  font-size: 10.5px !important; }
+.st-key-pano_redraft button:hover { color: var(--absent) !important; border-color: var(--absent) !important;
+  background: var(--absent-bg) !important; }
 
 /* Left contents rail — reuses the app's cluster-rail look (theme.py owns the
    button de-chrome + the coloured per-cluster dots via the rail_cN keys). Here we
@@ -95,14 +119,15 @@ _SUMMARY_CSS = """
 .st-key-pano_rail { position: sticky; top: 68px; align-self: start;
   border: 1px solid var(--hair); border-radius: 14px; background: var(--paper);
   padding: 7px 10px 14px; }
-/* Group labels are wrapped in keyed containers, then FORCED to occupy a real row
-   (Streamlit otherwise collapses a custom-markdown element to ~0 height in the flex
-   rail, so the label lands on top of the next button). Fixed min-height + bottom
-   alignment gives each label its own line, cleanly above the first item. */
-.st-key-pano_rail div[class*="st-key-raillbl_"] { min-height: 30px !important; margin: 6px 0 0 !important;
-  display: flex !important; flex-direction: column !important; justify-content: flex-end !important; }
+/* Group labels are wrapped in keyed containers FORCED to a real row (Streamlit
+   otherwise collapses a custom-markdown element to ~0 height in the flex rail). The
+   label sits at the TOP of its row (flex-start) with clear empty space BELOW it, so
+   the next item's selected box can never rise up and cover the label. */
+.st-key-pano_rail div[class*="st-key-raillbl_"] { min-height: 30px !important; margin: 8px 0 0 !important;
+  display: flex !important; flex-direction: column !important; justify-content: flex-start !important;
+  overflow: hidden !important; }
 .pano-rail-lbl { font-family: var(--mono); font-size: 9px; text-transform: uppercase;
-  letter-spacing: .14em; color: var(--faint); font-weight: 700; padding: 0 9px 3px; margin: 0; }
+  letter-spacing: .14em; color: var(--faint); font-weight: 700; padding: 2px 9px 0; margin: 0; }
 /* Non-cluster rows keep the dot's SLOT (transparent) so every label lines up with
    the dotted cluster rows below — no ragged left edge. */
 .st-key-nav_overall button::before, .st-key-nav_caveats button::before,
@@ -305,14 +330,31 @@ def _enrichment_evidence_table_html(ce) -> str:
 # Editable working space — one section rendered at a time; edits held in plain
 # ``wsval_*`` keys so navigating away never drops them.
 # --------------------------------------------------------------------------- #
-def _reset_ws_all(defaults: dict) -> None:
-    """on_click: re-draft EVERY region from its freshest auto-seed. Pops the mounted
-    widget key so the visible editor re-seeds from the new default."""
+def _reset_ws_all(defaults: dict, dataset: str) -> None:
+    """on_click: re-draft EVERY region from its freshest auto-seed AND drop the saved
+    edits on disk, so 're-draft from latest' is a true reset. Pops the mounted widget
+    key so the visible editor re-seeds from the new default."""
     import streamlit as st
 
     for name, default in defaults.items():
         st.session_state[f"wsval_{name}"] = default
         st.session_state.pop(f"wsw_{name}", None)
+    st.session_state.pop("_sum_saved_snapshot", None)
+    st.session_state.pop("_sum_saved_at", None)
+    try:
+        from pipeline import store
+
+        store.save_summary_edits({}, dataset, saved_at="")
+    except Exception:  # noqa: BLE001 - clearing the disk copy is best-effort
+        pass
+
+
+def _autoheight(text: str, *, min_lines: int) -> int:
+    """Pixel height that fits ``text``: hard newlines plus ~``_WRAP_CHARS``-char soft
+    wraps, floored at ``min_lines`` and capped so a huge paste can't make a page-tall
+    box. Sizes each editor to its real content so nothing hides below an inner scroll."""
+    lines = sum(max(1, math.ceil(len(line) / _WRAP_CHARS)) for line in text.split("\n"))
+    return min(_ED_MAX_PX, max(min_lines, lines) * _PX_PER_LINE + _ED_PAD)
 
 
 def _set_active(section: str) -> None:
@@ -320,6 +362,14 @@ def _set_active(section: str) -> None:
     import streamlit as st
 
     st.session_state[_K_ACTIVE] = section
+
+
+def _save_now() -> None:
+    """on_click for the Save button: force the next render's autosave to write and
+    refresh the 'saved HH:MM' status, even if nothing changed since the last autosave."""
+    import streamlit as st
+
+    st.session_state.pop("_sum_saved_snapshot", None)
 
 
 def _editor(st, name: str, default: str, height: int) -> None:
@@ -332,6 +382,14 @@ def _editor(st, name: str, default: str, height: int) -> None:
     val = st.text_area("edit", value=st.session_state[vkey], key=f"wsw_{name}",
                        height=height, label_visibility="collapsed")
     st.session_state[vkey] = val
+
+
+def _save_button(st, name: str) -> None:
+    """A per-region Save button, right under its editor. Edits also autosave as you
+    type; this is the explicit affordance for that one region."""
+    with st.container(key=f"savrow_{name}"):
+        st.button("Save", key=f"btn_ws_save_{name}", on_click=_save_now,
+                  help="Save your edits now — they also autosave as you type and reload after a refresh.")
 
 
 def _eyebrow(st, text: str) -> None:
@@ -400,15 +458,46 @@ def render_summary_page() -> None:
     ws_defaults[_ED_GLOBAL] = report.global_check_text(da.holistic(), themes)
     ws_defaults[_SEC_CAVEATS] = report.caveats_text(verdicts, enr_map, n_panel)
 
+    # Restore the biologist's saved edits (edits win over the fresh auto-draft), so a
+    # browser refresh brings the edited text back. Seed session state once per session.
+    try:
+        from pipeline import store
+
+        saved = store.load_summary_edits(rep.dataset)
+    except Exception:  # noqa: BLE001 - no tree / import issue -> just use auto-drafts
+        store, saved = None, {}
+
+    def _seed(name: str) -> str:
+        return saved.get(name) or ws_defaults[name]
+
+    if not st.session_state.get("_sum_seeded"):
+        st.session_state["_sum_seeded"] = True
+        for name in ws_defaults:
+            st.session_state.setdefault(f"wsval_{name}", _seed(name))
+
     # Reconcile canonical text from the (possibly just-edited) mounted widget BEFORE
-    # exports are built, so a download always reflects the latest keystrokes.
+    # exports/autosave, so both always reflect the latest keystrokes.
     for name in ws_defaults:
         wkey = f"wsw_{name}"
         if wkey in st.session_state:
             st.session_state[f"wsval_{name}"] = st.session_state[wkey]
 
     def _val(name: str) -> str:
-        return st.session_state.get(f"wsval_{name}", ws_defaults[name])
+        return st.session_state.get(f"wsval_{name}", _seed(name))
+
+    # Autosave: persist only regions the biologist changed from the auto-draft
+    # (self-cleaning). Idempotent — writes only when the edit set actually changed.
+    edits = {n: _val(n) for n in ws_defaults if _val(n) != ws_defaults[n]}
+    save_error = ""
+    if store is not None and edits != st.session_state.get("_sum_saved_snapshot"):
+        try:
+            now = datetime.datetime.now()
+            store.save_summary_edits(edits, rep.dataset,
+                                     saved_at=now.isoformat(timespec="seconds"))
+            st.session_state["_sum_saved_snapshot"] = dict(edits)
+            st.session_state["_sum_saved_at"] = now.strftime("%H:%M")
+        except Exception as exc:  # noqa: BLE001 - surface, never crash the page
+            save_error = str(exc)
 
     active = st.session_state.get(_K_ACTIVE, _SEC_OVERALL)
 
@@ -421,8 +510,18 @@ def render_summary_page() -> None:
                   global_check=_val(_ED_GLOBAL), caveats=_val(_SEC_CAVEATS),
                   lab_notes=rep.dataset_notes)
 
-    # ---- Top bar: title + meta | [refresh] [Word] [PDF] ------------------ #
-    head_col, act_col = st.columns([0.58, 0.42], vertical_alignment="center")
+    # Save-status line (autosave + the manual Save button both feed it).
+    if save_error:
+        status = f'<span class="err">save failed — {html.escape(save_error)}</span>'
+    elif not edits:
+        status = "no edits yet"
+    elif edits == st.session_state.get("_sum_saved_snapshot") and st.session_state.get("_sum_saved_at"):
+        status = f'saved {html.escape(st.session_state["_sum_saved_at"])}'
+    else:
+        status = "editing…"
+
+    # ---- Top bar: title + meta + save status | [Report] [CSV] [Save] ----- #
+    head_col, act_col = st.columns([0.60, 0.40], vertical_alignment="center")
     with head_col:
         flagged_txt = (f'<span class="n">{n_flagged}</span> flagged for re-check'
                        if n_flagged else "none flagged")
@@ -431,23 +530,31 @@ def render_summary_page() -> None:
             f'<div class="pano-sum-sub">{html.escape(_SUB)}</div>'
             '<div class="pano-sum-meta">'
             f'<span class="n">{len(verdicts)}</span> clusters<span class="sep">·</span>{flagged_txt}'
-            f'<span class="sep">·</span><span class="n">{n_panel}</span>-gene panel</div>',
+            f'<span class="sep">·</span><span class="n">{n_panel}</span>-gene panel'
+            f'<span class="sep">·</span><span class="pano-sum-saved">{status}</span></div>',
             unsafe_allow_html=True,
         )
     with act_col:
-        b_ref, b_doc, b_pdf = st.columns(3)
-        with b_ref:
-            st.button("↻ refresh", key="btn_ws_refresh", use_container_width=True,
-                      on_click=_reset_ws_all, args=(ws_defaults,),
-                      help="Re-draft every region from the latest calls, programs, and lab notes.")
+        b_doc, b_csv = st.columns(2)
         with b_doc:
-            st.download_button(_DOCX_LABEL, report.working_docx(export_sections, **exp_kw),
-                               _DOCX_NAME, _DOCX_MIME, key="dl_docx", use_container_width=True)
-        with b_pdf:
-            st.download_button(_PDF_LABEL, report.working_pdf(export_sections, **exp_kw),
-                               _PDF_NAME, _PDF_MIME, key="dl_pdf", use_container_width=True)
+            st.download_button(
+                _DOCX_LABEL, report.working_docx(export_sections, **exp_kw),
+                _DOCX_NAME, _DOCX_MIME, key="dl_docx", use_container_width=True,
+                help="Your edited narrative — every cluster, the global check, caveats, and lab notes.")
+        with b_csv:
+            st.download_button(
+                _CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME,
+                key="dl_csv", use_container_width=True,
+                help="The 11-column verdict table (R-importable). The structured call, not your free-text edits.")
 
-    st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
+    # A quiet, page-level re-draft control — kept OUT of the export cluster because it
+    # REPLACES your edits (rebuilds every region from the latest calls + programs).
+    with st.container(key="pano_redraft"):
+        st.button("↻ re-draft all from latest", key="btn_ws_refresh",
+                  on_click=_reset_ws_all, args=(ws_defaults, rep.dataset),
+                  help="Rebuild every region from the latest calls, programs, and lab notes — replaces your current edits.")
+
+    st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
     # ---- Two panes: contents rail | focused section ---------------------- #
     rail_col, pane_col = st.columns([0.24, 0.76], gap="large")
@@ -477,7 +584,9 @@ def render_summary_page() -> None:
             st.markdown(_overview_table_html(verdicts, enr_map), unsafe_allow_html=True)
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             _eyebrow(st, "Dataset · cross-cluster global check")
-            _editor(st, _ED_GLOBAL, ws_defaults[_ED_GLOBAL], height=240)
+            _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
+                    height=_autoheight(_val(_ED_GLOBAL), min_lines=10))
+            _save_button(st, _ED_GLOBAL)
 
         elif active in sec_by_id:
             s = sec_by_id[active]
@@ -488,9 +597,11 @@ def render_summary_page() -> None:
                         unsafe_allow_html=True)
 
             # The editable synthesis comes first (it is what exports)...
-            _editor(st, s.cluster, ws_defaults[s.cluster], height=280)
+            _editor(st, s.cluster, _seed(s.cluster),
+                    height=_autoheight(_val(s.cluster), min_lines=12))
             st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
                         f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
+            _save_button(st, s.cluster)
 
             # ...then the read-only jazzPanda evidence it rests on, for reference.
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
@@ -507,7 +618,9 @@ def render_summary_page() -> None:
 
         elif active == _SEC_CAVEATS:
             _eyebrow(st, "Dataset · caveats")
-            _editor(st, _SEC_CAVEATS, ws_defaults[_SEC_CAVEATS], height=300)
+            _editor(st, _SEC_CAVEATS, _seed(_SEC_CAVEATS),
+                    height=_autoheight(_val(_SEC_CAVEATS), min_lines=13))
+            _save_button(st, _SEC_CAVEATS)
 
         else:  # _SEC_NOTES (or any stale value) -> lab notes
             _eyebrow(st, "Lab knowledge · your saved notes")

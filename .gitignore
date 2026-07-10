@@ -57,6 +57,10 @@ data/datasets/*/interp/enrichment/
 data/datasets/*/interp/pathway_notes.json
 data/datasets/*/interp/pathway_themes.json
 
+# Summary working-space edits — runtime user state (the biologist's report prose),
+# written by the UI as they edit; not a build artifact to commit.
+data/datasets/*/interp/summary_edits.json
+
 # ── OS / editor cruft ───────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store

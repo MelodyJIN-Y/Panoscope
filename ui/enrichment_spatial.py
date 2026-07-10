@@ -94,12 +94,6 @@ def render_pathways_spatial(cluster: str, pathways: list) -> None:
         _render_umap(cluster, feature=False)
 
     if not pathways:
-        _empty_panel(
-            "select one or more enriched programs above (○ → ●) to map their leading-edge "
-            "genes on the tissue — is the program in this cluster's cells, or bleeding in "
-            "from a neighbour?",
-            height=120,
-        )
         return
 
     st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
