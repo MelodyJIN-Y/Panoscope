@@ -62,7 +62,7 @@
   "c6": {
     "cluster": "c6",
     "cell_type": "B_Cells",
-    "summary": "Antibody-producing lymphocytes that infiltrate breast tumors and signal better patient survival, marked by MS4A1 (CD20.",
+    "summary": "Antibody-producing lymphocytes that infiltrate breast tumors and signal better patient survival, marked by MS4A1.",
     "pmid": "29568299",
     "citation": {
       "pmid": "29568299",
@@ -91,7 +91,7 @@
   "c9": {
     "cluster": "c9",
     "cell_type": "Mast_Cells",
-    "summary": "Tissue-resident immune cells that store and release proteases (CPA3.",
+    "summary": "Tissue-resident immune cells that store and release proteases.",
     "pmid": "37063885",
     "citation": {
       "pmid": "37063885",

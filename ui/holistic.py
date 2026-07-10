@@ -1,102 +1,128 @@
-"""Holistic review panel — "all 9 clusters together" (SKILL Step 4).
+"""Cross-cluster review panel (SKILL Step 4) — the whole set, read together.
 
-Renders the cross-cluster coherence pass and the ONE grounded refinement it
-surfaces (c8 Dendritic -> Plasmacytoid DC (pDC)). Everything shown here comes
-straight off :func:`agent.holistic.holistic_review`:
+Renders the coherence pass over all nine calls and the ONE grounded refinement it
+surfaces (c8 Dendritic -> Plasmacytoid DC (pDC)). Everything shown comes straight
+off :func:`ui.data_access.holistic` (the review the pipeline persisted, or a live
+recompute):
 
 * the ``coherence_notes`` are grounded observations whose every number was
-  computed at runtime from ``agent.data`` (cell counts) and the authoritative
-  ``CLUSTER_KEY`` — this panel never recomputes or invents one;
-* the refinement's ``evidence_markers`` were READ from c8's jazzPanda markers,
-  and the pDC reading is labelled a *literature direction* (a proposal the
-  biologist decides on), never a changed jazzPanda value.
+  computed from ``agent.data`` (cell counts) and the authoritative ``CLUSTER_KEY``;
+* the refinement's ``evidence_markers`` were READ from c8's jazzPanda markers, and
+  the pDC reading is labelled a *literature direction* the biologist decides on,
+  never a changed jazzPanda value.
 
 The one live piece is the citation: for the refinement's ``lit_query`` we fetch
-ONE real PMID through the PubMed connector (via ``agent.tools.literature_search``)
-and, only if it resolves to a real record, show it as a clickable button that
-opens the citation drawer. On any connector failure / timeout / zero hits we
-render "literature: connector unavailable — re-check" and NEVER fabricate a PMID
-(Panoscope's confident floor; a fabricated citation is the worst failure).
+ONE real PMID through the PubMed connector and, only if it resolves, show it as a
+clickable inline link (same style as the evidence table). On any connector
+failure / timeout / zero hits we render an honest "literature thin" line and NEVER
+fabricate a PMID (Panoscope's confident floor).
 
-Streamlit is imported lazily inside every function so ``import ui.holistic``
-works with no server running (the module touches no ``st.*`` at import time).
+Streamlit is imported lazily inside every render function so ``import ui.holistic``
+works with no server running.
 """
 
 from __future__ import annotations
 
 import html
+from functools import lru_cache
 from typing import Optional
 
 from agent.holistic import HolisticReview, Refinement
 from agent.types import Citation
 
 from ui import data_access
-from ui import paper_drawer
-from ui import state
 
 # --------------------------------------------------------------------------- #
-# Copy — the panel's headings. Kept as constants so prose never drifts.
+# Copy — kept as constants so prose never drifts.
 # --------------------------------------------------------------------------- #
-_PANEL_TITLE = "Holistic review · all 9 clusters together"
-_PANEL_SUB = (
-    "After annotating each cluster on its own, re-read the whole set for "
-    "coherence. Numbers below are computed from the data; the one refinement is "
-    "a proposal you decide on."
+_TITLE = "Cross-cluster review"
+_SUB = (
+    "After annotating each cluster on its own, the whole set is re-read for "
+    "coherence. Every number below is computed from the data; the one refinement "
+    "is a proposal you decide on."
 )
-_COHERENCE_HEAD = "Coherence check"
-_REFINE_HEAD = "One refinement to consider"
-_CONNECTOR_UNAVAILABLE = "literature: connector unavailable, re-check"
+_COH_TITLE = "Coherence check"
+_REFINE_TITLE = "Suggested refinement"
 
-# How many real PMIDs to pull for the refinement's lit_query. One clickable
-# citation is enough to ground the direction; we keep the fetch small.
+# Labels for the three grounded coherence notes, in the order
+# ``agent.holistic._coherence_notes`` emits them. Applied positionally only when
+# the count matches, so a change in the review never mislabels a note.
+_COH_LABELS = ("Compartments", "Proportions", "Redundancy")
+
+# One clickable citation is enough to ground the direction; keep the fetch small.
 _LIT_MAX_RESULTS = 3
 
 # --------------------------------------------------------------------------- #
-# Panel-local styling. Class names (.hol-*) reuse the design tokens injected by
-# ``ui.theme.inject_css`` (--hair, --accent, --muted, --absent, --mono, etc.),
-# and lean on ``.pcite`` / ``.tension`` / ``.gene`` which ``ui.theme`` already
-# defines. Re-injecting the same block across reruns is harmless.
+# Panel styling. Reuses the design tokens from ``ui.theme`` (--accent, --hair,
+# --muted, --ink, --paper, --mono, --absent, .gene). Modern surface cards with an
+# all-around hairline (no left-accent bars), a clear type hierarchy, and generous
+# rhythm. Re-injecting across reruns is harmless.
 # --------------------------------------------------------------------------- #
 _HOL_CSS = """
-.hol-sub { font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:18px; max-width:82ch; }
-.hol-head { font-family:var(--mono); font-size:10px; text-transform:uppercase;
-            letter-spacing:.1em; color:var(--faint); font-weight:500; margin:20px 0 4px; }
-/* Coherence: a clean checklist (a teal check + a hairline between rows), NOT
-   left-accent cards. */
-.hol-checks { border-top:1px solid var(--hair); max-width:88ch; }
-.hol-check { display:flex; gap:12px; align-items:flex-start; padding:12px 2px;
-             border-bottom:1px solid var(--hair); font-size:13px; color:var(--ink); line-height:1.55; }
-.hol-check::before { content:'\\2713'; color:var(--accent); font-weight:700; flex:none; font-size:13px; }
-/* Refinement: a soft surface card with an all-around border (no left accent). */
-.hol-card { border:1px solid var(--hair); border-radius:12px; padding:15px 17px;
-            background:var(--paper); max-width:82ch; }
-.hol-call { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:9px; }
-.hol-call .cid { font-family:var(--mono); font-size:11px; color:var(--faint); }
-.hol-call .arr { font-family:var(--mono); font-size:14px; color:var(--accent); }
-.hol-call .from { font-size:14px; color:var(--muted); }
-.hol-call .to   { font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
-.hol-tag { font-family:var(--mono); font-size:9px; text-transform:uppercase;
-           letter-spacing:.08em; color:var(--accent); background:var(--accent-soft);
-           padding:2px 8px; border-radius:5px; }
-.hol-ev { font-family:var(--mono); font-size:11px; color:var(--muted);
-          margin:9px 0; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-.hol-ev .lbl { color:var(--faint); }
-.hol-rat { font-size:12.5px; color:var(--muted); line-height:1.5; margin:9px 0 2px; }
-.hol-lit { font-family:var(--mono); font-size:11px; margin-top:12px; color:var(--faint); }
-.hol-lit.thin { color:var(--absent); }
-.hol-lit .q { color:var(--faint); }
+.pano-hol { margin-top: 30px; }
+.pano-hol-h { font-family: var(--sans); font-size: 18px; font-weight: 600;
+              letter-spacing: -.01em; color: var(--ink); margin: 0 0 5px; }
+.pano-hol-sub { font-size: 13px; color: var(--muted); line-height: 1.55;
+                max-width: 74ch; margin: 0 0 18px; }
+
+/* A surface card: all-around hairline, soft radius, white paper on the grey page. */
+.pano-card { background: var(--paper); border: 1px solid var(--hair);
+             border-radius: 14px; padding: 4px 20px 8px; margin-bottom: 16px; }
+.pano-card-head { display: flex; align-items: center; gap: 10px;
+                  padding: 14px 0 12px; border-bottom: 1px solid var(--hair2); }
+.pano-card-title { font-family: var(--sans); font-size: 13px; font-weight: 600;
+                   color: var(--ink); letter-spacing: -.01em; }
+.pano-card-title .kicker { font-family: var(--mono); font-size: 10px; font-weight: 500;
+                   text-transform: uppercase; letter-spacing: .1em; color: var(--faint); }
+.pano-pass { margin-left: auto; font-family: var(--mono); font-size: 10px; font-weight: 600;
+             letter-spacing: .04em; color: var(--accent); background: var(--accent-soft);
+             padding: 3px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+.pano-pass::before { content: '\\2713'; font-size: 10px; }
+
+/* Coherence items: a check glyph, a bold lead-in label, then the grounded note. */
+.pano-coh-item { display: grid; grid-template-columns: 20px 1fr; gap: 12px;
+                 padding: 14px 0; border-bottom: 1px solid var(--hair2); }
+.pano-coh-item:last-child { border-bottom: 0; }
+.pano-coh-check { color: var(--accent); font-size: 13px; font-weight: 700; line-height: 1.5; }
+.pano-coh-body { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.pano-coh-body .lbl { font-weight: 600; color: var(--ink); margin-right: 4px; }
+
+/* Refinement card: the proposal reads as an editorial call, markers as chips. */
+.pano-ref-call { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+                 padding: 16px 0 10px; }
+.pano-ref-call .cid { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.pano-ref-call .from { font-size: 14px; color: var(--muted); }
+.pano-ref-call .arr { font-family: var(--mono); font-size: 15px; color: var(--accent); }
+.pano-ref-call .to { font-size: 19px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+.pano-ref-tag { font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+                letter-spacing: .08em; color: var(--accent); background: var(--accent-soft);
+                padding: 3px 9px; border-radius: 6px; }
+.pano-ref-markers { display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+                    padding: 4px 0 12px; }
+.pano-ref-markers .k { font-family: var(--mono); font-size: 10px; color: var(--faint);
+                       text-transform: uppercase; letter-spacing: .06em; margin-right: 3px; }
+.pano-ref-chip { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink);
+                 background: var(--hair2); border-radius: 6px; padding: 3px 9px; }
+.pano-ref-rat { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 78ch;
+                padding-bottom: 14px; }
+.pano-ref-lit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+                border-top: 1px solid var(--hair2); padding: 13px 0 15px; }
+.pano-ref-lit .q { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+                   letter-spacing: .06em; color: var(--faint); }
+.pano-ref-cite { font-family: var(--mono); font-size: 12px; color: var(--accent);
+                 text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.pano-ref-cite:hover { text-decoration: underline; }
+.pano-ref-thin { font-family: var(--mono); font-size: 11px; color: var(--absent); }
 """
 
 
 def _inject_local_css() -> None:
-    """Inject the panel styles once per rerun (guarded; import-safe)."""
     import streamlit as st
 
     st.markdown(f"<style>{_HOL_CSS}</style>", unsafe_allow_html=True)
 
 
 def _esc(value: object) -> str:
-    """HTML-escape a value for safe injection into the panel markup."""
     return html.escape(str(value), quote=True)
 
 
@@ -104,15 +130,15 @@ def _esc(value: object) -> str:
 # Live citation for the refinement's literature direction.
 # Real-or-absent: return a resolved Citation only. On any connector failure /
 # timeout / zero hits, return None so the caller renders the honest fallback.
+# Cached per query so the Summary page never re-hits the connector on a rerun.
 # --------------------------------------------------------------------------- #
+@lru_cache(maxsize=8)
 def _first_real_citation(lit_query: str) -> Optional[Citation]:
     """Fetch ONE real PMID for ``lit_query`` via the live PubMed connector.
 
     Goes through ``agent.tools.literature_search`` (the same real-or-absent path
-    the agent uses): ``ok=False`` when the connector is down, an empty result set
-    when the literature is thin. In every non-resolving case this returns ``None``
-    — it NEVER fabricates a PMID. On success it returns a real, is_real Citation
-    built from the connector's own record.
+    the agent uses). Returns ``None`` on connector failure or thin literature — it
+    NEVER fabricates a PMID. On success returns a real Citation from the record.
     """
     q = (lit_query or "").strip()
     if not q:
@@ -138,7 +164,7 @@ def _first_real_citation(lit_query: str) -> Optional[Citation]:
             authors=str(rec.get("authors", "")).strip(),
             year=int(rec.get("year", 0) or 0),
             journal=str(rec.get("journal", "")).strip(),
-            abstract="",  # abstract is fetched on demand by the paper drawer
+            abstract="",
             url=str(rec.get("url", "")).strip(),
             stance="context",
             is_real=True,
@@ -149,112 +175,97 @@ def _first_real_citation(lit_query: str) -> Optional[Citation]:
 # --------------------------------------------------------------------------- #
 # Rendering helpers
 # --------------------------------------------------------------------------- #
-def _render_coherence(review: HolisticReview) -> None:
-    """Render the grounded coherence notes as a clean checklist (verbatim, no recompute).
+def _coherence_card_html(review: HolisticReview) -> str:
+    """The coherence card: a Passed pill + labelled grounded checks (verbatim)."""
+    notes = review.coherence_notes
+    labelled = len(notes) == len(_COH_LABELS)
+    pass_pill = '<span class="pano-pass">Passed</span>' if review.set_is_coherent else ""
 
-    A teal check + a hairline between rows — not left-accent cards. Each note's
-    text is read straight off the review; nothing here is recomputed.
-    """
-    import streamlit as st
-
-    st.markdown(f'<div class="hol-head">{_COHERENCE_HEAD}</div>', unsafe_allow_html=True)
-    items = "".join(
-        f'<div class="hol-check">{_esc(note)}</div>' for note in review.coherence_notes
+    items = []
+    for i, note in enumerate(notes):
+        lbl = f'<span class="lbl">{_esc(_COH_LABELS[i])}.</span> ' if labelled else ""
+        items.append(
+            '<div class="pano-coh-item">'
+            '<div class="pano-coh-check">✓</div>'
+            f'<div class="pano-coh-body">{lbl}{_esc(note)}</div>'
+            "</div>"
+        )
+    return (
+        '<div class="pano-card">'
+        '<div class="pano-card-head">'
+        f'<span class="pano-card-title">{_esc(_COH_TITLE)}</span>{pass_pill}'
+        "</div>"
+        + "".join(items)
+        + "</div>"
     )
-    st.markdown(f'<div class="hol-checks">{items}</div>', unsafe_allow_html=True)
 
 
-def _cite_label(cite: Citation) -> str:
-    """Short citation button label, e.g. ``[doc] Reizis 2019`` or ``[doc] PMID:123``."""
+def _cite_link_html(cite: Citation) -> str:
+    """An inline clickable PubMed link (same style as the evidence-table cite)."""
     first = (cite.authors or "").split(",")[0].split(";")[0].strip()
     year = f" {cite.year}" if cite.year else ""
-    if first:
-        return f"\U0001f4c4 {first}{year}"
-    return f"\U0001f4c4 PMID:{cite.pmid}"
-
-
-def _render_refinement(ref: Refinement) -> None:
-    """Render the c8 -> pDC refinement card with a live citation (or honest fallback).
-
-    The call, evidence markers, and rationale come straight off the ``Refinement``
-    (grounded). The citation is fetched live: only if it resolves to a real record
-    is a clickable PMID shown; otherwise the honest "connector unavailable" line.
-    """
-    import streamlit as st
-
-    st.markdown(f'<div class="hol-head">{_REFINE_HEAD}</div>', unsafe_allow_html=True)
-
-    markers = " ".join(
-        f'<span class="gene">{_esc(m)}</span>' for m in ref.evidence_markers
-    )
-    st.markdown(
-        f"""<div class="hol-card">
-  <div class="hol-call">
-    <span class="cid">{_esc(ref.cluster)}</span>
-    <span class="from">{_esc(ref.from_call)}</span>
-    <span class="arr">&rarr;</span>
-    <span class="to">{_esc(ref.to_call)}</span>
-    <span class="hol-tag">subtype: you decide</span>
-  </div>
-  <div class="hol-ev"><span class="lbl">driving markers:</span> {markers}</div>
-  <div class="hol-rat">{_esc(ref.rationale)}. This is a subtype sharpening within
-    the same immune/dendritic lineage; the jazzPanda numbers do not change.</div>
-</div>""",
-        unsafe_allow_html=True,
+    label = f"{first}{year}".strip() or f"PMID {cite.pmid}"
+    href = f"https://pubmed.ncbi.nlm.nih.gov/{_esc(cite.pmid)}/"
+    return (
+        f'<a class="pano-ref-cite" href="{href}" target="_blank" rel="noopener">'
+        f"\U0001f4c4 {_esc(label)} ↗</a>"
     )
 
-    # Live literature direction — real PMID or an honest fallback, never fabricated.
-    cite = _first_real_citation(ref.lit_query)
-    if cite is not None and cite.pmid:
-        paper_drawer.register_citations([cite])
-        st.markdown(
-            '<div class="hol-lit"><span class="q">literature direction, '
-            f"live: {_esc(ref.lit_query)}</span></div>",
-            unsafe_allow_html=True,
-        )
-        if st.button(
-            _cite_label(cite),
-            key=f"hol_cite_{cite.pmid}",
-            help="Open the paper in the citation drawer",
-        ):
-            state.open_paper(cite.pmid)
-            st.rerun()
-    else:
-        st.markdown(
-            f'<div class="hol-lit thin">{_CONNECTOR_UNAVAILABLE} '
-            f'<span class="q">(query: {_esc(ref.lit_query)})</span></div>',
-            unsafe_allow_html=True,
-        )
+
+def _refinement_card_html(ref: Refinement, cite: Optional[Citation]) -> str:
+    """The refinement card: the call, marker chips, rationale, and a live cite."""
+    chips = "".join(f'<span class="pano-ref-chip">{_esc(m)}</span>' for m in ref.evidence_markers)
+    lit = (
+        _cite_link_html(cite)
+        if (cite is not None and cite.pmid)
+        else f'<span class="pano-ref-thin">literature thin — re-check ({_esc(ref.lit_query)})</span>'
+    )
+    return (
+        '<div class="pano-card">'
+        '<div class="pano-card-head">'
+        f'<span class="pano-card-title">{_esc(_REFINE_TITLE)}</span>'
+        "</div>"
+        '<div class="pano-ref-call">'
+        f'<span class="cid">{_esc(ref.cluster)}</span>'
+        f'<span class="from">{_esc(ref.from_call)}</span>'
+        '<span class="arr">→</span>'
+        f'<span class="to">{_esc(ref.to_call)}</span>'
+        '<span class="pano-ref-tag">subtype · you decide</span>'
+        "</div>"
+        f'<div class="pano-ref-markers"><span class="k">driving markers</span>{chips}</div>'
+        f'<div class="pano-ref-rat">{_esc(ref.rationale)}. This is a subtype sharpening '
+        "within the same immune/dendritic lineage; the jazzPanda numbers do not change.</div>"
+        f'<div class="pano-ref-lit"><span class="q">literature direction, live</span>{lit}</div>'
+        "</div>"
+    )
 
 
 # --------------------------------------------------------------------------- #
 # Public: the panel
 # --------------------------------------------------------------------------- #
 def render_holistic_review() -> None:
-    """Render the holistic cross-cluster review panel.
+    """Render the cross-cluster review: heading, coherence card, refinement card.
 
-    Calls :func:`agent.holistic.holistic_review` and renders, in order: the
-    grounded coherence notes (all numbers computed from source), then the single
-    c8 Dendritic -> Plasmacytoid DC (pDC) refinement as a card with its evidence
-    markers, rationale, and a LIVE citation for its literature direction. The
-    citation is shown as a clickable PMID only if it resolves to a real record;
-    on any connector failure it degrades to an honest "connector unavailable —
-    re-check" line and never fabricates a PMID.
+    Sources the review from :func:`ui.data_access.holistic` (tree-first). The
+    coherence card shows the grounded checks with a Passed pill; the refinement
+    card shows the c8 -> pDC proposal with a LIVE citation rendered as an inline
+    PubMed link, degrading to an honest "literature thin" line and never a
+    fabricated PMID.
     """
     import streamlit as st
 
     _inject_local_css()
     review = data_access.holistic()
 
-    with st.container():
-        st.markdown(
-            f'<div class="pano-eyebrow">{_esc(_PANEL_TITLE)}</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(f'<div class="hol-sub">{_esc(_PANEL_SUB)}</div>', unsafe_allow_html=True)
-        _render_coherence(review)
-        for ref in review.refinements:
-            _render_refinement(ref)
+    parts = ['<div class="pano-hol">']
+    parts.append(f'<div class="pano-hol-h">{_esc(_TITLE)}</div>')
+    parts.append(f'<div class="pano-hol-sub">{_esc(_SUB)}</div>')
+    parts.append(_coherence_card_html(review))
+    for ref in review.refinements:
+        cite = _first_real_citation(ref.lit_query)
+        parts.append(_refinement_card_html(ref, cite))
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
 
 
 __all__ = ["render_holistic_review"]

@@ -73,9 +73,22 @@ def _strip_dashes(text: str) -> str:
     )
 
 
+def _balance_parens(t: str) -> str:
+    """Drop a trailing UNMATCHED ``(`` fragment the word cap can leave behind.
+
+    Capping at ``_MAX_WORDS`` can slice mid-parenthetical (e.g. ``…proteases
+    (CPA3``), which reads as broken once the full summary is shown. When there is
+    an unclosed ``(``, cut from the last one to the end. Never touches balanced
+    parentheses.
+    """
+    if t.count("(") <= t.count(")"):
+        return t
+    return t[: t.rfind("(")].rstrip(" ,;:")
+
+
 def _shorten(text: str, max_words: int = _MAX_WORDS) -> str:
     """Crisp one-clause summary: drop inline PMID + em dashes + trailing author,
-    keep the first sentence, cap length."""
+    keep the first sentence, cap length, and never end on a dangling '('."""
     t = _INLINE_PMID.sub("", _strip_dashes(text.strip())).strip()
     m = re.search(r"[.;]\s", t)
     if m and m.start() < 220:
@@ -86,6 +99,7 @@ def _shorten(text: str, max_words: int = _MAX_WORDS) -> str:
         capped = " ".join(words[:max_words])
         ci = capped.rfind(",")
         t = capped[:ci] if ci > 20 else capped
+    t = _balance_parens(t)
     t = _TRAIL_AUTHOR.sub("", t.strip()).strip().rstrip(",;:. ")
     return (t + ".") if t else t
 

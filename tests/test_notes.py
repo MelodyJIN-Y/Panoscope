@@ -14,7 +14,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from pipeline import run as pipeline_run
-from pipeline.stages.notes import _fallback_summary, _looks_meta, _resolve_note
+from pipeline.stages.notes import (
+    _balance_parens,
+    _fallback_summary,
+    _looks_meta,
+    _resolve_note,
+    _shorten,
+)
 
 
 def _cite(pmid: str = "12345"):
@@ -60,6 +66,23 @@ def test_no_model_citation_is_fine():
         "fallback",
     )
     assert not used_fb and pmid is None and citation is None and summary.startswith("EPCAM")
+
+
+def test_shorten_drops_dangling_paren():
+    # The word cap can slice mid-parenthetical; the summary must not end on '('.
+    out = _shorten(
+        "Tissue-resident immune cells that store and release proteases (CPA3 is a "
+        "mast-cell carboxypeptidase highly specific to this lineage)."
+    )
+    assert "(" not in out and out.endswith(".")
+    assert out == "Tissue-resident immune cells that store and release proteases."
+
+
+def test_balance_parens_leaves_matched_text_untouched():
+    assert _balance_parens("expressing LYZ (an antimicrobial enzyme)") == (
+        "expressing LYZ (an antimicrobial enzyme)"
+    )
+    assert _balance_parens("proteases (CPA3") == "proteases"
 
 
 def test_looks_meta_catches_review_examples():
