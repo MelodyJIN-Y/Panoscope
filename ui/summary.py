@@ -45,9 +45,6 @@ _SUB = (
     "biology claim is live-cited, nothing here recomputes a value."
 )
 
-_CSV_LABEL = "⬇  Annotations (CSV)"
-_CSV_NAME = "panoscope_annotations.csv"
-_CSV_MIME = "text/csv"
 _DOCX_LABEL = "⬇  Word"
 _DOCX_NAME = "panoscope_interpretation.docx"
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -66,8 +63,8 @@ _K_ACTIVE = "sum_active_section"  # which rail item is focused
 
 # Overview table columns (merged marker + enrichment). (label, width%)
 _OVERVIEW_COLS = (
-    ("Cluster", 9), ("Cell type", 13), ("Conf.", 10), ("Re-check", 8),
-    ("Key markers", 26), ("Enriched programs", 34),
+    ("Cluster", 9), ("Cell type", 16), ("Conf.", 11),
+    ("Key markers", 28), ("Enriched programs", 36),
 )
 
 # --------------------------------------------------------------------------- #
@@ -97,12 +94,19 @@ _SUMMARY_CSS = """
    only add the sticky card, the group labels, and hide the dot on non-cluster items. */
 .st-key-pano_rail { position: sticky; top: 68px; align-self: start;
   border: 1px solid var(--hair); border-radius: 14px; background: var(--paper);
-  padding: 8px 9px 12px; }
-.pano-rail-lbl { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase;
-  letter-spacing: .12em; color: var(--faint); font-weight: 600; margin: 13px 8px 5px; }
-.pano-rail-lbl:first-child { margin-top: 3px; }
+  padding: 7px 10px 14px; }
+/* Group labels are wrapped in keyed containers, then FORCED to occupy a real row
+   (Streamlit otherwise collapses a custom-markdown element to ~0 height in the flex
+   rail, so the label lands on top of the next button). Fixed min-height + bottom
+   alignment gives each label its own line, cleanly above the first item. */
+.st-key-pano_rail div[class*="st-key-raillbl_"] { min-height: 30px !important; margin: 6px 0 0 !important;
+  display: flex !important; flex-direction: column !important; justify-content: flex-end !important; }
+.pano-rail-lbl { font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--faint); font-weight: 700; padding: 0 9px 3px; margin: 0; }
+/* Non-cluster rows keep the dot's SLOT (transparent) so every label lines up with
+   the dotted cluster rows below — no ragged left edge. */
 .st-key-nav_overall button::before, .st-key-nav_caveats button::before,
-.st-key-nav_labnotes button::before { display: none !important; }
+.st-key-nav_labnotes button::before { background: transparent !important; }
 
 /* Per-cluster reference (marker + enrichment stats, above the editor). */
 .pano-ref-cap { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
@@ -142,11 +146,7 @@ _SUMMARY_CSS = """
 .pano-sum-flag { font-family: var(--mono); font-size: 9.5px; font-weight: 600; color: var(--absent);
   background: var(--absent-bg); padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
 .pano-sum-table .cf { font-size: 10px; padding: 2px 8px; }
-.st-key-pano_csv { display: flex; justify-content: flex-end; margin-top: 10px; }
-.st-key-pano_csv button { background: transparent !important; border: 1px solid var(--hair) !important;
-  color: var(--faint) !important; box-shadow: none !important; border-radius: 8px !important;
-  font-size: 11px !important; padding: 4px 11px !important; min-height: 0 !important; }
-.st-key-pano_csv button:hover { color: var(--accent) !important; border-color: var(--accent) !important; }
+.pano-ovflag { color: var(--absent); font-size: 11px; margin-left: 6px; }
 
 /* Focused editor. */
 .pano-ed-hr { border: 0; border-top: 1px solid var(--hair); margin: 24px 0 4px; }
@@ -199,12 +199,6 @@ def _markers_cell(v: ClusterVerdict) -> str:
     return f'<span class="pano-sum-km">{" · ".join(html.escape(str(g)) for g in v.key_markers)}</span>'
 
 
-def _recheck_cell(verify: bool) -> str:
-    if verify:
-        return '<span class="pano-sum-flag" title="flagged for re-check">⚑ re-check</span>'
-    return '<span class="pano-sum-dash">—</span>'
-
-
 def _programs_cell(ce) -> str:
     """Top enriched programs + their leading-edge genes, compact. Dash if none."""
     if ce is None or not ce.enriched:
@@ -226,12 +220,12 @@ def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict) -> str:
     rows = []
     for v in verdicts:
         ce = enr_map.get(v.cluster)
+        flag = ' <span class="pano-ovflag" title="flagged for re-check">⚑</span>' if v.verify else ""
         rows.append(
             "<tr>"
             f"<td>{_dot_id(v.cluster)}</td>"
-            f'<td><span class="pano-sum-ct">{html.escape(v.cell_type)}</span></td>'
+            f'<td><span class="pano-sum-ct">{html.escape(v.cell_type)}</span>{flag}</td>'
             f"<td>{_conf_pill(v.confidence)}</td>"
-            f"<td>{_recheck_cell(v.verify)}</td>"
             f"<td>{_markers_cell(v)}</td>"
             f"<td>{_programs_cell(ce)}</td>"
             "</tr>"
@@ -252,17 +246,6 @@ def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -
         f'<span class="ct">{html.escape(cell_type)}</span>'
         f'<span class="cf {css}">{html.escape(confidence)}</span>{flag}</div>'
     )
-
-
-def _fmt_q(q) -> str:
-    """Format a q-value compactly: '—' if none, scientific for tiny, else 3 dp."""
-    if q is None:
-        return '<span class="pano-sum-dash">—</span>'
-    if q <= 0:
-        return '<span class="pano-num">&lt;1e-16</span>'
-    if q < 1e-3:
-        return f'<span class="pano-num">{q:.1e}</span>'
-    return f'<span class="pano-num">{q:.3f}</span>'
 
 
 def _marker_evidence_table_html(v: ClusterVerdict) -> str:
@@ -298,7 +281,7 @@ def _enrichment_evidence_table_html(ce) -> str:
     graded = [(p, "enriched") for p in ce.enriched] + [(p, "suggestive") for p in ce.suggestive]
     if not graded:
         return '<div class="pano-lk-empty">No gene set clears the enrichment gate for this cluster.</div>'
-    cols = (("Program", 30), ("Score", 11), ("q", 13), ("Panel", 12), ("Leading edge", 34))
+    cols = (("Program", 33), ("Score", 12), ("Cov", 14), ("Leading edge", 41))
     colgroup = "".join(f'<col style="width:{w}%">' for _, w in cols)
     head = "".join(f"<th>{html.escape(lbl)}</th>" for lbl, _ in cols)
     rows = []
@@ -309,8 +292,7 @@ def _enrichment_evidence_table_html(ce) -> str:
         rows.append(
             f'<tr><td>{name}</td>'
             f'<td><span class="pano-num">{p.score:.2f}</span></td>'
-            f'<td>{_fmt_q(p.q_value)}</td>'
-            f'<td><span class="pano-num-dim">{p.panel_hits}/{p.set_size_full}</span></td>'
+            f'<td><span class="pano-num-dim" title="set genes on the panel / set size">{p.panel_hits}/{p.set_size_full}</span></td>'
             f'<td><span class="pano-enr-le">{le}</span></td></tr>'
         )
     return (
@@ -354,6 +336,13 @@ def _editor(st, name: str, default: str, height: int) -> None:
 
 def _eyebrow(st, text: str) -> None:
     st.markdown(f'<div class="pano-ed-eyebrow">{html.escape(text)}</div>', unsafe_allow_html=True)
+
+
+def _rail_label(st, text: str) -> None:
+    """A rail group label in a keyed container (so its spacing margin is honoured
+    and never overflows onto the next button)."""
+    with st.container(key=f"raillbl_{text.lower()}"):
+        st.markdown(f'<div class="pano-rail-lbl">{html.escape(text)}</div>', unsafe_allow_html=True)
 
 
 def _render_lab_note_cards(st, notes: list) -> None:
@@ -465,18 +454,17 @@ def render_summary_page() -> None:
 
     with rail_col:
         with st.container(key="pano_rail"):
-            st.markdown('<div class="pano-rail-lbl">Report</div>', unsafe_allow_html=True)
             st.button("Overall", key="nav_overall", use_container_width=True,
                       type="primary" if active == _SEC_OVERALL else "secondary",
                       on_click=_set_active, args=(_SEC_OVERALL,))
-            st.markdown('<div class="pano-rail-lbl">Clusters</div>', unsafe_allow_html=True)
+            _rail_label(st, "Clusters")
             for s in rep.sections:
                 label = f"{s.cluster} {s.cell_type.replace('_', ' ')}" + ("  ⚑" if s.verify else "")
                 # key=rail_cN so theme.py paints the cluster's colour dot (::before).
                 st.button(label, key=f"rail_{s.cluster}", use_container_width=True,
                           type="primary" if active == s.cluster else "secondary",
                           on_click=_set_active, args=(s.cluster,))
-            st.markdown('<div class="pano-rail-lbl">Dataset</div>', unsafe_allow_html=True)
+            _rail_label(st, "Dataset")
             for sec, label in _DATASET_SECTIONS:
                 st.button(label, key=f"nav_{sec}", use_container_width=True,
                           type="primary" if active == sec else "secondary",
@@ -487,8 +475,6 @@ def render_summary_page() -> None:
             st.markdown('<div class="pano-ov-cap">Overview · marker call + enriched programs</div>',
                         unsafe_allow_html=True)
             st.markdown(_overview_table_html(verdicts, enr_map), unsafe_allow_html=True)
-            with st.container(key="pano_csv"):
-                st.download_button(_CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME, key="dl_csv")
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             _eyebrow(st, "Dataset · cross-cluster global check")
             _editor(st, _ED_GLOBAL, ws_defaults[_ED_GLOBAL], height=240)
@@ -501,7 +487,13 @@ def render_summary_page() -> None:
             st.markdown(_ws_head_html(s.cluster, s.cell_type, s.confidence, s.verify),
                         unsafe_allow_html=True)
 
-            # Reference (read-only): the jazzPanda evidence this write-up rests on.
+            # The editable synthesis comes first (it is what exports)...
+            _editor(st, s.cluster, ws_defaults[s.cluster], height=280)
+            st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
+                        f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
+
+            # ...then the read-only jazzPanda evidence it rests on, for reference.
+            st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             st.markdown(
                 '<div class="pano-ref-cap">Marker evidence'
                 f'<span class="meta">jazzPanda · top {min(8, len(v.evidence))} of {len(v.evidence)} by glm coef</span></div>',
@@ -509,15 +501,9 @@ def render_summary_page() -> None:
             st.markdown(_marker_evidence_table_html(v), unsafe_allow_html=True)
             st.markdown(
                 '<div class="pano-ref-cap">Enriched programs'
-                '<span class="meta">panel-scoped · score = jazzPanda test statistic · q = BH</span></div>',
+                '<span class="meta">panel-scoped · score = jazzPanda test statistic · cov = set genes on panel</span></div>',
                 unsafe_allow_html=True)
             st.markdown(_enrichment_evidence_table_html(ce), unsafe_allow_html=True)
-
-            st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
-            _eyebrow(st, "Your synthesis · editable")
-            _editor(st, s.cluster, ws_defaults[s.cluster], height=280)
-            st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
-                        f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
 
         elif active == _SEC_CAVEATS:
             _eyebrow(st, "Dataset · caveats")

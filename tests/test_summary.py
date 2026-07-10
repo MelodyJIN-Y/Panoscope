@@ -45,7 +45,7 @@ def test_overview_table_column_order_and_grounding() -> None:
         enr_map = {}
     out = summary._overview_table_html(verdicts, enr_map)
 
-    order = ["Cluster", "Cell type", "Conf.", "Re-check", "Key markers", "Enriched programs"]
+    order = ["Cluster", "Cell type", "Conf.", "Key markers", "Enriched programs"]
     positions = [out.index(f">{label}<") for label in order]
     assert positions == sorted(positions), "overview columns are out of order"
 
