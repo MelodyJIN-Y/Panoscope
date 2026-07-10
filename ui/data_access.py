@@ -407,6 +407,30 @@ def composed_verdicts() -> list[ClusterVerdict]:
     return out
 
 
+def anchored_notes(cluster: str) -> dict:
+    """In-scope notes indexed by their anchor, for rendering next to the driver row:
+    ``{"gene": {GENE: [note,...]}, "gene_set": {HALLMARK_X: [note,...]}}``. Marker and
+    marker_convention notes index by gene; program_reinterpretation notes by gene set.
+    Routes through ``apply_notes`` (the fail-closed scope gate), so a c2 note never
+    shows on c3."""
+    from agent import memory
+
+    genes: dict = {}
+    sets: dict = {}
+    try:
+        for n in memory.apply_notes(cluster):
+            t = getattr(n, "type", "")
+            if t in ("marker_reinterpretation", "marker_convention"):
+                for g in getattr(n, "subject_markers", ()):
+                    genes.setdefault(g, []).append(n)
+            elif t == "program_reinterpretation":
+                for gs in getattr(n, "subject_gene_sets", ()):
+                    sets.setdefault(gs, []).append(n)
+    except Exception:  # noqa: BLE001 - a bad note never breaks a table
+        pass
+    return {"gene": genes, "gene_set": sets}
+
+
 def override_info(cluster: str) -> "Optional[dict]":
     """For a cluster with a confirmed cell-type override: the new call, the computed
     call it replaces, the note id, and the literature agree/dissent counts — so the UI

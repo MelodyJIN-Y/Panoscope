@@ -146,6 +146,13 @@ div[class*="st-key-savrow_"] button:hover { filter: brightness(1.06); }
   padding: 2px 6px; border-radius: 5px; font-weight: 700; margin-left: 7px; vertical-align: middle; }
 .pano-tier.enriched { background: var(--accent-soft); color: var(--accent); }
 .pano-tier.suggestive { background: #FBF3E3; color: #9A6B12; }
+/* A lab note anchored beneath its driver / program row. */
+.pano-sum-table tr.pano-anchor-row td { padding-top: 0 !important; padding-bottom: 10px !important;
+  border-bottom: 1px solid var(--hair2); }
+.pano-anchornote { font-size: 11.5px; line-height: 1.5; color: var(--absent);
+  background: var(--absent-bg); border-left: 2px solid var(--absent); border-radius: 0 6px 6px 0;
+  padding: 6px 10px; }
+.pano-notecite { font-family: var(--mono); font-size: 10px; color: var(--accent); }
 
 /* Overview table (marker + programs merged). */
 .pano-ov-cap { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
@@ -289,9 +296,32 @@ def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -
     )
 
 
-def _marker_evidence_table_html(v: ClusterVerdict) -> str:
+def _anchored_note_html(notes: list) -> str:
+    """A caveat line for lab notes anchored to a gene/program: the claim + [note:id] +
+    the literature tension, rendered beneath the driver row it modifies."""
+    if not notes:
+        return ""
+    bits = []
+    for n in notes[:2]:
+        t = n.tension
+        if t.dissent:
+            tension = f' · {len(t.dissent)} lit. dissent'
+        elif t.agree:
+            tension = f' · {len(t.agree)} lit. agree'
+        else:
+            tension = ""
+        bits.append(
+            f'⚑ lab note: {html.escape(n.claim)} '
+            f'<span class="pano-notecite">[note:{html.escape(n.id[:6])}]</span>{tension}'
+        )
+    return '<div class="pano-anchornote">' + "<br>".join(bits) + "</div>"
+
+
+def _marker_evidence_table_html(v: ClusterVerdict, notes: dict = None) -> str:
     """The cluster's marker evidence with jazzPanda stats — top genes by glm_coef.
-    A grounded projection of ``ClusterVerdict.evidence``; nothing invented."""
+    A grounded projection of ``ClusterVerdict.evidence``; nothing invented. Any lab note
+    anchored to a gene renders as a caveat row directly beneath that gene's driver row."""
+    gene_notes = (notes or {}).get("gene", {})
     ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[:8]
     if not ev:
         return '<div class="pano-lk-empty">No marker evidence recorded for this cluster.</div>'
@@ -308,15 +338,20 @@ def _marker_evidence_table_html(v: ClusterVerdict) -> str:
             f'<td><span class="pano-num">{e.pearson:.2f}</span></td>'
             f'<td><span class="pano-role">{html.escape(str(e.role))}</span></td></tr>'
         )
+        anch = _anchored_note_html(gene_notes.get(e.gene))
+        if anch:
+            rows.append(f'<tr class="pano-anchor-row"><td colspan="4">{anch}</td></tr>')
     return (
         '<div class="pano-sum-tablewrap"><table class="pano-sum-table">'
         f"<colgroup>{colgroup}</colgroup><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
     )
 
 
-def _enrichment_evidence_table_html(ce) -> str:
+def _enrichment_evidence_table_html(ce, notes: dict = None) -> str:
     """The cluster's enriched (and suggestive) programs with jazzPanda stats +
-    panel coverage. A grounded projection of ``ClusterEnrichment``."""
+    panel coverage. A grounded projection of ``ClusterEnrichment``. A lab note anchored
+    to a gene set renders as a caveat row directly beneath that program's row."""
+    set_notes = (notes or {}).get("gene_set", {})
     if ce is None:
         return '<div class="pano-lk-empty">No enrichment slice for this dataset.</div>'
     graded = [(p, "enriched") for p in ce.enriched] + [(p, "suggestive") for p in ce.suggestive]
@@ -336,6 +371,9 @@ def _enrichment_evidence_table_html(ce) -> str:
             f'<td><span class="pano-num-dim" title="set genes on the panel / set size">{p.panel_hits}/{p.set_size_full}</span></td>'
             f'<td><span class="pano-enr-le">{le}</span></td></tr>'
         )
+        anch = _anchored_note_html(set_notes.get(p.gene_set))
+        if anch:
+            rows.append(f'<tr class="pano-anchor-row"><td colspan="4">{anch}</td></tr>')
     return (
         '<div class="pano-sum-tablewrap"><table class="pano-sum-table">'
         f"<colgroup>{colgroup}</colgroup><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
@@ -621,18 +659,20 @@ def render_summary_page() -> None:
                         f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
             _save_button(st, s.cluster)
 
-            # ...then the read-only jazzPanda evidence it rests on, for reference.
+            # ...then the read-only jazzPanda evidence it rests on, for reference, with
+            # any lab note anchored beneath the exact driver / program it modifies.
+            anch = da.anchored_notes(s.cluster)
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             st.markdown(
                 '<div class="pano-ref-cap">Marker evidence'
                 f'<span class="meta">jazzPanda · top {min(8, len(v.evidence))} of {len(v.evidence)} by glm coef</span></div>',
                 unsafe_allow_html=True)
-            st.markdown(_marker_evidence_table_html(v), unsafe_allow_html=True)
+            st.markdown(_marker_evidence_table_html(v, anch), unsafe_allow_html=True)
             st.markdown(
                 '<div class="pano-ref-cap">Enriched programs'
                 '<span class="meta">panel-scoped · score = jazzPanda test statistic · cov = set genes on panel</span></div>',
                 unsafe_allow_html=True)
-            st.markdown(_enrichment_evidence_table_html(ce), unsafe_allow_html=True)
+            st.markdown(_enrichment_evidence_table_html(ce, anch), unsafe_allow_html=True)
 
         elif active == _SEC_CAVEATS:
             _eyebrow(st, "Dataset · caveats")
