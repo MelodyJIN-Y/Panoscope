@@ -117,6 +117,38 @@ def band_for_coef(glm_coef: float | None, top_cluster: str | None = None) -> str
 
 
 # --------------------------------------------------------------------------- #
+# Gene-set enrichment rubric (second workflow; TUNABLE, calibrate on real data).
+# Score scales differ by method, so bands are keyed by score_kind — a jazzPanda
+# competitive test_statistic (z-like, ~2–30) is NOT a glm_coef and NOT an ORA
+# -log10(q); never share thresholds across them.
+# --------------------------------------------------------------------------- #
+ENRICHMENT_BANDS: dict[str, dict[str, float]] = {
+    "jazzpanda_enrichment": {"Very High": 12.0, "High": 8.0, "Medium-High": 5.0, "Medium": 3.0, "Low": 0.0},
+    "ora_neg_log10_q": {"Very High": 10.0, "High": 5.0, "Medium-High": 3.0, "Medium": 1.3, "Low": 0.0},
+}
+ENRICH_Q_MAX: float = 0.05      # q below this + gate -> "enriched"
+SUGGESTIVE_Q_MAX: float = 0.25  # q in [ENRICH_Q_MAX, this] + gate -> "suggestive · verify"
+MIN_PANEL_HITS: int = 3         # set genes on panel; below -> untestable
+MIN_LEADING_EDGE: int = 3       # driving genes; below -> not defensible
+
+
+def band_for_enrichment(score: float | None, score_kind: str) -> str:
+    """Map an enrichment score to a confidence label, per method. Bigger -> higher.
+
+    Unknown score_kind or None score -> "Low". Pure; thresholds from
+    ENRICHMENT_BANDS (tunable). Never conflates the two methods' score scales.
+    """
+    bands = ENRICHMENT_BANDS.get(score_kind)
+    if score is None or bands is None:
+        return "Low"
+    s = float(score)
+    for label in ("Very High", "High", "Medium-High", "Medium"):
+        if s >= bands[label]:
+            return label
+    return "Low"
+
+
+# --------------------------------------------------------------------------- #
 # DEMO_MARKERS — top 3 ON-PANEL markers per cluster by glm_coef.
 # DERIVED from the source files (never a literal). ~26 genes (c9 Mast has only
 # 2 on-panel assigned markers, so it contributes 2 rather than 3).

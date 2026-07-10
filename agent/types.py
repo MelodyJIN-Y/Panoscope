@@ -221,3 +221,52 @@ class AgentResponse:
     note_draft: Optional[NoteDraft] = None   # proposed note awaiting biologist confirm
     used_fallback: bool = False
     opening: bool = False
+
+
+# --------------------------------------------------------------------------- #
+# Gene-set enrichment (second interpretation workflow) — the enrichment mirror
+# of MarkerEvidence / ClusterVerdict. Method-agnostic: `score` + `score_kind`
+# let the biologist's jazzPanda enrichment result and the classical ORA both
+# fit the same grounded record. The panel-coverage fields are the confident
+# floor's spine (enrichment analog of MarkerEvidence.is_on_panel).
+# --------------------------------------------------------------------------- #
+ScoreKind = Literal["jazzpanda_enrichment", "ora_neg_log10_q"]
+EnrichmentTier = Literal["enriched", "suggestive", "untestable"]
+
+
+@dataclass(frozen=True)
+class PathwayEvidence:                      # mirrors MarkerEvidence (per gene set)
+    gene_set: str                          # "HALLMARK_G2M_CHECKPOINT"
+    gene_set_collection: str               # "MSigDB_Hallmark" | "PanglaoDB"
+    # method-agnostic score (never conflate what it means across methods)
+    score: float                           # jazzPanda: test_statistic; ORA: -log10(q)
+    score_kind: ScoreKind
+    p_value: Optional[float]
+    q_value: Optional[float]               # BH-adjusted (jazzPanda p_adj_bh / ORA BH)
+    # panel-coverage grounding spine
+    set_size_full: int                     # |set| in the source collection (~200)
+    panel_hits: int                        # set genes on THIS 280-panel (tested)
+    panel_coverage: float                  # panel_hits / set_size_full (0..1)
+    leading_edge: tuple[str, ...]          # the driving genes (all on-panel, real)
+    n_leading_edge: int                    # honest driving-gene count (gate uses this)
+    gc_corr: Optional[float]               # jazzPanda spatial specificity; None for ORA
+    tier: EnrichmentTier
+    panel_scope_caveat: str                # deterministic "panel-scoped, not genome-wide"
+    caveats: tuple[str, ...] = ()
+    source: str = "jazzpanda:enrichment"
+
+
+@dataclass(frozen=True)
+class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster)
+    cluster: str
+    cell_type: str                         # from CLUSTER_KEY (not re-derived)
+    method: ScoreKind
+    enriched: tuple[PathwayEvidence, ...]      # tier=="enriched", score desc
+    suggestive: tuple[PathwayEvidence, ...]    # tier=="suggestive" (verify=TRUE)
+    all_tested: tuple[PathwayEvidence, ...]    # full audit incl. untestable
+    top_theme: Optional[str]               # leading enriched set name, or None
+    confidence: Confidence
+    confidence_score: float                # reuse cfg.SCORE_MAP anchors
+    verify: bool
+    demotions: tuple[str, ...]             # audit trail of band changes
+    source_trace: tuple[str, ...]          # every (set, score, q, K) used

@@ -10,7 +10,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from agent import config as cfg
+from agent import enrichment as agent_enrichment
+from agent import enrichment_themes as agent_enrichment_themes
 from agent import holistic as agent_holistic
 from agent import verdict as agent_verdict
 
@@ -18,12 +22,18 @@ from pipeline import paths
 from pipeline import run as pipeline_run
 from pipeline import store
 from pipeline.serialize import (
+    enrichment_from_dict,
+    enrichment_to_dict,
     holistic_from_dict,
     holistic_to_dict,
+    pathway_themes_from_dict,
+    pathway_themes_to_dict,
     verdict_from_dict,
     verdict_to_dict,
 )
 from pipeline.stages.validate import validate
+
+_HAS_ENRICHMENT = agent_enrichment._JZ_ENRICHMENT_CSV.exists()
 
 
 def test_verdict_roundtrip_equals_computed():
@@ -78,6 +88,36 @@ def test_holistic_roundtrip_through_json():
     review = agent_holistic.holistic_review()
     again = holistic_from_dict(json.loads(json.dumps(holistic_to_dict(review))))
     assert again == review
+
+
+@pytest.mark.skipif(not _HAS_ENRICHMENT, reason="enrichment result not present")
+def test_enrichment_roundtrip_equals_computed():
+    for e in agent_enrichment.all_enrichments():
+        assert enrichment_from_dict(enrichment_to_dict(e)) == e
+        again = enrichment_from_dict(json.loads(json.dumps(enrichment_to_dict(e))))
+        assert again == e
+
+
+@pytest.mark.skipif(not _HAS_ENRICHMENT, reason="enrichment result not present")
+def test_run_writes_enrichment_faithfully(tmp_path):
+    pipeline_run.run(cfg.DATASET_ID, root=tmp_path)
+
+    assert paths.enrichment_csv(cfg.DATASET_ID, tmp_path).exists()
+    loaded = store.load_all_enrichments(cfg.DATASET_ID, root=tmp_path)
+    assert loaded == agent_enrichment.all_enrichments()
+
+    man = json.loads(paths.manifest_json(cfg.DATASET_ID, tmp_path).read_text())
+    assert "interp/enrichment.csv" in man["artifacts"]
+    assert "interp/enrichment/c1.json" in man["artifacts"]
+
+
+@pytest.mark.skipif(not _HAS_ENRICHMENT, reason="enrichment result not present")
+def test_pathway_themes_roundtrip_and_persisted(tmp_path):
+    themes = agent_enrichment_themes.pathway_themes()
+    assert pathway_themes_from_dict(pathway_themes_to_dict(themes)) == themes
+
+    pipeline_run.run(cfg.DATASET_ID, root=tmp_path)
+    assert store.load_pathway_themes(cfg.DATASET_ID, root=tmp_path) == themes
 
 
 def test_run_writes_holistic_and_calibration(tmp_path):

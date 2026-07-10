@@ -600,9 +600,6 @@ def _render_density(gene: str) -> None:
     honest placeholder — never a synthesized field. The tissue aspect ratio is locked
     by ``_tissue_layout`` so a coarse bin never stretches the slide.
     """
-    st = _st()
-    go = _go()
-
     # Bin size is a single GLOBAL viewing control (``_render_density_controls``, drawn
     # once above the gene rows), so this panel just reads it — no per-panel control
     # to offset the density plot from its feature-UMAP neighbour.
@@ -615,9 +612,23 @@ def _render_density(gene: str) -> None:
     except Exception:
         _empty_panel(f"{gene}: density unavailable", height=_TISSUE_HEIGHT)
         return
+    _render_density_frame(hb, bin_um, empty=f"{gene}: density not precomputed")
+
+
+def _render_density_frame(hb: Any, bin_um: int, empty: str = "density not precomputed") -> None:
+    """Draw a precomputed (or aggregated) hex-density frame as an area-normalized,
+    ratio-locked tissue image. Shared by the single-marker density and the
+    enrichment leading-edge set density (a sum of measured per-gene densities).
+
+    ``hb`` has columns hx, hy, count, density. The colour is sqrt(density) (lifts
+    the low end); hover shows the real count + density. Absent bins stay NaN and
+    render transparent so the slide reads through the holes.
+    """
+    st = _st()
+    go = _go()
 
     if hb is None or hb.empty:
-        _empty_panel(f"{gene}: density not precomputed", height=_TISSUE_HEIGHT)
+        _empty_panel(empty, height=_TISSUE_HEIGHT)
         return
 
     dens = hb["density"]

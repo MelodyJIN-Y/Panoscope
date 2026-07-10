@@ -20,6 +20,7 @@ import streamlit as st
 from ui import (
     cluster_rail,
     conversation,
+    enrichment_table,
     evidence_table,
     lab_knowledge,
     paper_drawer,
@@ -51,8 +52,9 @@ def _logo_data_uri(name: str) -> str:
 _K_PAGE = "active_page"
 _PAGE_EXAMINE = "examine"
 _PAGE_SUMMARY = "summary"
+_PAGE_PATHWAYS = "pathways"
 _PAGE_LAB = "lab"
-_VALID_PAGES = (_PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_LAB)
+_VALID_PAGES = (_PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_PATHWAYS, _PAGE_LAB)
 
 
 def _set_page(page: str) -> None:
@@ -100,8 +102,8 @@ def _top_bar(page: str) -> None:
             )
         with tabs_col:
             with st.container(key="pano_topnav"):
-                # Order: Summary · Examine cluster · Lab knowledge.
-                t_summary, t_examine, t_lab = st.columns(3)
+                # Order: Summary · Marker genes · Pathways · Lab knowledge.
+                t_summary, t_examine, t_pathways, t_lab = st.columns(4)
                 with t_summary:
                     st.button(
                         "Summary",
@@ -113,12 +115,21 @@ def _top_bar(page: str) -> None:
                     )
                 with t_examine:
                     st.button(
-                        "Examine cluster",
+                        "Marker genes",
                         key="nav_examine",
                         type="primary" if page == _PAGE_EXAMINE else "secondary",
                         use_container_width=True,
                         on_click=_set_page,
                         args=(_PAGE_EXAMINE,),
+                    )
+                with t_pathways:
+                    st.button(
+                        "Pathways",
+                        key="nav_pathways",
+                        type="primary" if page == _PAGE_PATHWAYS else "secondary",
+                        use_container_width=True,
+                        on_click=_set_page,
+                        args=(_PAGE_PATHWAYS,),
                     )
                 with t_lab:
                     st.button(
@@ -172,6 +183,8 @@ _top_bar(page)
 
 if page == _PAGE_SUMMARY:
     summary.render_summary_page()
+elif page == _PAGE_PATHWAYS:
+    enrichment_table.render_pathways_page()
 elif page == _PAGE_LAB:
     lab_knowledge.render_lab_page()
 else:

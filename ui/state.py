@@ -30,6 +30,7 @@ from agent.config import CLUSTER_ORDER
 # --------------------------------------------------------------------------- #
 K_SELECTED_CLUSTER = "selected_cluster"
 K_SELECTED_MARKERS = "selected_markers"
+K_PINNED_PATHWAY = "pinned_pathway"
 K_BIN_UM = "bin_um"
 K_CHAT_THREAD = "chat_thread"
 K_PENDING_DRAFT = "pending_draft"
@@ -58,6 +59,7 @@ DEFAULT_MARKER_CAP = 4
 _DEFAULTS: dict[str, Any] = {
     K_SELECTED_CLUSTER: DEFAULT_CLUSTER,
     K_SELECTED_MARKERS: dict,   # {cluster: [gene, ...]} — per-cluster multi-select
+    K_PINNED_PATHWAY: dict,     # {cluster: gene_set} — one pinned pathway per cluster
     K_BIN_UM: DEFAULT_BIN_UM,
     K_CHAT_THREAD: dict,        # {cluster_id: [msg, ...]} — one thread per cluster
     K_PENDING_DRAFT: dict,      # {cluster_id: NoteDraft} — note awaiting confirm
@@ -106,6 +108,32 @@ def set_selected_cluster(cluster: str) -> None:
     if cluster not in CLUSTER_ORDER:
         return
     _ss()[K_SELECTED_CLUSTER] = cluster
+
+
+# --------------------------------------------------------------------------- #
+# Pinned pathway — the enrichment analog of the selected marker: ONE pinned
+# gene set per cluster drives the Pathways spatial views (its leading edge on
+# tissue). Pinning is a VIEWING control: it mutates one map key, nothing else.
+# --------------------------------------------------------------------------- #
+def get_pinned_pathway(cluster: str) -> Optional[str]:
+    """Return the pinned pathway (gene-set name) for ``cluster``, or None."""
+    return _ss().get(K_PINNED_PATHWAY, {}).get(cluster)
+
+
+def set_pinned_pathway(cluster: str, gene_set: Optional[str]) -> None:
+    """Pin ``gene_set`` for ``cluster`` (or clear with None). Viewing-control only."""
+    pins = dict(_ss().get(K_PINNED_PATHWAY, {}))
+    if gene_set is None:
+        pins.pop(cluster, None)
+    else:
+        pins[cluster] = gene_set
+    _ss()[K_PINNED_PATHWAY] = pins
+
+
+def toggle_pinned_pathway(cluster: str, gene_set: str) -> None:
+    """Pin ``gene_set`` if not already pinned for ``cluster``, else unpin it."""
+    current = get_pinned_pathway(cluster)
+    set_pinned_pathway(cluster, None if current == gene_set else gene_set)
 
 
 # --------------------------------------------------------------------------- #
@@ -339,6 +367,10 @@ __all__ = [
     # cluster
     "get_selected_cluster",
     "set_selected_cluster",
+    # pinned pathway (enrichment viewing control — no recompute)
+    "get_pinned_pathway",
+    "set_pinned_pathway",
+    "toggle_pinned_pathway",
     # marker multi-select (viewing controls — no recompute)
     "get_selected_markers",
     "toggle_marker",

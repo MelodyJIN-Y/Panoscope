@@ -13,13 +13,16 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
+from agent.enrichment_themes import ClusterThemeLine, PathwayThemes, RecurringTheme
 from agent.holistic import HolisticReview, Refinement
 from agent.types import (
+    ClusterEnrichment,
     ClusterVerdict,
     LiteratureHook,
     MarkerEvidence,
     OffPanelNote,
     OpeningInterpretation,
+    PathwayEvidence,
 )
 
 _DEFAULT_EVIDENCE_SOURCE = "jazzpanda:top_result"
@@ -148,4 +151,93 @@ def holistic_from_dict(d: dict[str, Any]) -> HolisticReview:
         coherence_notes=tuple(d.get("coherence_notes", ())),
         refinements=tuple(_refinement_from_dict(x) for x in d.get("refinements", ())),
         set_is_coherent=d["set_is_coherent"],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# ClusterEnrichment <-> JSON-safe dict (second workflow). Same tuple-faithful
+# round-trip discipline: a persisted enrichment must reload EQUAL to the
+# freshly computed one.
+# --------------------------------------------------------------------------- #
+def enrichment_to_dict(e: ClusterEnrichment) -> dict[str, Any]:
+    """Return a JSON-safe dict for a ClusterEnrichment (tuples -> lists)."""
+    return dataclasses.asdict(e)
+
+
+def _pathway_from_dict(d: dict[str, Any]) -> PathwayEvidence:
+    return PathwayEvidence(
+        gene_set=d["gene_set"],
+        gene_set_collection=d["gene_set_collection"],
+        score=d["score"],
+        score_kind=d["score_kind"],
+        p_value=d["p_value"],
+        q_value=d["q_value"],
+        set_size_full=d["set_size_full"],
+        panel_hits=d["panel_hits"],
+        panel_coverage=d["panel_coverage"],
+        leading_edge=tuple(d.get("leading_edge", ())),
+        n_leading_edge=d["n_leading_edge"],
+        gc_corr=d["gc_corr"],
+        tier=d["tier"],
+        panel_scope_caveat=d["panel_scope_caveat"],
+        caveats=tuple(d.get("caveats", ())),
+        source=d.get("source", "jazzpanda:enrichment"),
+    )
+
+
+def enrichment_from_dict(d: dict[str, Any]) -> ClusterEnrichment:
+    """Rebuild a ClusterEnrichment from :func:`enrichment_to_dict` output."""
+    return ClusterEnrichment(
+        cluster=d["cluster"],
+        cell_type=d["cell_type"],
+        method=d["method"],
+        enriched=tuple(_pathway_from_dict(x) for x in d.get("enriched", ())),
+        suggestive=tuple(_pathway_from_dict(x) for x in d.get("suggestive", ())),
+        all_tested=tuple(_pathway_from_dict(x) for x in d.get("all_tested", ())),
+        top_theme=d["top_theme"],
+        confidence=d["confidence"],
+        confidence_score=d["confidence_score"],
+        verify=d["verify"],
+        demotions=tuple(d.get("demotions", ())),
+        source_trace=tuple(d.get("source_trace", ())),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# PathwayThemes <-> JSON-safe dict (enrichment Step 4).
+# --------------------------------------------------------------------------- #
+def pathway_themes_to_dict(t: PathwayThemes) -> dict[str, Any]:
+    """Return a JSON-safe dict for a PathwayThemes (tuples -> lists)."""
+    return dataclasses.asdict(t)
+
+
+def _recurring_from_dict(d: dict[str, Any]) -> RecurringTheme:
+    return RecurringTheme(
+        gene_set=d["gene_set"],
+        clusters=tuple(d.get("clusters", ())),
+        cell_types=tuple(d.get("cell_types", ())),
+        n_clusters=d["n_clusters"],
+        max_score=d["max_score"],
+    )
+
+
+def _cluster_theme_from_dict(d: dict[str, Any]) -> ClusterThemeLine:
+    return ClusterThemeLine(
+        cluster=d["cluster"],
+        cell_type=d["cell_type"],
+        category=d["category"],
+        top_themes=tuple(d.get("top_themes", ())),
+        confidence=d["confidence"],
+        verify=d["verify"],
+    )
+
+
+def pathway_themes_from_dict(d: dict[str, Any]) -> PathwayThemes:
+    """Rebuild a PathwayThemes from :func:`pathway_themes_to_dict` output."""
+    return PathwayThemes(
+        method=d["method"],
+        n_clusters_with_enrichment=d["n_clusters_with_enrichment"],
+        coherence_notes=tuple(d.get("coherence_notes", ())),
+        recurring=tuple(_recurring_from_dict(x) for x in d.get("recurring", ())),
+        per_cluster=tuple(_cluster_theme_from_dict(x) for x in d.get("per_cluster", ())),
     )

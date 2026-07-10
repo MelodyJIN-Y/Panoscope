@@ -85,7 +85,8 @@ _MAX_REPAIRS: int = 1
 # Cap the live-literature enrichment on an opening so it never blocks the demo.
 _OPENING_LIT_MAX: int = 3
 
-_SKILL_PATH: Path = cfg.PROJECT_ROOT / "skills" / "jazzpanda-markers" / "SKILL.md"
+_SKILLS_DIR: Path = cfg.PROJECT_ROOT / "skills"
+_DEFAULT_SKILL: str = "jazzpanda-markers"
 
 
 # --------------------------------------------------------------------------- #
@@ -129,11 +130,16 @@ absence is not a number.
 """.strip()
 
 
-@lru_cache(maxsize=1)
-def _skill_text() -> str:
-    """Load the jazzpanda-markers SKILL.md (cached). Empty string if missing."""
+@lru_cache(maxsize=4)
+def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
+    """Load a skill's SKILL.md (cached per skill). Empty string if missing.
+
+    ``skill`` names a directory under ``skills/`` (e.g. "jazzpanda-markers" for the
+    marker workflow, "geneset-enrichment" for the pathway workflow), so the agent
+    carries the right interpretation contract for each workflow.
+    """
     try:
-        return _SKILL_PATH.read_text(encoding="utf-8")
+        return (_SKILLS_DIR / skill / "SKILL.md").read_text(encoding="utf-8")
     except Exception:  # pragma: no cover - skill file should exist
         return ""
 
@@ -235,10 +241,14 @@ def _cluster_context(cluster: Optional[str]) -> str:
     return header + active + _inscope_notes_block(cluster)
 
 
-def build_system_prompt(cluster: Optional[str]) -> str:
-    """Assemble the full system prompt: skill + contract + cluster context."""
+def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> str:
+    """Assemble the full system prompt: skill + contract + cluster context.
+
+    ``skill`` selects which SKILL.md contract to load (marker vs enrichment), so
+    the pathway-notes stage reasons under the enrichment skill, not the markers one.
+    """
     parts = [
-        _skill_text(),
+        _skill_text(skill),
         _GROUNDING_CONTRACT,
         _cluster_context(cluster),
     ]
@@ -652,7 +662,11 @@ class PanoscopeAgent:
 
     # -- chat --------------------------------------------------------------- #
     def chat(
-        self, query: str, cluster: Optional[str] = None, history: Optional[list] = None
+        self,
+        query: str,
+        cluster: Optional[str] = None,
+        history: Optional[list] = None,
+        skill: str = _DEFAULT_SKILL,
     ) -> AgentResponse:
         """Answer ``query`` about the active cluster. Always grounded, never raises.
 
@@ -660,7 +674,8 @@ class PanoscopeAgent:
         returned, and finalizes through the grounding gate. On any model/connector
         failure, on an empty answer, or on a floor failure that a single repair
         cannot fix, returns a deterministic grounded fallback. An exception NEVER
-        reaches the caller.
+        reaches the caller. ``skill`` selects the interpretation contract (marker vs
+        enrichment) loaded into the system prompt.
         """
         target = cluster or self._cluster
         if target is None or target not in cfg.KNOWN_CLUSTERS:
@@ -674,7 +689,7 @@ class PanoscopeAgent:
             return self._fallback.match(query or "", target)
 
         try:
-            return self._run_loop(client, query or "", target, history)
+            return self._run_loop(client, query or "", target, history, skill)
         except Exception:  # noqa: BLE001 - the loop must never raise into the UI
             return self._fallback.match(query or "", target)
 
@@ -685,8 +700,9 @@ class PanoscopeAgent:
         query: str,
         cluster: str,
         history: Optional[list],
+        skill: str = _DEFAULT_SKILL,
     ) -> AgentResponse:
-        system = build_system_prompt(cluster)
+        system = build_system_prompt(cluster, skill)
         messages: list[dict[str, Any]] = list(history or [])
         messages.append({"role": "user", "content": query})
 
@@ -951,10 +967,17 @@ def opening_interpretation(cluster: str) -> AgentResponse:
 
 
 def chat(
-    user_msg: str, cluster: Optional[str] = None, history: Optional[list] = None
+    user_msg: str,
+    cluster: Optional[str] = None,
+    history: Optional[list] = None,
+    skill: str = _DEFAULT_SKILL,
 ) -> AgentResponse:
-    """Answer ``user_msg`` about ``cluster`` via the default agent."""
-    return _default_agent().chat(user_msg, cluster=cluster, history=history)
+    """Answer ``user_msg`` about ``cluster`` via the default agent.
+
+    ``skill`` selects the interpretation contract (marker vs enrichment) — the
+    pathway-notes stage passes ``skill="geneset-enrichment"``.
+    """
+    return _default_agent().chat(user_msg, cluster=cluster, history=history, skill=skill)
 
 
 def sources_of(resp: AgentResponse) -> list[Source]:

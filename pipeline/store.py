@@ -13,11 +13,17 @@ from pathlib import Path
 from typing import Optional
 
 from agent import config as cfg
+from agent.enrichment_themes import PathwayThemes
 from agent.holistic import HolisticReview
-from agent.types import ClusterVerdict
+from agent.types import ClusterEnrichment, ClusterVerdict
 
 from pipeline import paths
-from pipeline.serialize import holistic_from_dict, verdict_from_dict
+from pipeline.serialize import (
+    enrichment_from_dict,
+    holistic_from_dict,
+    pathway_themes_from_dict,
+    verdict_from_dict,
+)
 
 
 def load_verdict(
@@ -72,6 +78,50 @@ def load_holistic(
         return None
 
 
+def load_enrichment(
+    cluster: str,
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> Optional[ClusterEnrichment]:
+    """Return the persisted enrichment verdict for ``cluster``, or None if absent."""
+    p = paths.enrichment_cluster_json(dataset_id, cluster, root)
+    if not p.exists():
+        return None
+    try:
+        return enrichment_from_dict(json.loads(p.read_text(encoding="utf-8")))
+    except Exception:  # noqa: BLE001 - fail soft; caller recomputes live
+        return None
+
+
+def load_all_enrichments(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> Optional[list[ClusterEnrichment]]:
+    """Return all persisted enrichment verdicts in cluster order, or None if any
+    is missing (all-or-nothing, mirroring load_all_verdicts)."""
+    out: list[ClusterEnrichment] = []
+    for cluster in cfg.CLUSTER_ORDER:
+        e = load_enrichment(cluster, dataset_id, root)
+        if e is None:
+            return None
+        out.append(e)
+    return out
+
+
+def load_pathway_themes(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> Optional[PathwayThemes]:
+    """Return the persisted cross-cluster pathway themes, or None if absent."""
+    p = paths.pathway_themes_json(dataset_id, root)
+    if not p.exists():
+        return None
+    try:
+        return pathway_themes_from_dict(json.loads(p.read_text(encoding="utf-8")))
+    except Exception:  # noqa: BLE001 - fail soft
+        return None
+
+
 def load_celltype_notes(
     dataset_id: str = cfg.DATASET_ID,
     root: Optional[Path] = None,
@@ -103,6 +153,26 @@ def load_gene_notes(
     flat notes file during migration.
     """
     p = paths.interp_dir(dataset_id, root) / "gene_notes.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001 - fail soft
+        return {}
+
+
+def load_pathway_notes(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> dict:
+    """Return the live-cited per-pathway biology notes, or {} if absent.
+
+    Shape: ``{cluster: {gene_set: {..evidence.., summary, pmid, citation, ...}}}``.
+    Fail-soft: a missing file returns {} (the Pathways table shows the grounded
+    numbers with no biology prose until the notes stage has run).
+    """
+    p = paths.pathway_notes_json(dataset_id, root)
     if not p.exists():
         return {}
     try:

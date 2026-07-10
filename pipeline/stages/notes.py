@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from agent import config as cfg
+from agent import enrichment as agent_enrichment
 from agent import loop as agent_loop
 from agent import verdict as agent_verdict
 
@@ -86,13 +87,16 @@ def _balance_parens(t: str) -> str:
     return t[: t.rfind("(")].rstrip(" ,;:")
 
 
-def _shorten(text: str, max_words: int = _MAX_WORDS) -> str:
-    """Crisp one-clause summary: drop inline PMID + em dashes + trailing author,
-    keep the first sentence, cap length, and never end on a dangling '('."""
+def _shorten(text: str, max_words: int = _MAX_WORDS, max_sentences: int = 1) -> str:
+    """Crisp summary: drop inline PMID + em dashes + trailing author, keep up to
+    ``max_sentences`` sentences, cap length, and never end on a dangling '('.
+
+    A one-gene note keeps one clause (max_sentences=1); a per-pathway note describes
+    a whole program, so it may keep two (max_sentences=2)."""
     t = _INLINE_PMID.sub("", _strip_dashes(text.strip())).strip()
-    m = re.search(r"[.;]\s", t)
-    if m and m.start() < 220:
-        t = t[: m.start()]
+    bounds = [mm.start() for mm in re.finditer(r"[.;]\s", t)]
+    if len(bounds) >= max_sentences and bounds[max_sentences - 1] < 280:
+        t = t[: bounds[max_sentences - 1]]
     t = _TRAIL_AUTHOR.sub("", t).strip()
     words = t.split()
     if len(words) > max_words:
@@ -121,16 +125,23 @@ def _fallback_summary(cell_type: str, markers: list[str]) -> str:
     return f"{ct} cells; driving markers {drv}." if drv else f"{ct} cells."
 
 
-def _resolve_note(model_text: str, cite: Any, fallback_summary: str):
+def _resolve_note(
+    model_text: str,
+    cite: Any,
+    fallback_summary: str,
+    max_words: int = _MAX_WORDS,
+    max_sentences: int = 1,
+):
     """Turn the model's answer + its top citation into (summary, pmid, citation, used_fallback).
 
     Confident floor: if the model's text is unusable (empty or meta-commentary),
     use the deterministic fallback clause AND DROP the citation — a fallback clause
     is not supported by any paper, so stapling a real PMID to it would be a
     mismatched citation (worse than none). A citation is kept ONLY when the model's
-    own prose survives as the summary.
+    own prose survives as the summary. ``max_words``/``max_sentences`` cap the
+    summary length (a per-pathway note gets more room than a one-gene note).
     """
-    summary = _shorten(model_text)
+    summary = _shorten(model_text, max_words, max_sentences)
     used_fallback = (not summary) or _looks_meta(summary)
     if used_fallback:
         summary = fallback_summary
@@ -303,6 +314,96 @@ def run_gene_notes(
     return notes
 
 
+# --------------------------------------------------------------------------- #
+# Per-pathway biology notes (enrichment Output 1) — the geneset-enrichment skill
+# reading each enriched program's evidence. LIVE, one real PMID or none.
+# --------------------------------------------------------------------------- #
+def _short_set(gene_set: str) -> str:
+    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
+
+
+def _pathway_fallback(gene_set: str, cell_type: str, leading_edge: list[str]) -> str:
+    """Clean deterministic note when the model's text is unusable (grounded only)."""
+    drv = ", ".join(leading_edge[:3])
+    base = f"{_short_set(gene_set)} program in {cell_type.replace('_', ' ')}"
+    return f"{base}; driving genes {drv}." if drv else f"{base}."
+
+
+def _pathway_query(gene_set: str, cell_type: str, leading_edge: list[str]) -> str:
+    """The enrichment Output-1 note for THIS program in THIS cluster, grounded in
+    its leading-edge genes. Concise ASK (the enrichment skill is in the system
+    prompt); flags a cross-lineage program as a tension, never a re-typing."""
+    ct = cell_type.replace("_", " ")
+    le = ", ".join(leading_edge[:6])
+    return (
+        f"For the {_short_set(gene_set)} program enriched in this {ct} cluster "
+        f"(driving genes: {le}), in two short sentences (35 words or fewer total) state "
+        f"what this program is and its relevance to {ct} identity. If this is not a {ct} "
+        f"program, say briefly it likely reflects infiltration or shared genes, not a "
+        f"re-typing. Reply with ONLY the biology sentences: no preamble, no statistics, "
+        f"no panel/coverage mention, no em dash. Then cite exactly one real PubMed paper."
+    )
+
+
+def run_pathway_notes(
+    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+) -> dict[str, Any]:
+    """Generate (resumable) a skill-grounded biology note for EVERY surfaced program.
+
+    Iterates each cluster's enriched + suggestive pathways; for each asks the agent
+    (carrying the geneset-enrichment SKILL) for the Output-1 note grounded in that
+    program's leading-edge genes, then records the evaluation fields alongside it.
+    Confident floor: one real live PMID or none; deterministic fallback when unusable.
+    """
+    out_path = paths.pathway_notes_json(dataset_id, root)
+    notes = _load(out_path)
+
+    for cluster in cfg.CLUSTER_ORDER:
+        ce = agent_enrichment.enrichment_for_cluster(cluster)
+        notes.setdefault(cluster, {})
+        for p in (*ce.enriched, *ce.suggestive):
+            if p.gene_set in notes[cluster] and notes[cluster][p.gene_set].get("summary"):
+                continue
+            le = list(p.leading_edge)
+            try:
+                resp = agent_loop.chat(
+                    _pathway_query(p.gene_set, ce.cell_type, le),
+                    cluster=cluster,
+                    skill="geneset-enrichment",
+                )
+            except Exception as exc:  # noqa: BLE001 - keep going; save what we have
+                print(f"  ERROR {cluster}/{p.gene_set}: {exc}", flush=True)
+                continue
+            cite = resp.citations[0] if resp.citations else None
+            fb = _pathway_fallback(p.gene_set, ce.cell_type, le)
+            summary, pmid, citation, _ = _resolve_note(
+                resp.text, cite, fb, max_words=42, max_sentences=2
+            )
+            notes[cluster][p.gene_set] = {
+                "gene_set": p.gene_set,
+                "cluster": cluster,
+                "cell_type": ce.cell_type,
+                # Tier A — the enrichment evidence (from the record).
+                "tier": p.tier,
+                "score": p.score,
+                "q_value": p.q_value,
+                "panel_hits": p.panel_hits,
+                "set_size_full": p.set_size_full,
+                "n_leading_edge": p.n_leading_edge,
+                "leading_edge": le,
+                # Tier B — the Output-1 biology note (live-cited).
+                "summary": summary,
+                "pmid": pmid,
+                "citation": citation,
+                "verify": p.tier == "suggestive",
+            }
+            _save(out_path, notes)
+            print(f"  {cluster}/{_short_set(p.gene_set)}: PMID {pmid or 'no-cite'}", flush=True)
+
+    _save(out_path, notes)
+    return notes
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -310,9 +411,10 @@ if __name__ == "__main__":
     ap.add_argument("--dataset", default=cfg.DATASET_ID)
     ap.add_argument("--celltype", action="store_true", help="cell-type notes")
     ap.add_argument("--genes", action="store_true", help="per-marker biology notes")
+    ap.add_argument("--pathways", action="store_true", help="per-pathway enrichment notes")
     args = ap.parse_args()
-    if not args.celltype and not args.genes:
-        args.celltype = args.genes = True  # default: both
+    if not args.celltype and not args.genes and not args.pathways:
+        args.celltype = args.genes = True  # default: the marker notes
     if args.celltype:
         ct = run_celltype_notes(args.dataset)
         print(f"[notes] {len(ct)} cell-type notes ({sum(1 for v in ct.values() if v.get('pmid'))} cited)")
@@ -321,3 +423,8 @@ if __name__ == "__main__":
         n = sum(len(v) for v in gn.values())
         c = sum(1 for v in gn.values() for x in v.values() if x.get("pmid"))
         print(f"[notes] {n} gene notes ({c} cited)")
+    if args.pathways:
+        pn = run_pathway_notes(args.dataset)
+        n = sum(len(v) for v in pn.values())
+        c = sum(1 for v in pn.values() for x in v.values() if x.get("pmid"))
+        print(f"[notes] {n} pathway notes ({c} cited)")

@@ -24,12 +24,14 @@ import pandas as pd
 
 from agent import config as cfg
 from agent import data
+from agent import enrichment_themes as agent_enrichment_themes
 from agent import holistic as agent_holistic
 
 from pipeline import calibration as calibration_mod
 from pipeline import manifest as manifest_mod
 from pipeline import paths
 from pipeline import serialize
+from pipeline.stages.enrichment import run_enrichment
 from pipeline.stages.validate import validate
 from pipeline.stages.verdicts import run_verdicts
 from pipeline.stages.viz import collect_viz
@@ -102,6 +104,17 @@ def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path])
     paths.calibration_md(dataset_id, root).write_text(
         calibration_mod.calibration_markdown(list(verdicts)) + "\n", encoding="utf-8"
     )
+    # Enrichment slice (second workflow) — fail-soft: only when this dataset has an
+    # enrichment result. Its absence just means the Pathways slice is not built.
+    try:
+        run_enrichment(dataset_id, root)
+        themes = agent_enrichment_themes.pathway_themes()
+        paths.pathway_themes_json(dataset_id, root).write_text(
+            json.dumps(serialize.pathway_themes_to_dict(themes), indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    except FileNotFoundError:
+        pass
 
 
 def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
@@ -153,8 +166,21 @@ def run(
     # Interp artifacts: holistic + calibration always present (deterministic);
     # the two notes files are hashed when a --notes run produced them (or a prior
     # one left them in the tree).
-    for name in ("holistic.json", "calibration.md", "celltype_notes.json", "gene_notes.json"):
+    for name in (
+        "holistic.json",
+        "calibration.md",
+        "celltype_notes.json",
+        "gene_notes.json",
+        "enrichment.csv",
+        "pathway_themes.json",
+        "pathway_notes.json",
+    ):
         f = paths.interp_dir(dataset_id, root) / name
+        if f.exists():
+            artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
+    # Per-cluster enrichment verdicts (second workflow), when built.
+    for c in cfg.CLUSTER_ORDER:
+        f = paths.enrichment_cluster_json(dataset_id, c, root)
         if f.exists():
             artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
     # Small viz frames are hashed; the 840 hexbin frames are recorded by count.

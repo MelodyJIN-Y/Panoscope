@@ -228,6 +228,57 @@ def expr_by_cluster(gene: str) -> Optional[pd.DataFrame]:
 
 
 # --------------------------------------------------------------------------- #
+# Gene-SET aggregates (enrichment leading edge) — the spatial view of a program.
+# A gene set's tissue footprint is the SUM of its leading-edge genes' precomputed,
+# area-normalized transcript densities (a view of measured values, never a new
+# statistic); its per-cell activity is the MEAN of their exported expression.
+# --------------------------------------------------------------------------- #
+@_cache_data(show_spinner=False)
+def leading_edge_density(genes: tuple[str, ...], bin_um: int = 50) -> Optional[pd.DataFrame]:
+    """Aggregated hex-bin density (hx, hy, count, density) for a gene set.
+
+    Sums the precomputed per-gene density frames bin-by-bin (each gene's density is
+    tx/µm², already area-normalized, so the sum is the program's area-normalized
+    footprint). Genes with no precomputed frame are honestly skipped. None if none
+    of the set's genes have a density frame.
+    """
+    frames = []
+    for g in genes:
+        try:
+            hb = hexbins(g, bin_um)
+        except Exception:  # noqa: BLE001 - a missing frame is a skip, never a fake
+            continue
+        if hb is not None and not hb.empty:
+            frames.append(hb[["hx", "hy", "count", "density"]])
+    if not frames:
+        return None
+    allf = pd.concat(frames, ignore_index=True)
+    return allf.groupby(["hx", "hy"], as_index=False).agg(
+        count=("count", "sum"), density=("density", "sum")
+    )
+
+
+@_cache_data(show_spinner=False)
+def leading_edge_expr(genes: tuple[str, ...]) -> Optional[pd.DataFrame]:
+    """Per-cell (cell_id, value) for a gene set — the MEAN of its genes' exported
+    expression (skipping genes with no exported column). None if none are exported."""
+    cols = []
+    for g in genes:
+        c = marker_expr_col(g)
+        if c is not None:
+            cols.append(c.rename(columns={"value": g}))
+    if not cols:
+        return None
+    merged = cols[0]
+    for c in cols[1:]:
+        merged = merged.merge(c, on="cell_id", how="outer")
+    gene_cols = [c for c in merged.columns if c != "cell_id"]
+    out = merged[["cell_id"]].copy()
+    out["value"] = merged[gene_cols].mean(axis=1)
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Grounded per-gene biology notes: the skill's Output-4 notes produced by the
 # pipeline (``pipeline/stages/notes.py`` -> ``interp/gene_notes.json``), each with
 # a REAL live PubMed citation. The evidence table reads these; it never generates
@@ -334,6 +385,61 @@ def holistic():
 
 
 # --------------------------------------------------------------------------- #
+# Gene-set enrichment (second workflow) — tree-first readers, mirroring the
+# marker verdict readers. A dataset with no enrichment result simply has no
+# Pathways slice (enrichment_available() is False).
+# --------------------------------------------------------------------------- #
+@_cache_data(show_spinner=False)
+def enrichment_for(cluster: str):
+    """Enrichment verdict for one cluster (persisted tree first, else live)."""
+    from agent import enrichment as agent_enrichment
+
+    from pipeline import store
+
+    persisted = store.load_enrichment(cluster)
+    return persisted if persisted is not None else agent_enrichment.enrichment_for_cluster(cluster)
+
+
+@_cache_data(show_spinner=False)
+def all_enrichments() -> list:
+    """Enrichment verdicts for all nine clusters (cached)."""
+    return [enrichment_for(c) for c in CLUSTER_ORDER]
+
+
+@_cache_data(show_spinner=False)
+def pathway_themes():
+    """Cross-cluster pathway themes (persisted tree first, else live)."""
+    from agent import enrichment_themes
+
+    from pipeline import store
+
+    persisted = store.load_pathway_themes()
+    return persisted if persisted is not None else enrichment_themes.pathway_themes()
+
+
+@_cache_data(show_spinner=False)
+def enrichment_available() -> bool:
+    """True iff this dataset has an enrichment slice (a result to interpret)."""
+    try:
+        return bool(all_enrichments())
+    except Exception:  # noqa: BLE001 - no result -> no Pathways tab
+        return False
+
+
+@_cache_data(show_spinner=False)
+def pathway_notes() -> dict:
+    """Live-cited per-pathway biology notes ``{cluster: {gene_set: note}}`` ({} if none)."""
+    from pipeline import store
+
+    return store.load_pathway_notes()
+
+
+def pathway_note(cluster: str, gene_set: str) -> Optional[dict]:
+    """The precomputed grounded note for ``(cluster, gene_set)``, or None if absent."""
+    return pathway_notes().get(cluster, {}).get(gene_set)
+
+
+# --------------------------------------------------------------------------- #
 # Agent (chat) — singleton resource, survives reruns.
 # --------------------------------------------------------------------------- #
 @_cache_resource(show_spinner=False)
@@ -403,6 +509,12 @@ __all__ = [
     "celltype_notes",
     "celltype_summary",
     "holistic",
+    "enrichment_for",
+    "all_enrichments",
+    "pathway_themes",
+    "enrichment_available",
+    "pathway_notes",
+    "pathway_note",
     "get_agent",
     "read_notes",
     "notes_in_scope",

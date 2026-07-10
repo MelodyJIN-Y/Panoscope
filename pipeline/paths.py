@@ -62,5 +62,29 @@ def calibration_md(dataset_id: str, root: Optional[Path] = None) -> Path:
     return interp_dir(dataset_id, root) / "calibration.md"
 
 
+# --------------------------------------------------------------------------- #
+# Enrichment workflow (second interpretation slice) — its own interp/ artifacts,
+# parallel to the marker verdicts, never mixed in.
+# --------------------------------------------------------------------------- #
+def enrichment_dir(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "enrichment"
+
+
+def enrichment_cluster_json(dataset_id: str, cluster: str, root: Optional[Path] = None) -> Path:
+    return enrichment_dir(dataset_id, root) / f"{cluster}.json"
+
+
+def enrichment_csv(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "enrichment.csv"
+
+
+def pathway_themes_json(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "pathway_themes.json"
+
+
+def pathway_notes_json(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "pathway_notes.json"
+
+
 def manifest_json(dataset_id: str, root: Optional[Path] = None) -> Path:
     return dataset_dir(dataset_id, root) / "manifest.json"
