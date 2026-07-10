@@ -225,31 +225,30 @@ class AgentResponse:
 
 # --------------------------------------------------------------------------- #
 # Gene-set enrichment (second interpretation workflow) — the enrichment mirror
-# of MarkerEvidence / ClusterVerdict. Method-agnostic: `score` + `score_kind`
-# let the biologist's jazzPanda enrichment result and the classical ORA both
-# fit the same grounded record. The panel-coverage fields are the confident
-# floor's spine (enrichment analog of MarkerEvidence.is_on_panel).
+# of MarkerEvidence / ClusterVerdict. ``score`` + ``score_kind`` keep the record
+# self-describing (the jazzPanda competitive gene-set test). The panel-coverage
+# fields are the confident floor's spine (enrichment analog of
+# MarkerEvidence.is_on_panel).
 # --------------------------------------------------------------------------- #
-ScoreKind = Literal["jazzpanda_enrichment", "ora_neg_log10_q"]
+ScoreKind = Literal["jazzpanda_enrichment"]
 EnrichmentTier = Literal["enriched", "suggestive", "untestable"]
 
 
 @dataclass(frozen=True)
 class PathwayEvidence:                      # mirrors MarkerEvidence (per gene set)
     gene_set: str                          # "HALLMARK_G2M_CHECKPOINT"
-    gene_set_collection: str               # "MSigDB_Hallmark" | "PanglaoDB"
-    # method-agnostic score (never conflate what it means across methods)
-    score: float                           # jazzPanda: test_statistic; ORA: -log10(q)
+    gene_set_collection: str               # "MSigDB_Hallmark"
+    score: float                           # jazzPanda test_statistic (bigger = more enriched)
     score_kind: ScoreKind
     p_value: Optional[float]
-    q_value: Optional[float]               # BH-adjusted (jazzPanda p_adj_bh / ORA BH)
+    q_value: Optional[float]               # BH-adjusted (jazzPanda p_adj_bh)
     # panel-coverage grounding spine
     set_size_full: int                     # |set| in the source collection (~200)
     panel_hits: int                        # set genes on THIS 280-panel (tested)
     panel_coverage: float                  # panel_hits / set_size_full (0..1)
     leading_edge: tuple[str, ...]          # the driving genes (all on-panel, real)
     n_leading_edge: int                    # honest driving-gene count (gate uses this)
-    gc_corr: Optional[float]               # jazzPanda spatial specificity; None for ORA
+    gc_corr: Optional[float]               # jazzPanda spatial specificity of the leading edge
     tier: EnrichmentTier
     panel_scope_caveat: str                # deterministic "panel-scoped, not genome-wide"
     caveats: tuple[str, ...] = ()

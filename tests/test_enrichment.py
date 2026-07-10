@@ -71,11 +71,11 @@ def test_suggestive_sets_are_verify_and_below_enriched():
             assert ce.verify is True
 
 
-def test_band_for_enrichment_is_per_method_and_monotonic():
+def test_band_for_enrichment_is_monotonic():
     jz = "jazzpanda_enrichment"
     assert cfg.band_for_enrichment(20, jz) == "Very High"
+    assert cfg.band_for_enrichment(6.0, jz) == "Medium-High"
     assert cfg.band_for_enrichment(0.5, jz) == "Low"
     assert cfg.band_for_enrichment(None, jz) == "Low"
-    # the same numeric score bands differently under the two methods (different scales)
-    assert cfg.band_for_enrichment(6.0, jz) == "Medium-High"
-    assert cfg.band_for_enrichment(6.0, "ora_neg_log10_q") == "High"
+    # an unknown method has no bands -> Low (never guesses a scale)
+    assert cfg.band_for_enrichment(9.9, "unknown_method") == "Low"

@@ -1,6 +1,6 @@
 ---
 name: geneset-enrichment
-description: Interpret per-cluster gene-set enrichment results (MSigDB Hallmark) for spatial transcriptomics clusters that have already been cell-typed. Use when a user has an enrichment result — a per-cluster, per-gene-set table with a score/statistic, a p/q value, the set size, and the overlapping/leading-edge genes — from the jazzPanda competitive gene-set test or a classical over-representation (ORA) run on a targeted panel, and wants a grounded per-cluster interpretation of which biological PROGRAMS are active, a confidence, and a cited biological read. Enforces a panel-coverage rule (the enrichment analog of the panel-absence rule), a two-tier confidence report grounded on the method's score, a cross-cluster themes review, and a no-fabrication / real-citation discipline. Complements — never replaces — the cell-type call from the marker workflow.
+description: Interpret per-cluster gene-set enrichment results (MSigDB Hallmark) for spatial transcriptomics clusters that have already been cell-typed. Use when a user has an enrichment result — a per-cluster, per-gene-set table with a score/statistic, a p/q value, the set size, and the overlapping/leading-edge genes — from the jazzPanda competitive gene-set test on a targeted panel, and wants a grounded per-cluster interpretation of which biological PROGRAMS are active, a confidence, and a cited biological read. Enforces a panel-coverage rule (the enrichment analog of the panel-absence rule), a two-tier confidence report grounded on the method's score, a cross-cluster themes review, and a no-fabrication / real-citation discipline. Complements — never replaces — the cell-type call from the marker workflow.
 ---
 
 # Interpreting Gene-Set Enrichment for Spatial Clusters
@@ -20,12 +20,13 @@ It is built for a wet-lab biologist reading a **targeted spatial panel** (e.g. a
 
 ## What the enrichment score means (read this before interpreting any number)
 
-Two methods can feed this skill; both are re-scoped to the panel by the pipeline.
-
-- **jazzPanda competitive gene-set test** (the primary method): for a set and a target cluster, it lasso-selects the set's genes whose spatial vectors track the cluster, then a one-sided z-test compares their inverse-SE-weighted coefficient to the mean of all **other panel genes** (the competitive background). The `test_statistic` (bigger = more enriched) is the score; `p_value`/`p_adj_bh` accompany it; `genes_selected` are the honest driving genes; `gc_corr` is their mean spatial correlation with the cluster.
-- **Classical ORA** (comparison): a hypergeometric test of the cluster's marker genes against the set, with the panel as the background universe. The score is `-log10(q)`.
-
-The two scores are on different scales and must never be compared numerically — only their agreement/dissent on *which* sets are enriched is meaningful.
+The enrichment comes from the **jazzPanda competitive gene-set test**, re-scoped to
+the panel by the pipeline: for a set and a target cluster, it lasso-selects the
+set's genes whose spatial vectors track the cluster, then a one-sided z-test
+compares their inverse-SE-weighted coefficient to the mean of all **other panel
+genes** (the competitive background). The `test_statistic` (bigger = more enriched)
+is the score; `p_value`/`p_adj_bh` accompany it; `genes_selected` are the honest
+driving genes; `gc_corr` is their mean spatial correlation with the cluster.
 
 ## The interpretation, per cluster
 

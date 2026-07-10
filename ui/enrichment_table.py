@@ -26,10 +26,7 @@ from ui import enrichment_spatial
 from ui import format as fmt
 from ui import state
 
-_METHOD_LABEL = {
-    "jazzpanda_enrichment": "jazzPanda competitive test",
-    "ora_neg_log10_q": "classical ORA",
-}
+_METHOD_LABEL = {"jazzpanda_enrichment": "jazzPanda competitive test"}
 
 
 def _short(gene_set: str) -> str:

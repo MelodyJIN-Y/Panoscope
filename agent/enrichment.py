@@ -6,10 +6,9 @@ per cluster: the enriched pathways, a two-tier split (``enriched`` vs
 ``suggestive · verify``), a confidence, and a ``verify`` flag — every value tracing
 to the enrichment result or the panel. No network, no LLM.
 
-Method-agnostic by design. The FIRST method wired here is the biologist's own
-jazzPanda competitive gene-set test (``_load_jazzpanda_rows`` parses its result
-CSV); a classical ORA method can produce the same ``PathwayEvidence`` rows later
-and flow through the identical rubric.
+The method wired here is the biologist's own jazzPanda competitive gene-set test
+(``_load_jazzpanda_rows`` parses its result CSV). The schema keeps a ``score_kind``
+so the record stays self-describing, but this workflow interprets one method.
 
 Confident floor (enrichment edition):
 - Never invent a pathway, a score, a q-value, or a leading-edge gene — all come

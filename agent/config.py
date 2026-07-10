@@ -118,13 +118,12 @@ def band_for_coef(glm_coef: float | None, top_cluster: str | None = None) -> str
 
 # --------------------------------------------------------------------------- #
 # Gene-set enrichment rubric (second workflow; TUNABLE, calibrate on real data).
-# Score scales differ by method, so bands are keyed by score_kind — a jazzPanda
-# competitive test_statistic (z-like, ~2–30) is NOT a glm_coef and NOT an ORA
-# -log10(q); never share thresholds across them.
+# Bands are keyed by score_kind (the schema stays method-agnostic); the jazzPanda
+# competitive test_statistic (z-like, ~2–30) is NOT a glm_coef, so it has its own
+# thresholds.
 # --------------------------------------------------------------------------- #
 ENRICHMENT_BANDS: dict[str, dict[str, float]] = {
     "jazzpanda_enrichment": {"Very High": 12.0, "High": 8.0, "Medium-High": 5.0, "Medium": 3.0, "Low": 0.0},
-    "ora_neg_log10_q": {"Very High": 10.0, "High": 5.0, "Medium-High": 3.0, "Medium": 1.3, "Low": 0.0},
 }
 ENRICH_Q_MAX: float = 0.05      # q below this + gate -> "enriched"
 SUGGESTIVE_Q_MAX: float = 0.25  # q in [ENRICH_Q_MAX, this] + gate -> "suggestive · verify"
