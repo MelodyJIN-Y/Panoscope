@@ -65,6 +65,8 @@ class ClusterSection:
     biology_pmid: str  # "" when none
     settle: str        # "" unless there is a genuine rival to settle
     notes: tuple[NoteLine, ...]
+    enrichment: str = ""             # plain-text enriched-programs block (with PMIDs), "" if none
+    enrichment_confidence: str = ""  # the cluster's enrichment confidence band, "" if none
 
 
 @dataclass(frozen=True)
@@ -137,6 +139,24 @@ def _settle_for(cluster: str, verify: bool) -> str:
     return ""
 
 
+def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
+    """A plain-text block of the cluster's enriched programs + cited biology, and the
+    enrichment confidence band. ('' , '') when there is no enrichment for the cluster."""
+    if ce is None:
+        return "", ""
+    if not getattr(ce, "enriched", ()):  # no program clears the gate
+        return "", ce.confidence
+    bits: list[str] = []
+    for p in ce.enriched[:4]:
+        short = p.gene_set.replace("HALLMARK_", "").replace("_", " ").title()
+        note = (pathway_notes_for_cluster or {}).get(p.gene_set) or {}
+        bio = str(note.get("summary") or "").strip()
+        pmid = note.get("pmid")
+        cite = f" (PMID:{pmid})" if pmid else ""
+        bits.append(f"{short} — {bio}{cite}" if bio else short)
+    return "; ".join(bits) + ".", ce.confidence
+
+
 def build_report(
     *,
     verdicts: list[ClusterVerdict],
@@ -146,8 +166,17 @@ def build_report(
     panel_size: int,
     dataset: str = cfg.DATASET_ID,
     generated_at: str = "",
+    enrichments: dict | None = None,
+    pathway_notes: dict | None = None,
 ) -> ReportModel:
-    """Assemble the interpretation report from durable, grounded inputs. Pure."""
+    """Assemble the interpretation report from durable, grounded inputs. Pure.
+
+    ``enrichments`` maps cluster -> ClusterEnrichment and ``pathway_notes`` maps
+    cluster -> {gene_set: note}; when given, each section integrates the cluster's
+    enriched programs + their cited biology alongside the marker call.
+    """
+    enrichments = enrichments or {}
+    pathway_notes = pathway_notes or {}
     sections: list[ClusterSection] = []
     for v in verdicts:
         ct_note = celltype_notes.get(v.cluster) or {}
@@ -155,6 +184,9 @@ def build_report(
             _note_line(n)
             for n in notes
             if n.scope == "cluster" and n.scope_ref.cluster == v.cluster
+        )
+        enr_text, enr_conf = _enrichment_block(
+            enrichments.get(v.cluster), pathway_notes.get(v.cluster)
         )
         sections.append(
             ClusterSection(
@@ -168,6 +200,8 @@ def build_report(
                 biology_pmid=str(ct_note.get("pmid") or ""),
                 settle=_settle_for(v.cluster, v.verify),
                 notes=cluster_notes,
+                enrichment=enr_text,
+                enrichment_confidence=enr_conf,
             )
         )
 
@@ -206,6 +240,12 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
     """
     from ui import data_access as da
 
+    try:
+        enrichments = {ce.cluster: ce for ce in da.all_enrichments()}
+        pathway_notes = da.pathway_notes()
+    except Exception:  # noqa: BLE001 - no enrichment slice -> marker-only report
+        enrichments, pathway_notes = {}, {}
+
     return build_report(
         verdicts=da.all_verdicts(),
         celltype_notes=da.celltype_notes(),
@@ -214,6 +254,8 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         panel_size=len(da.panel_names()),
         dataset=cfg.DATASET_ID,
         generated_at=generated_at,
+        enrichments=enrichments,
+        pathway_notes=pathway_notes,
     )
 
 
@@ -381,14 +423,14 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
     return lines
 
 
-def report_to_docx(report: ReportModel) -> bytes:
-    """Render the report as a Word .docx (editable). Requires python-docx."""
+def _lines_to_docx(lines: list[tuple[str, str]]) -> bytes:
+    """Render (style, text) lines as a Word .docx (editable). Requires python-docx."""
     from io import BytesIO
 
     from docx import Document
 
     doc = Document()
-    for style, text in _section_lines(report):
+    for style, text in lines:
         if style == "title":
             doc.add_heading(text, level=0)
         elif style == "meta":
@@ -404,8 +446,8 @@ def report_to_docx(report: ReportModel) -> bytes:
     return buf.getvalue()
 
 
-def report_to_pdf(report: ReportModel) -> bytes:
-    """Render the report as a PDF (locked). Requires fpdf2."""
+def _lines_to_pdf(lines: list[tuple[str, str]]) -> bytes:
+    """Render (style, text) lines as a PDF (locked). Requires fpdf2."""
     from fpdf import FPDF
     from fpdf.enums import XPos, YPos
 
@@ -418,7 +460,7 @@ def report_to_pdf(report: ReportModel) -> bytes:
         # multi_cell has room (fpdf2 otherwise leaves x at the right margin).
         pdf.multi_cell(0, h, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    for style, raw in _section_lines(report):
+    for style, raw in lines:
         text = _pdf_safe(raw)
         if style == "title":
             pdf.set_font("Helvetica", "B", 16)
@@ -441,6 +483,163 @@ def report_to_pdf(report: ReportModel) -> bytes:
     return bytes(pdf.output())
 
 
+def report_to_docx(report: ReportModel) -> bytes:
+    """Render the structured report as a Word .docx (editable). Requires python-docx."""
+    return _lines_to_docx(_section_lines(report))
+
+
+def report_to_pdf(report: ReportModel) -> bytes:
+    """Render the structured report as a PDF (locked). Requires fpdf2."""
+    return _lines_to_pdf(_section_lines(report))
+
+
+# --------------------------------------------------------------------------- #
+# Editable working space — the auto-seed per-cluster summary + its export.
+# --------------------------------------------------------------------------- #
+def default_cluster_summary(s: ClusterSection) -> str:
+    """The auto-seed integrated per-cluster summary (the editable working space).
+
+    Reads like a biologist's synthesis, in two grounded movements: IDENTITY (the
+    marker cell-type call + its drivers + cited biology — *what the cell is*) and
+    PROGRAMS (the enriched gene sets + their cited biology — *what the cell is
+    doing*, panel-scoped), then any what-would-settle-it line and this cluster's
+    lab notes. Plain text with PMID:xxx inline (linkified on-page, kept verbatim in
+    the exported document). The concordance read (do the programs fit the call?) is
+    carried by the per-program biology, which flags cross-lineage signal explicitly.
+    """
+    ident = (
+        f"Identity — {s.cluster} is {s.cell_type} at {s.confidence} confidence"
+        + (" (flagged to re-check)" if s.verify else "")
+        + f", driven by {s.driver_line}."
+    )
+    if s.biology:
+        ident += " " + s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
+    paras = [ident]
+
+    if s.enrichment:
+        conf = f" ({s.enrichment_confidence} enrichment)" if s.enrichment_confidence else ""
+        paras.append(
+            f"Programs — enriched gene sets{conf}, panel-scoped (measured only over the "
+            f"set genes on the panel, not genome-wide): {s.enrichment}"
+        )
+    elif s.enrichment_confidence:
+        paras.append("Programs — no gene-set program clears the enrichment gate for this cluster.")
+
+    if s.settle:
+        paras.append(f"What would settle it — {s.settle}")
+    for nl in s.notes:
+        t = f" — {nl.tension}" if nl.tension else ""
+        paras.append(f'Lab note — "{nl.claim}" ({nl.scope} · {nl.basis} · {nl.status}){t}.')
+    return "\n\n".join(paras)
+
+
+def _blocks(text: str) -> list[tuple[str, str]]:
+    return [("body", p.strip()) for p in text.split("\n\n") if p.strip()]
+
+
+def _working_lines(
+    sections: list[tuple[str, str, str, bool, str]],
+    *,
+    dataset: str,
+    generated_at: str,
+    global_check: str = "",
+    caveats: str = "",
+    lab_notes: tuple[NoteLine, ...] = (),
+) -> list[tuple[str, str]]:
+    """(style, text) lines for the EDITED working-space export — per-cluster summaries,
+    the cross-cluster global check, then the caveats (the biologist's report shape)."""
+    lines: list[tuple[str, str]] = [("title", "Panoscope — interpretation summary")]
+    meta = f"{dataset} · {len(sections)} clusters"
+    if generated_at:
+        meta += f" · {generated_at}"
+    lines.append(("meta", meta))
+    for cluster, cell_type, confidence, verify, text in sections:
+        head = f"{cluster} · {cell_type} — {confidence}" + ("  [re-check]" if verify else "")
+        lines.append(("h2", head))
+        lines.extend(_blocks(text))
+    if global_check.strip():
+        lines.append(("h2", "Cross-cluster global check"))
+        lines.extend(_blocks(global_check))
+    if caveats.strip():
+        lines.append(("h2", "Caveats"))
+        lines.extend(_blocks(caveats))
+    if lab_notes:
+        lines.append(("h2", "Lab notes (dataset / lab-wide)"))
+        for nl in lab_notes:
+            lines.append(("note", _note_text(nl)))
+    return lines
+
+
+def _short_set(gene_set: str) -> str:
+    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
+
+
+def global_check_text(holistic, themes) -> str:
+    """Cross-cluster global check: does the whole set cohere? Marker coherence +
+    the one refinement + the enrichment programs that recur across clusters. Every
+    statement is read off the holistic review / themes (no new claim)."""
+    paras: list[str] = []
+    if holistic is not None:
+        paras.extend(holistic.coherence_notes)
+        for r in holistic.refinements:
+            paras.append(
+                f"Refinement to consider — {r.cluster}: {r.from_call} -> {r.to_call} ({r.rationale})."
+            )
+    if themes is not None and getattr(themes, "recurring", ()):
+        bits = [
+            f"{_short_set(t.gene_set)} (in {t.n_clusters} clusters: {', '.join(t.clusters)})"
+            for t in themes.recurring[:4]
+        ]
+        paras.append(
+            "Programs shared across clusters — " + "; ".join(bits) + ". A program enriched in "
+            "many clusters partly reflects the panel's design and shared genes; weight it less "
+            "as cluster-specific evidence."
+        )
+    return "\n\n".join(paras) if paras else "The set is coherent across clusters."
+
+
+def caveats_text(verdicts, enrichments: dict, panel_size: int) -> str:
+    """The interpretation's caveats: panel scope, panel-absence, flagged/small calls,
+    and the cross-lineage-enrichment reminder. Derived deterministically from the
+    verdicts + enrichment records; nothing invented."""
+    paras = [
+        f"Panel scope — this is a targeted {panel_size}-gene panel. Enrichment is measured only "
+        "over each set's genes that are on the panel, so no program is a genome-wide claim, and a "
+        "program can be missed simply because its genes were not on the panel.",
+        "Panel absence — the absence of a canonical marker is not evidence against a cell type "
+        "when that gene was never on the panel; missing canonical markers were checked against "
+        "the panel before any down-weight.",
+    ]
+    flagged = [f"{v.cluster} {v.cell_type}" for v in verdicts if v.verify]
+    if flagged:
+        paras.append(
+            "Flagged for re-check — " + ", ".join(flagged) + ". These calls rest on thin or "
+            "non-specific evidence; confirm before relying on them."
+        )
+    small = [f"{v.cluster} {v.cell_type}" for v in verdicts if getattr(v, "small_n", False)]
+    if small:
+        paras.append(
+            "Small clusters — " + ", ".join(small) + " have few assigned markers, so both the "
+            "call and its enrichment are lower-powered."
+        )
+    paras.append(
+        "Cross-lineage programs — a program enriched in a cluster whose leading-edge genes mark "
+        "another lineage usually reflects co-infiltration or shared panel genes, not a re-typing "
+        "of the cluster; these are flagged in the per-cluster programs above."
+    )
+    return "\n\n".join(paras)
+
+
+def working_docx(sections, **kw) -> bytes:
+    """Export the (edited) working space as a Word .docx."""
+    return _lines_to_docx(_working_lines(sections, **kw))
+
+
+def working_pdf(sections, **kw) -> bytes:
+    """Export the (edited) working space as a PDF."""
+    return _lines_to_pdf(_working_lines(sections, **kw))
+
+
 __all__ = [
     "NoteLine",
     "ClusterSection",
@@ -451,4 +650,9 @@ __all__ = [
     "render_report_html",
     "report_to_docx",
     "report_to_pdf",
+    "default_cluster_summary",
+    "global_check_text",
+    "caveats_text",
+    "working_docx",
+    "working_pdf",
 ]

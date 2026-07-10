@@ -5,9 +5,10 @@ stands on. Every number shown here comes from the agent layer (jazzPanda output,
 the panel list, or a cited lab note) — this file only wires panels together.
 
 Navigation lives in a single TOP bar (not a sidebar): the brand and three tabs —
-``Examine cluster | Summary | Lab knowledge`` — in one row. Session state is
-shared across pages natively (one script run per rerun), so the selected cluster
-/ markers / chat / notes carry over between tabs.
+``Marker genes | Pathways | Summary`` — in one row, left-to-right in workflow
+order (the Summary is the final, integrated step). Lab notes are folded into the
+Summary page. Session state is shared across pages natively (one script run per
+rerun), so the selected cluster / markers / chat / notes carry over between tabs.
 """
 from __future__ import annotations
 
@@ -22,7 +23,6 @@ from ui import (
     conversation,
     enrichment_table,
     evidence_table,
-    lab_knowledge,
     paper_drawer,
     spatial_stage,
     state,
@@ -53,8 +53,7 @@ _K_PAGE = "active_page"
 _PAGE_EXAMINE = "examine"
 _PAGE_SUMMARY = "summary"
 _PAGE_PATHWAYS = "pathways"
-_PAGE_LAB = "lab"
-_VALID_PAGES = (_PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_PATHWAYS, _PAGE_LAB)
+_VALID_PAGES = (_PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_PATHWAYS)
 
 
 def _set_page(page: str) -> None:
@@ -118,7 +117,7 @@ def _sync_selection_to_url() -> None:
 
 
 def _top_bar(page: str) -> None:
-    """The single top bar: brand · Examine / Summary / Lab knowledge tabs.
+    """The single top bar: brand · Marker genes / Pathways / Summary tabs.
 
     The tabs are chromeless buttons styled (theme ``.st-key-pano_topnav``) into a
     top tab strip — the active one (``type="primary"``) gets an accent underline.
@@ -140,17 +139,9 @@ def _top_bar(page: str) -> None:
             )
         with tabs_col:
             with st.container(key="pano_topnav"):
-                # Order: Summary · Marker genes · Pathways · Lab knowledge.
-                t_summary, t_examine, t_pathways, t_lab = st.columns(4)
-                with t_summary:
-                    st.button(
-                        "Summary",
-                        key="nav_summary",
-                        type="primary" if page == _PAGE_SUMMARY else "secondary",
-                        use_container_width=True,
-                        on_click=_set_page,
-                        args=(_PAGE_SUMMARY,),
-                    )
+                # Order: Marker genes · Pathways · Summary. Summary is the final,
+                # integrated step, so it reads last (left-to-right = the workflow).
+                t_examine, t_pathways, t_summary = st.columns(3)
                 with t_examine:
                     st.button(
                         "Marker genes",
@@ -169,14 +160,14 @@ def _top_bar(page: str) -> None:
                         on_click=_set_page,
                         args=(_PAGE_PATHWAYS,),
                     )
-                with t_lab:
+                with t_summary:
                     st.button(
-                        "Lab knowledge",
-                        key="nav_lab",
-                        type="primary" if page == _PAGE_LAB else "secondary",
+                        "Summary",
+                        key="nav_summary",
+                        type="primary" if page == _PAGE_SUMMARY else "secondary",
                         use_container_width=True,
                         on_click=_set_page,
-                        args=(_PAGE_LAB,),
+                        args=(_PAGE_SUMMARY,),
                     )
         with ctx_col:
             st.markdown(
@@ -224,8 +215,6 @@ if page == _PAGE_SUMMARY:
     summary.render_summary_page()
 elif page == _PAGE_PATHWAYS:
     enrichment_table.render_pathways_page()
-elif page == _PAGE_LAB:
-    lab_knowledge.render_lab_page()
 else:
     _examine_body()
 
