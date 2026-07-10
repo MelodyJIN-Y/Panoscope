@@ -48,6 +48,15 @@ htmlcov/
 assets/*.pdf
 data/jazzpanda/*
 
+# ── Private jazzPanda enrichment (derived from the unpublished result) ───────
+# The enrichment tree carries the private test_statistic-derived scores/q-values
+# from data/jazzpanda/. Kept local; the app reads it directly, git stays clean.
+# A fresh clone falls back to the marker-only slice (see ui/data_access.py).
+data/datasets/*/interp/enrichment.csv
+data/datasets/*/interp/enrichment/
+data/datasets/*/interp/pathway_notes.json
+data/datasets/*/interp/pathway_themes.json
+
 # ── OS / editor cruft ───────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
