@@ -22,6 +22,7 @@ from agent.types import ClusterEnrichment, PathwayEvidence
 
 from ui import cluster_rail
 from ui import data_access as da
+from ui import enrichment_conversation
 from ui import enrichment_spatial
 from ui import format as fmt
 from ui import state
@@ -209,7 +210,8 @@ def _render_center(st, ce: ClusterEnrichment) -> None:
 # --------------------------------------------------------------------------- #
 # Side column: cross-cluster themes
 # --------------------------------------------------------------------------- #
-def _render_side(st, themes) -> None:
+def _render_themes(st, themes) -> None:
+    st.markdown('<div style="height:26px"></div>', unsafe_allow_html=True)
     st.markdown('<div class="pano-th-h">Cross-cluster themes</div>', unsafe_allow_html=True)
     notes = "".join(
         f'<div class="pano-th-item"><div class="pano-th-check">&#10003;</div>'
@@ -244,14 +246,15 @@ def render_pathways_page() -> None:
         )
         return
 
-    rail_col, center_col, side_col = st.columns([222, 760, 372], gap="small")
+    rail_col, center_col, chat_col = st.columns([222, 760, 372], gap="small")
     with rail_col:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
     with center_col:
         _render_center(st, da.enrichment_for(cluster))
-    with side_col:
-        _render_side(st, da.pathway_themes())
+        _render_themes(st, da.pathway_themes())
+    with chat_col:
+        enrichment_conversation.render_pathway_conversation(cluster)
 
 
 __all__ = ["render_pathways_page"]

@@ -241,16 +241,64 @@ def _cluster_context(cluster: Optional[str]) -> str:
     return header + active + _inscope_notes_block(cluster)
 
 
-def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> str:
-    """Assemble the full system prompt: skill + contract + cluster context.
-
-    ``skill`` selects which SKILL.md contract to load (marker vs enrichment), so
-    the pathway-notes stage reasons under the enrichment skill, not the markers one.
+def _enrichment_context(cluster: Optional[str]) -> str:
+    """Grounded per-cluster ENRICHMENT context injected for the geneset-enrichment
+    skill: the cluster's enriched (and suggestive) programs with their scores,
+    panel coverage, and leading-edge genes — every number the source of truth. So
+    a pathway chat is grounded in the real enrichment records, not fetched via a
+    marker tool. Empty string if the cluster has no enrichment (chat still works).
     """
+    if not cluster or cluster not in cfg.KNOWN_CLUSTERS:
+        return ""
+    try:
+        from agent import enrichment as agent_enrichment
+
+        ce = agent_enrichment.enrichment_for_cluster(cluster)
+    except Exception:  # noqa: BLE001 - no enrichment -> no context, never crash
+        return ""
+
+    lines = [
+        f"# ENRICHMENT CONTEXT — cluster {cluster} ({ce.cell_type.replace('_', ' ')}), "
+        "jazzPanda competitive gene-set test (MSigDB Hallmark, panel-scoped)",
+        f"Enrichment confidence: {ce.confidence}{' — verify (re-check)' if ce.verify else ''}.",
+    ]
+    if ce.enriched:
+        lines.append("Enriched programs (panel-scoped — K of N set genes on the 280-gene panel):")
+        for p in ce.enriched:
+            q = "n/a" if p.q_value is None else f"{p.q_value:.1e}"
+            lines.append(
+                f"- {p.gene_set}: test_statistic {p.score:.2f}, q {q}, "
+                f"panel {p.panel_hits}/{p.set_size_full}, leading edge {', '.join(p.leading_edge)}."
+            )
+    if ce.suggestive:
+        lines.append("Suggestive programs (below the strict bar — re-check):")
+        for p in ce.suggestive:
+            q = "n/a" if p.q_value is None else f"{p.q_value:.1e}"
+            lines.append(f"- {p.gene_set}: q {q}, leading edge {', '.join(p.leading_edge)}.")
+    if not ce.enriched and not ce.suggestive:
+        lines.append("No program clears the enrichment gate for this cluster.")
+    lines.append(
+        "Discuss ONLY these programs and their leading-edge genes; every number above is "
+        "the source of truth (never invent a program, score, or gene). Always state the "
+        "panel-scoped caveat (K of N genes measured, not genome-wide). Flag a cross-lineage "
+        "program as a tension to check, never a re-typing of the cluster. Cite real, live "
+        "PubMed papers; never a PMID from memory."
+    )
+    return "\n".join(lines)
+
+
+def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> str:
+    """Assemble the full system prompt: skill + contract + per-cluster context.
+
+    ``skill`` selects both the SKILL.md contract and the context: the enrichment
+    skill carries the cluster's enrichment records (``_enrichment_context``); the
+    marker skill carries the marker global interpretation (``_cluster_context``).
+    """
+    context = _enrichment_context(cluster) if skill == "geneset-enrichment" else _cluster_context(cluster)
     parts = [
         _skill_text(skill),
         _GROUNDING_CONTRACT,
-        _cluster_context(cluster),
+        context,
     ]
     return "\n\n---\n\n".join(p for p in parts if p)
 
