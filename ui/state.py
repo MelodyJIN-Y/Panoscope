@@ -88,7 +88,38 @@ def init_state() -> None:
     for key, default in _DEFAULTS.items():
         if key not in ss:
             ss[key] = default() if callable(default) else default
+    _hydrate_threads(ss)  # restore chat transcripts from disk so a refresh keeps them
     ss[K_INITIALIZED] = True
+
+
+def _hydrate_threads(ss: dict) -> None:
+    """Restore persisted chat threads on a fresh session (a browser refresh). A
+    non-empty thread marks its opening as already posted so the opening interpretation
+    is not re-posted on top of the restored transcript."""
+    try:
+        from ui import chat_store
+
+        threads = chat_store.load_all()
+    except Exception:  # noqa: BLE001 - a bad transcript never blocks startup
+        return
+    if not threads:
+        return
+    ss[K_CHAT_THREAD] = threads
+    posted = dict(ss.get(K_OPENING_POSTED, {}))
+    for key, msgs in threads.items():
+        if msgs:
+            posted[key] = True
+    ss[K_OPENING_POSTED] = posted
+
+
+def _persist_threads() -> None:
+    """Best-effort write of all chat threads to disk (so a refresh restores them)."""
+    try:
+        from ui import chat_store
+
+        chat_store.save_all(_threads())
+    except Exception:  # noqa: BLE001 - losing the transcript must not break the app
+        pass
 
 
 # --------------------------------------------------------------------------- #
@@ -294,13 +325,15 @@ def get_chat_thread(cluster: str) -> list[dict]:
 
 
 def append_message(cluster: str, message: dict) -> None:
-    """Append one message dict to ``cluster``'s chat thread."""
+    """Append one message dict to ``cluster``'s chat thread (persisted to disk)."""
     get_chat_thread(cluster).append(message)
+    _persist_threads()
 
 
 def clear_chat_thread(cluster: str) -> None:
-    """Reset ``cluster``'s chat thread to empty (other clusters untouched)."""
+    """Reset ``cluster``'s chat thread to empty (other clusters untouched; persisted)."""
     _threads()[cluster] = []
+    _persist_threads()
 
 
 def opening_was_posted(cluster: str) -> bool:

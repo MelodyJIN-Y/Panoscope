@@ -200,6 +200,7 @@ def render_conversation(cluster: str) -> None:
     with st.container(key="conv_thread"):
         _render_thread(cluster)
 
+    process_pending(cluster)
     _render_draft_card(cluster)
     _render_ask_box(cluster)
 
@@ -408,19 +409,42 @@ def _render_ask_box(cluster: str) -> None:
                 )
 
     if asked and query and query.strip():
-        _submit_query(cluster, query.strip())
+        # Phase 1: append the user's message and mark the query pending, then rerun —
+        # so the message and a "thinking" indicator appear INSTANTLY. The (slower) live
+        # agent turn runs on that rerun (see _process_pending), not while the user waits
+        # with nothing on screen.
+        state.append_message(cluster, {"role": _ROLE_USER, "text": query.strip(), "resp": None})
+        st.session_state[_pending_key(cluster)] = query.strip()
         _rerun(st)
 
 
-def _submit_query(cluster: str, query: str) -> None:
-    """Append the user turn, run the agent, append its grounded answer.
+def _pending_key(cluster: str) -> str:
+    return f"pending_q_{cluster}"
+
+
+def process_pending(cluster: str) -> None:
+    """Phase 2: if a query is pending, show a thinking indicator and run the grounded
+    agent turn, then rerun to show its answer. Split from submit so the user's message +
+    the spinner appear immediately instead of after the whole turn completes."""
+    import streamlit as st
+
+    pkey = _pending_key(cluster)
+    query = st.session_state.get(pkey)
+    if not query:
+        return
+    st.session_state.pop(pkey, None)  # clear first so an error can't loop
+    with st.spinner("Reading the literature…"):
+        _run_agent_turn(cluster, query)
+    _rerun(st)
+
+
+def _run_agent_turn(cluster: str, query: str) -> None:
+    """Run the agent for an already-appended user query and append its grounded answer.
 
     A chat-driven override does NOT persist a note on the model's word: the agent
     proposes one (``resp.note_draft``) and we stash it so the confirm card renders.
     Nothing is written until the biologist saves — see ``_render_draft_card``.
     """
-    state.append_message(cluster, {"role": _ROLE_USER, "text": query, "resp": None})
-
     resp = _safe_chat(cluster, query)
     state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
 

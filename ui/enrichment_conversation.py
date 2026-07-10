@@ -65,6 +65,7 @@ def render_pathway_conversation(cluster: str) -> None:
     )
     with st.container(key="conv_thread"):
         _render_thread(cluster)
+    _process_pending(cluster)
     # Same two-tap confirm card as the marker chat, on this cluster's pathway thread —
     # so a program_reinterpretation captured here never collides with the marker draft.
     convo._render_draft_card(cluster, thread_key=_thread_key(cluster))
@@ -206,8 +207,27 @@ def _render_ask_box(cluster: str) -> None:
                 asked = st.form_submit_button("Ask", use_container_width=True, type="primary")
 
     if asked and query and query.strip():
-        _submit(cluster, query.strip())
+        # Phase 1: show the message + a thinking indicator instantly; the live agent
+        # turn runs on the next rerun (see _process_pending).
+        key = _thread_key(cluster)
+        state.append_message(key, {"role": "user", "text": query.strip(), "resp": None})
+        st.session_state[f"pending_q_{key}"] = query.strip()
         convo._rerun(st)
+
+
+def _process_pending(cluster: str) -> None:
+    """Phase 2: run the pending pathway query with a thinking indicator, then rerun."""
+    import streamlit as st
+
+    key = _thread_key(cluster)
+    pkey = f"pending_q_{key}"
+    query = st.session_state.get(pkey)
+    if not query:
+        return
+    st.session_state.pop(pkey, None)
+    with st.spinner("Reading the literature…"):
+        _run_turn(cluster, query)
+    convo._rerun(st)
 
 
 _FALLBACK_TEXT = (
@@ -217,9 +237,8 @@ _FALLBACK_TEXT = (
 )
 
 
-def _submit(cluster: str, query: str) -> None:
+def _run_turn(cluster: str, query: str) -> None:
     key = _thread_key(cluster)
-    state.append_message(key, {"role": "user", "text": query, "resp": None})
     resp = _safe_chat(cluster, query)
     # The shared agent's fallback is marker-flavored (a cell-type verdict); for a
     # pathway question that is off-topic, so substitute an honest enrichment reply.
