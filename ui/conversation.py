@@ -193,7 +193,7 @@ def render_conversation(cluster: str) -> None:
     st.markdown(
         '<div class="conv-hint">Agree, question, or override this call by telling '
         "the agent below &rarr; it keeps your call, cross-checks the literature, "
-        "and saves it to Lab knowledge.</div>",
+        "and saves it to Lab notes.</div>",
         unsafe_allow_html=True,
     )
 
@@ -649,7 +649,7 @@ def _save_pending_draft(thread_key: str, edited: Any) -> None:
 
 
 def _saved_line(note: Any) -> str:
-    """The 'Saved to Lab knowledge · scope · basis · status' confirmation line."""
+    """The 'Saved to Lab notes · scope · basis · status' confirmation line."""
     if note.scope == "cluster" and note.scope_ref.cluster:
         scope_txt = f"cluster {note.scope_ref.cluster}"
     else:
@@ -661,7 +661,7 @@ def _saved_line(note: Any) -> str:
     else:
         tension = "literature thin, recorded as-is"
     return (
-        f"Saved to Lab knowledge · {scope_txt} · {basis_txt} · {note.status}. "
+        f"Saved to Lab notes · {scope_txt} · {basis_txt} · {note.status}. "
         f"Literature: {tension}. It is cited whenever it applies."
     )
 

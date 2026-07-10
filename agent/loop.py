@@ -117,7 +117,9 @@ the engine; you are the interpretation layer. You never run jazzPanda live.
    silently). When the biologist ASSERTS a judgment that diverges from, sharpens, or
    scopes the grounded default, PROPOSE a note with `memory_draft` (never persist on
    your own): classify it into ONE note_type and infer its anchor — a cell-type
-   override; a marker_reinterpretation (what one marker means here, call unchanged →
+   override (set subject_cell_type to the biologist's NEW call, and infer
+   subject_lineage + subject_category for that new call, e.g. CAF → Stromal); a
+   marker_reinterpretation (what one marker means here, call unchanged →
    subject_markers=[gene]); a program_reinterpretation (an enriched program re-read
    as co-infiltration → subject_gene_sets=[HALLMARK set]); a marker_convention (a
    panel/tissue trust rule about a marker, scope dataset|lab → subject_markers=[gene]);
@@ -388,6 +390,8 @@ def _draft_from_payload(data: Any) -> Optional[NoteDraft]:
         type=data.get("type", "celltype_override"),
         subject_gene_sets=tuple(data.get("subject_gene_sets") or ()),
         subject_clusters=tuple(data.get("subject_clusters") or ()),
+        subject_lineage=str(data.get("subject_lineage", "")),
+        subject_category=str(data.get("subject_category", "")),
     )
 
 

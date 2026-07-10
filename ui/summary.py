@@ -172,6 +172,10 @@ div[class*="st-key-savrow_"] button:hover { filter: brightness(1.06); }
   background: var(--absent-bg); padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
 .pano-sum-table .cf { font-size: 10px; padding: 2px 8px; }
 .pano-ovflag { color: var(--absent); font-size: 11px; margin-left: 6px; }
+.pano-ov-lab { font-family: var(--mono); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em;
+  font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px;
+  border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+.pano-ov-was { font-family: var(--mono); font-size: 9.5px; color: var(--faint); margin-top: 3px; }
 
 /* Focused editor. */
 .pano-ed-hr { border: 0; border-top: 1px solid var(--hair); margin: 24px 0 4px; }
@@ -238,18 +242,30 @@ def _programs_cell(ce) -> str:
     return f'<span class="pano-sum-desc">{html.escape(progs)}</span>{le_html}'
 
 
-def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict) -> str:
-    """The one scannable map: per cluster, the marker call and the enriched programs."""
+def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, overrides: dict = None) -> str:
+    """The one scannable map: per cluster, the marker call and the enriched programs.
+    A confirmed cell-type override shows the new call with a 'lab' tag and the computed
+    call it replaced (tension visible), never a silent swap."""
+    overrides = overrides or {}
     cols = "".join(f'<col style="width:{w}%">' for _, w in _OVERVIEW_COLS)
     head = "".join(f"<th>{html.escape(label)}</th>" for label, _ in _OVERVIEW_COLS)
     rows = []
     for v in verdicts:
         ce = enr_map.get(v.cluster)
         flag = ' <span class="pano-ovflag" title="flagged for re-check">⚑</span>' if v.verify else ""
+        ct = f'<span class="pano-sum-ct">{html.escape(v.cell_type)}</span>'
+        ov = overrides.get(v.cluster)
+        if ov:
+            ct += (f' <span class="pano-ov-lab" title="your override; computed: '
+                   f'{html.escape(ov["computed_call"])}">lab</span>')
+            was = f'was {html.escape(ov["computed_call"])}'
+            if ov["dissent"]:
+                was += f' · {ov["dissent"]} lit. dissent'
+            ct += f'<div class="pano-ov-was">{was}</div>'
         rows.append(
             "<tr>"
             f"<td>{_dot_id(v.cluster)}</td>"
-            f'<td><span class="pano-sum-ct">{html.escape(v.cell_type)}</span>{flag}</td>'
+            f"<td>{ct}{flag}</td>"
             f"<td>{_conf_pill(v.confidence)}</td>"
             f"<td>{_markers_cell(v)}</td>"
             f"<td>{_programs_cell(ce)}</td>"
@@ -432,7 +448,9 @@ def render_summary_page() -> None:
 
     st.markdown(f"<style>{_SUMMARY_CSS}</style>", unsafe_allow_html=True)
 
-    verdicts = da.all_verdicts()
+    verdicts = da.composed_verdicts()  # confirmed overrides/excludes reflected everywhere
+    overrides = {v.cluster: da.override_info(v.cluster) for v in verdicts}
+    overrides = {c: o for c, o in overrides.items() if o}
     sec_by_id = {v.cluster: v for v in verdicts}
     n_flagged = sum(1 for v in verdicts if v.verify)
     try:
@@ -581,7 +599,7 @@ def render_summary_page() -> None:
         if active == _SEC_OVERALL:
             st.markdown('<div class="pano-ov-cap">Overview · marker call + enriched programs</div>',
                         unsafe_allow_html=True)
-            st.markdown(_overview_table_html(verdicts, enr_map), unsafe_allow_html=True)
+            st.markdown(_overview_table_html(verdicts, enr_map, overrides), unsafe_allow_html=True)
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             _eyebrow(st, "Dataset · cross-cluster global check")
             _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
@@ -623,7 +641,7 @@ def render_summary_page() -> None:
             _save_button(st, _SEC_CAVEATS)
 
         else:  # _SEC_NOTES (or any stale value) -> lab notes
-            _eyebrow(st, "Lab knowledge · your saved notes")
+            _eyebrow(st, "Lab notes · your saved notes")
             st.markdown('<div class="pano-ed-hint" style="margin:0 0 10px">Captured when you override '
                         "or confirm a call in the chat; compiled into the write-up and the exported "
                         "report.</div>", unsafe_allow_html=True)

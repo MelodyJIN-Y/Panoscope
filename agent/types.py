@@ -183,6 +183,10 @@ class Note:
     type: NoteType = "celltype_override"
     subject_gene_sets: tuple[str, ...] = ()   # enrichment anchor (HALLMARK_*), the marker analog
     subject_clusters: tuple[str, ...] = ()    # anchor SET for cross_cluster (fires on each)
+    # For a celltype_override: the biologist's NEW call, applied at composition (never
+    # mutating the deterministic verdict). subject_cell_type holds the new cell type.
+    subject_lineage: str = ""                 # new lineage for the override (agent-inferred)
+    subject_category: str = ""                # new category for the override (agent-inferred)
 
 
 @dataclass(frozen=True)
@@ -209,6 +213,8 @@ class NoteDraft:
     type: NoteType = "celltype_override"
     subject_gene_sets: tuple[str, ...] = ()
     subject_clusters: tuple[str, ...] = ()
+    subject_lineage: str = ""
+    subject_category: str = ""
 
 
 # --------------------------------------------------------------------------- #

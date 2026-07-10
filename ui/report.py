@@ -247,7 +247,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         enrichments, pathway_notes = {}, {}
 
     return build_report(
-        verdicts=da.all_verdicts(),
+        verdicts=da.composed_verdicts(),  # reflect confirmed overrides/excludes in the report
         celltype_notes=da.celltype_notes(),
         notes=da.read_notes(),
         holistic=da.holistic(),

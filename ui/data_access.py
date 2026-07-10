@@ -355,20 +355,73 @@ def _excluded_clusters() -> set:
         return set()
 
 
+def _override_notes() -> dict:
+    """The most-recent firing ``celltype_override`` note per cluster (one that carries a
+    new call). Applied at COMPOSITION only — the deterministic verdict is never mutated."""
+    from agent import memory
+
+    out: dict = {}
+    try:
+        for n in memory.read_notes():  # sorted by created_at -> last write wins
+            if (
+                getattr(n, "type", "") == "celltype_override"
+                and n.scope == "cluster"
+                and n.scope_ref.cluster
+                and (getattr(n, "subject_cell_type", "") or "").strip()
+            ):
+                out[n.scope_ref.cluster] = n
+    except Exception:  # noqa: BLE001 - a malformed note never breaks the composition
+        return {}
+    return out
+
+
 def composed_verdicts() -> list[ClusterVerdict]:
-    """``all_verdicts()`` with the exclude overlay applied (``exclude=True`` where an
-    exclude note fires). Returns NEW objects — the cached verdicts are never mutated,
-    so the deterministic output stays intact and only the composed export changes.
-    NOT cached: exclude notes are added at runtime and must reflect immediately."""
+    """``all_verdicts()`` with the lab's confirmed overlays applied — ``exclude`` notes
+    and ``celltype_override`` notes (new cell type + lineage/category; verify flagged
+    only when the literature dissents). Returns NEW objects; the cached deterministic
+    verdicts are never mutated, so the computed output stays intact and only the
+    composed view/export changes. NOT cached: notes are added at runtime."""
     excluded = _excluded_clusters()
-    if not excluded:
+    overrides = _override_notes()
+    if not excluded and not overrides:
         return all_verdicts()
     import dataclasses
 
-    return [
-        dataclasses.replace(v, exclude=True) if v.cluster in excluded else v
-        for v in all_verdicts()
-    ]
+    out: list[ClusterVerdict] = []
+    for v in all_verdicts():
+        changes: dict = {}
+        if v.cluster in excluded:
+            changes["exclude"] = True
+        ov = overrides.get(v.cluster)
+        if ov is not None:
+            new_call = ov.subject_cell_type.strip()
+            changes["cell_type"] = new_call
+            changes["cell_type_short"] = new_call
+            if ov.subject_lineage.strip():
+                changes["lineage"] = ov.subject_lineage.strip()
+            if ov.subject_category.strip():
+                changes["category"] = ov.subject_category.strip()
+            if ov.tension.dissent:  # flag for re-check ONLY when the literature dissents
+                changes["verify"] = True
+        out.append(dataclasses.replace(v, **changes) if changes else v)
+    return out
+
+
+def override_info(cluster: str) -> "Optional[dict]":
+    """For a cluster with a confirmed cell-type override: the new call, the computed
+    call it replaces, the note id, and the literature agree/dissent counts — so the UI
+    shows the override with the tension visible. None if there is no override."""
+    ov = _override_notes().get(cluster)
+    if ov is None:
+        return None
+    computed = verdict_for(cluster)
+    return {
+        "new_call": ov.subject_cell_type.strip(),
+        "computed_call": computed.cell_type,
+        "note_id": ov.id,
+        "agree": len(ov.tension.agree),
+        "dissent": len(ov.tension.dissent),
+    }
 
 
 def verdict_csv() -> str:

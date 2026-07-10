@@ -146,6 +146,8 @@ def _note_from_dict(d: dict) -> Note:
         type=d.get("type", "celltype_override"),
         subject_gene_sets=tuple(d.get("subject_gene_sets", ())),
         subject_clusters=tuple(d.get("subject_clusters", ())),
+        subject_lineage=str(d.get("subject_lineage", "")),
+        subject_category=str(d.get("subject_category", "")),
     )
 
 
@@ -251,6 +253,8 @@ def draft_note(
     note_type: NoteType = "celltype_override",
     subject_gene_sets: Optional[Iterable[str]] = None,
     subject_clusters: Optional[Iterable[str]] = None,
+    subject_lineage: str = "",
+    subject_category: str = "",
     dataset: str = cfg.DATASET_ID,
     literature_search: Optional[LiteratureSearch] = None,
 ) -> NoteDraft:
@@ -293,6 +297,8 @@ def draft_note(
         type=note_type,
         subject_gene_sets=gene_sets,
         subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
     tension = reconcile(stub, literature_search)
     return NoteDraft(
@@ -308,6 +314,8 @@ def draft_note(
         type=note_type,
         subject_gene_sets=gene_sets,
         subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
 
 
@@ -358,6 +366,8 @@ def save_draft(
         type=draft.type,
         subject_gene_sets=tuple(draft.subject_gene_sets),
         subject_clusters=tuple(draft.subject_clusters),
+        subject_lineage=draft.subject_lineage,
+        subject_category=draft.subject_category,
     )
     _write_note(note, base_dir)
     log_decision(
@@ -383,6 +393,8 @@ def create_note(
     note_type: NoteType = "celltype_override",
     subject_gene_sets: Optional[Iterable[str]] = None,
     subject_clusters: Optional[Iterable[str]] = None,
+    subject_lineage: str = "",
+    subject_category: str = "",
     dataset: str = cfg.DATASET_ID,
     attributed_to: str = "melody.xyjin@gmail.com",
     trigger: str = "override",
@@ -443,6 +455,8 @@ def create_note(
         type=note_type,
         subject_gene_sets=gene_sets,
         subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
     tension = reconcile(stub_note, literature_search)
 
@@ -464,6 +478,8 @@ def create_note(
         type=note_type,
         subject_gene_sets=gene_sets,
         subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
     _write_note(note, base_dir)
     log_decision(
@@ -649,6 +665,8 @@ def supersede_note(
         note_type=old.type,
         subject_gene_sets=old.subject_gene_sets,
         subject_clusters=old.subject_clusters,
+        subject_lineage=old.subject_lineage,
+        subject_category=old.subject_category,
         dataset=old.scope_ref.dataset,
         attributed_to=old.author,
         trigger="manual_add",

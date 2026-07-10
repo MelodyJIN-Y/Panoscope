@@ -602,6 +602,8 @@ def _draft_payload(draft) -> dict[str, Any]:
         "type": draft.type,
         "subject_gene_sets": list(draft.subject_gene_sets),
         "subject_clusters": list(draft.subject_clusters),
+        "subject_lineage": draft.subject_lineage,
+        "subject_category": draft.subject_category,
         "tension": {
             "thin": t.thin,
             "query": t.query,
@@ -628,6 +630,8 @@ def memory_draft(
     note_type: str = "celltype_override",
     subject_gene_sets: Optional[list[str]] = None,
     subject_clusters: Optional[list[str]] = None,
+    subject_lineage: str = "",
+    subject_category: str = "",
     dataset: str = cfg.DATASET_ID,
 ) -> Envelope:
     """PROPOSE a lab note (reconciled against the literature) WITHOUT saving it.
@@ -661,6 +665,8 @@ def memory_draft(
             note_type=note_type,  # type: ignore[arg-type]
             subject_gene_sets=subject_gene_sets,
             subject_clusters=subject_clusters,
+            subject_lineage=subject_lineage,
+            subject_category=subject_category,
             dataset=dataset,
             literature_search=lit_fn,
         )
@@ -976,7 +982,19 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 },
                 "subject_cell_type": {
                     "type": "string",
-                    "description": "Cell type the note is about (optional).",
+                    "description": "For a celltype_override: the biologist's NEW cell-type call "
+                    "(e.g. 'CAF'); it replaces the displayed/exported cell type at composition. "
+                    "Otherwise the cell type the note is about (optional).",
+                },
+                "subject_lineage": {
+                    "type": "string",
+                    "description": "For a celltype_override: the NEW lineage for the new call "
+                    "(you infer it, e.g. CAF -> Stromal). Applied alongside the new cell type.",
+                },
+                "subject_category": {
+                    "type": "string",
+                    "description": "For a celltype_override: the NEW category for the new call "
+                    "(you infer it, e.g. CAF -> Stromal). Applied alongside the new cell type.",
                 },
                 "subject_markers": {
                     "type": "array",

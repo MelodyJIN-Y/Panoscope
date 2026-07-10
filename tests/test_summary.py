@@ -56,6 +56,36 @@ def test_exclude_note_flips_the_export_at_composition(monkeypatch) -> None:
     assert base_c9 != excl_c9 and "TRUE" in excl_c9.upper()
 
 
+def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
+    """A confirmed celltype_override overlays the new call + lineage/category at
+    composition (verify flagged only when the literature dissents), never mutating the
+    deterministic verdict (docs/note-capture-design.md; user decision 2026-07-10)."""
+    from agent import config as cfg
+    from agent.types import Citation, Note, ScopeRef, Tension
+
+    dissent = Citation(pmid="30000009", title="", authors="", year=2020, journal="",
+                       stance="dissent", is_real=True)
+    ov = Note(
+        id="ov1", claim="c2 is CAF, not generic stroma", scope="cluster",
+        scope_ref=ScopeRef(dataset=cfg.DATASET_ID, cluster="c2"), basis="own_validation",
+        status="firm", subject_cell_type="CAF", subject_markers=(),
+        tension=Tension(agree=(), dissent=(dissent,), thin=False, query="", looked_up_at=""),
+        author="", created_at="2026-07-10T00:00:00+00:00", trigger="override", supersedes=None,
+        type="celltype_override", subject_lineage="Fibroblast", subject_category="Stromal",
+    )
+    monkeypatch.setattr(da, "_override_notes", lambda: {"c2": ov})
+
+    comp = {v.cluster: v for v in da.composed_verdicts()}
+    assert comp["c2"].cell_type == "CAF"
+    assert comp["c2"].lineage == "Fibroblast" and comp["c2"].category == "Stromal"
+    assert comp["c2"].verify is True          # literature dissents -> flagged
+    assert comp["c1"].cell_type != "CAF"       # other clusters untouched
+    assert da.verdict_for("c2").cell_type == "Stromal"  # deterministic verdict never mutated
+
+    info = da.override_info("c2")
+    assert info["new_call"] == "CAF" and info["computed_call"] == "Stromal" and info["dissent"] == 1
+
+
 def test_overview_table_column_order_and_grounding() -> None:
     """The overview merges the marker call and the enriched programs into one row
     per cluster: columns in order, and every value is a projection of the verdicts
