@@ -71,7 +71,7 @@ def _resolve_page() -> str:
     """
     if _K_PAGE not in st.session_state:
         url_page = st.query_params.get("page")
-        st.session_state[_K_PAGE] = url_page if url_page in _VALID_PAGES else _PAGE_EXAMINE
+        st.session_state[_K_PAGE] = url_page if url_page in _VALID_PAGES else _PAGE_SUMMARY
     page = st.session_state[_K_PAGE]
     if st.query_params.get("page") != page:
         st.query_params["page"] = page
@@ -139,9 +139,19 @@ def _top_bar(page: str) -> None:
             )
         with tabs_col:
             with st.container(key="pano_topnav"):
-                # Order: Marker genes · Pathways · Summary. Summary is the final,
-                # integrated step, so it reads last (left-to-right = the workflow).
-                t_examine, t_pathways, t_summary = st.columns(3)
+                # Order: Summary · Marker genes · Pathways. Summary leads — it is the
+                # review surface the biologist lands on and signs off from; the marker
+                # and pathway panes are the evidence it stands on.
+                t_summary, t_examine, t_pathways = st.columns(3)
+                with t_summary:
+                    st.button(
+                        "Summary",
+                        key="nav_summary",
+                        type="primary" if page == _PAGE_SUMMARY else "secondary",
+                        use_container_width=True,
+                        on_click=_set_page,
+                        args=(_PAGE_SUMMARY,),
+                    )
                 with t_examine:
                     st.button(
                         "Marker genes",
@@ -159,15 +169,6 @@ def _top_bar(page: str) -> None:
                         use_container_width=True,
                         on_click=_set_page,
                         args=(_PAGE_PATHWAYS,),
-                    )
-                with t_summary:
-                    st.button(
-                        "Summary",
-                        key="nav_summary",
-                        type="primary" if page == _PAGE_SUMMARY else "secondary",
-                        use_container_width=True,
-                        on_click=_set_page,
-                        args=(_PAGE_SUMMARY,),
                     )
         with ctx_col:
             st.markdown(

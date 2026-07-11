@@ -216,9 +216,9 @@ def test_reconciliation_items_are_grounded() -> None:
         for e in v.evidence
         if e.gene in v.key_markers and any("localizes better" in str(c) for c in e.caveats)
     }
-    joined = " ".join(body for _ic, body in items)
-    if "localize better" in joined:
-        assert real_spill, "claimed a spillover cue with no marker actually caveated"
+    # the spillover cue appears iff some marker really carries the caveat (grounded)
+    has_spill_cue = any("may localize to another cluster" in body for _ic, body in items)
+    assert has_spill_cue == bool(real_spill)
 
 
 def test_board_renders_headless() -> None:
@@ -246,9 +246,11 @@ def test_board_renders_headless() -> None:
         pytest.skip("Streamlit too old for st.container(key=...)")
     assert not at.exception, [str(e.value) for e in at.exception]
     labels = [b.label for b in at.button]
-    assert sum("Sign off" in ln for ln in labels) >= 1
+    # one drill link per cluster (c1..c9) + at least one sign-off control (☐ / Confirm)
+    assert sum(ln in {f"c{i}" for i in range(1, 10)} for ln in labels) == 9
+    assert any(ln in ("☐", "Confirm", "✓") for ln in labels)
     md = "\n".join(m.value for m in at.markdown)
-    assert "signed off" in md and "Reconcile across clusters" in md
+    assert "signed off" in md and "Key evidence" in md
 
 
 def test_flag_reason_is_grounded_not_blanket_thin() -> None:
