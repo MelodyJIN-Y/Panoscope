@@ -235,14 +235,14 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .st-key-pano_subnav button[data-testid="stBaseButton-primary"] { background: var(--accent-soft) !important;
   color: var(--accent) !important; font-weight: 600 !important; }
 /* Lead: one plain-language instruction + progress — says what to do, no mono noise. */
-.pano-lead { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 2px 0 14px; max-width: 900px; }
+.pano-lead { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 2px 0 14px; max-width: 820px; }
 .pano-lead b { color: var(--ink); font-weight: 700; }
 .pano-lead .prog { color: var(--muted); }
 .pano-lead .need { color: var(--absent); font-weight: 600; }
 .pano-lead .sep { color: var(--hair); margin: 0 8px; }
 /* Reconciliation: one calm line, neutral surface, no coloured left border. */
 .pano-recon-line { font-size: 11.5px; line-height: 1.55; color: var(--muted); background: var(--paper);
-  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 900px; }
+  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 820px; }
 .pano-recon-line .ic { color: var(--faint); font-weight: 700; margin-right: 6px; }
 .pano-recon-line .cid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
 .pano-recon-line b { color: var(--ink); font-weight: 600; }
@@ -250,7 +250,16 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
    the columns stay tight instead of sprawling across the viewport. */
 .st-key-pano_tblcard { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px;
   box-shadow: 0 1px 2px rgba(20,27,32,.05), 0 6px 22px rgba(20,27,32,.035);
-  padding: 4px 22px 8px; max-width: 900px; }
+  padding: 4px 22px 8px; max-width: 820px; }
+/* Confidence as a SOFT badge (uniform light chip, ramp-coloured text) — reads the
+   gradient without the heavy solid pills. */
+.pano-cfb { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px;
+  border-radius: 5px; letter-spacing: .02em; white-space: nowrap; background: #EFF2F3; }
+.pano-cfb-vh { color: #0F5B65; }
+.pano-cfb-h  { color: #237E89; }
+.pano-cfb-mh { color: #3B7C84; }
+.pano-cfb-m  { color: #737B82; }
+.pano-cfb-l  { color: #99A2A9; }
 /* Column header. */
 .pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
   color: var(--faint); font-weight: 600; padding: 6px 0 8px; }
@@ -280,19 +289,29 @@ div[class*="st-key-tdrill_"] button { min-height: 0 !important; padding: 4px 0 !
   background: transparent !important; box-shadow: none !important; color: var(--muted) !important;
   font-family: var(--mono) !important; font-size: 12px !important; font-weight: 600 !important; text-align: left !important; }
 div[class*="st-key-tdrill_"] button:hover { color: var(--accent) !important; }
-/* Sign-off sits at the right edge of the row. */
-div[class*="st-key-tact_"] { display: flex; justify-content: flex-end; align-items: center; }
+/* Sign-off checkbox sits FIRST, as a checklist (the instruction says "tick each call"). */
+div[class*="st-key-tact_"] { display: flex; justify-content: center; align-items: center; }
 /* Checkbox-style toggle: a bare glyph (☐ / ✓ teal), matching the app's dot language. */
-div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 3px 8px !important;
+div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 3px 6px !important;
   border: 0 !important; background: transparent !important; box-shadow: none !important;
   color: var(--muted) !important; font-size: 19px !important; line-height: 1 !important; border-radius: 6px !important; }
 div[class*="st-key-tact_"] button:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }
 div[class*="st-key-tact_done_"] button { color: var(--accent) !important; }
-/* Confirm (flagged) — a small amber outline pill, never a stretched box. */
-div[class*="st-key-tact_confirm_"] button { border: 1px solid var(--absent) !important; color: var(--absent) !important;
-  background: var(--absent-bg) !important; font-family: var(--mono) !important; font-size: 10px !important;
-  font-weight: 700 !important; padding: 5px 11px !important; text-transform: uppercase; letter-spacing: .05em; }
-div[class*="st-key-tact_confirm_"] button:hover { background: var(--absent) !important; color: #fff !important; }
+/* A flagged row shows a static ⚠ in the checklist column; its action is on the sub-line. */
+.pano-tflag { color: var(--absent); font-size: 15px; text-align: center; width: 100%; }
+/* Sub-line for a flagged / to-refine row: reason text beside a compact action button. */
+.pano-tsub2 { font-size: 11px; color: var(--muted); line-height: 1.5; padding: 0 0 6px 2px; display: flex; align-items: center; min-height: 30px; }
+.pano-tsub2 .warn { color: var(--absent); font-weight: 600; }
+.pano-tsub2 b { color: var(--ink); font-weight: 600; }
+div[class*="st-key-tsubact_"] { display: flex; justify-content: flex-start; align-items: center; }
+div[class*="st-key-tsubact_"] button { min-height: 0 !important; padding: 5px 12px !important;
+  border: 1px solid var(--absent) !important; color: var(--absent) !important; background: var(--absent-bg) !important;
+  box-shadow: none !important; font-family: var(--mono) !important; font-size: 10px !important; font-weight: 700 !important;
+  border-radius: 7px !important; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+div[class*="st-key-tsubact_"] button:hover { background: var(--absent) !important; color: #fff !important; }
+div[class*="st-key-tsubact_refine_"] button { border-color: var(--accent) !important; color: var(--accent) !important;
+  background: var(--accent-soft) !important; }
+div[class*="st-key-tsubact_refine_"] button:hover { background: var(--accent) !important; color: #fff !important; }
 /* Drill-down back link. */
 div[class*="st-key-backlink"] button { min-height: 0 !important; padding: 3px 0 !important; border: 0 !important;
   background: transparent !important; box-shadow: none !important; color: var(--faint) !important;
@@ -651,9 +670,18 @@ def _render_signoff_card(st, cluster: str) -> None:
 
 
 # --- Row + board rendering -------------------------------------------------- #
-# Quiet-table columns: (label, width fraction). Sums to 1.0.
-_TBL_COLS = (("Cluster", 0.13), ("Cell type", 0.31), ("Conf.", 0.15),
-             ("Key evidence", 0.29), ("", 0.12))
+# Quiet-table columns: (label, width fraction). Sums to 1.0. The checkbox leads (a
+# left checklist — "tick each call"); the rest are content-sized so it reads dense.
+_TBL_COLS = (("", 0.05), ("Cluster", 0.09), ("Cell type", 0.32), ("Conf.", 0.18),
+             ("Key evidence", 0.36))
+
+
+def _conf_badge(confidence: str) -> str:
+    """Confidence as a soft, ramp-coloured badge (grounded label; the colour is the
+    design-system confidence band, projected — no value invented)."""
+    css, _ = fmt.confidence_chip(confidence)          # e.g. "cf-vh"
+    level = css.replace("cf-", "") or "m"
+    return f'<span class="pano-cfb pano-cfb-{html.escape(level)}">{html.escape(confidence)}</span>'
 
 
 def _accept_refine_button(st, refinement) -> None:
@@ -672,10 +700,10 @@ def _sign_control(st, v: ClusterVerdict, override, signed_rec, contested: bool) 
         with st.container(key=f"tact_done_{v.cluster}"):
             st.button("✓", key=f"sgn_{v.cluster}", on_click=_undo_sign_off, args=(v.cluster,), help=tip)
     elif contested:
-        with st.container(key=f"tact_confirm_{v.cluster}"):
-            st.button("Confirm", key=f"sgn_{v.cluster}", on_click=_begin_signoff,
-                      args=(v.cluster, _signoff_claim(v, override)),
-                      help="Confirm this flagged call — writes a validation note and clears the flag.")
+        # A flagged call can't be ticked off — it needs the Confirm flow (on its
+        # sub-line). The checklist column shows a static ⚠ so it reads as "not yet".
+        st.markdown('<div class="pano-tflag" title="needs a closer look before sign-off">⚠</div>',
+                    unsafe_allow_html=True)
     else:
         with st.container(key=f"tact_{v.cluster}"):
             st.button("☐", key=f"sgn_{v.cluster}", on_click=_sign_off_clean, args=(v.cluster,),
@@ -700,30 +728,63 @@ def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -
               else f"trowneed_{v.cluster}" if needs else f"trow_{v.cluster}")
     with st.container(key=rowkey):
         cols = st.columns([w for _, w in _TBL_COLS], vertical_alignment="center")
-        with cols[0], st.container(key=f"tdrill_{v.cluster}"):
+        with cols[0]:  # the checklist tick (or ⚠ for a flagged row)
+            _sign_control(st, v, override, signed_rec, contested)
+        with cols[1], st.container(key=f"tdrill_{v.cluster}"):
             st.button(v.cluster, key=f"drill_{v.cluster}", on_click=_set_active, args=(v.cluster,),
                       help="See this cluster's evidence + write-up")
         color = fmt.cluster_color(v.cluster)
         yours = ' <span class="yours">yours</span>' if override else ""
-        flag = ' <span class="flag" title="flagged for re-check">⚑</span>' if v.verify else ""
-        cols[1].markdown(
+        cols[2].markdown(
             f'<div class="pano-tc"><span class="dot" style="background:{color}"></span>'
-            f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}{flag}</div>',
+            f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</div>',
             unsafe_allow_html=True)
-        cols[2].markdown(f'<div class="pano-tcell">{_conf_pill(v.confidence)}</div>',
+        cols[3].markdown(f'<div class="pano-tcell">{_conf_badge(v.confidence)}</div>',
                          unsafe_allow_html=True)
-        cols[3].markdown(f'<div class="pano-tc">{_evidence_compact(v)}</div>', unsafe_allow_html=True)
-        with cols[4]:
-            _sign_control(st, v, override, signed_rec, contested)
-    sub = _table_subline_html(v, override, refinement, is_signed)
-    if sub:
-        st.markdown(sub, unsafe_allow_html=True)
+        cols[4].markdown(f'<div class="pano-tc">{_evidence_compact(v)}</div>', unsafe_allow_html=True)
+    # A flagged / to-refine row: its grounded reason beside a compact action button.
+    if not is_signed and needs:
+        _render_row_subline(st, v, override, refinement, contested)
     _render_signoff_card(st, v.cluster)
     if refinement is not None:
         from ui import conversation as convo
 
         convo._render_draft_card(v.cluster, thread_key=f"holistic::{v.cluster}",
                                  trigger="holistic_review")
+
+
+def _subline_reason_html(v: ClusterVerdict, override, refinement) -> str:
+    """The grounded reason text for a needs-action row (no wrapper)."""
+    bits: list[str] = []
+    if refinement is not None:
+        bits.append(f'refine &rarr; <b>{html.escape(refinement.to_call)}</b> · '
+                    f'{html.escape(refinement.rationale)}')
+    if v.verify:
+        bits.append(f'<span class="warn">flagged</span> — {html.escape(_flag_reason(v))}')
+    if override is not None and override.get("dissent"):
+        bits.append(f'override — {override["dissent"]} lit. dissent '
+                    f'(was {html.escape(override["computed_call"])})')
+    return " &nbsp;·&nbsp; ".join(bits)
+
+
+def _render_row_subline(st, v: ClusterVerdict, override, refinement, contested: bool) -> None:
+    """The reason line under a flagged / to-refine row, with its action button beside it —
+    Confirm & sign off for a flagged call, or Accept <refinement> for a subtype sharpening."""
+    tc, bc = st.columns([0.66, 0.34], vertical_alignment="center")
+    with tc:
+        st.markdown(f'<div class="pano-tsub2">{_subline_reason_html(v, override, refinement)}</div>',
+                    unsafe_allow_html=True)
+    with bc:
+        if contested:
+            with st.container(key=f"tsubact_{v.cluster}"):
+                st.button("Confirm & sign off", key=f"sgn_{v.cluster}", on_click=_begin_signoff,
+                          args=(v.cluster, _signoff_claim(v, override)),
+                          help="Confirm this flagged call — writes a validation note and clears the flag.")
+        elif refinement is not None:
+            with st.container(key=f"tsubact_refine_{v.cluster}"):
+                st.button(f"Accept {refinement.to_call}", key=f"acc_{v.cluster}",
+                          on_click=_draft_refinement, args=(refinement,),
+                          help="Draft this refinement as a cell-type override; confirm below.")
 
 
 def _render_table(st, verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
@@ -740,17 +801,27 @@ def _render_table(st, verdicts: list[ClusterVerdict], overrides: dict, signed: d
 
 def _render_drilldown_actions(st, v: ClusterVerdict, override, signed_rec, refinement) -> None:
     """Sign-off + chat (+ accept refinement) on the cluster drill-down, so review-then-accept
-    is one screen — the same controls as the table row, laid out inline above the evidence."""
+    is one screen. Labeled buttons here (unlike the table's bare checklist tick)."""
     contested = bool(v.verify or (override and override.get("dissent")))
-    c_sign, c_chat, _sp = st.columns([0.16, 0.16, 0.68])
-    with c_sign:
-        _sign_control(st, v, override, signed_rec, contested)
-    with c_chat, st.container(key=f"tact_chat_{v.cluster}"):
-        st.button("Chat", key=f"dchat_{v.cluster}", on_click=state.open_cluster_chat,
-                  args=(v.cluster,), use_container_width=True,
-                  help="Open this cluster's conversation to question or override the call.")
+    cols = st.columns([0.24, 0.18, 0.24, 0.34])
+    with cols[0]:
+        if signed_rec is not None:
+            st.button("✓ Signed — reopen", key=f"ddsign_{v.cluster}", use_container_width=True,
+                      on_click=_undo_sign_off, args=(v.cluster,))
+        elif contested:
+            st.button("Confirm & sign off", key=f"ddsign_{v.cluster}", type="primary",
+                      use_container_width=True, on_click=_begin_signoff,
+                      args=(v.cluster, _signoff_claim(v, override)))
+        else:
+            st.button("Sign off", key=f"ddsign_{v.cluster}", type="primary",
+                      use_container_width=True, on_click=_sign_off_clean, args=(v.cluster,))
+    with cols[1]:
+        st.button("Chat", key=f"ddchat_{v.cluster}", use_container_width=True,
+                  on_click=state.open_cluster_chat, args=(v.cluster,))
     if refinement is not None:
-        _accept_refine_button(st, refinement)
+        with cols[2]:
+            st.button(f"Accept {refinement.to_call}", key=f"ddrefine_{v.cluster}",
+                      use_container_width=True, on_click=_draft_refinement, args=(refinement,))
 
 
 def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -> str:
