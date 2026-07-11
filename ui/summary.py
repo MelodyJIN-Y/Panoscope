@@ -279,6 +279,7 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 /* Columns: the checklist tick + id stay narrow; the rest auto-size to content. */
 .ptbl .c-sign { width: 30px; text-align: center; }
 .ptbl .c-cid  { width: 42px; white-space: nowrap; }
+.ptbl .c-ct   { white-space: nowrap; }
 .ptbl .c-conf { white-space: nowrap; }
 /* Checklist tick (a query-param link). */
 .ptbl a.tick { text-decoration: none; font-size: 18px; color: var(--muted); line-height: 1; }
@@ -295,9 +296,10 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .ptbl .yours { font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .04em;
   font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; margin-left: 7px; }
 /* Key markers — the top driver (bold + coef) then the next key markers. */
-.ptbl .km { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+.ptbl .km { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; }
 .ptbl .km b { color: var(--ink); font-weight: 600; }
 .ptbl .km .n { color: var(--muted); }
+.ptbl .km-dash { color: var(--hair); margin: 0 5px; }
 /* Signed rows recede. */
 .ptbl tr.done td .ct, .ptbl tr.done td .km, .ptbl tr.done td .dot, .ptbl tr.done td .pano-cfb { opacity: .5; }
 /* Sub-row (flagged / to-refine): reason on the left, its action pill on the right,
@@ -765,17 +767,6 @@ def _conf_badge(confidence: str) -> str:
 # headers; something st.columns cannot deliver). Every action is a query-param
 # link the page dispatches on click; nothing here computes a value.
 # --------------------------------------------------------------------------- #
-def _stat_cell(v: ClusterVerdict) -> str:
-    """The top driver's stat, reference-style: the glm coef big, gene + pearson small
-    below. A grounded projection of the verdict evidence — nothing invented."""
-    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
-    if not ev:
-        return '<span class="bio-dim">—</span>'
-    top = ev[0]
-    return (f'<div class="stat-big">{top.glm_coef:.1f}</div>'
-            f'<div class="stat-sub"><b>{html.escape(top.gene)}</b> · pearson {top.pearson:.2f}</div>')
-
-
 def _attention_note(v: ClusterVerdict, override, refinement) -> str:
     """The short 'needs attention' reason for a caveat pill (grounded), or '' if none."""
     if v.verify:
@@ -788,21 +779,30 @@ def _attention_note(v: ClusterVerdict, override, refinement) -> str:
 
 
 def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
-    """The cell-type biology, reference-style: the grounded, live-cited note (summary +
-    real PMID) plus a small caveat pill for a cluster that needs a closer look. The note
-    text and PMID come straight from the pipeline's cited celltype_notes — never invented."""
+    """Biology · relevance (cited): the top marker signal (gene · glm · pearson) leads,
+    then the grounded, live-cited cell-type note (summary + real PMID), then a caveat pill
+    for a cluster that needs a closer look. Every number/PMID is projected from the verdict
+    evidence + the pipeline's cited celltype_notes — nothing invented."""
     note = ct_notes.get(v.cluster) or {}
     summary = str(note.get("summary") or "")
     pmid = note.get("pmid")
-    bits: list[str] = []
+    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
+    lead = ""
+    if ev:
+        top = ev[0]
+        lead = (f'<span class="km"><b>{html.escape(top.gene)}</b> glm {top.glm_coef:.1f} · '
+                f'pearson {top.pearson:.2f}</span>')
+    body: list[str] = []
     if summary:
-        bits.append(f'<span class="bio">{html.escape(summary)}</span>')
+        body.append(f'<span class="bio">{html.escape(summary)}</span>')
     if pmid:
-        bits.append(f'<a class="pmid" href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(pmid))}/" '
+        body.append(f'<a class="pmid" href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(pmid))}/" '
                     f'target="_blank">PMID:{html.escape(str(pmid))}</a>')
     if needs_note:
-        bits.append(f'<span class="cav">⚠ {html.escape(needs_note)}</span>')
-    return " ".join(bits) if bits else '<span class="bio-dim">—</span>'
+        body.append(f'<span class="cav">⚠ {html.escape(needs_note)}</span>')
+    if lead and body:
+        return f'{lead} <span class="km-dash">—</span> ' + " ".join(body)
+    return lead or " ".join(body) or '<span class="bio-dim">—</span>'
 
 
 def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
@@ -816,7 +816,6 @@ def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
         ct_notes = {}
     head = ('<thead><tr><th class="c-sign"></th><th class="c-cid">Cluster</th>'
             '<th class="c-ct">Cell type</th><th class="c-conf">Confidence</th>'
-            '<th class="c-stat">glm · pearson</th>'
             '<th>Biology · relevance <span class="cited">(cited)</span></th></tr></thead>')
     rows: list[str] = []
     for v in verdicts:
@@ -843,7 +842,6 @@ def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
             f'<td class="c-ct"><span class="dot" style="background:{color}"></span>'
             f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</td>'
             f'<td class="c-conf">{_conf_badge(v.confidence)}</td>'
-            f'<td class="c-stat">{_stat_cell(v)}</td>'
             f'<td>{_biology_cell(v, ct_notes, needs_note)}</td></tr>'
         )
     return f'<table class="ptbl">{head}<tbody>{"".join(rows)}</tbody></table>'
