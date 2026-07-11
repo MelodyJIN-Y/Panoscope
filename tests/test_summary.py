@@ -247,8 +247,8 @@ def test_board_renders_headless() -> None:
     assert not at.exception, [str(e.value) for e in at.exception]
     md = "\n".join(m.value for m in at.markdown)
     assert 'class="ptbl"' in md          # the aligned HTML table rendered
-    assert "sign it off" in md and "Key markers" in md
-    assert 'href="?sign=' in md          # a checklist tick link
+    assert "sign it off" in md and "Biology" in md
+    assert 'href="?sign=' in md          # a sign-off tick link for a clean call
     for ct in ("Tumor", "Stromal", "Mast Cells"):
         assert ct in md
 
@@ -278,10 +278,10 @@ def test_flag_reason_is_grounded_not_blanket_thin() -> None:
     assert "top marker CPA3" in summary._signoff_claim(da.verdict_for("c9"), None)
 
 
-def test_two_pending_signoff_cards_render_without_crash() -> None:
-    """Two contested sign-offs pending at once must not collide on a container key — the
-    fail-soft rule (a normal interaction never crashes the board). Regression for the
-    reproduced StreamlitDuplicateElementKey on a fixed 'sofcard' key."""
+def test_pending_signoff_card_renders_on_drilldown() -> None:
+    """A contested sign-off started from a cluster's drill-down renders its confirm card
+    there (per-cluster container key, no crash). The Overall table shows only a ⚠, so the
+    review action lives on the click-through — this checks the card still appears."""
     try:
         from streamlit.testing.v1 import AppTest
     except Exception:  # noqa: BLE001
@@ -295,10 +295,12 @@ def test_two_pending_signoff_cards_render_without_crash() -> None:
         from ui import summary as _summary
 
         _state.init_state()
-        for c in ("c8", "c9"):
-            d = memory.draft_note(claim=f"Confirmed {c}", scope="cluster", basis="convention",
-                                  cluster=c, note_type="validation", literature_search=None)
-            _state.set_pending_draft(f"signoff::{c}", d)
+        import streamlit as _st
+
+        _st.session_state["sum_active_section"] = "c9"      # drill into c9
+        d = memory.draft_note(claim="Confirmed c9", scope="cluster", basis="convention",
+                              cluster="c9", note_type="validation", literature_search=None)
+        _state.set_pending_draft("signoff::c9", d)
         _summary.render_summary_page()
 
     at = AppTest.from_function(_run)
@@ -308,4 +310,4 @@ def test_two_pending_signoff_cards_render_without_crash() -> None:
 
         pytest.skip("Streamlit too old for st.container(key=...)")
     assert not at.exception, [str(e.value) for e in at.exception]
-    assert sum("Confirm sign-off" in b.label for b in at.button) == 2
+    assert sum("Confirm sign-off" in b.label for b in at.button) == 1

@@ -235,14 +235,14 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .st-key-pano_subnav button[data-testid="stBaseButton-primary"] { background: var(--accent-soft) !important;
   color: var(--accent) !important; font-weight: 600 !important; }
 /* Lead: one plain-language instruction + progress — says what to do, no mono noise. */
-.pano-lead { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 2px 0 14px; max-width: 820px; }
+.pano-lead { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 2px 0 14px; max-width: 100%; }
 .pano-lead b { color: var(--ink); font-weight: 700; }
 .pano-lead .prog { color: var(--muted); }
 .pano-lead .need { color: var(--absent); font-weight: 600; }
 .pano-lead .sep { color: var(--hair); margin: 0 8px; }
 /* Reconciliation: one calm line, neutral surface, no coloured left border. */
 .pano-recon-line { font-size: 11.5px; line-height: 1.55; color: var(--muted); background: var(--paper);
-  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 820px; }
+  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 100%; }
 .pano-recon-line .ic { color: var(--faint); font-weight: 700; margin-right: 6px; }
 .pano-recon-line .cid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
 .pano-recon-line b { color: var(--ink); font-weight: 600; }
@@ -250,7 +250,7 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
    the columns stay tight instead of sprawling across the viewport. */
 .st-key-pano_tblcard { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px;
   box-shadow: 0 1px 2px rgba(20,27,32,.05), 0 6px 22px rgba(20,27,32,.035);
-  padding: 4px 22px 8px; max-width: 820px; }
+  padding: 4px 22px 8px; max-width: 100%; }
 /* Confidence as a SOFT badge (uniform light chip, ramp-coloured text) — reads the
    gradient without the heavy solid pills. */
 .pano-cfb { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px;
@@ -265,11 +265,13 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
  *     headers, tight even rhythm — what st.columns cannot give). Actions are
  *     query-param links the app dispatches on click. =========================== */
 .ptbl { width: 100%; border-collapse: collapse; font-family: var(--sans); table-layout: auto; }
+/* Reset Streamlit's default markdown-table borders (they add the boxy vertical rules). */
+.ptbl, .ptbl th, .ptbl td, .ptbl tr { border: 0 !important; background: transparent; }
 .ptbl thead th { text-align: left; font-family: var(--mono); font-size: 9px; text-transform: uppercase;
-  letter-spacing: .1em; color: var(--faint); font-weight: 600; padding: 4px 16px 10px 0; white-space: nowrap;
-  border-bottom: 1px solid var(--hair); }
+  letter-spacing: .1em; color: var(--faint); font-weight: 600; padding: 4px 18px 10px 0; white-space: nowrap;
+  border-bottom: 1px solid var(--hair) !important; }
 .ptbl thead th:first-child { padding-left: 2px; }
-.ptbl td { padding: 8px 16px 8px 0; border-bottom: 1px solid var(--hair2); vertical-align: middle; }
+.ptbl td { padding: 9px 18px 9px 0; border-bottom: 1px solid var(--hair2) !important; vertical-align: middle; }
 .ptbl td:first-child { padding-left: 2px; }
 .ptbl tbody tr:last-child td { border-bottom: 0; }
 .ptbl tbody tr.prow:hover td { background: #FAFCFC; }
@@ -282,7 +284,8 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .ptbl a.tick { text-decoration: none; font-size: 18px; color: var(--muted); line-height: 1; }
 .ptbl a.tick:hover { color: var(--accent); }
 .ptbl a.tick.done { color: var(--accent); }
-.ptbl .warnflag { color: var(--absent); font-size: 15px; }
+.ptbl a.warnflag { color: var(--absent); font-size: 15px; text-decoration: none; }
+.ptbl a.warnflag:hover { filter: brightness(.85); }
 /* Cluster id link. */
 .ptbl a.cid { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; }
 .ptbl a.cid:hover { color: var(--accent); }
@@ -310,6 +313,29 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .ptbl a.act.confirm:hover { background: var(--absent); color: #fff; }
 .ptbl a.act.accept { border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
 .ptbl a.act.accept:hover { background: var(--accent); color: #fff; }
+/* --- Reference-style rich rows: big GLM/pearson stat + cited biology + caveat pill --- */
+.ptbl th .cited { text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 500; }
+.ptbl .c-stat { white-space: nowrap; }
+.ptbl .stat-big { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.05; }
+.ptbl .stat-sub { font-family: var(--mono); font-size: 9.5px; color: var(--faint); margin-top: 3px; }
+.ptbl .stat-sub b { color: var(--muted); font-weight: 600; }
+.ptbl .bio { font-size: 12px; color: var(--muted); line-height: 1.55; }
+.ptbl .bio-dim { color: var(--faint); }
+.ptbl a.pmid { font-family: var(--mono); font-size: 10.5px; color: var(--accent); text-decoration: none; white-space: nowrap; margin-left: 5px; }
+.ptbl a.pmid:hover { text-decoration: underline; }
+.ptbl .cav { font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--absent); border: 1px solid var(--absent);
+  border-radius: 5px; padding: 2px 7px; margin-left: 8px; white-space: nowrap; }
+/* Tick as a circle (○ open / ● teal filled), matching the reference's select-dot language. */
+.ptbl a.tick { font-size: 14px; }
+.ptbl a.tick.done { font-size: 14px; }
+/* Read-only cross-cluster overview (bullets) at the top of the page. */
+.pano-ovw { background: var(--paper); border: 1px solid var(--hair); border-radius: 12px;
+  padding: 13px 20px; margin: 2px 0 16px; }
+.pano-ovw-hd { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--faint); font-weight: 600; margin: 0 0 7px; }
+.pano-ovw ul { margin: 0; padding-left: 19px; }
+.pano-ovw li { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 5px 0; }
+.pano-ovw li::marker { color: var(--accent); }
 /* Column header. */
 .pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
   color: var(--faint); font-weight: 600; padding: 6px 0 8px; }
@@ -739,27 +765,59 @@ def _conf_badge(confidence: str) -> str:
 # headers; something st.columns cannot deliver). Every action is a query-param
 # link the page dispatches on click; nothing here computes a value.
 # --------------------------------------------------------------------------- #
-def _km_cell(v: ClusterVerdict) -> str:
-    """Key markers: the top driver (bold + glm coef) then up to two more key markers.
-    A grounded projection of the verdict (evidence + key_markers) — nothing invented."""
+def _stat_cell(v: ClusterVerdict) -> str:
+    """The top driver's stat, reference-style: the glm coef big, gene + pearson small
+    below. A grounded projection of the verdict evidence — nothing invented."""
     ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
     if not ev:
-        return '<span class="km">—</span>'
+        return '<span class="bio-dim">—</span>'
     top = ev[0]
-    parts = [f'<b>{html.escape(top.gene)}</b> <span class="n">{top.glm_coef:.1f}</span>']
-    extra = [str(g) for g in (v.key_markers or []) if str(g) != top.gene][:2]
-    if extra:
-        parts.append(html.escape(" · ".join(extra)))
-    return '<span class="km">' + " · ".join(parts) + "</span>"
+    return (f'<div class="stat-big">{top.glm_coef:.1f}</div>'
+            f'<div class="stat-sub"><b>{html.escape(top.gene)}</b> · pearson {top.pearson:.2f}</div>')
+
+
+def _attention_note(v: ClusterVerdict, override, refinement) -> str:
+    """The short 'needs attention' reason for a caveat pill (grounded), or '' if none."""
+    if v.verify:
+        return _flag_reason(v)
+    if refinement is not None:
+        return f"refine → {refinement.to_call}?"
+    if override is not None and override.get("dissent"):
+        return f'{override["dissent"]} lit. dissent'
+    return ""
+
+
+def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
+    """The cell-type biology, reference-style: the grounded, live-cited note (summary +
+    real PMID) plus a small caveat pill for a cluster that needs a closer look. The note
+    text and PMID come straight from the pipeline's cited celltype_notes — never invented."""
+    note = ct_notes.get(v.cluster) or {}
+    summary = str(note.get("summary") or "")
+    pmid = note.get("pmid")
+    bits: list[str] = []
+    if summary:
+        bits.append(f'<span class="bio">{html.escape(summary)}</span>')
+    if pmid:
+        bits.append(f'<a class="pmid" href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(pmid))}/" '
+                    f'target="_blank">PMID:{html.escape(str(pmid))}</a>')
+    if needs_note:
+        bits.append(f'<span class="cav">⚠ {html.escape(needs_note)}</span>')
+    return " ".join(bits) if bits else '<span class="bio-dim">—</span>'
 
 
 def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
                 refinements: dict) -> str:
-    """The whole review table as one aligned HTML table. Rows in stable cluster order;
-    flagged / to-refine rows carry an on-grid sub-row with their reason + action pill."""
+    """The review table, reference-style: identity · big glm/pearson stat · cited biology.
+    A cluster that needs a closer look carries a small ⚠ (no inline actions) — the full
+    reason + Confirm/Accept live on its click-through drill-down."""
+    try:
+        ct_notes = da.celltype_notes()
+    except Exception:  # noqa: BLE001 - no notes -> the biology column just shows a dash
+        ct_notes = {}
     head = ('<thead><tr><th class="c-sign"></th><th class="c-cid">Cluster</th>'
             '<th class="c-ct">Cell type</th><th class="c-conf">Confidence</th>'
-            '<th>Key markers</th></tr></thead>')
+            '<th class="c-stat">glm · pearson</th>'
+            '<th>Biology · relevance <span class="cited">(cited)</span></th></tr></thead>')
     rows: list[str] = []
     for v in verdicts:
         c = v.cluster
@@ -770,32 +828,38 @@ def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
         needs = (contested or refinement is not None) and not is_signed
         cls = "prow" + (" need" if needs else "") + (" done" if is_signed else "")
         if is_signed:
-            sign = f'<a class="tick done" href="?undo={c}" target="_self" title="signed — reopen">✓</a>'
-        elif contested:
-            sign = '<span class="warnflag" title="needs a closer look before sign-off">⚠</span>'
+            sign = f'<a class="tick done" href="?undo={c}" target="_self" title="signed — reopen">●</a>'
+        elif needs:
+            sign = ('<a class="warnflag" href="?drill=' + c + '" target="_self" '
+                    'title="needs a closer look — click for details">⚠</a>')
         else:
-            sign = f'<a class="tick" href="?sign={c}" target="_self" title="sign off">☐</a>'
+            sign = f'<a class="tick" href="?sign={c}" target="_self" title="sign off">○</a>'
         color = fmt.cluster_color(c)
         yours = ' <span class="yours">yours</span>' if override else ""
+        needs_note = _attention_note(v, override, refinement) if needs else ""
         rows.append(
             f'<tr class="{cls}"><td class="c-sign">{sign}</td>'
             f'<td class="c-cid"><a class="cid" href="?drill={c}" target="_self">{html.escape(c)}</a></td>'
             f'<td class="c-ct"><span class="dot" style="background:{color}"></span>'
             f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</td>'
             f'<td class="c-conf">{_conf_badge(v.confidence)}</td>'
-            f'<td>{_km_cell(v)}</td></tr>'
+            f'<td class="c-stat">{_stat_cell(v)}</td>'
+            f'<td>{_biology_cell(v, ct_notes, needs_note)}</td></tr>'
         )
-        if needs:
-            reason = _subline_reason_html(v, override, refinement)
-            if contested:
-                btn = f'<a class="act confirm" href="?confirm={c}" target="_self">Confirm &amp; sign off</a>'
-            else:
-                btn = (f'<a class="act accept" href="?accept={c}" target="_self">'
-                       f'Accept {html.escape(refinement.to_call)}</a>')
-            rows.append('<tr class="need subrow"><td class="c-sign"></td>'
-                        f'<td colspan="4"><div class="subwrap"><div class="subtext">{reason}</div>'
-                        f'{btn}</div></td></tr>')
     return f'<table class="ptbl">{head}<tbody>{"".join(rows)}</tbody></table>'
+
+
+def _overview_bullets_html(text: str) -> str:
+    """The cross-cluster synthesis as read-only bullet points (each paragraph -> a bullet).
+    Grounded prose from ``report.global_check_text`` — shown, never edited here."""
+    paras = [p.strip() for p in text.split("\n\n") if p.strip()]
+    if len(paras) <= 1:
+        paras = [p.strip() for p in text.split("\n") if p.strip()]
+    if not paras:
+        return ""
+    items = "".join(f"<li>{html.escape(p)}</li>" for p in paras)
+    return ('<div class="pano-ovw"><div class="pano-ovw-hd">Cross-cluster overview</div>'
+            f"<ul>{items}</ul></div>")
 
 
 def _handle_table_actions(st, verdicts: list[ClusterVerdict], overrides: dict,
@@ -1332,39 +1396,18 @@ def render_summary_page() -> None:
 
     with st.container(key="pano_pane"):
         if active == _SEC_OVERALL:
-            # One job on this screen: review the calls and sign them off. A plain
-            # instruction, the grounded reconciliation line, then the table.
+            # The cross-cluster synthesis as read-only bullets at the top (grounded prose;
+            # not editable here), then the instruction, then the full-width review table.
+            bullets = _overview_bullets_html(ws_defaults.get(_ED_GLOBAL, ""))
+            if bullets:
+                st.markdown(bullets, unsafe_allow_html=True)
             st.markdown(_lead_html(n_signed, len(verdicts), n_needs), unsafe_allow_html=True)
-            line = _reconciliation_line_html(_reconciliation_items(verdicts, themes, overrides))
-            if line:
-                st.markdown(line, unsafe_allow_html=True)
             with st.container(key="pano_tblcard"):
                 st.markdown(_table_html(verdicts, overrides, signed, refinements),
                             unsafe_allow_html=True)
-            # A pending confirm / accept card (Streamlit widgets) renders below the table
-            # when the biologist clicks Confirm / Accept on a flagged or to-refine row.
-            for v in verdicts:
-                _render_signoff_card(st, v.cluster)
-                if v.cluster in refinements:
-                    from ui import conversation as convo
-
-                    convo._render_draft_card(v.cluster, thread_key=f"holistic::{v.cluster}",
-                                             trigger="holistic_review")
-
-            # Everything that is NOT the review action is folded away — the report
-            # intro prose and the re-draft control live in one collapsed disclosure so
-            # they never compete with the table.
-            with st.expander("Report intro & options", expanded=False):
-                st.markdown('<div class="pano-export-note">A short synthesis across all calls, '
-                            "opening the exported report — edit freely.</div>",
-                            unsafe_allow_html=True)
-                _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
-                        height=_autoheight(_val(_ED_GLOBAL), min_lines=6))
-                _save_button(st, _ED_GLOBAL)
-                st.button("↻ re-draft everything from the latest calls", key="btn_ws_refresh",
-                          on_click=_reset_ws_all, args=(ws_defaults, rep.dataset),
-                          help="Rebuild every region from the latest calls, programs, and my "
-                               "notes — replaces your current edits.")
+            # A cluster that needs attention shows only a ⚠ in the table; its full reason
+            # and Confirm / Accept actions live on the click-through drill-down. Any draft
+            # started there renders its confirm card on that drill-down, not here.
 
         elif active in sec_by_id:
             with st.container(key="backlink"):
