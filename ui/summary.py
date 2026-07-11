@@ -219,52 +219,87 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .pano-lk-empty { font-family: var(--mono); font-size: 12px; color: var(--faint); border: 1px dashed var(--hair);
   border-radius: 10px; padding: 16px; text-align: center; }
 
-/* --- Quiet review table (the Overall pane) ------------------------------ */
-/* Count line above the table. */
-.pano-tbl-meta { font-family: var(--mono); font-size: 11px; color: var(--faint); margin: 2px 0 10px; }
-.pano-tbl-meta .n { color: var(--ink); font-weight: 600; }
-.pano-tbl-meta .sep { color: var(--hair); margin: 0 7px; }
-/* Reconciliation: one calm line on a neutral surface — a full hairline, never a
-   coloured left border. */
-.pano-recon-line { font-size: 11.5px; line-height: 1.55; color: var(--muted); background: #FAFBFC;
-  border: 1px solid var(--hair); border-radius: 9px; padding: 8px 12px; margin: 0 0 16px; }
-.pano-recon-line .ic { color: var(--faint); font-weight: 700; margin-right: 7px; }
+/* --- Clinical review table (the Overall pane) --------------------------- *
+ * Swiss/clinical: one contained surface, tight columns, strong hierarchy,
+ * restrained colour. Depth via a hairline + soft shadow, never boxes-in-boxes. */
+/* Section sub-nav (Overall · Caveats · My notes) — the clusters live in the
+   table, so the nav is only the dataset-level sections. */
+.st-key-pano_subnav { max-width: 360px; margin: 0 0 16px; background: var(--paper);
+  border: 1px solid var(--hair); border-radius: 10px; padding: 3px; }
+.st-key-pano_subnav [data-testid="stHorizontalBlock"] { gap: 3px; }
+.st-key-pano_subnav div[data-testid="stButton"] > button { background: transparent !important;
+  border: 0 !important; box-shadow: none !important; border-radius: 7px !important; min-height: 0 !important;
+  padding: 6px 10px !important; font-family: var(--sans) !important; font-size: 12.5px !important;
+  font-weight: 500 !important; color: var(--muted) !important; }
+.st-key-pano_subnav div[data-testid="stButton"] > button:hover { background: var(--hair2) !important; color: var(--ink) !important; }
+.st-key-pano_subnav button[data-testid="stBaseButton-primary"] { background: var(--accent-soft) !important;
+  color: var(--accent) !important; font-weight: 600 !important; }
+/* One clean stat strip (replaces the two duplicate status lines). */
+.pano-stat { display: flex; align-items: baseline; gap: 22px; margin: 0 0 13px; max-width: 1060px; }
+.pano-stat .item { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--ink);
+  letter-spacing: -.01em; }
+.pano-stat .item .lab { font-size: 11px; font-weight: 500; color: var(--faint); margin-left: 5px;
+  font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+.pano-stat .item.warn { color: var(--absent); }
+.pano-stat .item.dim { color: var(--faint); font-weight: 500; }
+/* Reconciliation: one calm line, neutral surface, no coloured left border. */
+.pano-recon-line { font-size: 11.5px; line-height: 1.55; color: var(--muted); background: var(--paper);
+  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 1060px; }
+.pano-recon-line .ic { color: var(--faint); font-weight: 700; margin-right: 6px; }
 .pano-recon-line .cid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
 .pano-recon-line b { color: var(--ink); font-weight: 600; }
-/* Column header row. */
-.pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
-  color: var(--faint); font-weight: 600; padding: 0 0 3px; }
-/* Table rows: a thin hairline separator + gentle hover. No boxes, no side borders. */
-div[class*="st-key-trow_"] { border-bottom: 1px solid var(--hair2); padding: 5px 2px; }
-div[class*="st-key-trow_"]:hover { background: #FAFCFC; }
-div[class*="st-key-trowdone_"] .pano-tc, div[class*="st-key-trowdone_"] .pano-tcell { opacity: .5; }
+/* The table's contained surface: a white card with a soft shadow, width-capped so
+   the columns stay tight instead of sprawling across the viewport. */
+.st-key-pano_tblcard { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(20,27,32,.05), 0 6px 22px rgba(20,27,32,.035);
+  padding: 4px 20px 8px; max-width: 1060px; }
+/* Column header. */
+.pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--faint); font-weight: 600; padding: 6px 0 8px; }
+.st-key-pano_thead { border-bottom: 1px solid var(--hair); }
+/* Rows: hairline separators, a real row rhythm, subtle state tints (never a side border). */
+div[class*="st-key-trow_"] { border-bottom: 1px solid var(--hair2); padding: 2px 0; }
+div[class*="st-key-trowneed_"] { background: #FCFAF3; }               /* needs action — a warm wash */
+div[class*="st-key-trowdone_"] .pano-tc, div[class*="st-key-trowdone_"] .pano-tcell { opacity: .42; }
+div[class*="st-key-trow_"]:hover, div[class*="st-key-trowneed_"]:hover { background: var(--accent-soft); }
 /* Cells. */
-.pano-tc { display: flex; align-items: center; gap: 8px; }
+.pano-tc { display: flex; align-items: center; gap: 9px; min-height: 34px; }
 .pano-tc .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
-.pano-tc .ct { font-size: 13px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; }
+.pano-tc .ct { font-size: 13.5px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; }
 .pano-tc .yours { font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .04em;
   font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
 .pano-tc .flag { color: var(--absent); font-size: 11px; }
-.pano-tcell { font-size: 12px; color: var(--muted); }
-.pano-tcell.mono { font-family: var(--mono); font-size: 11px; }
-.pano-tcell .g { color: var(--ink); font-weight: 600; }
-.pano-tcell .r { color: var(--faint); }
-.pano-tsub { font-size: 11px; color: var(--faint); line-height: 1.5; margin: 1px 0 5px 22px; }
-.pano-tsub .warn { color: var(--absent); }
-.pano-tsub b { color: var(--muted); font-weight: 600; }
-/* Cluster id — a borderless text button that drills into the evidence. */
-div[class*="st-key-tdrill_"] button { min-height: 0 !important; padding: 2px 0 !important; border: 0 !important;
-  background: transparent !important; box-shadow: none !important; color: var(--faint) !important;
-  font-family: var(--mono) !important; font-size: 12px !important; font-weight: 600 !important; text-align: left; }
+.pano-tcell { font-size: 12px; color: var(--muted); display: flex; align-items: center; min-height: 34px; }
+.pano-tcell.mono { font-family: var(--mono); font-size: 11.5px; }
+.pano-tcell .g { color: var(--ink); font-weight: 600; margin-right: 7px; }
+.pano-tcell .r { color: var(--faint); margin-left: 3px; }
+.pano-tsub { font-size: 11px; color: var(--muted); line-height: 1.5; margin: -4px 0 6px 0; padding-left: 1px; }
+.pano-tsub .warn { color: var(--absent); font-weight: 600; }
+.pano-tsub b { color: var(--ink); font-weight: 600; }
+/* Cluster id — a borderless mono link that drills into the evidence. */
+div[class*="st-key-tdrill_"] { display: flex; align-items: center; }
+div[class*="st-key-tdrill_"] button { min-height: 0 !important; padding: 4px 0 !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; color: var(--muted) !important;
+  font-family: var(--mono) !important; font-size: 12px !important; font-weight: 600 !important; text-align: left !important; }
 div[class*="st-key-tdrill_"] button:hover { color: var(--accent) !important; }
-/* Sign-off control (a checkbox-style toggle / confirm) — quiet, accent only when set. */
-div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 3px 10px !important;
-  border-radius: 7px !important; font-size: 12px !important; font-weight: 600 !important;
-  border: 1px solid var(--hair) !important; background: var(--paper) !important; color: var(--faint) !important;
-  box-shadow: none !important; }
-div[class*="st-key-tact_"] button:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
-div[class*="st-key-tact_done_"] button { border-color: var(--accent) !important; color: var(--accent) !important;
-  background: var(--accent-soft) !important; }
+/* Sign-off sits at the right edge of the row. */
+div[class*="st-key-tact_"] { display: flex; justify-content: flex-end; align-items: center; }
+/* Checkbox-style toggle: a bare glyph (☐ faint / ✓ teal), matching the app's dot language. */
+div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 2px 7px !important;
+  border: 0 !important; background: transparent !important; box-shadow: none !important;
+  color: var(--faint) !important; font-size: 17px !important; line-height: 1 !important; border-radius: 6px !important; }
+div[class*="st-key-tact_"] button:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }
+div[class*="st-key-tact_done_"] button { color: var(--accent) !important; }
+/* Confirm (flagged) — a small amber outline pill, never a stretched box. */
+div[class*="st-key-tact_confirm_"] button { border: 1px solid var(--absent) !important; color: var(--absent) !important;
+  background: var(--absent-bg) !important; font-family: var(--mono) !important; font-size: 10px !important;
+  font-weight: 700 !important; padding: 5px 11px !important; text-transform: uppercase; letter-spacing: .05em; }
+div[class*="st-key-tact_confirm_"] button:hover { background: var(--absent) !important; color: #fff !important; }
+/* Drill-down back link. */
+div[class*="st-key-backlink"] button { min-height: 0 !important; padding: 3px 0 !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; color: var(--faint) !important;
+  font-family: var(--mono) !important; font-size: 11px !important; font-weight: 600 !important; }
+div[class*="st-key-backlink"] button:hover { color: var(--accent) !important; }
 /* Kept for the tested evidence-strength helper (drill-down / reuse). */
 .pano-str { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 4px; line-height: 1.5; }
 .pano-str-gene { color: var(--ink); font-weight: 600; }
@@ -450,15 +485,17 @@ def _evidence_compact(v: ClusterVerdict) -> str:
             f'{top.glm_coef:.1f}<span class="r"> · r{top.pearson:.2f}</span></span>')
 
 
-def _table_meta_html(verdicts: list[ClusterVerdict], signed: dict) -> str:
-    """The calm count line above the table: total · signed · flagged (grounded counts)."""
-    n = len(verdicts)
-    ns = sum(1 for v in verdicts if v.cluster in signed)
-    nf = sum(1 for v in verdicts if v.verify)
-    flag = f'<span class="n">{nf}</span> flagged' if nf else "none flagged"
-    return (f'<div class="pano-tbl-meta"><span class="n">{n}</span> calls'
-            f'<span class="sep">·</span><span class="n">{ns}</span> signed off'
-            f'<span class="sep">·</span>{flag}</div>')
+def _stat_strip_html(n_signed: int, n_total: int, n_needs: int, n_panel: int, status: str) -> str:
+    """One clean stat strip above the table — the single at-a-glance status (grounded
+    counts), replacing the two duplicate status lines the redesign removed."""
+    need = (f'<span class="item warn">{n_needs}<span class="lab">need you</span></span>'
+            if n_needs else '<span class="item dim">none flagged</span>')
+    status_html = f'<span class="item dim">{status}</span>' if status else ""
+    return ('<div class="pano-stat">'
+            f'<span class="item">{n_signed}<span class="lab">/ {n_total} signed off</span></span>'
+            f'{need}'
+            f'<span class="item dim">{n_panel}<span class="lab">gene panel</span></span>'
+            f'{status_html}</div>')
 
 
 def _table_subline_html(v: ClusterVerdict, override, refinement, is_signed: bool) -> str:
@@ -636,36 +673,39 @@ def _sign_control(st, v: ClusterVerdict, override, signed_rec, contested: bool) 
         at = str(signed_rec.get("at", "") or "")
         tip = f"Signed {at[11:16]} — click to reopen" if len(at) >= 16 else "Signed — click to reopen"
         with st.container(key=f"tact_done_{v.cluster}"):
-            st.button("✓", key=f"sgn_{v.cluster}", on_click=_undo_sign_off, args=(v.cluster,),
-                      help=tip, use_container_width=True)
+            st.button("✓", key=f"sgn_{v.cluster}", on_click=_undo_sign_off, args=(v.cluster,), help=tip)
     elif contested:
         with st.container(key=f"tact_confirm_{v.cluster}"):
             st.button("Confirm", key=f"sgn_{v.cluster}", on_click=_begin_signoff,
-                      args=(v.cluster, _signoff_claim(v, override)), use_container_width=True,
+                      args=(v.cluster, _signoff_claim(v, override)),
                       help="Confirm this flagged call — writes a validation note and clears the flag.")
     else:
         with st.container(key=f"tact_{v.cluster}"):
             st.button("☐", key=f"sgn_{v.cluster}", on_click=_sign_off_clean, args=(v.cluster,),
-                      help="Sign off — mark reviewed and accepted.", use_container_width=True)
+                      help="Sign off — mark reviewed and accepted.")
 
 
 def _render_table_head(st) -> None:
-    cols = st.columns([w for _, w in _TBL_COLS])
-    for col, (label, _w) in zip(cols, _TBL_COLS):
-        col.markdown(f'<div class="pano-th">{html.escape(label)}</div>', unsafe_allow_html=True)
+    with st.container(key="pano_thead"):
+        cols = st.columns([w for _, w in _TBL_COLS])
+        for col, (label, _w) in zip(cols, _TBL_COLS):
+            col.markdown(f'<div class="pano-th">{html.escape(label)}</div>', unsafe_allow_html=True)
 
 
 def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -> None:
-    """One calm table row: cluster (drill link) · cell type · confidence · key evidence ·
-    sign-off control, with a grounded reason sub-line and any pending confirm card below."""
+    """One table row: cluster (drill link) · cell type · confidence · key evidence ·
+    sign-off control, with a grounded reason sub-line and any pending confirm card below.
+    Signed rows recede; rows that need action carry a subtle warm wash (never a border)."""
     is_signed = signed_rec is not None
     contested = bool(v.verify or (override and override.get("dissent")))
-    rowkey = f"trowdone_{v.cluster}" if is_signed else f"trow_{v.cluster}"
+    needs = contested or refinement is not None
+    rowkey = (f"trowdone_{v.cluster}" if is_signed
+              else f"trowneed_{v.cluster}" if needs else f"trow_{v.cluster}")
     with st.container(key=rowkey):
         cols = st.columns([w for _, w in _TBL_COLS], vertical_alignment="center")
         with cols[0], st.container(key=f"tdrill_{v.cluster}"):
             st.button(v.cluster, key=f"drill_{v.cluster}", on_click=_set_active, args=(v.cluster,),
-                      help="See this cluster's evidence + write-up", use_container_width=True)
+                      help="See this cluster's evidence + write-up")
         color = fmt.cluster_color(v.cluster)
         yours = ' <span class="yours">yours</span>' if override else ""
         flag = ' <span class="flag" title="flagged for re-check">⚑</span>' if v.verify else ""
@@ -673,7 +713,7 @@ def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -
             f'<div class="pano-tc"><span class="dot" style="background:{color}"></span>'
             f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}{flag}</div>',
             unsafe_allow_html=True)
-        cols[2].markdown(f'<div class="pano-tcell">{html.escape(v.confidence)}</div>',
+        cols[2].markdown(f'<div class="pano-tcell">{_conf_pill(v.confidence)}</div>',
                          unsafe_allow_html=True)
         cols[3].markdown(f'<div class="pano-tc">{_evidence_compact(v)}</div>', unsafe_allow_html=True)
         with cols[4]:
@@ -691,12 +731,14 @@ def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -
 
 def _render_table(st, verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
                   refinements: dict) -> None:
-    """The quiet review table: every call in stable cluster order, one sign-off control per
-    row, flagged rows carrying a grounded reason. ``verdicts`` are the COMPOSED verdicts."""
-    _render_table_head(st)
-    for v in verdicts:
-        _render_table_row(st, v, overrides.get(v.cluster), signed.get(v.cluster),
-                          refinements.get(v.cluster))
+    """The clinical review table, held in one contained surface: every call in stable
+    cluster order, one sign-off control per row, action rows washed and flagged with a
+    grounded reason. ``verdicts`` are the COMPOSED verdicts."""
+    with st.container(key="pano_tblcard"):
+        _render_table_head(st)
+        for v in verdicts:
+            _render_table_row(st, v, overrides.get(v.cluster), signed.get(v.cluster),
+                              refinements.get(v.cluster))
 
 
 def _render_drilldown_actions(st, v: ClusterVerdict, override, signed_rec, refinement) -> None:
@@ -1042,16 +1084,10 @@ def render_summary_page() -> None:
     # ---- Top bar: title + meta + save status | [Report] [CSV] [Save] ----- #
     head_col, act_col = st.columns([0.60, 0.40], vertical_alignment="center")
     with head_col:
-        needs_txt = (f'<span class="n">{n_needs}</span> need you'
-                     if n_needs else "none flagged")
         st.markdown(
             f'<div class="pano-sum-title">{html.escape(_TITLE)}</div>'
-            f'<div class="pano-sum-sub">{html.escape(_SUB)}</div>'
-            '<div class="pano-sum-meta">'
-            f'<span class="n">{n_signed}</span> of <span class="n">{len(verdicts)}</span> '
-            f'signed off<span class="sep">·</span>{needs_txt}'
-            f'<span class="sep">·</span><span class="n">{n_panel}</span>-gene panel'
-            f'<span class="sep">·</span><span class="pano-sum-saved">{status}</span></div>',
+            '<div class="pano-sum-sub">Review each call, sign it off, and export — every '
+            "number is jazzPanda's, every biology claim live-cited.</div>",
             unsafe_allow_html=True,
         )
     with act_col:
@@ -1076,32 +1112,24 @@ def render_summary_page() -> None:
 
     st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
-    # ---- Two panes: contents rail | focused section ---------------------- #
-    rail_col, pane_col = st.columns([0.24, 0.76], gap="large")
-
-    with rail_col:
-        with st.container(key="pano_rail"):
-            st.button("Overall", key="nav_overall", use_container_width=True,
-                      type="primary" if active == _SEC_OVERALL else "secondary",
-                      on_click=_set_active, args=(_SEC_OVERALL,))
-            _rail_label(st, "Clusters")
-            for s in rep.sections:
-                label = f"{s.cluster} {s.cell_type.replace('_', ' ')}" + ("  ⚑" if s.verify else "")
-                # key=rail_cN so theme.py paints the cluster's colour dot (::before).
-                st.button(label, key=f"rail_{s.cluster}", use_container_width=True,
-                          type="primary" if active == s.cluster else "secondary",
-                          on_click=_set_active, args=(s.cluster,))
-            _rail_label(st, "Dataset")
-            for sec, label in _DATASET_SECTIONS:
-                st.button(label, key=f"nav_{sec}", use_container_width=True,
+    # ---- Section sub-nav (the clusters live IN the table now, not a rail) --- #
+    with st.container(key="pano_subnav"):
+        nav_cols = st.columns(3)
+        for col, (sec, label) in zip(
+            nav_cols,
+            ((_SEC_OVERALL, "Overall"), (_SEC_CAVEATS, "Caveats"), (_SEC_NOTES, "My notes")),
+        ):
+            with col:
+                st.button(label, key=f"snav_{sec}", use_container_width=True,
                           type="primary" if active == sec else "secondary",
                           on_click=_set_active, args=(sec,))
 
-    with pane_col:
+    with st.container(key="pano_pane"):
         if active == _SEC_OVERALL:
-            # The whole call-set as one quiet table: a calm count line, the one-line
+            # The whole call-set as one clinical table: a stat strip, the one-line
             # reconciliation cues (grounded), then a row per call to sign off inline.
-            st.markdown(_table_meta_html(verdicts, signed), unsafe_allow_html=True)
+            st.markdown(_stat_strip_html(n_signed, len(verdicts), n_needs, n_panel, status),
+                        unsafe_allow_html=True)
             line = _reconciliation_line_html(_reconciliation_items(verdicts, themes, overrides))
             if line:
                 st.markdown(line, unsafe_allow_html=True)
@@ -1119,6 +1147,9 @@ def render_summary_page() -> None:
             _save_button(st, _ED_GLOBAL)
 
         elif active in sec_by_id:
+            with st.container(key="backlink"):
+                st.button("← All calls", key="back_overall",
+                          on_click=_set_active, args=(_SEC_OVERALL,))
             s = sec_by_id[active]
             v = da.verdict_for(s.cluster)
             ce = enr_map.get(s.cluster)
