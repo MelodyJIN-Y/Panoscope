@@ -234,17 +234,15 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .st-key-pano_subnav div[data-testid="stButton"] > button:hover { background: var(--hair2) !important; color: var(--ink) !important; }
 .st-key-pano_subnav button[data-testid="stBaseButton-primary"] { background: var(--accent-soft) !important;
   color: var(--accent) !important; font-weight: 600 !important; }
-/* One clean stat strip (replaces the two duplicate status lines). */
-.pano-stat { display: flex; align-items: baseline; gap: 22px; margin: 0 0 13px; max-width: 1060px; }
-.pano-stat .item { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--ink);
-  letter-spacing: -.01em; }
-.pano-stat .item .lab { font-size: 11px; font-weight: 500; color: var(--faint); margin-left: 5px;
-  font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
-.pano-stat .item.warn { color: var(--absent); }
-.pano-stat .item.dim { color: var(--faint); font-weight: 500; }
+/* Lead: one plain-language instruction + progress — says what to do, no mono noise. */
+.pano-lead { font-size: 14px; line-height: 1.5; color: var(--muted); margin: 2px 0 14px; max-width: 900px; }
+.pano-lead b { color: var(--ink); font-weight: 700; }
+.pano-lead .prog { color: var(--muted); }
+.pano-lead .need { color: var(--absent); font-weight: 600; }
+.pano-lead .sep { color: var(--hair); margin: 0 8px; }
 /* Reconciliation: one calm line, neutral surface, no coloured left border. */
 .pano-recon-line { font-size: 11.5px; line-height: 1.55; color: var(--muted); background: var(--paper);
-  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 1060px; }
+  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 900px; }
 .pano-recon-line .ic { color: var(--faint); font-weight: 700; margin-right: 6px; }
 .pano-recon-line .cid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
 .pano-recon-line b { color: var(--ink); font-weight: 600; }
@@ -252,7 +250,7 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
    the columns stay tight instead of sprawling across the viewport. */
 .st-key-pano_tblcard { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px;
   box-shadow: 0 1px 2px rgba(20,27,32,.05), 0 6px 22px rgba(20,27,32,.035);
-  padding: 4px 20px 8px; max-width: 1060px; }
+  padding: 4px 22px 8px; max-width: 900px; }
 /* Column header. */
 .pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
   color: var(--faint); font-weight: 600; padding: 6px 0 8px; }
@@ -284,10 +282,10 @@ div[class*="st-key-tdrill_"] button { min-height: 0 !important; padding: 4px 0 !
 div[class*="st-key-tdrill_"] button:hover { color: var(--accent) !important; }
 /* Sign-off sits at the right edge of the row. */
 div[class*="st-key-tact_"] { display: flex; justify-content: flex-end; align-items: center; }
-/* Checkbox-style toggle: a bare glyph (☐ faint / ✓ teal), matching the app's dot language. */
-div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 2px 7px !important;
+/* Checkbox-style toggle: a bare glyph (☐ / ✓ teal), matching the app's dot language. */
+div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 3px 8px !important;
   border: 0 !important; background: transparent !important; box-shadow: none !important;
-  color: var(--faint) !important; font-size: 17px !important; line-height: 1 !important; border-radius: 6px !important; }
+  color: var(--muted) !important; font-size: 19px !important; line-height: 1 !important; border-radius: 6px !important; }
 div[class*="st-key-tact_"] button:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }
 div[class*="st-key-tact_done_"] button { color: var(--accent) !important; }
 /* Confirm (flagged) — a small amber outline pill, never a stretched box. */
@@ -485,17 +483,16 @@ def _evidence_compact(v: ClusterVerdict) -> str:
             f'{top.glm_coef:.1f}<span class="r"> · r{top.pearson:.2f}</span></span>')
 
 
-def _stat_strip_html(n_signed: int, n_total: int, n_needs: int, n_panel: int, status: str) -> str:
-    """One clean stat strip above the table — the single at-a-glance status (grounded
-    counts), replacing the two duplicate status lines the redesign removed."""
-    need = (f'<span class="item warn">{n_needs}<span class="lab">need you</span></span>'
-            if n_needs else '<span class="item dim">none flagged</span>')
-    status_html = f'<span class="item dim">{status}</span>' if status else ""
-    return ('<div class="pano-stat">'
-            f'<span class="item">{n_signed}<span class="lab">/ {n_total} signed off</span></span>'
-            f'{need}'
-            f'<span class="item dim">{n_panel}<span class="lab">gene panel</span></span>'
-            f'{status_html}</div>')
+def _lead_html(n_signed: int, n_total: int, n_needs: int) -> str:
+    """One plain-language instruction + progress — tells the biologist what to do, in
+    sentence case (no mono-uppercase noise). Grounded counts."""
+    if n_signed >= n_total:
+        return ('<div class="pano-lead"><b>All calls signed off.</b> '
+                '<span class="prog">Export the report or the annotations table.</span></div>')
+    need = (f'<span class="sep">·</span><span class="need">{n_needs} need a closer look first</span>'
+            if n_needs else "")
+    return ('<div class="pano-lead"><b>Tick each call to sign it off.</b> '
+            f'<span class="prog">{n_signed} of {n_total} done</span>{need}</div>')
 
 
 def _table_subline_html(v: ClusterVerdict, override, refinement, is_signed: bool) -> str:
@@ -1086,8 +1083,8 @@ def render_summary_page() -> None:
     with head_col:
         st.markdown(
             f'<div class="pano-sum-title">{html.escape(_TITLE)}</div>'
-            '<div class="pano-sum-sub">Review each call, sign it off, and export — every '
-            "number is jazzPanda's, every biology claim live-cited.</div>",
+            '<div class="pano-sum-sub">Xenium human breast · sample 1 — every number is '
+            "jazzPanda's, every biology claim live-cited.</div>",
             unsafe_allow_html=True,
         )
     with act_col:
@@ -1102,13 +1099,6 @@ def render_summary_page() -> None:
                 _CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME,
                 key="dl_csv", use_container_width=True,
                 help="The 11-column verdict table (R-importable). The structured call, not your free-text edits.")
-
-    # A quiet, page-level re-draft control — kept OUT of the export cluster because it
-    # REPLACES your edits (rebuilds every region from the latest calls + programs).
-    with st.container(key="pano_redraft"):
-        st.button("↻ re-draft all from latest", key="btn_ws_refresh",
-                  on_click=_reset_ws_all, args=(ws_defaults, rep.dataset),
-                  help="Rebuild every region from the latest calls, programs, and my notes — replaces your current edits.")
 
     st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
@@ -1126,25 +1116,28 @@ def render_summary_page() -> None:
 
     with st.container(key="pano_pane"):
         if active == _SEC_OVERALL:
-            # The whole call-set as one clinical table: a stat strip, the one-line
-            # reconciliation cues (grounded), then a row per call to sign off inline.
-            st.markdown(_stat_strip_html(n_signed, len(verdicts), n_needs, n_panel, status),
-                        unsafe_allow_html=True)
+            # One job on this screen: review the calls and sign them off. A plain
+            # instruction, the grounded reconciliation line, then the table.
+            st.markdown(_lead_html(n_signed, len(verdicts), n_needs), unsafe_allow_html=True)
             line = _reconciliation_line_html(_reconciliation_items(verdicts, themes, overrides))
             if line:
                 st.markdown(line, unsafe_allow_html=True)
             _render_table(st, verdicts, overrides, signed, refinements)
 
-            # The cross-cluster write-up stays for the export, demoted below the board —
-            # it is report prose, not the review action.
-            st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
-            _eyebrow(st, "Cross-cluster write-up · opens the exported report")
-            st.markdown('<div class="pano-export-note">A short synthesis across all calls — '
-                        "edit freely; this is what the report opens with.</div>",
-                        unsafe_allow_html=True)
-            _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
-                    height=_autoheight(_val(_ED_GLOBAL), min_lines=6))
-            _save_button(st, _ED_GLOBAL)
+            # Everything that is NOT the review action is folded away — the report
+            # intro prose and the re-draft control live in one collapsed disclosure so
+            # they never compete with the table.
+            with st.expander("Report intro & options", expanded=False):
+                st.markdown('<div class="pano-export-note">A short synthesis across all calls, '
+                            "opening the exported report — edit freely.</div>",
+                            unsafe_allow_html=True)
+                _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
+                        height=_autoheight(_val(_ED_GLOBAL), min_lines=6))
+                _save_button(st, _ED_GLOBAL)
+                st.button("↻ re-draft everything from the latest calls", key="btn_ws_refresh",
+                          on_click=_reset_ws_all, args=(ws_defaults, rep.dataset),
+                          help="Rebuild every region from the latest calls, programs, and my "
+                               "notes — replaces your current edits.")
 
         elif active in sec_by_id:
             with st.container(key="backlink"):

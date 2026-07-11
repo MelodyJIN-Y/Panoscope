@@ -250,7 +250,7 @@ def test_board_renders_headless() -> None:
     assert sum(ln in {f"c{i}" for i in range(1, 10)} for ln in labels) == 9
     assert any(ln in ("☐", "Confirm", "✓") for ln in labels)
     md = "\n".join(m.value for m in at.markdown)
-    assert "signed off" in md and "Key evidence" in md
+    assert "sign it off" in md and "Key evidence" in md
 
 
 def test_flag_reason_is_grounded_not_blanket_thin() -> None:
