@@ -97,3 +97,12 @@ def manifest_json(dataset_id: str, root: Optional[Path] = None) -> Path:
 # --------------------------------------------------------------------------- #
 def summary_edits_json(dataset_id: str, root: Optional[Path] = None) -> Path:
     return interp_dir(dataset_id, root) / "summary_edits.json"
+
+
+# --------------------------------------------------------------------------- #
+# Sign-off / review state (the biologist's review checkmarks on the Summary
+# board). Runtime user state, a sibling of ``summary_edits`` — records which
+# calls the biologist has reviewed and accepted, never a computed value.
+# --------------------------------------------------------------------------- #
+def review_state_json(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "review_state.json"

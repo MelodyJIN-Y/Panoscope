@@ -144,8 +144,11 @@ _CONVO_CSS = """
 /* Hide Streamlit's "Press Enter to submit form" hint under the input. */
 .st-key-conv_ask [data-testid="InputInstructions"],
 .st-key-conv_ask [data-testid="stTextInputInstructions"] { display: none !important; }
-/* Confirm-to-save card: an accent-tinted panel between thread and ask box. */
-.st-key-conv_draft {
+/* Confirm-to-save card: an accent-tinted panel between thread and ask box. The
+   container key is per-slot (conv_draft_<cluster|pw::c|holistic::c>) so several
+   cards can render at once — e.g. the Summary board's per-row refinement cards —
+   without a duplicate-key crash; the selector matches the shared prefix. */
+div[class*="st-key-conv_draft"] {
   border: 1px solid var(--accent); border-radius: 12px;
   background: var(--accent-soft); padding: 12px 13px; margin: 4px 0 10px;
 }
@@ -170,7 +173,7 @@ _CONVO_CSS = """
 .draft-tension .thin { color: var(--faint); }
 .draft-tension a { color: var(--accent); text-decoration: none; }
 .draft-tension a:hover { text-decoration: underline; }
-.st-key-conv_draft [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
+div[class*="st-key-conv_draft"] [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
 </style>
 """
 
@@ -506,7 +509,7 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
         ("this dataset", "dataset"),
         ("all datasets", "lab"),
     )
-    with st.container(key="conv_draft"):
+    with st.container(key=f"conv_draft_{key}"):
         st.markdown(
             '<div class="draft-eyebrow">Draft to save · confirm scope &amp; basis</div>'
             f'<div class="draft-type">{_draft_type_line(draft)}</div>'

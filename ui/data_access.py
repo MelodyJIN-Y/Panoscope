@@ -375,15 +375,32 @@ def _override_notes() -> dict:
     return out
 
 
+def _signed_off_clusters() -> set:
+    """Clusters the biologist has reviewed and accepted on the Summary board.
+
+    Read fresh from the runtime review-state file (never cached — sign-offs mutate
+    as the biologist works). A signed-off call is treated as adjudicated: its
+    ``verify`` flag is cleared at COMPOSITION only (the deterministic verdict on
+    disk is never mutated)."""
+    from pipeline import store
+
+    try:
+        return set(store.load_review_state().keys())
+    except Exception:  # noqa: BLE001 - a missing/bad review file never breaks composition
+        return set()
+
+
 def composed_verdicts() -> list[ClusterVerdict]:
-    """``all_verdicts()`` with your confirmed overlays applied — ``exclude`` notes
-    and ``celltype_override`` notes (new cell type + lineage/category; verify flagged
-    only when the literature dissents). Returns NEW objects; the cached deterministic
-    verdicts are never mutated, so the computed output stays intact and only the
-    composed view/export changes. NOT cached: notes are added at runtime."""
+    """``all_verdicts()`` with your confirmed overlays applied — ``exclude`` notes,
+    ``celltype_override`` notes (new cell type + lineage/category; verify flagged
+    only when the literature dissents), and sign-offs (a reviewed call's ``verify``
+    flag clears). Returns NEW objects; the cached deterministic verdicts are never
+    mutated, so the computed output stays intact and only the composed view/export
+    changes. NOT cached: notes and sign-offs are added at runtime."""
     excluded = _excluded_clusters()
     overrides = _override_notes()
-    if not excluded and not overrides:
+    signed_off = _signed_off_clusters()
+    if not excluded and not overrides and not signed_off:
         return all_verdicts()
     import dataclasses
 
@@ -403,6 +420,11 @@ def composed_verdicts() -> list[ClusterVerdict]:
                 changes["category"] = ov.subject_category.strip()
             if ov.tension.dissent:  # flag for re-check ONLY when the literature dissents
                 changes["verify"] = True
+        # A signed-off call is adjudicated: clear its re-check flag (a contested
+        # sign-off wrote a validation note recording the biologist's acceptance).
+        # Applied last so it wins over an override's dissent flag.
+        if v.cluster in signed_off:
+            changes["verify"] = False
         out.append(dataclasses.replace(v, **changes) if changes else v)
     return out
 
@@ -594,6 +616,54 @@ def save_note_draft(draft: Any, trigger: str = "override") -> Note:
     return memory.save_draft(draft, trigger=trigger, base_dir=tools.memory_base_dir())
 
 
+# --------------------------------------------------------------------------- #
+# Sign-off state — the biologist's review checkmarks on the Summary board. NOT
+# cached (mutates as the biologist works). A record of which calls were reviewed
+# and accepted; never a computed value. A contested sign-off also carries the id
+# of the validation note it wrote, so the board can link to the biologist's basis.
+# --------------------------------------------------------------------------- #
+def signed_off() -> dict:
+    """The full sign-off map ``{cluster: {at, note_id}}`` (fresh read)."""
+    from pipeline import store
+
+    try:
+        return store.load_review_state()
+    except Exception:  # noqa: BLE001 - a missing/bad review file reads as none signed off
+        return {}
+
+
+def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
+    """Record that the biologist reviewed and accepted ``cluster``'s call.
+
+    ``note_id`` links the validation note a contested sign-off wrote (``None`` for a
+    clean checkmark). ``at`` is an ISO timestamp passed in by the caller (this stays
+    free of clock calls). Idempotent: re-signing a cluster just refreshes its record.
+    """
+    from pipeline import store
+
+    try:
+        reviewed = dict(store.load_review_state())
+        reviewed[cluster] = {"at": at, "note_id": note_id}
+        store.save_review_state(reviewed, saved_at=at)
+    except Exception:  # noqa: BLE001 - a failed write must never crash the board
+        pass
+
+
+def clear_signoff(cluster: str, at: str = "") -> None:
+    """Undo a sign-off: drop ``cluster`` from the review state (the call is unreviewed
+    again). The validation note a contested sign-off wrote is left in My notes — undo
+    reopens the review, it does not erase the biologist's recorded basis."""
+    from pipeline import store
+
+    try:
+        reviewed = dict(store.load_review_state())
+        if cluster in reviewed:
+            reviewed.pop(cluster, None)
+            store.save_review_state(reviewed, saved_at=at)
+    except Exception:  # noqa: BLE001 - a failed write must never crash the board
+        pass
+
+
 __all__ = [
     "markers_df",
     "panel_df",
@@ -627,4 +697,10 @@ __all__ = [
     "read_notes",
     "notes_in_scope",
     "save_note_draft",
+    "composed_verdicts",
+    "override_info",
+    "anchored_notes",
+    "signed_off",
+    "mark_signed_off",
+    "clear_signoff",
 ]

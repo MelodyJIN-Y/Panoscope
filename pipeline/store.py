@@ -206,6 +206,50 @@ def save_summary_edits(
     return p
 
 
+def load_review_state(
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+) -> dict:
+    """Return the biologist's sign-off state ``{cluster: {at, note_id}}``, or {}.
+
+    Records which calls the biologist reviewed and accepted on the Summary board.
+    ``at`` is an ISO timestamp; ``note_id`` is the id of the validation note a
+    contested sign-off wrote (``None`` for a clean checkmark). Fail-soft: a
+    missing/malformed file returns {} so the board just shows nothing signed off.
+    """
+    p = paths.review_state_json(dataset_id, root)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        reviewed = data.get("reviewed") if isinstance(data, dict) else None
+        return reviewed if isinstance(reviewed, dict) else {}
+    except Exception:  # noqa: BLE001 - fail soft
+        return {}
+
+
+def save_review_state(
+    reviewed: dict,
+    dataset_id: str = cfg.DATASET_ID,
+    root: Optional[Path] = None,
+    saved_at: str = "",
+) -> Path:
+    """Persist the sign-off state ``{cluster: {at, note_id}}``.
+
+    Same stable formatting as the lab notes / summary edits (indent=2, sorted
+    keys, trailing newline). ``saved_at`` is passed in by the caller (an ISO
+    string) so this stays free of clock calls. A record is never a computed value —
+    only which calls the biologist has reviewed.
+    """
+    p = paths.review_state_json(dataset_id, root)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"dataset": dataset_id, "saved_at": saved_at, "reviewed": reviewed}
+    with p.open("w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, ensure_ascii=False, sort_keys=True)
+        fh.write("\n")
+    return p
+
+
 def load_pathway_notes(
     dataset_id: str = cfg.DATASET_ID,
     root: Optional[Path] = None,

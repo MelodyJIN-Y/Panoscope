@@ -61,6 +61,10 @@ data/datasets/*/interp/pathway_themes.json
 # written by the UI as they edit; not a build artifact to commit.
 data/datasets/*/interp/summary_edits.json
 
+# Sign-off / review state — runtime user state (which calls the biologist reviewed
+# and accepted on the Summary board); a sibling of summary_edits, not a build artifact.
+data/datasets/*/interp/review_state.json
+
 # Chat transcripts — runtime conversation state, persisted so a refresh keeps the
 # chat; the durable knowledge is the notes under context/, not this.
 data/datasets/*/interp/chat_threads.json

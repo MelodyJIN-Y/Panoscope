@@ -141,6 +141,33 @@ def set_selected_cluster(cluster: str) -> None:
     _ss()[K_SELECTED_CLUSTER] = cluster
 
 
+# The Marker-genes page hosts the per-cluster conversation. Mirrors app.py's page
+# key/value so the Summary board can send the biologist there without importing
+# app.py (which imports this module).
+_K_ACTIVE_PAGE = "active_page"
+_PAGE_WITH_CHAT = "examine"
+
+
+def open_cluster_chat(cluster: str) -> None:
+    """Select ``cluster`` and switch to the Marker-genes page (its conversation pane).
+
+    The Summary board's "open chat" action: it lands the biologist in the cluster's
+    live thread, where the full override/question flow lives. Ignores an unknown id
+    (fail-closed), same as ``set_selected_cluster``."""
+    if cluster not in CLUSTER_ORDER:
+        return
+    ss = _ss()
+    ss[K_SELECTED_CLUSTER] = cluster
+    ss[_K_ACTIVE_PAGE] = _PAGE_WITH_CHAT
+    try:  # keep the URL in sync so the tab persists across a refresh (best-effort)
+        import streamlit as st
+
+        st.query_params["page"] = _PAGE_WITH_CHAT
+        st.query_params["cluster"] = cluster
+    except Exception:  # noqa: BLE001 - query-param sync is non-essential
+        pass
+
+
 # --------------------------------------------------------------------------- #
 # Selected pathways — the enrichment analog of selected markers: a per-cluster
 # MULTI-select of enriched gene sets. Each selected set drives one leading-edge

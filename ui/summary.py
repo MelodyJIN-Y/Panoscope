@@ -35,6 +35,7 @@ from agent.types import ClusterVerdict
 from ui import data_access as da
 from ui import format as fmt
 from ui import report
+from ui import state
 
 # --------------------------------------------------------------------------- #
 # Copy + export metadata. Constants so prose never drifts.
@@ -217,6 +218,70 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .pano-lk-meta .sco { background: var(--accent-soft); color: var(--accent); padding: 2px 7px; border-radius: 5px; }
 .pano-lk-empty { font-family: var(--mono); font-size: 12px; color: var(--faint); border: 1px dashed var(--hair);
   border-radius: 10px; padding: 16px; text-align: center; }
+
+/* --- Sign-off board (the Overall pane's hero) --------------------------- */
+/* Cross-cluster reconciliation strip — the grounded things to weigh across calls. */
+.pano-recon { border: 1px solid var(--hair); border-left: 3px solid var(--accent);
+  border-radius: 12px; background: var(--accent-soft); padding: 11px 14px; margin: 2px 0 16px; }
+.pano-recon-hd { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--accent); font-weight: 700; margin: 0 0 7px;
+  display: flex; align-items: center; gap: 7px; }
+.pano-recon-item { font-size: 12px; line-height: 1.55; color: var(--ink); margin: 3px 0;
+  display: flex; gap: 8px; align-items: baseline; }
+.pano-recon-item .ic { color: var(--accent); font-weight: 700; flex: 0 0 auto; width: 14px; }
+.pano-recon-item .cid { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+/* Bucket header: NEEDS YOU / TO REVIEW / SIGNED OFF, with a count chip. */
+.pano-bucket { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .12em; font-weight: 700; margin: 16px 0 6px; display: flex; align-items: center; gap: 8px; }
+.pano-bucket.needs { color: var(--absent); }
+.pano-bucket.review { color: var(--muted); }
+.pano-bucket.signed { color: var(--accent); }
+.pano-bucket .cnt { font-size: 10px; padding: 1px 7px; border-radius: 8px; font-weight: 700; }
+.pano-bucket.needs .cnt { background: var(--absent-bg); color: var(--absent); }
+.pano-bucket.review .cnt { background: var(--hair2); color: var(--muted); }
+.pano-bucket.signed .cnt { background: var(--accent-soft); color: var(--accent); }
+.pano-bucket .none { font-weight: 500; letter-spacing: .02em; color: var(--faint); text-transform: none; }
+/* Board row: the info cell (left) beside its action buttons (right). */
+div[class*="st-key-sumrow_"] { border: 1px solid var(--hair); border-radius: 11px;
+  background: var(--paper); padding: 9px 13px; margin: 6px 0; }
+div[class*="st-key-sumrow_"]:hover { border-color: var(--hair2); background: #FAFCFC; }
+div[class*="st-key-sumrow_needs_"] { border-left: 3px solid var(--absent); }
+div[class*="st-key-sumrow_signed_"] { opacity: .82; background: #FAFBFB; }
+.pano-brow-top { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.pano-brow .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+.pano-brow .cid { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--faint); }
+.pano-brow .ct { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+.pano-brow .cf { font-size: 10px; padding: 2px 8px; }
+.pano-brow .yours { font-family: var(--mono); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em;
+  font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.pano-brow .signed-at { font-family: var(--mono); font-size: 10px; color: var(--accent); font-weight: 600; }
+.pano-brow .signed-at::before { content: '\2713 '; }
+/* Evidence-strength line (grounded projection of the verdict evidence). */
+.pano-str { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 4px; line-height: 1.5; }
+.pano-str-gene { color: var(--ink); font-weight: 600; }
+.pano-str-num { color: var(--muted); }
+.pano-str-n { color: var(--faint); }
+.pano-str-cav { color: var(--absent); }
+.pano-brow-reason { font-size: 11.5px; color: var(--absent); margin-top: 4px; line-height: 1.5; }
+.pano-brow-reason .was { color: var(--faint); font-family: var(--mono); font-size: 10.5px; }
+/* Row action buttons — compact, quiet; the primary sign-off is accent-filled. */
+div[class*="st-key-sumact_"] button { min-height: 0 !important; padding: 5px 9px !important;
+  border-radius: 8px !important; font-size: 11.5px !important; font-weight: 600 !important;
+  border: 1px solid var(--hair) !important; background: var(--paper) !important; color: var(--muted) !important;
+  box-shadow: none !important; }
+div[class*="st-key-sumact_"] button:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+div[class*="st-key-sumact_signoff_"] button { background: var(--accent) !important; color: #fff !important;
+  border-color: var(--accent) !important; }
+div[class*="st-key-sumact_signoff_"] button:hover { filter: brightness(1.06); color: #fff !important; }
+/* Contested sign-off confirm card (basis toggle + confirm). Per-cluster key
+   (sofcard_<cluster>) so several can render at once without a duplicate-key crash. */
+div[class*="st-key-sofcard_"] { border: 1px solid var(--accent); border-radius: 12px;
+  background: var(--accent-soft); padding: 12px 14px; margin: 4px 0 12px; }
+.sof-eyebrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--accent); font-weight: 700; margin-bottom: 6px; }
+.sof-claim { font-size: 12.5px; line-height: 1.5; color: var(--ink); font-weight: 500; margin-bottom: 8px; }
+/* Cross-cluster write-up, demoted below the board (still exports). */
+.pano-export-note { font-size: 11.5px; color: var(--faint); margin: 2px 0 8px; line-height: 1.5; }
 """
 
 
@@ -291,6 +356,365 @@ def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, override
         '<div class="pano-sum-tablewrap"><table class="pano-sum-table">'
         f"<colgroup>{cols}</colgroup><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Sign-off board — the Overall pane's hero. A review cockpit: the whole call-set
+# triaged into what needs the biologist vs what is signed off, each row grounded
+# in the verdict evidence and acted on inline. Nothing here computes a value.
+# --------------------------------------------------------------------------- #
+_BUCKET_NEEDS = "needs"
+_BUCKET_REVIEW = "review"
+_BUCKET_SIGNED = "signed"
+_BUCKET_LABELS = {
+    _BUCKET_NEEDS: "Needs you",
+    _BUCKET_REVIEW: "To review",
+    _BUCKET_SIGNED: "Signed off",
+}
+_SIGNOFF_SLOT = "signoff::{}"  # pending-draft slot for a contested sign-off's note
+
+
+def _rerun(st) -> None:
+    """Rerun the script (new + legacy Streamlit API)."""
+    rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
+    if callable(rerun):
+        rerun()
+
+
+def _refinements_by_cluster() -> dict:
+    """The holistic pass's proposed refinements, keyed by cluster (grounded, may be
+    empty). A refinement is a within-lineage subtype sharpening to consider."""
+    try:
+        hol = da.holistic()
+        refs = list(getattr(hol, "refinements", ()) or []) if hol else []
+        return {r.cluster: r for r in refs}
+    except Exception:  # noqa: BLE001 - no holistic slice -> no refinements
+        return {}
+
+
+def _evidence_strength_html(v: ClusterVerdict) -> str:
+    """A compact, grounded read of how strong a call's evidence is: the top driver
+    (gene, glm coef, pearson), the assigned-marker count, and the strongest caveat if
+    any. A projection of ``v.evidence`` — never a computed or invented value."""
+    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
+    if not ev:
+        return '<div class="pano-str">no marker evidence recorded</div>'
+    top = ev[0]
+    caveat = ""
+    for e in ev[:6]:
+        if e.caveats:
+            caveat = f' · <span class="pano-str-cav">{html.escape(str(e.caveats[0]))}</span>'
+            break
+    return (
+        '<div class="pano-str">'
+        f'<span class="pano-str-gene">{html.escape(top.gene)}</span> '
+        f'<span class="pano-str-num">glm {top.glm_coef:.1f} · r {top.pearson:.2f}</span> · '
+        f'<span class="pano-str-n">{len(v.evidence)} genes</span>{caveat}'
+        "</div>"
+    )
+
+
+def _flag_reason(v: ClusterVerdict) -> str:
+    """The grounded reason a call is flagged for re-check, projected from the verdict —
+    NOT a blanket 'thin'. jazzPanda's `verify` has distinct causes: a fragile cluster
+    (few assigned genes), or a low-specificity demotion recorded as a driver caveat
+    (localizes better with another cluster / spatial pattern not unique). We surface the
+    real one so the reason line and any saved sign-off note never misstate why."""
+    n = len(v.evidence)
+    if n <= 2:
+        return f"rests on {n} marker{'s' if n != 1 else ''}"
+    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
+    if ev and ev[0].caveats:
+        return str(ev[0].caveats[0])
+    return "flagged for re-check"
+
+
+def _triage_bucket(v: ClusterVerdict, signed, refinements, overrides) -> str:
+    """Which pile a call sits in: signed off, needs-you (flagged for re-check / has a
+    proposed refinement / an override the literature dissents from), or to-review."""
+    if v.cluster in signed:
+        return _BUCKET_SIGNED
+    if v.verify or v.cluster in refinements:
+        return _BUCKET_NEEDS
+    ov = overrides.get(v.cluster)
+    if ov and ov.get("dissent"):
+        return _BUCKET_NEEDS
+    return _BUCKET_REVIEW
+
+
+def _brow_info_html(v: ClusterVerdict, override, signed_rec) -> str:
+    """The row's left cell: dot + id + cell type (+ override tag) + confidence pill (+
+    signed stamp), then the grounded evidence-strength line."""
+    color = fmt.cluster_color(v.cluster)
+    css, _ = fmt.confidence_chip(v.confidence)
+    yours = ' <span class="yours">yours</span>' if override else ""
+    signed_html = ""
+    if signed_rec is not None:
+        at = str(signed_rec.get("at", "") or "")
+        # Date-aware stamp: bare time if signed today, else a short date (the full ISO
+        # lives in the review-state file + the note trail).
+        if len(at) >= 16:
+            stamp = (f"signed {at[11:16]}" if at[:10] == datetime.date.today().isoformat()
+                     else f"signed {at[5:10].replace('-', '/')}")
+        else:
+            stamp = "signed"
+        signed_html = f' <span class="signed-at">{html.escape(stamp)}</span>'
+    return (
+        '<div class="pano-brow"><div class="pano-brow-top">'
+        f'<span class="dot" style="background:{color}"></span>'
+        f'<span class="cid">{html.escape(v.cluster)}</span>'
+        f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}'
+        f'<span class="cf {css}">{html.escape(v.confidence)}</span>{signed_html}'
+        f"</div>{_evidence_strength_html(v)}</div>"
+    )
+
+
+def _row_reason_html(v: ClusterVerdict, override, refinement) -> str:
+    """The grounded 'why this needs you' line (empty for a plain review/signed row)."""
+    bits: list[str] = []
+    if refinement is not None:
+        bits.append(f'refine &rarr; <b>{html.escape(refinement.to_call)}</b>: '
+                    f'{html.escape(refinement.rationale)}')
+    if v.verify:
+        bits.append(f"flagged for re-check — {html.escape(_flag_reason(v))}")
+    if override is not None and override.get("dissent"):
+        bits.append(f'your override carries {override["dissent"]} literature dissent '
+                    f'<span class="was">was {html.escape(override["computed_call"])}</span>')
+    if not bits:
+        return ""
+    return '<div class="pano-brow-reason">' + " · ".join(bits) + "</div>"
+
+
+def _signoff_claim(v: ClusterVerdict, override) -> str:
+    """The grounded validation claim a contested sign-off records in My notes."""
+    if override is not None and override.get("dissent"):
+        return (f"Accepted the {v.cell_type} call for {v.cluster} despite "
+                f"{override['dissent']} literature dissent. Reviewed and confirmed.")
+    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
+    top = f"top marker {ev[0].gene}" if ev else "its top marker"
+    return (f"Confirmed {v.cell_type} for {v.cluster} despite being flagged "
+            f"({_flag_reason(v)}; {top}). Reviewed and accepted.")
+
+
+# --- Reconciliation strip (grounded cross-cluster cues) -------------------- #
+def _reconciliation_items(verdicts: list[ClusterVerdict], themes, overrides: dict) -> list:
+    """Grounded cross-cluster things to weigh, as ``(icon, html)`` items. Every item is
+    a projection of the verdict evidence / enrichment themes / saved override notes —
+    nothing invented. Returns [] when there is nothing cross-cluster to flag."""
+    items: list = []
+    spill = []
+    for v in verdicts:
+        for e in sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[:8]:
+            if e.gene in v.key_markers and any("localizes better" in str(c) for c in e.caveats):
+                spill.append((e.gene, v.cluster))
+    if spill:
+        txt = ", ".join(
+            f'{html.escape(g)} <span class="cid">({html.escape(c)})</span>' for g, c in spill[:5]
+        )
+        items.append(("⇄", f"{len(spill)} key marker(s) localize better with another cluster — "
+                           f"possible spillover: {txt}"))
+    recurring = list(getattr(themes, "recurring", ()) or []) if themes else []
+    for r in recurring[:3]:
+        if getattr(r, "n_clusters", 0) >= 3:
+            items.append(("◇", f"{html.escape(_short(r.gene_set))} recurs across "
+                               f"{r.n_clusters} clusters — a shared niche signal, weigh as "
+                               "context, not identity"))
+    for c, o in sorted(overrides.items()):
+        if o.get("dissent"):
+            items.append(("⚖", f'<span class="cid">{html.escape(c)}</span> '
+                               f'{html.escape(o["new_call"])} override carries '
+                               f'{o["dissent"]} literature dissent — kept visible'))
+    return items
+
+
+def _reconciliation_html(items: list) -> str:
+    """The reconciliation strip, or '' when there is nothing to reconcile."""
+    if not items:
+        return ""
+    rows = "".join(
+        f'<div class="pano-recon-item"><span class="ic">{ic}</span><span>{body}</span></div>'
+        for ic, body in items
+    )
+    return ('<div class="pano-recon"><div class="pano-recon-hd">'
+            "⚖ Reconcile across clusters</div>" + rows + "</div>")
+
+
+# --- Sign-off actions (on_click handlers) ---------------------------------- #
+def _lit_search():
+    """The literature connector (or None -> an honest thin tension on the note)."""
+    try:
+        from agent import tools
+
+        return tools._literature_search_fn()
+    except Exception:  # noqa: BLE001 - no connector -> thin
+        return None
+
+
+def _now_iso() -> str:
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def _sign_off_clean(cluster: str) -> None:
+    """on_click: a plain review checkmark for a solid call (no note, nothing contested)."""
+    da.mark_signed_off(cluster, note_id=None, at=_now_iso())
+
+
+def _undo_sign_off(cluster: str) -> None:
+    """on_click: reopen a call for review. The validation note (if any) is kept in My
+    notes — undo reopens the review, it does not erase the recorded basis."""
+    da.clear_signoff(cluster, at=_now_iso())
+
+
+def _begin_signoff(cluster: str, claim: str) -> None:
+    """on_click: draft a validation note for a contested sign-off (a flagged call or an
+    override the literature dissents from), reconciled live against the literature, and
+    stash it so the confirm card renders. Nothing persists until the biologist confirms."""
+    from agent import memory
+
+    try:
+        draft = memory.draft_note(
+            claim=claim, scope="cluster", basis="convention", cluster=cluster,
+            note_type="validation", literature_search=_lit_search(),
+        )
+        state.set_pending_draft(_SIGNOFF_SLOT.format(cluster), draft)
+    except Exception:  # noqa: BLE001 - never crash the board on a bad draft
+        pass
+
+
+def _render_signoff_card(st, cluster: str) -> None:
+    """The contested-sign-off confirm card: the drafted validation claim + its live
+    literature check + a basis toggle. On confirm it saves the note AND records the
+    sign-off (which clears the re-check flag at composition). Cancel drops the draft."""
+    import dataclasses
+
+    from ui import conversation as convo
+
+    slot = _SIGNOFF_SLOT.format(cluster)
+    draft = state.get_pending_draft(slot)
+    if draft is None:
+        return
+    # Per-cluster container key so two pending sign-off cards never collide, and a
+    # draft-nonce on the basis toggle so each fresh draft re-seeds from its proposal.
+    nonce = convo._draft_nonce(draft)
+    with st.container(key=f"sofcard_{cluster}"):
+        st.markdown(
+            '<div class="sof-eyebrow">Sign off &amp; clear flag · confirm basis</div>'
+            f'<div class="sof-claim">{html.escape(draft.claim)}</div>',
+            unsafe_allow_html=True,
+        )
+        basis = convo._seg(st, "basis", convo._BASIS_OPTS, draft.basis, f"sof_basis_{cluster}_{nonce}")
+        st.markdown(convo._draft_tension_html(draft), unsafe_allow_html=True)
+        c_ok, c_no = st.columns([0.6, 0.4])
+        ok = c_ok.button("Confirm sign-off", key=f"sof_ok_{cluster}", type="primary",
+                         use_container_width=True)
+        no = c_no.button("Cancel", key=f"sof_no_{cluster}", use_container_width=True)
+    if no:
+        state.clear_pending_draft(slot)
+        _rerun(st)
+    elif ok:
+        edited = dataclasses.replace(draft, basis=basis, scope="cluster", cluster=cluster,
+                                     status="firm")
+        try:
+            note = da.save_note_draft(edited, trigger="manual_add")
+            da.mark_signed_off(cluster, note_id=note.id, at=_now_iso())
+        except Exception:  # noqa: BLE001 - surface nothing, never crash the board
+            pass
+        state.clear_pending_draft(slot)
+        _rerun(st)
+
+
+# --- Row + board rendering -------------------------------------------------- #
+def _chat_button(st, cluster: str) -> None:
+    with st.container(key=f"sumact_open_{cluster}"):
+        st.button("↗ Chat", key=f"open_{cluster}", use_container_width=True,
+                  on_click=state.open_cluster_chat, args=(cluster,),
+                  help="Open this cluster's conversation to question or override the call.")
+
+
+def _accept_refine_button(st, refinement) -> None:
+    with st.container(key=f"sumact_refine_{refinement.cluster}"):
+        st.button(f"✓ Accept {refinement.to_call}", key=f"acc_{refinement.cluster}",
+                  on_click=_draft_refinement, args=(refinement,),
+                  help="Draft this refinement as a cell-type override; confirm below.")
+
+
+def _render_row_actions(st, bucket: str, v: ClusterVerdict, override, refinement,
+                        *, evidence: bool = True) -> None:
+    """The inline actions for one row: sign off / chat / evidence (+ accept refinement),
+    or the signed-off state (chat / undo, + accept if a refinement is still waiting).
+    ``evidence`` is dropped on the cluster drill-down (you are already on the evidence)."""
+    if bucket == _BUCKET_SIGNED:
+        cols = st.columns(3 if refinement is not None else 2)
+        _chat_button(cols[0], v.cluster)
+        with cols[1], st.container(key=f"sumact_undo_{v.cluster}"):
+            st.button("Undo", key=f"undo_{v.cluster}", use_container_width=True,
+                      on_click=_undo_sign_off, args=(v.cluster,))
+        if refinement is not None:  # a proposed refinement stays reachable after sign-off
+            _accept_refine_button(cols[2], refinement)
+        return
+
+    contested = bool(v.verify or (override and override.get("dissent")))
+    action_cols = st.columns(3 if evidence else 2)
+    with action_cols[0], st.container(key=f"sumact_signoff_{v.cluster}"):
+        if contested:
+            st.button("✓ Sign off", key=f"soff_{v.cluster}", use_container_width=True,
+                      on_click=_begin_signoff, args=(v.cluster, _signoff_claim(v, override)),
+                      help="Confirm this flagged call — writes a validation note and clears "
+                           "the re-check flag.")
+        else:
+            st.button("✓ Sign off", key=f"soff_{v.cluster}", use_container_width=True,
+                      on_click=_sign_off_clean, args=(v.cluster,),
+                      help="Mark this call reviewed and accepted.")
+    _chat_button(action_cols[1], v.cluster)
+    if evidence:
+        with action_cols[2], st.container(key=f"sumact_ev_{v.cluster}"):
+            st.button("▸ Evidence", key=f"ev_{v.cluster}", use_container_width=True,
+                      on_click=_set_active, args=(v.cluster,),
+                      help="Drill into the jazzPanda evidence and the write-up for this cluster.")
+    if refinement is not None:
+        _accept_refine_button(st, refinement)
+
+
+def _render_board_row(st, bucket: str, v: ClusterVerdict, override, signed_rec, refinement) -> None:
+    """One board row: the grounded info cell beside its inline actions, with any pending
+    confirm card (contested sign-off, or an accepted refinement) rendered right below."""
+    with st.container(key=f"sumrow_{bucket}_{v.cluster}"):
+        info_col, act_col = st.columns([0.54, 0.46], vertical_alignment="center")
+        with info_col:
+            st.markdown(_brow_info_html(v, override, signed_rec)
+                        + _row_reason_html(v, override, refinement),
+                        unsafe_allow_html=True)
+        with act_col:
+            _render_row_actions(st, bucket, v, override, refinement)
+    _render_signoff_card(st, v.cluster)
+    if refinement is not None:
+        from ui import conversation as convo
+
+        convo._render_draft_card(v.cluster, thread_key=f"holistic::{v.cluster}",
+                                 trigger="holistic_review")
+
+
+def _bucket_header(st, bucket: str, n: int) -> None:
+    label = _BUCKET_LABELS[bucket]
+    cnt = f'<span class="cnt">{n}</span>' if n else ""
+    none = "" if n else '<span class="none">— nothing here</span>'
+    st.markdown(f'<div class="pano-bucket {bucket}">{html.escape(label)} {cnt}{none}</div>',
+                unsafe_allow_html=True)
+
+
+def _render_board(st, verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
+                  refinements: dict) -> None:
+    """The triaged sign-off board: rows grouped needs-you / to-review / signed-off,
+    each acted on inline. ``verdicts`` are the COMPOSED verdicts (overrides + sign-offs
+    already reflected)."""
+    buckets: dict[str, list] = {_BUCKET_NEEDS: [], _BUCKET_REVIEW: [], _BUCKET_SIGNED: []}
+    for v in verdicts:
+        buckets[_triage_bucket(v, signed, refinements, overrides)].append(v)
+    for bucket in (_BUCKET_NEEDS, _BUCKET_REVIEW, _BUCKET_SIGNED):
+        _bucket_header(st, bucket, len(buckets[bucket]))
+        for v in buckets[bucket]:
+            _render_board_row(st, bucket, v, overrides.get(v.cluster),
+                              signed.get(v.cluster), refinements.get(v.cluster))
 
 
 def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -> str:
@@ -527,7 +951,12 @@ def render_summary_page() -> None:
     overrides = {v.cluster: da.override_info(v.cluster) for v in verdicts}
     overrides = {c: o for c, o in overrides.items() if o}
     sec_by_id = {v.cluster: v for v in verdicts}
-    n_flagged = sum(1 for v in verdicts if v.verify)
+    # Sign-off state drives the board triage AND the header finish line.
+    signed = da.signed_off()
+    refinements = _refinements_by_cluster()
+    n_signed = sum(1 for v in verdicts if v.cluster in signed)
+    n_needs = sum(1 for v in verdicts
+                  if _triage_bucket(v, signed, refinements, overrides) == _BUCKET_NEEDS)
     try:
         n_panel = len(da.panel_names())
     except Exception:  # noqa: BLE001 - a missing panel count is not fatal to the page
@@ -616,13 +1045,14 @@ def render_summary_page() -> None:
     # ---- Top bar: title + meta + save status | [Report] [CSV] [Save] ----- #
     head_col, act_col = st.columns([0.60, 0.40], vertical_alignment="center")
     with head_col:
-        flagged_txt = (f'<span class="n">{n_flagged}</span> flagged for re-check'
-                       if n_flagged else "none flagged")
+        needs_txt = (f'<span class="n">{n_needs}</span> need you'
+                     if n_needs else "none flagged")
         st.markdown(
             f'<div class="pano-sum-title">{html.escape(_TITLE)}</div>'
             f'<div class="pano-sum-sub">{html.escape(_SUB)}</div>'
             '<div class="pano-sum-meta">'
-            f'<span class="n">{len(verdicts)}</span> clusters<span class="sep">·</span>{flagged_txt}'
+            f'<span class="n">{n_signed}</span> of <span class="n">{len(verdicts)}</span> '
+            f'signed off<span class="sep">·</span>{needs_txt}'
             f'<span class="sep">·</span><span class="n">{n_panel}</span>-gene panel'
             f'<span class="sep">·</span><span class="pano-sum-saved">{status}</span></div>',
             unsafe_allow_html=True,
@@ -672,58 +1102,49 @@ def render_summary_page() -> None:
 
     with pane_col:
         if active == _SEC_OVERALL:
-            st.markdown('<div class="pano-ov-cap">Overview · marker call + enriched programs</div>',
-                        unsafe_allow_html=True)
-            st.markdown(_overview_table_html(verdicts, enr_map, overrides), unsafe_allow_html=True)
+            # The whole call-set as a review board: the cross-cluster reconciliation
+            # cues (grounded), then the triaged rows the biologist signs off inline.
+            recon = _reconciliation_items(verdicts, themes, overrides)
+            if recon:
+                st.markdown(_reconciliation_html(recon), unsafe_allow_html=True)
+            _render_board(st, verdicts, overrides, signed, refinements)
+
+            # The cross-cluster write-up stays for the export, demoted below the board —
+            # it is report prose, not the review action.
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
-            _eyebrow(st, "Dataset · cross-cluster global check")
-            _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
-                    height=_autoheight(_val(_ED_GLOBAL), min_lines=10))
-            _save_button(st, _ED_GLOBAL)
-
-            # Refinements the holistic pass proposes — capture one as an override note
-            # through the same two-tap confirm card (trigger=holistic_review); once saved
-            # it composes across the summary like any override.
-            hol = da.holistic()
-            refs = list(getattr(hol, "refinements", ()) or []) if hol else []
-            if refs:
-                from ui import conversation as convo
-
-                st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
-                _eyebrow(st, "Holistic review · refinements to consider")
-                for r in refs:
-                    st.markdown(
-                        f'<div class="pano-refine"><span class="cid">{html.escape(r.cluster)}</span> '
-                        f'{html.escape(r.from_call)} &rarr; <b>{html.escape(r.to_call)}</b>'
-                        f'<div class="rat">{html.escape(r.rationale)}</div></div>',
+            _eyebrow(st, "Cross-cluster write-up · opens the exported report")
+            st.markdown('<div class="pano-export-note">A short synthesis across all calls — '
+                        "edit freely; this is what the report opens with.</div>",
                         unsafe_allow_html=True)
-                    with st.container(key=f"refbtn_{r.cluster}"):
-                        st.button(f"Draft {r.to_call} override for {r.cluster}",
-                                  key=f"drefine_{r.cluster}", on_click=_draft_refinement, args=(r,),
-                                  help="Draft this refinement as a cell-type override; confirm "
-                                       "scope/basis below, then it reflects across the summary.")
-                    convo._render_draft_card(r.cluster, thread_key=f"holistic::{r.cluster}",
-                                             trigger="holistic_review")
+            _editor(st, _ED_GLOBAL, _seed(_ED_GLOBAL),
+                    height=_autoheight(_val(_ED_GLOBAL), min_lines=6))
+            _save_button(st, _ED_GLOBAL)
 
         elif active in sec_by_id:
             s = sec_by_id[active]
             v = da.verdict_for(s.cluster)
             ce = enr_map.get(s.cluster)
-            _eyebrow(st, "Cluster interpretation · identity + programs")
+            _eyebrow(st, "Cluster · evidence + write-up")
             st.markdown(_ws_head_html(s.cluster, s.cell_type, s.confidence, s.verify),
                         unsafe_allow_html=True)
 
-            # The editable synthesis comes first (it is what exports)...
-            _editor(st, s.cluster, _seed(s.cluster),
-                    height=_autoheight(_val(s.cluster), min_lines=12))
-            st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
-                        f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
-            _save_button(st, s.cluster)
+            # Sign off right here — the same action the board row offers, so the
+            # biologist can read the evidence below and accept the call on one screen
+            # instead of bouncing back to Overall (the loop the review flagged).
+            _dbucket = _triage_bucket(s, signed, refinements, overrides)
+            _render_row_actions(st, _dbucket, s, overrides.get(s.cluster),
+                                refinements.get(s.cluster), evidence=False)
+            _render_signoff_card(st, s.cluster)
+            if s.cluster in refinements:
+                from ui import conversation as convo
 
-            # ...then the read-only jazzPanda evidence it rests on, for reference, with
-            # any note anchored beneath the exact driver / program it modifies.
+                convo._render_draft_card(s.cluster, thread_key=f"holistic::{s.cluster}",
+                                         trigger="holistic_review")
+
+            # Evidence first — this drill-down is reached from the board's "Evidence"
+            # action, so the grounded jazzPanda numbers the call rests on lead. Any note
+            # anchored to a driver / program renders beneath the exact row it modifies.
             anch = da.anchored_notes(s.cluster)
-            st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             st.markdown(
                 '<div class="pano-ref-cap">Marker evidence'
                 f'<span class="meta">jazzPanda · top {min(8, len(v.evidence))} of {len(v.evidence)} by glm coef</span></div>',
@@ -734,6 +1155,16 @@ def render_summary_page() -> None:
                 '<span class="meta">panel-scoped · score = jazzPanda test statistic · cov = set genes on panel</span></div>',
                 unsafe_allow_html=True)
             st.markdown(_enrichment_evidence_table_html(ce, anch), unsafe_allow_html=True)
+
+            # ...then the editable write-up (what exports for this cluster) — demoted
+            # below the evidence, no longer the first thing the biologist faces.
+            st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
+            _eyebrow(st, "Write-up · exports for this cluster")
+            _editor(st, s.cluster, _seed(s.cluster),
+                    height=_autoheight(_val(s.cluster), min_lines=10))
+            st.markdown('<div class="pano-ed-hint">Edit freely — this is exactly what exports for '
+                        f"{html.escape(s.cluster)}.</div>", unsafe_allow_html=True)
+            _save_button(st, s.cluster)
 
         elif active == _SEC_CAVEATS:
             _eyebrow(st, "Dataset · caveats")
