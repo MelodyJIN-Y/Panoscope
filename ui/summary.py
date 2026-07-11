@@ -260,6 +260,56 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .pano-cfb-mh { color: #3B7C84; }
 .pano-cfb-m  { color: #737B82; }
 .pano-cfb-l  { color: #99A2A9; }
+
+/* === The review table: a REAL HTML table (auto-sized columns locked to their
+ *     headers, tight even rhythm — what st.columns cannot give). Actions are
+ *     query-param links the app dispatches on click. =========================== */
+.ptbl { width: 100%; border-collapse: collapse; font-family: var(--sans); table-layout: auto; }
+.ptbl thead th { text-align: left; font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--faint); font-weight: 600; padding: 4px 16px 10px 0; white-space: nowrap;
+  border-bottom: 1px solid var(--hair); }
+.ptbl thead th:first-child { padding-left: 2px; }
+.ptbl td { padding: 8px 16px 8px 0; border-bottom: 1px solid var(--hair2); vertical-align: middle; }
+.ptbl td:first-child { padding-left: 2px; }
+.ptbl tbody tr:last-child td { border-bottom: 0; }
+.ptbl tbody tr.prow:hover td { background: #FAFCFC; }
+.ptbl tr.need td { background: #FCFAF3; }
+/* Columns: the checklist tick + id stay narrow; the rest auto-size to content. */
+.ptbl .c-sign { width: 30px; text-align: center; }
+.ptbl .c-cid  { width: 42px; white-space: nowrap; }
+.ptbl .c-conf { white-space: nowrap; }
+/* Checklist tick (a query-param link). */
+.ptbl a.tick { text-decoration: none; font-size: 18px; color: var(--muted); line-height: 1; }
+.ptbl a.tick:hover { color: var(--accent); }
+.ptbl a.tick.done { color: var(--accent); }
+.ptbl .warnflag { color: var(--absent); font-size: 15px; }
+/* Cluster id link. */
+.ptbl a.cid { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.ptbl a.cid:hover { color: var(--accent); }
+/* Cell type — the row's hero. */
+.ptbl .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 10px; vertical-align: middle; }
+.ptbl .ct { font-size: 13.5px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; white-space: nowrap; }
+.ptbl .yours { font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .04em;
+  font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; margin-left: 7px; }
+/* Key markers — the top driver (bold + coef) then the next key markers. */
+.ptbl .km { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+.ptbl .km b { color: var(--ink); font-weight: 600; }
+.ptbl .km .n { color: var(--muted); }
+/* Signed rows recede. */
+.ptbl tr.done td .ct, .ptbl tr.done td .km, .ptbl tr.done td .dot, .ptbl tr.done td .pano-cfb { opacity: .5; }
+/* Sub-row (flagged / to-refine): reason on the left, its action pill on the right,
+ * kept ON the table grid via a colspan. */
+.ptbl tr.subrow td { padding-top: 0; padding-bottom: 9px; }
+.ptbl .subwrap { display: flex; align-items: center; gap: 16px; }
+.ptbl .subtext { font-size: 11.5px; color: var(--muted); line-height: 1.5; flex: 1; }
+.ptbl .subtext .warn { color: var(--absent); font-weight: 600; }
+.ptbl .subtext b { color: var(--ink); font-weight: 600; }
+.ptbl a.act { text-decoration: none; font-family: var(--mono); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; padding: 6px 13px; border-radius: 8px; white-space: nowrap; flex: 0 0 auto; }
+.ptbl a.act.confirm { border: 1px solid var(--absent); color: var(--absent); background: var(--absent-bg); }
+.ptbl a.act.confirm:hover { background: var(--absent); color: #fff; }
+.ptbl a.act.accept { border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
+.ptbl a.act.accept:hover { background: var(--accent); color: #fff; }
 /* Column header. */
 .pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
   color: var(--faint); font-weight: 600; padding: 6px 0 8px; }
@@ -684,6 +734,98 @@ def _conf_badge(confidence: str) -> str:
     return f'<span class="pano-cfb pano-cfb-{html.escape(level)}">{html.escape(confidence)}</span>'
 
 
+# --------------------------------------------------------------------------- #
+# The review table — a real HTML <table> (auto-sized columns locked to their
+# headers; something st.columns cannot deliver). Every action is a query-param
+# link the page dispatches on click; nothing here computes a value.
+# --------------------------------------------------------------------------- #
+def _km_cell(v: ClusterVerdict) -> str:
+    """Key markers: the top driver (bold + glm coef) then up to two more key markers.
+    A grounded projection of the verdict (evidence + key_markers) — nothing invented."""
+    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
+    if not ev:
+        return '<span class="km">—</span>'
+    top = ev[0]
+    parts = [f'<b>{html.escape(top.gene)}</b> <span class="n">{top.glm_coef:.1f}</span>']
+    extra = [str(g) for g in (v.key_markers or []) if str(g) != top.gene][:2]
+    if extra:
+        parts.append(html.escape(" · ".join(extra)))
+    return '<span class="km">' + " · ".join(parts) + "</span>"
+
+
+def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
+                refinements: dict) -> str:
+    """The whole review table as one aligned HTML table. Rows in stable cluster order;
+    flagged / to-refine rows carry an on-grid sub-row with their reason + action pill."""
+    head = ('<thead><tr><th class="c-sign"></th><th class="c-cid">Cluster</th>'
+            '<th class="c-ct">Cell type</th><th class="c-conf">Confidence</th>'
+            '<th>Key markers</th></tr></thead>')
+    rows: list[str] = []
+    for v in verdicts:
+        c = v.cluster
+        is_signed = c in signed
+        override = overrides.get(c)
+        refinement = refinements.get(c)
+        contested = bool(v.verify or (override and override.get("dissent")))
+        needs = (contested or refinement is not None) and not is_signed
+        cls = "prow" + (" need" if needs else "") + (" done" if is_signed else "")
+        if is_signed:
+            sign = f'<a class="tick done" href="?undo={c}" target="_self" title="signed — reopen">✓</a>'
+        elif contested:
+            sign = '<span class="warnflag" title="needs a closer look before sign-off">⚠</span>'
+        else:
+            sign = f'<a class="tick" href="?sign={c}" target="_self" title="sign off">☐</a>'
+        color = fmt.cluster_color(c)
+        yours = ' <span class="yours">yours</span>' if override else ""
+        rows.append(
+            f'<tr class="{cls}"><td class="c-sign">{sign}</td>'
+            f'<td class="c-cid"><a class="cid" href="?drill={c}" target="_self">{html.escape(c)}</a></td>'
+            f'<td class="c-ct"><span class="dot" style="background:{color}"></span>'
+            f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</td>'
+            f'<td class="c-conf">{_conf_badge(v.confidence)}</td>'
+            f'<td>{_km_cell(v)}</td></tr>'
+        )
+        if needs:
+            reason = _subline_reason_html(v, override, refinement)
+            if contested:
+                btn = f'<a class="act confirm" href="?confirm={c}" target="_self">Confirm &amp; sign off</a>'
+            else:
+                btn = (f'<a class="act accept" href="?accept={c}" target="_self">'
+                       f'Accept {html.escape(refinement.to_call)}</a>')
+            rows.append('<tr class="need subrow"><td class="c-sign"></td>'
+                        f'<td colspan="4"><div class="subwrap"><div class="subtext">{reason}</div>'
+                        f'{btn}</div></td></tr>')
+    return f'<table class="ptbl">{head}<tbody>{"".join(rows)}</tbody></table>'
+
+
+def _handle_table_actions(st, verdicts: list[ClusterVerdict], overrides: dict,
+                          refinements: dict) -> None:
+    """Dispatch a table click that arrived as a query param (?sign/undo/drill/confirm/
+    accept=cN), then clear it. The table is pure HTML, so every action comes this way."""
+    qp = st.query_params
+    vmap = {v.cluster: v for v in verdicts}
+
+    def _pop(k: str) -> None:
+        try:
+            del qp[k]
+        except Exception:  # noqa: BLE001 - clearing a stale param is best-effort
+            pass
+
+    if (c := qp.get("sign")) in vmap:
+        da.mark_signed_off(c, note_id=None, at=_now_iso()); _pop("sign")
+    elif (c := qp.get("undo")) in vmap:
+        da.clear_signoff(c, at=_now_iso()); _pop("undo")
+    elif (c := qp.get("drill")) in vmap:
+        _set_active(c); _pop("drill")
+    elif (c := qp.get("confirm")) in vmap:
+        _begin_signoff(c, _signoff_claim(vmap[c], overrides.get(c))); _pop("confirm")
+    elif (c := qp.get("accept")) in vmap:
+        r = refinements.get(c)
+        if r is not None:
+            _draft_refinement(r)
+        _pop("accept")
+
+
 def _accept_refine_button(st, refinement) -> None:
     with st.container(key=f"tact_refine_{refinement.cluster}"):
         st.button(f"Accept {refinement.to_call}", key=f"acc_{refinement.cluster}",
@@ -1058,9 +1200,12 @@ def render_summary_page() -> None:
     overrides = {v.cluster: da.override_info(v.cluster) for v in verdicts}
     overrides = {c: o for c, o in overrides.items() if o}
     sec_by_id = {v.cluster: v for v in verdicts}
+    refinements = _refinements_by_cluster()
+    # A table click arrives as a query param (the table is pure HTML) — dispatch it
+    # BEFORE reading the sign-off state so this render reflects it immediately.
+    _handle_table_actions(st, verdicts, overrides, refinements)
     # Sign-off state drives the board triage AND the header finish line.
     signed = da.signed_off()
-    refinements = _refinements_by_cluster()
     n_signed = sum(1 for v in verdicts if v.cluster in signed)
     n_needs = sum(1 for v in verdicts
                   if _triage_bucket(v, signed, refinements, overrides) == _BUCKET_NEEDS)
@@ -1193,7 +1338,18 @@ def render_summary_page() -> None:
             line = _reconciliation_line_html(_reconciliation_items(verdicts, themes, overrides))
             if line:
                 st.markdown(line, unsafe_allow_html=True)
-            _render_table(st, verdicts, overrides, signed, refinements)
+            with st.container(key="pano_tblcard"):
+                st.markdown(_table_html(verdicts, overrides, signed, refinements),
+                            unsafe_allow_html=True)
+            # A pending confirm / accept card (Streamlit widgets) renders below the table
+            # when the biologist clicks Confirm / Accept on a flagged or to-refine row.
+            for v in verdicts:
+                _render_signoff_card(st, v.cluster)
+                if v.cluster in refinements:
+                    from ui import conversation as convo
+
+                    convo._render_draft_card(v.cluster, thread_key=f"holistic::{v.cluster}",
+                                             trigger="holistic_review")
 
             # Everything that is NOT the review action is folded away — the report
             # intro prose and the re-draft control live in one collapsed disclosure so

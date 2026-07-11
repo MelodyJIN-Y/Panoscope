@@ -222,8 +222,8 @@ def test_reconciliation_items_are_grounded() -> None:
 
 
 def test_board_renders_headless() -> None:
-    """The whole Summary board renders with no exception and offers a sign-off, a chat,
-    and an evidence action per cluster (a runtime smoke over the real page)."""
+    """The whole Summary board renders with no exception: the aligned HTML table with a
+    row per cluster, the checklist tick links, and the key-markers column."""
     try:
         from streamlit.testing.v1 import AppTest
     except Exception:  # noqa: BLE001 - Streamlit testing API absent
@@ -245,12 +245,25 @@ def test_board_renders_headless() -> None:
 
         pytest.skip("Streamlit too old for st.container(key=...)")
     assert not at.exception, [str(e.value) for e in at.exception]
-    labels = [b.label for b in at.button]
-    # one drill link per cluster (c1..c9) + at least one sign-off control (☐ / Confirm)
-    assert sum(ln in {f"c{i}" for i in range(1, 10)} for ln in labels) == 9
-    assert any(ln in ("☐", "Confirm", "✓") for ln in labels)
     md = "\n".join(m.value for m in at.markdown)
-    assert "sign it off" in md and "Key evidence" in md
+    assert 'class="ptbl"' in md          # the aligned HTML table rendered
+    assert "sign it off" in md and "Key markers" in md
+    assert 'href="?sign=' in md          # a checklist tick link
+    for ct in ("Tumor", "Stromal", "Mast Cells"):
+        assert ct in md
+
+
+def test_table_html_is_grounded() -> None:
+    """Every cell in the HTML table is a projection of the verdicts — cluster ids, cell
+    types, confidence labels and the top marker all appear verbatim; nothing invented."""
+    verdicts = da.all_verdicts()
+    out = summary._table_html(verdicts, {}, {}, {})
+    for v in verdicts:
+        assert v.cluster in out
+        assert html.escape(v.cell_type.replace("_", " ")) in out
+        assert v.confidence in out
+        top = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[0]
+        assert html.escape(top.gene) in out
 
 
 def test_flag_reason_is_grounded_not_blanket_thin() -> None:
