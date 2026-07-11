@@ -779,30 +779,28 @@ def _attention_note(v: ClusterVerdict, override, refinement) -> str:
 
 
 def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
-    """Biology · relevance (cited): the top marker signal (gene · glm · pearson) leads,
-    then the grounded, live-cited cell-type note (summary + real PMID), then a caveat pill
-    for a cluster that needs a closer look. Every number/PMID is projected from the verdict
-    evidence + the pipeline's cited celltype_notes — nothing invented."""
+    """Biology · relevance (cited): a two-sentence cell-type summary — the grounded,
+    live-cited note (summary + real PMID), followed by a grounded key-markers sentence
+    when the note is a single sentence — then a caveat pill for a cluster that needs a
+    closer look. No glm/pearson. Every word/PMID/marker is projected from the pipeline's
+    cited celltype_notes + the jazzPanda verdict; nothing invented."""
     note = ct_notes.get(v.cluster) or {}
     summary = str(note.get("summary") or "")
     pmid = note.get("pmid")
-    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
-    lead = ""
-    if ev:
-        top = ev[0]
-        lead = (f'<span class="km"><b>{html.escape(top.gene)}</b> glm {top.glm_coef:.1f} · '
-                f'pearson {top.pearson:.2f}</span>')
     body: list[str] = []
     if summary:
         body.append(f'<span class="bio">{html.escape(summary)}</span>')
+        # A grounded second sentence naming the key markers, only when the stored note
+        # is a single sentence (a live regen writes its own two sentences -> skip).
+        if summary.count(".") <= 1 and v.key_markers:
+            km = ", ".join(str(g) for g in v.key_markers[:4])
+            body.append(f'<span class="bio">Key markers: {html.escape(km)}.</span>')
     if pmid:
         body.append(f'<a class="pmid" href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(pmid))}/" '
                     f'target="_blank">PMID:{html.escape(str(pmid))}</a>')
     if needs_note:
         body.append(f'<span class="cav">⚠ {html.escape(needs_note)}</span>')
-    if lead and body:
-        return f'{lead} <span class="km-dash">—</span> ' + " ".join(body)
-    return lead or " ".join(body) or '<span class="bio-dim">—</span>'
+    return " ".join(body) if body else '<span class="bio-dim">—</span>'
 
 
 def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
