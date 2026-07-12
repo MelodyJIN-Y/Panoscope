@@ -12,14 +12,6 @@
     },
     "verify": false
   },
-  "c2": {
-    "cluster": "c2",
-    "cell_type": "Stromal",
-    "summary": "Breast stromal fibroblasts secrete and remodel the extracellular matrix scaffolding that surrounds and supports the tumor.",
-    "pmid": null,
-    "citation": null,
-    "verify": false
-  },
   "c3": {
     "cluster": "c3",
     "cell_type": "Macrophages",
@@ -100,5 +92,18 @@
       "year": 0
     },
     "verify": true
+  },
+  "c2": {
+    "cluster": "c2",
+    "cell_type": "Stromal",
+    "summary": "Stromal fibroblasts in human breast tissue are mesenchymal cells that build and remodel the extracellular matrix.",
+    "pmid": "37479733",
+    "citation": {
+      "pmid": "37479733",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
   }
 }

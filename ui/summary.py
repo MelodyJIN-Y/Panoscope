@@ -825,18 +825,18 @@ def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
         needs = (contested or refinement is not None) and not is_signed
         cls = "prow" + (" need" if needs else "") + (" done" if is_signed else "")
         if is_signed:
-            sign = f'<a class="tick done" href="?undo={c}" target="_self" title="signed — reopen">●</a>'
+            sign = f'<a class="tick done" href="?page=summary&undo={c}" target="_self" title="signed, reopen">●</a>'
         elif needs:
-            sign = ('<a class="warnflag" href="?drill=' + c + '" target="_self" '
-                    'title="needs a closer look — click for details">⚠</a>')
+            sign = ('<a class="warnflag" href="?page=summary&drill=' + c + '" target="_self" '
+                    'title="needs a closer look, click for details">⚠</a>')
         else:
-            sign = f'<a class="tick" href="?sign={c}" target="_self" title="sign off">○</a>'
+            sign = f'<a class="tick" href="?page=summary&sign={c}" target="_self" title="sign off">○</a>'
         color = fmt.cluster_color(c)
         yours = ' <span class="yours">yours</span>' if override else ""
         needs_note = _attention_note(v, override, refinement) if needs else ""
         rows.append(
             f'<tr class="{cls}"><td class="c-sign">{sign}</td>'
-            f'<td class="c-cid"><a class="cid" href="?drill={c}" target="_self">{html.escape(c)}</a></td>'
+            f'<td class="c-cid"><a class="cid" href="?page=summary&drill={c}" target="_self">{html.escape(c)}</a></td>'
             f'<td class="c-ct"><span class="dot" style="background:{color}"></span>'
             f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</td>'
             f'<td class="c-conf">{_conf_badge(v.confidence)}</td>'

@@ -145,7 +145,7 @@ def set_selected_cluster(cluster: str) -> None:
 # key/value so the Summary board can send the biologist there without importing
 # app.py (which imports this module).
 _K_ACTIVE_PAGE = "active_page"
-_PAGE_WITH_CHAT = "examine"
+_PAGE_WITH_CHAT = "markers"   # the Marker-genes page value (mirrors app.py)
 
 
 def open_cluster_chat(cluster: str) -> None:

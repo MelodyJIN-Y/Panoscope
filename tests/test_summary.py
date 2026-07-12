@@ -248,7 +248,7 @@ def test_board_renders_headless() -> None:
     md = "\n".join(m.value for m in at.markdown)
     assert 'class="ptbl"' in md          # the aligned HTML table rendered
     assert "sign it off" in md and "Biology" in md
-    assert 'href="?sign=' in md          # a sign-off tick link for a clean call
+    assert 'href="?page=summary&sign=' in md   # a sign-off tick link (preserves the page)
     for ct in ("Tumor", "Stromal", "Mast Cells"):
         assert ct in md
 

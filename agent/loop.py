@@ -41,6 +41,7 @@ from typing import Any, Callable, Optional
 
 from agent import config as cfg
 from agent import fallback as fb
+from agent import profile as agent_profile
 from agent import tools as agent_tools
 from agent.grounding_check import GroundingChecker
 from agent.types import (
@@ -304,6 +305,28 @@ def _enrichment_context(cluster: Optional[str]) -> str:
     return "\n".join(lines)
 
 
+def _research_context() -> str:
+    """Optional personalization block: the biologist's research interest, used ONLY
+    to sharpen literature search. Empty string when no profile is set.
+
+    It biases WHICH real paper the agent searches for and cites so citations are
+    tissue/field-appropriate; it can never change a jazzPanda number, a marker, a
+    confidence band, or a cell-type call, and never excuses a PMID from memory.
+    """
+    interest = agent_profile.load()
+    if not interest:
+        return ""
+    return (
+        "# BIOLOGIST RESEARCH CONTEXT (personalization for literature search ONLY)\n"
+        f"The biologist studies: {interest}\n"
+        "When you SEARCH or CITE the literature, prefer real papers relevant to this "
+        "context so the citation is more precise and tissue-appropriate. This may "
+        "influence WHICH real paper you cite; it must NEVER invent, change, or override "
+        "any jazzPanda number, marker, confidence band, or cell-type call, and never "
+        "justifies writing a PMID from memory."
+    )
+
+
 def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> str:
     """Assemble the full system prompt: skill + contract + per-cluster context.
 
@@ -315,6 +338,7 @@ def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> 
     parts = [
         _skill_text(skill),
         _GROUNDING_CONTRACT,
+        _research_context(),
         context,
     ]
     return "\n\n---\n\n".join(p for p in parts if p)

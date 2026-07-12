@@ -23,6 +23,7 @@ from ui import (
     conversation,
     enrichment_table,
     evidence_table,
+    onboarding,
     paper_drawer,
     spatial_stage,
     state,
@@ -50,10 +51,14 @@ def _logo_data_uri(name: str) -> str:
 # mirrored to the URL query param (?page=) so a full browser refresh restores the
 # tab instead of dropping back to the default — the tab is also shareable now.
 _K_PAGE = "active_page"
-_PAGE_EXAMINE = "examine"
+# Every page has a dedicated ?page= URL name.
+_PAGE_WELCOME = "welcome"      # landing
+_PAGE_UPLOAD = "upload"        # load-your-data
+_PAGE_EXAMINE = "markers"      # marker-genes dashboard
 _PAGE_SUMMARY = "summary"
 _PAGE_PATHWAYS = "pathways"
-_VALID_PAGES = (_PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_PATHWAYS)
+_ONBOARDING_PAGES = (_PAGE_WELCOME, _PAGE_UPLOAD)
+_VALID_PAGES = (_PAGE_WELCOME, _PAGE_UPLOAD, _PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_PATHWAYS)
 
 
 def _set_page(page: str) -> None:
@@ -71,7 +76,15 @@ def _resolve_page() -> str:
     """
     if _K_PAGE not in st.session_state:
         url_page = st.query_params.get("page")
-        st.session_state[_K_PAGE] = url_page if url_page in _VALID_PAGES else _PAGE_SUMMARY
+        if url_page in _VALID_PAGES:
+            default = url_page
+        elif any(k in st.query_params for k in ("sign", "undo", "drill", "confirm", "accept")):
+            # A Summary-table action link (?drill=cN etc.) drops the page param; the
+            # user is on the Summary dashboard, not making a fresh visit -> not welcome.
+            default = _PAGE_SUMMARY
+        else:
+            default = _PAGE_WELCOME
+        st.session_state[_K_PAGE] = default
     page = st.session_state[_K_PAGE]
     if st.query_params.get("page") != page:
         st.query_params["page"] = page
@@ -99,10 +112,19 @@ def _restore_selection_from_url() -> None:
         state.set_selected_pathways(cluster, [s for s in pathways.split(",") if s])
 
 
-def _sync_selection_to_url() -> None:
+def _sync_selection_to_url(page: str) -> None:
     """Mirror the current cluster + its selections to the URL (write only on change,
-    so a refresh restores them without triggering redundant reruns)."""
+    so a refresh restores them without triggering redundant reruns).
+
+    The Summary page is dataset-wide, so it carries no cluster/marker params — the
+    URL stays a clean ``?page=summary``. Marker/Pathways pages keep the selection.
+    """
     qp = st.query_params
+    if page == _PAGE_SUMMARY:
+        for key in ("cluster", "m", "pw"):
+            if key in qp:
+                del qp[key]
+        return
     cluster = state.get_selected_cluster()
     if qp.get("cluster") != cluster:
         qp["cluster"] = cluster
@@ -206,9 +228,20 @@ st.set_page_config(
 theme.inject_css()
 state.init_state()
 
-# on_click tab handlers have already fired, so this reads the fresh page. On a
-# hard refresh (session_state wiped) the tab + selections are restored from the URL.
+# Page routing — each page has a dedicated ?page= URL name:
+#   welcome (landing) · upload · markers · pathways · summary.
+# welcome + upload are the onboarding front door; the rest are the dashboard.
 page = _resolve_page()
+
+if page == _PAGE_WELCOME:
+    onboarding.render_landing()
+    st.stop()
+if page == _PAGE_UPLOAD:
+    onboarding.render_upload()
+    st.stop()
+
+# Dashboard. on_click tab handlers have already fired, so this reads the fresh
+# page. On a hard refresh the tab + selections are restored from the URL.
 _restore_selection_from_url()
 _top_bar(page)
 
@@ -220,4 +253,4 @@ else:
     _examine_body()
 
 # Mirror the current cluster + its selections to the URL so a refresh restores them.
-_sync_selection_to_url()
+_sync_selection_to_url(page)
