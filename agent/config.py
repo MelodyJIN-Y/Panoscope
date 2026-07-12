@@ -56,7 +56,10 @@ PRIMARY_MODEL: str = os.getenv("PANOSCOPE_MODEL", "claude-sonnet-4-6")
 # Active dataset (selectable via PANOSCOPE_DATASET; one dataset per process).
 # Everything below derives from THIS dataset's files, never a hardcoded literal.
 # --------------------------------------------------------------------------- #
-DATASET_ID: str = os.getenv("PANOSCOPE_DATASET", "xenium_hbreast_sample1")
+# The bundled demo dataset. Its identity is fixed (the bundled fallback maps /
+# legacy files belong to it); any OTHER dataset derives everything from its own tree.
+BUNDLED_DEMO_ID: str = "xenium_hbreast_sample1"
+DATASET_ID: str = os.getenv("PANOSCOPE_DATASET", BUNDLED_DEMO_ID)
 SAMPLE1_N_CELLS: int = 158_379  # demo cell count (informational only)
 PANEL_GENE_COUNT: int = 280     # informational only; panel size is dataset-dependent
 

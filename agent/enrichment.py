@@ -39,7 +39,11 @@ from agent.types import ClusterEnrichment, PathwayEvidence
 # Pathways slice (fail-soft in the pipeline).
 _JZ_ENRICHMENT_CSV = cfg._active_input(
     "enrichment.csv",
-    cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv",
+    # the bundled demo file is a fallback ONLY for the demo; any other dataset that
+    # lacks inputs/enrichment.csv simply has no Pathways slice (never the demo's).
+    cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv"
+    if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID
+    else cfg._DATASET_INPUTS / "enrichment.csv",
 )
 _JZ_SCORE_KIND = "jazzpanda_enrichment"
 _JZ_COLLECTION = "MSigDB_Hallmark"

@@ -73,16 +73,25 @@ def _read_tree_frame(vdir: Path, stem: str) -> Optional[pd.DataFrame]:
 
 
 def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, Any]]:
-    """Copy the raw inputs into <id>/inputs/ and hash them for provenance."""
+    """Hash the dataset's own inputs for provenance.
+
+    A dataset's ``inputs/`` files are the source of truth and are NEVER overwritten.
+    Only the bundled demo bootstraps a missing input from the legacy global file
+    (so a fresh clone works); any other dataset uses exactly what it shipped.
+    """
     idir = paths.inputs_dir(dataset_id, root)
     idir.mkdir(parents=True, exist_ok=True)
+    is_demo = dataset_id == cfg.BUNDLED_DEMO_ID
     prov: dict[str, dict[str, Any]] = {}
-    for name, src in _RAW_SOURCES.items():
-        if not src.exists():
-            continue
+    for name, legacy_src in _RAW_SOURCES.items():
         dst = idir / name
-        shutil.copyfile(src, dst)
-        prov[name] = {"file": name, "sha256": manifest_mod.sha256_file(dst)}
+        if is_demo and not dst.exists() and legacy_src.exists():
+            shutil.copyfile(legacy_src, dst)  # bootstrap the bundled demo only
+        if dst.exists():
+            prov[name] = {"file": name, "sha256": manifest_mod.sha256_file(dst)}
+    extra = idir / "enrichment.csv"  # per-dataset enrichment result, if provided
+    if extra.exists():
+        prov["enrichment.csv"] = {"file": "enrichment.csv", "sha256": manifest_mod.sha256_file(extra)}
     return prov
 
 

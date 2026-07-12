@@ -65,11 +65,13 @@ def load_annotation(dataset_id: Optional[str] = None) -> dict[str, dict]:
         except (OSError, json.JSONDecodeError, ValueError):
             pass  # fall through to the bundled map
     # No annotation file yet: derive over the dataset's real clusters. The bundled
-    # demo map supplies known types for the demo; any other cluster reads "Unknown"
-    # until the annotate stage writes annotation.json (never inherits demo types).
+    # demo map supplies known types ONLY for the bundled demo dataset; any OTHER
+    # dataset reads "Unknown" until the annotate stage writes annotation.json, so it
+    # never inherits demo cell types (even if it happens to reuse c1/c2/... ids).
+    is_bundled_demo = (dataset_id or cfg.DATASET_ID) == cfg.BUNDLED_DEMO_ID
     out: dict[str, dict] = {}
     for c in cfg.CLUSTER_ORDER:
-        meta = cfg.CLUSTER_KEY.get(c)
+        meta = cfg.CLUSTER_KEY.get(c) if is_bundled_demo else None
         if meta is None:
             out[c] = {
                 "cluster": c, "cell_type": "Unknown", "cell_type_short": "Unknown",

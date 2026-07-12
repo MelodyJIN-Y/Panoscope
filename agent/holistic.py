@@ -116,7 +116,11 @@ def _proportions_note() -> str:
 
     Cell counts come from ``data.get_cluster_cells`` at runtime — never hard-coded.
     """
-    counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
+    try:
+        counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
+    except Exception:  # noqa: BLE001 - no cell coordinates for this dataset
+        return ("Cell-count proportions are unavailable for this dataset "
+                "(no per-cell coordinates provided).")
     largest = max(counts, key=counts.__getitem__)
     rarest = min(counts, key=counts.__getitem__)
     largest_type = annotation.cell_type_for(largest)
