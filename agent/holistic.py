@@ -103,16 +103,12 @@ def _compartment_note() -> str:
     all major compartments are represented. Pure grouping of the authoritative
     cluster key — no invented biology.
     """
-    parts: list[str] = []
-    for compartment, clusters in _COMPARTMENTS.items():
-        types = ", ".join(annotation.cell_type_for(c) for c in clusters)
-        parts.append(f"{compartment} ({types})")
-    return (
-        "Expected breast-TME compartments are all represented: "
-        + "; ".join(parts)
-        + ". The immune compartment in particular is well populated "
-        "(macrophages, T, B, dendritic, mast)."
-    )
+    by_cat: dict[str, list[str]] = {}
+    for c in cfg.CLUSTER_ORDER:
+        meta = annotation.meta_for(c)
+        by_cat.setdefault(str(meta.get("category", "Unknown")), []).append(meta["cell_type"])
+    parts = [f"{cat} ({', '.join(types)})" for cat, types in by_cat.items()]
+    return "Compartments represented across the dataset: " + "; ".join(parts) + "."
 
 
 def _proportions_note() -> str:
@@ -197,9 +193,15 @@ def holistic_review() -> HolisticReview:
     every expected lineage is present, there is no redundancy, and the refinement
     is a sharpening, not a mis-call fix.
     """
+    # The one bundled refinement (c8 Dendritic -> pDC) is demo-specific; surface it
+    # only when that cluster and call are actually present in this dataset.
+    refinements: tuple[Refinement, ...] = ()
+    if _REFINE_CLUSTER in cfg.KNOWN_CLUSTERS and \
+            annotation.cell_type_for(_REFINE_CLUSTER) == _REFINE_FROM:
+        refinements = (_c8_refinement(),)
     return HolisticReview(
         coherence_notes=_coherence_notes(),
-        refinements=(_c8_refinement(),),
+        refinements=refinements,
         set_is_coherent=True,
     )
 
