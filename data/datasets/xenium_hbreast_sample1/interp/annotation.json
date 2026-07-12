@@ -1,0 +1,171 @@
+{
+  "dataset": "xenium_hbreast_sample1",
+  "method": "jazzpanda-markers skill (Output 2)",
+  "clusters": {
+    "c1": {
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "cell_type_short": "Tum_Epi",
+      "category": "Epithelial",
+      "lineage": "Epithelial",
+      "canonical_markers": [
+        "ERBB2",
+        "EPCAM",
+        "KRT8",
+        "KRT7",
+        "FOXA1",
+        "GATA3",
+        "KRT18"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c2": {
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "cell_type_short": "Str_Fib",
+      "category": "Stromal",
+      "lineage": "Mesenchymal",
+      "canonical_markers": [
+        "LUM",
+        "POSTN",
+        "PDGFRA",
+        "PDGFRB",
+        "DCN",
+        "COL1A1"
+      ],
+      "offpanel_canonical": [
+        "COL1A1",
+        "COL1A2",
+        "DCN",
+        "VIM",
+        "FAP"
+      ],
+      "source": "marker-skill"
+    },
+    "c3": {
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "cell_type_short": "Imm_Mac",
+      "category": "Immune",
+      "lineage": "Myeloid",
+      "canonical_markers": [
+        "LYZ",
+        "CD68",
+        "CD163",
+        "ITGAX",
+        "FCGR3A",
+        "FCER1G",
+        "CSF1R"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c4": {
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "cell_type_short": "Myoepi_",
+      "category": "Epithelial",
+      "lineage": "Epithelial",
+      "canonical_markers": [
+        "MYLK",
+        "ACTA2",
+        "KRT14",
+        "KRT5",
+        "MYH11",
+        "OXTR",
+        "TP63"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c5": {
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "cell_type_short": "Imm_T",
+      "category": "Immune",
+      "lineage": "Lymphoid",
+      "canonical_markers": [
+        "IL7R",
+        "PTPRC",
+        "TRAC",
+        "CD3E",
+        "CD3D",
+        "CD8A",
+        "CD4"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c6": {
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "cell_type_short": "Imm_B",
+      "category": "Immune",
+      "lineage": "Lymphoid",
+      "canonical_markers": [
+        "MS4A1",
+        "CD79A",
+        "CD79B",
+        "CD19",
+        "BANK1",
+        "MZB1"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c7": {
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "cell_type_short": "Endo_",
+      "category": "Endothelial",
+      "lineage": "Endothelial",
+      "canonical_markers": [
+        "PECAM1",
+        "VWF",
+        "CD93",
+        "AQP1",
+        "CLDN5",
+        "CDH5",
+        "FLT1"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c8": {
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "cell_type_short": "Imm_DC",
+      "category": "Immune",
+      "lineage": "Myeloid",
+      "canonical_markers": [
+        "LILRA4",
+        "TCL1A",
+        "SPIB",
+        "PLD4",
+        "IL3RA",
+        "CLEC4C",
+        "IRF7"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    },
+    "c9": {
+      "cluster": "c9",
+      "cell_type": "Mast_Cells",
+      "cell_type_short": "Imm_Mast",
+      "category": "Immune",
+      "lineage": "Myeloid",
+      "canonical_markers": [
+        "CPA3",
+        "TPSAB1",
+        "KIT",
+        "CTSG",
+        "MS4A2",
+        "TPSB2"
+      ],
+      "offpanel_canonical": [],
+      "source": "marker-skill"
+    }
+  }
+}
