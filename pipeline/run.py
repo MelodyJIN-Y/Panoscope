@@ -32,6 +32,7 @@ from pipeline import manifest as manifest_mod
 from pipeline import paths
 from pipeline import serialize
 from pipeline.stages.enrichment import run_enrichment
+from pipeline.stages.prep import run_prep
 from pipeline.stages.validate import validate
 from pipeline.stages.verdicts import run_verdicts
 from pipeline.stages.viz import collect_viz
@@ -189,6 +190,7 @@ def run(
     ddir = paths.dataset_dir(dataset_id, root)
     ddir.mkdir(parents=True, exist_ok=True)
 
+    run_prep(dataset_id, root)  # raw .Rds -> tidy inputs (no-op if already present)
     validate(dataset_id)
     inputs = _copy_inputs(dataset_id, root)
     vdir = collect_viz(dataset_id, root)  # ensure viz frames live in the tree
