@@ -117,17 +117,52 @@ def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path])
         pass
 
 
+def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
+    """True iff every cluster already has a named cell type (no Unknown).
+
+    Checks the annotation the app/verdict actually read (``agent.annotation``,
+    which resolves the dataset tree or the bundled fallback) rather than a specific
+    output root, so the bundled demo skips the live annotate stage even when the
+    pipeline writes into a fresh/temporary tree.
+    """
+    from agent import annotation as agent_annotation
+
+    ann = agent_annotation.load_annotation(dataset_id)
+    return bool(ann) and all(
+        str(ann.get(c, {}).get("cell_type")) not in ("", "Unknown", "None")
+        for c in cfg.CLUSTER_ORDER
+    )
+
+
+def _ensure_annotation(dataset_id: str, root: Optional[Path]) -> None:
+    """Ensure the per-cluster cell-type annotation exists (marker-gene skill, LIVE).
+
+    Read-if-present: when a complete ``interp/annotation.json`` is already there (the
+    bundled demo ships one), this is a no-op and never imports the agent loop. Only a
+    new / incomplete dataset triggers the live annotate stage.
+    """
+    if _annotation_complete(dataset_id, root):
+        return
+    from pipeline.stages import annotate as annotate_stage  # lazy (pulls the agent loop)
+
+    annotate_stage.run_annotate(dataset_id, root)
+
+
 def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
-    """Run the LIVE notes stage (cell-type + per-marker biology, real PubMed).
+    """Run the LIVE notes stages (cell-type + per-marker biology + per-pathway, PubMed).
 
     Imported lazily so the deterministic pipeline never pulls in the agent loop /
-    MCP session. Resumable and fail-soft inside the stage: a slow or failed
-    lookup degrades to an honest deterministic clause, never a fabricated PMID.
+    MCP session. Resumable and fail-soft inside each stage: a slow or failed lookup
+    degrades to an honest deterministic clause, never a fabricated PMID.
     """
     from pipeline.stages import notes as notes_stage
 
     notes_stage.run_celltype_notes(dataset_id, root)
     notes_stage.run_gene_notes(dataset_id, root)
+    try:
+        notes_stage.run_pathway_notes(dataset_id, root)  # per-pathway biology (fail-soft)
+    except FileNotFoundError:
+        pass  # no enrichment result for this dataset -> no pathway notes
 
 
 def run(
@@ -148,6 +183,7 @@ def run(
     validate(dataset_id)
     inputs = _copy_inputs(dataset_id, root)
     vdir = collect_viz(dataset_id, root)  # ensure viz frames live in the tree
+    _ensure_annotation(dataset_id, root)  # marker-skill cell types (no-op if present)
     verdicts = run_verdicts(dataset_id, root)
     _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
     if notes:
