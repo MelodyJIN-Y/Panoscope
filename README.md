@@ -44,7 +44,16 @@ The skill is the interpretation contract; the **per-dataset pipeline is its exec
 - **Tier A — the skill's mechanical rules as deterministic code** (`agent/verdict.py` = SKILL Steps 3a/3b/3d): per-gene evaluation, the `glm_coef`-anchored confidence rubric, and the panel-absence rule. Offline and reproducible.
 - **Tier B — the skill's literature interpretation, live** (SKILL.md sits in the agent's system prompt): the Output-4 per-marker biology note is *the skill reading that gene's own Tier-A evidence* — role framed by canonical status, and a specificity caveat flagged only when the numbers show the gene marks another lineage. One real live PMID or none.
 
-A second dataset needs no code change: drop its raw inputs in `data/datasets/<id>/inputs/` and run. jazzPanda is never run — its output is a consumed input.
+**Processing a new dataset — no code change, nothing hardcoded.** Everything derives from the dataset: the cluster set from its markers, the **cell type from the marker skill itself** (not a hardcoded key), the panel-absence set from its own panel. Drop the tidy inputs into `data/datasets/<id>/inputs/` (`markers_top.csv`, `panel.parquet`, optional `enrichment.csv`), then:
+
+```bash
+PANOSCOPE_DATASET=<id> python -m pipeline.run --dataset <id> --notes   # build the tree
+PANOSCOPE_DATASET=<id> streamlit run app.py                            # view it
+```
+
+The pipeline is **read-if-present, else generate**. A `prep` stage converts raw Seurat / jazzPanda `.Rds` into the tidy inputs (`scripts/prep_data.R`; skipped when they already exist). An **`annotate` stage runs the marker skill per cluster** — from that cluster's jazzPanda markers it assigns the cell type, lineage/category, and the canonical markers that drive panel-absence (the skill's Output 2), skipped when `interp/annotation.json` is already there. Then come the deterministic verdicts, the enrichment, and the live per-marker / per-pathway notes. The bundled demo ships its annotation, so it re-runs nothing. jazzPanda is never run — its output is a consumed input.
+
+Verified end-to-end on a 9-gene, 3-cluster downsample of the demo: the skill annotated c1 → *HER2+ Tumor Epithelial*, c2 → *Cancer-Associated Fibroblast*, c3 → *Macrophages*, with panel-absence computed against that dataset's own panel.
 
 ## Calibration — commits on clean calls, flags the shaky ones
 
