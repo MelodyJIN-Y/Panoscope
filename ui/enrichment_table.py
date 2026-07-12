@@ -244,7 +244,6 @@ def render_pathways_page() -> None:
     cluster = state.get_selected_cluster()
     with center_col:
         _render_center(st, da.enrichment_for(cluster))
-        _render_themes(st, da.pathway_themes())
     with chat_col:
         enrichment_conversation.render_pathway_conversation(cluster)
 

@@ -30,6 +30,7 @@ from __future__ import annotations
 import csv
 import io
 
+from agent import annotation
 from agent import config as cfg
 from agent import data
 from agent.types import (
@@ -115,7 +116,7 @@ _assert_off_panel_map()
 # --------------------------------------------------------------------------- #
 def _is_canonical(gene: str, cell_type: str) -> bool:
     """True iff ``gene`` is a canonical marker for ``cell_type`` (case-insensitive)."""
-    canon = CANONICAL_MARKERS.get(cell_type, ())
+    canon = annotation.canonical_markers(cell_type)
     return gene.upper() in {g.upper() for g in canon}
 
 
@@ -263,7 +264,7 @@ def offpanel_notes(cell_type: str) -> tuple[OffPanelNote, ...]:
     gene is re-asserted off-panel here so a bad entry fails loud at call time too.
     """
     notes: list[OffPanelNote] = []
-    for gene in OFF_PANEL_CANONICAL.get(cell_type, ()):
+    for gene in annotation.offpanel_canonical(cell_type):
         assert not data.panel_contains(gene), (
             f"[verdict] {gene} is on the panel; cannot be an off-panel note"
         )
@@ -378,7 +379,7 @@ def verdict_for_cluster(cluster: str) -> ClusterVerdict:
         raise KeyError(
             f"[verdict] unknown cluster {cluster!r}; known: {sorted(cfg.KNOWN_CLUSTERS)}"
         )
-    meta = cfg.CLUSTER_KEY[cluster]
+    meta = annotation.meta_for(cluster)
     cell_type = meta["cell_type"]
 
     evidence = _build_evidence(cluster, cell_type)

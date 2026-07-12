@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from agent import annotation
 from agent import config as cfg
 from agent import data
 
@@ -102,16 +103,12 @@ def _compartment_note() -> str:
     all major compartments are represented. Pure grouping of the authoritative
     cluster key — no invented biology.
     """
-    parts: list[str] = []
-    for compartment, clusters in _COMPARTMENTS.items():
-        types = ", ".join(cfg.CLUSTER_KEY[c]["cell_type"] for c in clusters)
-        parts.append(f"{compartment} ({types})")
-    return (
-        "Expected breast-TME compartments are all represented: "
-        + "; ".join(parts)
-        + ". The immune compartment in particular is well populated "
-        "(macrophages, T, B, dendritic, mast)."
-    )
+    by_cat: dict[str, list[str]] = {}
+    for c in cfg.CLUSTER_ORDER:
+        meta = annotation.meta_for(c)
+        by_cat.setdefault(str(meta.get("category", "Unknown")), []).append(meta["cell_type"])
+    parts = [f"{cat} ({', '.join(types)})" for cat, types in by_cat.items()]
+    return "Compartments represented across the dataset: " + "; ".join(parts) + "."
 
 
 def _proportions_note() -> str:
@@ -119,11 +116,15 @@ def _proportions_note() -> str:
 
     Cell counts come from ``data.get_cluster_cells`` at runtime — never hard-coded.
     """
-    counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
+    try:
+        counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
+    except Exception:  # noqa: BLE001 - no cell coordinates for this dataset
+        return ("Cell-count proportions are unavailable for this dataset "
+                "(no per-cell coordinates provided).")
     largest = max(counts, key=counts.__getitem__)
     rarest = min(counts, key=counts.__getitem__)
-    largest_type = cfg.CLUSTER_KEY[largest]["cell_type"]
-    rarest_type = cfg.CLUSTER_KEY[rarest]["cell_type"]
+    largest_type = annotation.cell_type_for(largest)
+    rarest_type = annotation.cell_type_for(rarest)
     return (
         f"Proportions are plausible for a breast tumour: the largest cluster is "
         f"{largest} {largest_type} at {counts[largest]:,} cells, and the rarest is "
@@ -137,7 +138,7 @@ def _redundancy_note() -> str:
 
     Derived from the authoritative CLUSTER_KEY values at runtime.
     """
-    cell_types = [cfg.CLUSTER_KEY[c]["cell_type"] for c in cfg.CLUSTER_ORDER]
+    cell_types = [annotation.cell_type_for(c) for c in cfg.CLUSTER_ORDER]
     distinct = len(set(cell_types)) == len(cell_types)
     if not distinct:
         # Fail loud rather than silently claim coherence on a key that
@@ -196,9 +197,15 @@ def holistic_review() -> HolisticReview:
     every expected lineage is present, there is no redundancy, and the refinement
     is a sharpening, not a mis-call fix.
     """
+    # The one bundled refinement (c8 Dendritic -> pDC) is demo-specific; surface it
+    # only when that cluster and call are actually present in this dataset.
+    refinements: tuple[Refinement, ...] = ()
+    if _REFINE_CLUSTER in cfg.KNOWN_CLUSTERS and \
+            annotation.cell_type_for(_REFINE_CLUSTER) == _REFINE_FROM:
+        refinements = (_c8_refinement(),)
     return HolisticReview(
         coherence_notes=_coherence_notes(),
-        refinements=(_c8_refinement(),),
+        refinements=refinements,
         set_is_coherent=True,
     )
 

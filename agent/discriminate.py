@@ -37,8 +37,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional
 
+from agent import annotation
 from agent import data
-from agent.verdict import CANONICAL_MARKERS, _is_canonical
+
+
+def _is_canonical(gene: str, cell_type: str) -> bool:
+    """True iff ``gene`` is a canonical marker for ``cell_type`` (per the dataset's
+    annotation, else the bundled fallback)."""
+    return gene.upper() in {g.upper() for g in annotation.canonical_markers(cell_type)}
 
 Role = Literal["supports_A", "supports_B_here", "b_localizes_elsewhere", "offpanel_absent"]
 
@@ -106,7 +112,9 @@ _ALIASES: dict[str, str] = {
     "ENDOTHELIUM": "Endothelial",
 }
 
-_KEY_BY_CANON: dict[str, str] = {_canon_key(k): k for k in CANONICAL_MARKERS}
+def _key_by_canon() -> dict[str, str]:
+    """Comparison-key -> canonical cell-type name, over the dataset's annotated types."""
+    return {_canon_key(k): k for k in annotation.all_canonical()}
 
 
 def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
@@ -114,14 +122,15 @@ def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
     if not s:
         return None
     key = _canon_key(s)
-    if key in _KEY_BY_CANON:
-        return _KEY_BY_CANON[key]
+    kmap = _key_by_canon()
+    if key in kmap:
+        return kmap[key]
     return _ALIASES.get(key)
 
 
 def _canonical_types_for(gene: str) -> tuple[str, ...]:
     """All canonical cell types a gene marks (the map is disjoint, so usually <=1)."""
-    return tuple(t for t in CANONICAL_MARKERS if _is_canonical(gene, t))
+    return tuple(t for t in annotation.all_canonical() if _is_canonical(gene, t))
 
 
 # --------------------------------------------------------------------------- #
@@ -199,7 +208,7 @@ def discriminate(cluster: str, alt_cell_type: Optional[str] = None) -> Discrimin
     offpanel: list[DiscriminatorMarker] = []
 
     if alt_B is not None:
-        for gene in CANONICAL_MARKERS[alt_B]:
+        for gene in annotation.canonical_markers(alt_B):
             up = gene.upper()
             if up in own:  # a top marker of THIS cluster -> genuine B signal, with number
                 info = own[up]

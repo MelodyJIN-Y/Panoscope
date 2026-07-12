@@ -32,6 +32,7 @@ from pipeline import manifest as manifest_mod
 from pipeline import paths
 from pipeline import serialize
 from pipeline.stages.enrichment import run_enrichment
+from pipeline.stages.prep import run_prep
 from pipeline.stages.validate import validate
 from pipeline.stages.verdicts import run_verdicts
 from pipeline.stages.viz import collect_viz
@@ -73,16 +74,25 @@ def _read_tree_frame(vdir: Path, stem: str) -> Optional[pd.DataFrame]:
 
 
 def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, Any]]:
-    """Copy the raw inputs into <id>/inputs/ and hash them for provenance."""
+    """Hash the dataset's own inputs for provenance.
+
+    A dataset's ``inputs/`` files are the source of truth and are NEVER overwritten.
+    Only the bundled demo bootstraps a missing input from the legacy global file
+    (so a fresh clone works); any other dataset uses exactly what it shipped.
+    """
     idir = paths.inputs_dir(dataset_id, root)
     idir.mkdir(parents=True, exist_ok=True)
+    is_demo = dataset_id == cfg.BUNDLED_DEMO_ID
     prov: dict[str, dict[str, Any]] = {}
-    for name, src in _RAW_SOURCES.items():
-        if not src.exists():
-            continue
+    for name, legacy_src in _RAW_SOURCES.items():
         dst = idir / name
-        shutil.copyfile(src, dst)
-        prov[name] = {"file": name, "sha256": manifest_mod.sha256_file(dst)}
+        if is_demo and not dst.exists() and legacy_src.exists():
+            shutil.copyfile(legacy_src, dst)  # bootstrap the bundled demo only
+        if dst.exists():
+            prov[name] = {"file": name, "sha256": manifest_mod.sha256_file(dst)}
+    extra = idir / "enrichment.csv"  # per-dataset enrichment result, if provided
+    if extra.exists():
+        prov["enrichment.csv"] = {"file": "enrichment.csv", "sha256": manifest_mod.sha256_file(extra)}
     return prov
 
 
@@ -117,17 +127,52 @@ def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path])
         pass
 
 
+def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
+    """True iff every cluster already has a named cell type (no Unknown).
+
+    Checks the annotation the app/verdict actually read (``agent.annotation``,
+    which resolves the dataset tree or the bundled fallback) rather than a specific
+    output root, so the bundled demo skips the live annotate stage even when the
+    pipeline writes into a fresh/temporary tree.
+    """
+    from agent import annotation as agent_annotation
+
+    ann = agent_annotation.load_annotation(dataset_id)
+    return bool(ann) and all(
+        str(ann.get(c, {}).get("cell_type")) not in ("", "Unknown", "None")
+        for c in cfg.CLUSTER_ORDER
+    )
+
+
+def _ensure_annotation(dataset_id: str, root: Optional[Path]) -> None:
+    """Ensure the per-cluster cell-type annotation exists (marker-gene skill, LIVE).
+
+    Read-if-present: when a complete ``interp/annotation.json`` is already there (the
+    bundled demo ships one), this is a no-op and never imports the agent loop. Only a
+    new / incomplete dataset triggers the live annotate stage.
+    """
+    if _annotation_complete(dataset_id, root):
+        return
+    from pipeline.stages import annotate as annotate_stage  # lazy (pulls the agent loop)
+
+    annotate_stage.run_annotate(dataset_id, root)
+
+
 def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
-    """Run the LIVE notes stage (cell-type + per-marker biology, real PubMed).
+    """Run the LIVE notes stages (cell-type + per-marker biology + per-pathway, PubMed).
 
     Imported lazily so the deterministic pipeline never pulls in the agent loop /
-    MCP session. Resumable and fail-soft inside the stage: a slow or failed
-    lookup degrades to an honest deterministic clause, never a fabricated PMID.
+    MCP session. Resumable and fail-soft inside each stage: a slow or failed lookup
+    degrades to an honest deterministic clause, never a fabricated PMID.
     """
     from pipeline.stages import notes as notes_stage
 
     notes_stage.run_celltype_notes(dataset_id, root)
     notes_stage.run_gene_notes(dataset_id, root)
+    try:
+        notes_stage.run_pathway_notes(dataset_id, root)  # per-pathway biology (fail-soft)
+    except FileNotFoundError:
+        pass  # no enrichment result for this dataset -> no pathway notes
 
 
 def run(
@@ -145,9 +190,11 @@ def run(
     ddir = paths.dataset_dir(dataset_id, root)
     ddir.mkdir(parents=True, exist_ok=True)
 
+    run_prep(dataset_id, root)  # raw .Rds -> tidy inputs (no-op if already present)
     validate(dataset_id)
     inputs = _copy_inputs(dataset_id, root)
     vdir = collect_viz(dataset_id, root)  # ensure viz frames live in the tree
+    _ensure_annotation(dataset_id, root)  # marker-skill cell types (no-op if present)
     verdicts = run_verdicts(dataset_id, root)
     _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
     if notes:

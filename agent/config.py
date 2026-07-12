@@ -53,11 +53,47 @@ TIDY_PANEL_PARQUET: Path = DATA_DIR_PATH / "panels" / "panel.parquet"
 PRIMARY_MODEL: str = os.getenv("PANOSCOPE_MODEL", "claude-sonnet-4-6")
 
 # --------------------------------------------------------------------------- #
-# Dataset facts (asserted by the R prep; carried here for callers)
+# Active dataset (selectable via PANOSCOPE_DATASET; one dataset per process).
+# Everything below derives from THIS dataset's files, never a hardcoded literal.
 # --------------------------------------------------------------------------- #
-DATASET_ID: str = "xenium_hbreast_sample1"
-SAMPLE1_N_CELLS: int = 158_379  # clusters.Rds sample1 cell count (assert downstream)
-PANEL_GENE_COUNT: int = 280  # informational only, NOT asserted — panel size is dataset-dependent (dynamic across spatial platforms). Analyzed panel here = 280 standard genes (Seurat/jazzPanda); the TSV lists 313 (280 + 33 "Custom" add-on), Custom excluded from the panel-absence set.
+# The bundled demo dataset. Its identity is fixed (the bundled fallback maps /
+# legacy files belong to it); any OTHER dataset derives everything from its own tree.
+BUNDLED_DEMO_ID: str = "xenium_hbreast_sample1"
+DATASET_ID: str = os.getenv("PANOSCOPE_DATASET", BUNDLED_DEMO_ID)
+SAMPLE1_N_CELLS: int = 158_379  # demo cell count (informational only)
+PANEL_GENE_COUNT: int = 280     # informational only; panel size is dataset-dependent
+
+# Active-dataset input resolution: prefer the per-dataset tree, else the bundled
+# legacy flat files (so the demo works with or without a built tree).
+_DATASET_INPUTS: Path = DATA_DIR_PATH / "datasets" / DATASET_ID / "inputs"
+
+
+def _active_input(name: str, legacy: Path) -> Path:
+    cand = _DATASET_INPUTS / name
+    return cand if cand.exists() else legacy
+
+
+ACTIVE_MARKERS_CSV: Path = _active_input("markers_top.csv", TIDY_MARKERS_CSV)
+ACTIVE_PANEL_PARQUET: Path = _active_input("panel.parquet", TIDY_PANEL_PARQUET)
+
+
+def _derive_cluster_order() -> tuple[str, ...]:
+    """Cluster ids in the active dataset's markers (top_cluster != NoSig), sorted
+    naturally (c1, c2, ... c10). Derived from the data, never a hardcoded literal."""
+    import re
+
+    if not ACTIVE_MARKERS_CSV.exists():
+        raise FileNotFoundError(
+            f"[config] markers missing: {ACTIVE_MARKERS_CSV} (run the data prep)"
+        )
+    m = pd.read_csv(ACTIVE_MARKERS_CSV)
+    labels = {str(x) for x in m["top_cluster"].unique() if str(x) != "NoSig"}
+
+    def _key(c: str):
+        mm = re.match(r"c(\d+)$", c)
+        return (0, int(mm.group(1))) if mm else (1, c)
+
+    return tuple(sorted(labels, key=_key))
 
 # --------------------------------------------------------------------------- #
 # Authoritative cluster -> cell type key (from clusters.Rds `anno`)
@@ -76,8 +112,9 @@ CLUSTER_KEY: dict[str, dict[str, str]] = {
     "c8": {"cell_type": "Dendritic",     "cell_type_short": "Imm_DC",   "category": "Immune",      "lineage": "Myeloid"},
     "c9": {"cell_type": "Mast_Cells",    "cell_type_short": "Imm_Mast", "category": "Immune",      "lineage": "Myeloid"},
 }
-KNOWN_CLUSTERS: frozenset[str] = frozenset(CLUSTER_KEY)
-CLUSTER_ORDER: tuple[str, ...] = tuple(f"c{i}" for i in range(1, 10))
+# Derived from the active dataset's markers (never a hardcoded c1..c9 literal).
+CLUSTER_ORDER: tuple[str, ...] = _derive_cluster_order()
+KNOWN_CLUSTERS: frozenset[str] = frozenset(CLUSTER_ORDER)
 
 # --------------------------------------------------------------------------- #
 # Confidence bands (TUNABLE) — glm_coef magnitude -> label.
@@ -163,15 +200,15 @@ def _load_panel_gene_set() -> frozenset[str]:
     The 33 "Custom" add-on genes are already excluded when the tidy panel is built,
     and panel size is dataset-dependent (dynamic), so no fixed count is asserted.
     """
-    if not TIDY_PANEL_PARQUET.exists():
+    if not ACTIVE_PANEL_PARQUET.exists():
         raise FileNotFoundError(
-            f"[config] tidy panel missing: {TIDY_PANEL_PARQUET} — produced by the data "
-            f"prep (data/panels/panel.parquet). Run the prep before importing."
+            f"[config] panel missing: {ACTIVE_PANEL_PARQUET} — produced by the data "
+            f"prep (inputs/panel.parquet). Run the prep before importing."
         )
-    panel = pd.read_parquet(TIDY_PANEL_PARQUET)
+    panel = pd.read_parquet(ACTIVE_PANEL_PARQUET)
     if "gene" not in panel.columns:
         raise ValueError(
-            f"[config] tidy panel {TIDY_PANEL_PARQUET} has no 'gene' column; got {list(panel.columns)}"
+            f"[config] panel {ACTIVE_PANEL_PARQUET} has no 'gene' column; got {list(panel.columns)}"
         )
     return frozenset(panel["gene"].astype(str))
 
@@ -184,17 +221,17 @@ def _derive_demo_markers() -> list[str]:
     data on a fresh clone / CI. NoSig rows and off-panel genes are excluded.
     Order within a cluster is glm_coef descending; clusters are emitted c1..c9.
     """
-    if not TIDY_MARKERS_CSV.exists():
+    if not ACTIVE_MARKERS_CSV.exists():
         raise FileNotFoundError(
-            f"[config] tidy top-marker file missing: {TIDY_MARKERS_CSV} — produced by "
-            f"the data prep (data/jazzpanda/markers_top.csv). Run the prep before importing."
+            f"[config] top-marker file missing: {ACTIVE_MARKERS_CSV} — produced by "
+            f"the data prep (inputs/markers_top.csv). Run the prep before importing."
         )
-    markers = pd.read_csv(TIDY_MARKERS_CSV)
+    markers = pd.read_csv(ACTIVE_MARKERS_CSV)
     expected_cols = {"gene", "top_cluster", "glm_coef"}
     missing = expected_cols - set(markers.columns)
     if missing:
         raise ValueError(
-            f"[config] tidy markers CSV {TIDY_MARKERS_CSV} missing columns {missing}; "
+            f"[config] markers CSV {ACTIVE_MARKERS_CSV} missing columns {missing}; "
             f"got {list(markers.columns)}"
         )
 
