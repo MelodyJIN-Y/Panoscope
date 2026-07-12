@@ -1,9 +1,9 @@
-# AGENTS.md — how Panoscope was built and how it reasons
+# AGENTS.md: how Panoscope was built and how it reasons
 
 Panoscope was built with Claude Code used as an **orchestrated team of agents**, not a single chat.
 This file names the roles so the design is legible. It draws one honest line:
 
-> **The team of agents was the build methodology. The running product is deliberately simple —
+> **The team of agents was the build methodology. The running product is deliberately simple:
 > one grounding-gated agent loop over a deterministic engine, with specialized skill-driven stages.**
 > We do not claim a swarm of live agents at runtime; we claim disciplined division of labor, enforced.
 
@@ -11,9 +11,9 @@ This file names the roles so the design is legible. It draws one honest line:
 
 ## Reviewing this project
 
-Every claim here is runnable — the fastest read is to run it. From a fresh clone (no API key needed):
+Every claim here is runnable, and the fastest read is to run it. From a fresh clone (no API key needed):
 
-- `pytest -m "not live"` — 230+ tests; a green run **is** the confident floor (no answer states anything not traced to source).
+- `pytest -m "not live"`: 230+ tests; a green run **is** the confident floor (no answer states anything not traced to source).
 - The load-bearing evidence lives in a few files worth opening: the grounding gate ([`agent/grounding_check.py`](agent/grounding_check.py), asserted by [`tests/test_grounding.py`](tests/test_grounding.py)); the deterministic verdict engine ([`agent/verdict.py`](agent/verdict.py)); the skill-driven per-dataset annotation ([`pipeline/stages/annotate.py`](pipeline/stages/annotate.py), [`agent/annotation.py`](agent/annotation.py)); and the calibration table (`python scripts/calibration_table.py`).
 - The interpretation contracts are the two skills under `skills/`; the product simply executes them.
 
@@ -30,7 +30,7 @@ The blueprint and its build DAG are real artifacts in the repo.
 | --- | --- | --- |
 | **Planner / architect** | File tree, the frozen shared dataclasses every module builds against, the verdict algorithm, and a **build DAG of parallel groups** (G0 contracts → G2 engine → G3 grounding → G4 loop → G5 UI) | [`BLUEPRINT.md`](BLUEPRINT.md), [`agent/types.py`](agent/types.py) |
 | **Parallel builders** | Each DAG group implemented independently against the frozen contract: the deterministic engine, the memory layer, the MCP tools, the grounding checker, and the UI panes | `agent/`, `ui/`, `pipeline/` |
-| **Reconciler** | Where independent agents made divergent choices (tidy-data layout, note format, citation convention), they were reconciled into one contract *before* merge — the blueprint's **"Key reconciliations"** table is the honest record | [`BLUEPRINT.md`](BLUEPRINT.md) §"Key reconciliations" |
+| **Reconciler** | Where independent agents made divergent choices (tidy-data layout, note format, citation convention), they were reconciled into one contract *before* merge; the blueprint's **"Key reconciliations"** table is the honest record | [`BLUEPRINT.md`](BLUEPRINT.md) §"Key reconciliations" |
 | **Grounding-CI referee** | Every agent's output had to trace to source or be discarded; the deterministic grounding suite is wired into CI so parallel speed never cost the confident floor | [`.github/workflows/ci.yml`](.github/workflows/ci.yml), `tests/` |
 | **Isolated worktrees** | Kept parallel streams from colliding (e.g. the Summary sign-off board) | `.claude/worktrees/` |
 
@@ -48,7 +48,7 @@ grounding contract. This is the honest "team" of the running product.
 | **Annotator** | Assign each cluster's cell type, lineage/category, and canonical markers from its jazzPanda markers (the skill's Output 2) | The marker-gene skill reads only that cluster's markers; the call is persisted to `interp/annotation.json` and read thereafter | [`pipeline/stages/annotate.py`](pipeline/stages/annotate.py), `skills/jazzpanda-markers/` |
 | **Verdict engine** | Score the annotated call's confidence band and attach panel-absence, from jazzPanda `glm_coef` | Deterministic; **owns every number**; the LLM is fenced out of statistic-generation | [`agent/verdict.py`](agent/verdict.py) |
 | **Literature note-writer** | Write the per-marker / per-cluster biology, cited | One **real live PMID or none**, fetched via the PubMed MCP; never from memory | [`pipeline/stages/notes.py`](pipeline/stages/notes.py), `skills/jazzpanda-markers/` |
-| **Discriminator** | "What would settle it" — name the markers that separate the call from its alternative | Reads the cluster's *own* jazzPanda numbers; off-panel alternatives flagged never-measured | [`agent/discriminate.py`](agent/discriminate.py) |
+| **Discriminator** | "What would settle it": name the markers that separate the call from its alternative | Reads the cluster's *own* jazzPanda numbers; off-panel alternatives flagged never-measured | [`agent/discriminate.py`](agent/discriminate.py) |
 | **Second-opinion skeptic** | Try to *refute* a call from grounded facts; report whether it withstands the challenge | Composes evidence thinness + localization tension + competing markers; every point traces to jazzPanda and clears the same grounding gate | [`agent/skeptic.py`](agent/skeptic.py) |
 | **Holistic reviewer** | A second opinion across *all* clusters (coherence + one refinement) | Refinements carry markers read from data + a real citation; numbers unchanged | [`agent/holistic.py`](agent/holistic.py) |
 | **Enrichment interpreter** | Read gene-set programs per cluster (the Pathways workflow) | Panel-coverage rule (`K of N`, panel-scoped); cross-lineage flagged as tension, not re-typing | [`agent/enrichment.py`](agent/enrichment.py), `skills/geneset-enrichment/` |
@@ -68,7 +68,7 @@ rebuilds nothing.
 
 ## 3. See the referee work
 
-The grounding gate is the load-bearing idea — it is what lets an LLM be trusted where a fabricated
+The grounding gate is the load-bearing idea: it is what lets an LLM be trusted where a fabricated
 number is fatal. [`tests/test_grounding.py`](tests/test_grounding.py) exercises it on clean and poisoned
 answers: it accepts a grounded answer and rejects an inflated `glm_coef`, a fabricated PMID, and a
 jazzPanda number attached to an off-panel gene. The same checker ([`agent/grounding_check.py`](agent/grounding_check.py))
