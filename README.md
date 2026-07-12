@@ -6,7 +6,7 @@
   <a href="https://github.com/MelodyJIN-Y/Panoscope/actions/workflows/ci.yml"><img src="https://github.com/MelodyJIN-Y/Panoscope/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
 </p>
 
-**An annotation-confidence layer for [jazzPanda](https://github.com/rwang-z/jazzPanda).** A biologist asks about a cluster in plain language; Panoscope answers with a cell-type call, a confidence level, and the evidence behind it — every number traced back to jazzPanda's spatial marker output, every literature claim carrying a real, live-fetched PubMed citation.
+**An annotation-confidence layer for [jazzPanda](https://github.com/phipsonlab/jazzPanda).** A biologist asks about a cluster in plain language; Panoscope answers with a cell-type call, a confidence level, and the evidence behind it — every number traced back to jazzPanda's spatial marker output, every literature claim carrying a real, live-fetched PubMed citation.
 
 jazzPanda is the engine. This is the interpretation layer.
 
