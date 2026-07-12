@@ -2,6 +2,20 @@
 
 Lead architect synthesis of six subsystem specs into one buildable plan. Every load-bearing value below is re-verified against the on-disk files this session. Where subsystems disagreed, one contract is chosen and marked **[RECONCILED]**.
 
+> **Status — this is the *initial* build blueprint (2026-07-08), kept as the historical plan of record.**
+> It is the contract the parallel build agents worked against; the reconciliations below are the honest
+> record of where their designs diverged. The build then pushed past this plan. Shipped **beyond** it:
+> - a **per-dataset pipeline** (`pipeline/`) that builds a self-contained `data/datasets/<id>/` tree the UI
+>   reads with no live recompute — superseding the flat `data/*` tidy layout in §1 (still read as a legacy
+>   fallback);
+> - a **second workflow + skill**, `skills/geneset-enrichment/` (the Pathways gene-set enrichment);
+> - **note-capture**: eight typed, anchored lab notes, widening the single `Note`/override in §2;
+> - a **second-opinion skeptic** specialist (`agent/skeptic.py`).
+>
+> For the **current** architecture and the agent roles, read [`AGENTS.md`](AGENTS.md), `CLAUDE.md`, and
+> [`README.md`](README.md). Everything below is the original plan, unedited (section numbers unchanged, so
+> the `BLUEPRINT §N` references in the code still resolve).
+
 ## Key reconciliations (read first)
 
 | Conflict | Subsystems | **Decision** |
