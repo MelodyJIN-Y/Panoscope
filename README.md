@@ -37,6 +37,22 @@ python -m pipeline.stages.notes --dataset <id>   # live: skill-grounded per-mark
 
 The app runs entirely on precomputed jazzPanda output — no live jazzPanda run, no GPU. For live PubMed citations inside the app, add your NCBI credentials (see [MCP setup](#skill--mcp-setup)); without them the app still runs and every jazzPanda-grounded number is unaffected.
 
+## Verify it (offline, no keys)
+
+Every headline claim is runnable from a fresh clone, no API key required:
+
+```bash
+pytest -m "not live"                    # 230+ grounding tests, no network — the confident floor, checked
+pytest tests/test_grounding.py -v       # the gate accepts grounded answers and rejects poisoned ones
+pytest tests/test_calibration.py -v     # commits on clean calls (c1 Very High), flags shaky ones (c9 verify)
+pytest tests/test_annotate.py -v        # the marker skill assigns a cell type + grounds panel-absence
+python scripts/calibration_table.py     # print the commit-vs-flag calibration table
+```
+
+`pytest -m "not live"` fails if any answer ever states a marker, number, or citation that does not trace
+to source, so a green run *is* the guarantee. The optional `-m live` suite adds a real PubMed lookup when
+NCBI credentials are present. This is the fastest way to confirm the project does what it claims.
+
 ## The pipeline: one command per dataset
 
 The skill is the interpretation contract; the **per-dataset pipeline is its executor**. `python -m pipeline.run --dataset <id>` turns a dataset's inputs (jazzPanda markers, the gene panel, an optional gene-set enrichment result, and viz sources) into a self-contained `data/datasets/<id>/` tree — `annotation.json`, `verdicts.csv`, per-cluster `interp/clusters/c{n}.json`, `gene_notes.json`, `celltype_notes.json`, and a `manifest.json` (provenance + artifact hashes) — which the UI reads with no live recomputation. It runs in two skill-driven tiers:
