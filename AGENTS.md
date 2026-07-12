@@ -33,7 +33,8 @@ grounding contract. This is the honest "team" of the running product.
 
 | Specialist | One job | Grounding contract | Module |
 | --- | --- | --- | --- |
-| **Verdict engine** | Turn jazzPanda `glm_coef` into a cell-type call + confidence band | Deterministic; **owns every number**; the LLM is fenced out of statistic-generation | [`agent/verdict.py`](agent/verdict.py) |
+| **Annotator** | Assign each cluster's cell type, lineage/category, and canonical markers from its jazzPanda markers (the skill's Output 2) | The marker-gene skill reads only that cluster's markers; the call is persisted to `interp/annotation.json` and read thereafter | [`pipeline/stages/annotate.py`](pipeline/stages/annotate.py), `skills/jazzpanda-markers/` |
+| **Verdict engine** | Score the annotated call's confidence band and attach panel-absence, from jazzPanda `glm_coef` | Deterministic; **owns every number**; the LLM is fenced out of statistic-generation | [`agent/verdict.py`](agent/verdict.py) |
 | **Literature note-writer** | Write the per-marker / per-cluster biology, cited | One **real live PMID or none**, fetched via the PubMed MCP; never from memory | [`pipeline/stages/notes.py`](pipeline/stages/notes.py), `skills/jazzpanda-markers/` |
 | **Discriminator** | "What would settle it" — name the markers that separate the call from its alternative | Reads the cluster's *own* jazzPanda numbers; off-panel alternatives flagged never-measured | [`agent/discriminate.py`](agent/discriminate.py) |
 | **Holistic reviewer** | A second opinion across *all* clusters (coherence + one refinement) | Refinements carry markers read from data + a real citation; numbers unchanged | [`agent/holistic.py`](agent/holistic.py) |
@@ -43,6 +44,12 @@ grounding contract. This is the honest "team" of the running product.
 | **Deterministic fallback** | Guarantee a grounded answer even if a live call is slow or fails | Pre-baked, fully-grounded responses; the demo never breaks | [`agent/fallback.py`](agent/fallback.py) |
 
 The orchestrator that runs the loop and applies the gate is [`agent/loop.py`](agent/loop.py).
+
+The pipeline that builds a dataset's tree is **per-dataset and read-if-present, else generate**: a `prep`
+stage ([`pipeline/stages/prep.py`](pipeline/stages/prep.py)) turns raw Seurat / jazzPanda `.Rds` into the
+tidy inputs, the annotator assigns the cell types, and every downstream artifact is reused when already
+present. The active dataset is selected with `PANOSCOPE_DATASET`; the bundled demo ships its artifacts and
+rebuilds nothing.
 
 ---
 

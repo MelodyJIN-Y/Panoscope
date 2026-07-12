@@ -39,21 +39,21 @@ The app runs entirely on precomputed jazzPanda output — no live jazzPanda run,
 
 ## The pipeline: one command per dataset
 
-The skill is the interpretation contract; the **per-dataset pipeline is its executor**. `python -m pipeline.run --dataset <id>` turns a dataset's raw inputs (jazzPanda markers, panel list, cluster key, + viz sources) into a self-contained `data/datasets/<id>/` tree — `verdicts.csv`, per-cluster `interp/clusters/c{n}.json`, `gene_notes.json`, `celltype_notes.json`, and a `manifest.json` (provenance + artifact hashes) — which the UI reads with no live recomputation. It runs in two skill-driven tiers:
+The skill is the interpretation contract; the **per-dataset pipeline is its executor**. `python -m pipeline.run --dataset <id>` turns a dataset's inputs (jazzPanda markers, the gene panel, an optional gene-set enrichment result, and viz sources) into a self-contained `data/datasets/<id>/` tree — `annotation.json`, `verdicts.csv`, per-cluster `interp/clusters/c{n}.json`, `gene_notes.json`, `celltype_notes.json`, and a `manifest.json` (provenance + artifact hashes) — which the UI reads with no live recomputation. It runs in two skill-driven tiers:
 
 - **Tier A — the skill's mechanical rules as deterministic code** (`agent/verdict.py` = SKILL Steps 3a/3b/3d): per-gene evaluation, the `glm_coef`-anchored confidence rubric, and the panel-absence rule. Offline and reproducible.
 - **Tier B — the skill's literature interpretation, live** (SKILL.md sits in the agent's system prompt): the Output-4 per-marker biology note is *the skill reading that gene's own Tier-A evidence* — role framed by canonical status, and a specificity caveat flagged only when the numbers show the gene marks another lineage. One real live PMID or none.
 
-**Processing a new dataset — no code change, nothing hardcoded.** Everything derives from the dataset: the cluster set from its markers, the **cell type from the marker skill itself** (not a hardcoded key), the panel-absence set from its own panel. Drop the tidy inputs into `data/datasets/<id>/inputs/` (`markers_top.csv`, `panel.parquet`, optional `enrichment.csv`), then:
+**Bring your own dataset.** Panoscope derives its interpretation entirely from the data you provide: the cluster set from its markers, the cell-type call from the marker-gene skill, and the panel-absence set from its own gene panel. Place the tidy inputs under `data/datasets/<id>/inputs/` (`markers_top.csv`, `panel.parquet`, and optionally `enrichment.csv`), then:
 
 ```bash
 PANOSCOPE_DATASET=<id> python -m pipeline.run --dataset <id> --notes   # build the tree
-PANOSCOPE_DATASET=<id> streamlit run app.py                            # view it
+PANOSCOPE_DATASET=<id> streamlit run app.py                            # review it
 ```
 
-The pipeline is **read-if-present, else generate**. A `prep` stage converts raw Seurat / jazzPanda `.Rds` into the tidy inputs (`scripts/prep_data.R`; skipped when they already exist). An **`annotate` stage runs the marker skill per cluster** — from that cluster's jazzPanda markers it assigns the cell type, lineage/category, and the canonical markers that drive panel-absence (the skill's Output 2), skipped when `interp/annotation.json` is already there. Then come the deterministic verdicts, the enrichment, and the live per-marker / per-pathway notes. The bundled demo ships its annotation, so it re-runs nothing. jazzPanda is never run — its output is a consumed input.
+Each stage is **read-if-present, else generate**. A `prep` stage converts raw Seurat / jazzPanda `.Rds` objects into the tidy inputs (`scripts/prep_data.R`; skipped when they already exist). An **`annotate` stage applies the marker-gene skill to each cluster** — from that cluster's jazzPanda markers it produces the cell-type call, its lineage and category, and the canonical markers that ground the panel-absence rule (the skill's Output 2). The deterministic verdicts, the gene-set enrichment, and the live per-marker and per-pathway biology notes follow. Artifacts already present are read as they are, so a prepared dataset — including the bundled demo — rebuilds nothing. jazzPanda is never run; its output is a consumed input.
 
-Verified end-to-end on a 9-gene, 3-cluster downsample of the demo: the skill annotated c1 → *HER2+ Tumor Epithelial*, c2 → *Cancer-Associated Fibroblast*, c3 → *Macrophages*, with panel-absence computed against that dataset's own panel.
+On a compact three-cluster subset of the demo panel, the skill assigns c1 → *HER2-positive tumor epithelial*, c2 → *cancer-associated fibroblast*, and c3 → *macrophage*, with panel-absence evaluated against that dataset's own panel — a full run in seconds.
 
 ## Calibration — commits on clean calls, flags the shaky ones
 
