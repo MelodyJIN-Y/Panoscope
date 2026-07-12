@@ -64,18 +64,28 @@ def load_annotation(dataset_id: Optional[str] = None) -> dict[str, dict]:
                 return clusters
         except (OSError, json.JSONDecodeError, ValueError):
             pass  # fall through to the bundled map
-    return {
-        c: {
-            "cluster": c,
-            "cell_type": meta["cell_type"],
-            "cell_type_short": meta["cell_type_short"],
-            "category": meta["category"],
-            "lineage": meta["lineage"],
-            "canonical_markers": list(CANONICAL_MARKERS_FALLBACK.get(meta["cell_type"], ())),
-            "offpanel_canonical": list(OFF_PANEL_CANONICAL_FALLBACK.get(meta["cell_type"], ())),
-        }
-        for c, meta in cfg.CLUSTER_KEY.items()
-    }
+    # No annotation file yet: derive over the dataset's real clusters. The bundled
+    # demo map supplies known types for the demo; any other cluster reads "Unknown"
+    # until the annotate stage writes annotation.json (never inherits demo types).
+    out: dict[str, dict] = {}
+    for c in cfg.CLUSTER_ORDER:
+        meta = cfg.CLUSTER_KEY.get(c)
+        if meta is None:
+            out[c] = {
+                "cluster": c, "cell_type": "Unknown", "cell_type_short": "Unknown",
+                "category": "Unknown", "lineage": "Unknown",
+                "canonical_markers": [], "offpanel_canonical": [],
+            }
+        else:
+            ct = meta["cell_type"]
+            out[c] = {
+                "cluster": c, "cell_type": ct,
+                "cell_type_short": meta["cell_type_short"],
+                "category": meta["category"], "lineage": meta["lineage"],
+                "canonical_markers": list(CANONICAL_MARKERS_FALLBACK.get(ct, ())),
+                "offpanel_canonical": list(OFF_PANEL_CANONICAL_FALLBACK.get(ct, ())),
+            }
+    return out
 
 
 def meta_for(cluster: str, dataset_id: Optional[str] = None) -> dict:

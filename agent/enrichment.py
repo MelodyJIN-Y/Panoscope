@@ -29,15 +29,17 @@ from __future__ import annotations
 import csv
 from functools import lru_cache
 
+from agent import annotation
 from agent import config as cfg
 from agent import data
 from agent.types import ClusterEnrichment, PathwayEvidence
 
-# The biologist's jazzPanda enrichment result (unpublished; gitignored under
-# data/jazzpanda/*). Falls back to the committed-adjacent legacy path; the
-# pipeline can copy it into a dataset's inputs/ later.
-_JZ_ENRICHMENT_CSV = (
-    cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv"
+# The dataset's jazzPanda enrichment result: prefer the per-dataset tree
+# (inputs/enrichment.csv), else the bundled legacy demo file. Absent -> no
+# Pathways slice (fail-soft in the pipeline).
+_JZ_ENRICHMENT_CSV = cfg._active_input(
+    "enrichment.csv",
+    cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv",
 )
 _JZ_SCORE_KIND = "jazzpanda_enrichment"
 _JZ_COLLECTION = "MSigDB_Hallmark"
@@ -174,7 +176,7 @@ def _cluster_enrichment(
     cluster: str, pathways: tuple[PathwayEvidence, ...], method: str
 ) -> ClusterEnrichment:
     """Assemble a ClusterEnrichment from that cluster's PathwayEvidence rows."""
-    cell_type = cfg.CLUSTER_KEY[cluster]["cell_type"]
+    cell_type = annotation.cell_type_for(cluster)
     enriched = tuple(
         sorted((p for p in pathways if p.tier == "enriched"), key=lambda p: p.score, reverse=True)
     )

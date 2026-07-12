@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from agent import annotation
 from agent import config as cfg
 from agent import data
 
@@ -104,7 +105,7 @@ def _compartment_note() -> str:
     """
     parts: list[str] = []
     for compartment, clusters in _COMPARTMENTS.items():
-        types = ", ".join(cfg.CLUSTER_KEY[c]["cell_type"] for c in clusters)
+        types = ", ".join(annotation.cell_type_for(c) for c in clusters)
         parts.append(f"{compartment} ({types})")
     return (
         "Expected breast-TME compartments are all represented: "
@@ -122,8 +123,8 @@ def _proportions_note() -> str:
     counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
     largest = max(counts, key=counts.__getitem__)
     rarest = min(counts, key=counts.__getitem__)
-    largest_type = cfg.CLUSTER_KEY[largest]["cell_type"]
-    rarest_type = cfg.CLUSTER_KEY[rarest]["cell_type"]
+    largest_type = annotation.cell_type_for(largest)
+    rarest_type = annotation.cell_type_for(rarest)
     return (
         f"Proportions are plausible for a breast tumour: the largest cluster is "
         f"{largest} {largest_type} at {counts[largest]:,} cells, and the rarest is "
@@ -137,7 +138,7 @@ def _redundancy_note() -> str:
 
     Derived from the authoritative CLUSTER_KEY values at runtime.
     """
-    cell_types = [cfg.CLUSTER_KEY[c]["cell_type"] for c in cfg.CLUSTER_ORDER]
+    cell_types = [annotation.cell_type_for(c) for c in cfg.CLUSTER_ORDER]
     distinct = len(set(cell_types)) == len(cell_types)
     if not distinct:
         # Fail loud rather than silently claim coherence on a key that
