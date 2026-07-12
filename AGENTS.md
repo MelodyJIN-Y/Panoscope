@@ -49,10 +49,10 @@ grounding contract. This is the honest "team" of the running product.
 | **Verdict engine** | Score the annotated call's confidence band and attach panel-absence, from jazzPanda `glm_coef` | Deterministic; **owns every number**; the LLM is fenced out of statistic-generation | [`agent/verdict.py`](agent/verdict.py) |
 | **Literature note-writer** | Write the per-marker / per-cluster biology, cited | One **real live PMID or none**, fetched via the PubMed MCP; never from memory | [`pipeline/stages/notes.py`](pipeline/stages/notes.py), `skills/jazzpanda-markers/` |
 | **Discriminator** | "What would settle it": name the markers that separate the call from its alternative | Reads the cluster's *own* jazzPanda numbers; off-panel alternatives flagged never-measured | [`agent/discriminate.py`](agent/discriminate.py) |
-| **Second-opinion skeptic** | Try to *refute* a call from grounded facts; report whether it withstands the challenge | Composes evidence thinness + localization tension + competing markers; every point traces to jazzPanda and clears the same grounding gate | [`agent/skeptic.py`](agent/skeptic.py) |
+| **Second opinion** (risk flag + live agent) | A deterministic *risk flag* screens every call from the numbers (thinness + localization + competing markers); on demand a *live agent* refutes the call as it stands, cited | Both trace to jazzPanda and clear the same grounding gate; the live agent falls back to the deterministic report | [`agent/skeptic.py`](agent/skeptic.py), `loop.pressure_test` |
 | **Holistic reviewer** | A second opinion across *all* clusters (coherence + one refinement) | Refinements carry markers read from data + a real citation; numbers unchanged | [`agent/holistic.py`](agent/holistic.py) |
 | **Enrichment interpreter** | Read gene-set programs per cluster (the Pathways workflow) | Panel-coverage rule (`K of N`, panel-scoped); cross-lineage flagged as tension, not re-typing | [`agent/enrichment.py`](agent/enrichment.py), `skills/geneset-enrichment/` |
-| **Memory reconciler** | On an override, capture a scope-locked note and cross-check the literature | Keeps the biologist's call *with* the disagreement visible; cite-on-use; no note rewrites a number | [`agent/memory.py`](agent/memory.py) |
+| **Memory reconciler** | On an override, capture a scope-locked note and cross-check the literature; optionally save a portable, distilled copy to user memory | Keeps the biologist's call *with* the disagreement visible; cite-on-use; no note or memory rewrites a number | [`agent/memory.py`](agent/memory.py), [`agent/user_memory.py`](agent/user_memory.py) |
 | **The grounding gate (referee)** | Veto any answer whose numbers/citations/notes don't trace to source | Prose-independent extraction, resolves against real data, **fails closed** to the deterministic fallback | [`agent/grounding_check.py`](agent/grounding_check.py) |
 | **Deterministic fallback** | Guarantee a grounded answer even if a live call is slow or fails | Pre-baked, fully-grounded responses; the demo never breaks | [`agent/fallback.py`](agent/fallback.py) |
 
@@ -63,6 +63,12 @@ stage ([`pipeline/stages/prep.py`](pipeline/stages/prep.py)) turns raw Seurat / 
 tidy inputs, the annotator assigns the cell types, and every downstream artifact is reused when already
 present. The active dataset is selected with `PANOSCOPE_DATASET`; the bundled demo ships its artifacts and
 rebuilds nothing.
+
+Every system prompt also carries two grounded, open-ceiling context blocks: the dataset's **tissue**, read
+from the manifest (e.g. human breast cancer, Xenium) so reasoning and citations are tissue-appropriate (a
+search preference, not a filter, so a real cross-tissue paper is still valid), and the biologist's
+**portable user memory** (prior saved decisions). Neither can change a jazzPanda number, a marker, or a
+confidence band.
 
 ---
 
