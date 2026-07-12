@@ -63,9 +63,31 @@ def _caveat_badge(ev: MarkerEvidence) -> str:
     return ""
 
 
-def _bio_html(cluster: str, ev: MarkerEvidence) -> str:
+def _lab_note_html(notes: list) -> str:
+    """A caveat line for notes anchored to this gene (claim + [note:id] + tension),
+    shown in the biology cell so the biologist's correction sits with the marker."""
+    if not notes:
+        return ""
+    bits = []
+    for n in notes[:2]:
+        t = n.tension
+        if t.dissent:
+            tension = f' · {len(t.dissent)} lit. dissent'
+        elif t.agree:
+            tension = f' · {len(t.agree)} lit. agree'
+        else:
+            tension = ""
+        bits.append(
+            f'&#9873; note: {html.escape(n.claim)} '
+            f'<span class="pano-ev-notecite">[note:{html.escape(n.id[:6])}]</span>{tension}'
+        )
+    return '<div class="pano-ev-labnote">' + "<br>".join(bits) + "</div>"
+
+
+def _bio_html(cluster: str, ev: MarkerEvidence, anchored: dict = None) -> str:
     """The biology cell: the precomputed grounded note + its real citation + a
-    jazzPanda-derived specificity badge.
+    jazzPanda-derived specificity badge, plus any note the biologist anchored to
+    this gene.
 
     Reads ``data_access.gene_note`` (precomputed, cited) for the prose; never
     generates text. The specificity badge is driven off the verdict's own
@@ -74,10 +96,11 @@ def _bio_html(cluster: str, ev: MarkerEvidence) -> str:
     small check marker.
     """
     caveat = _caveat_badge(ev)
+    lab = _lab_note_html((anchored or {}).get("gene", {}).get(ev.gene))
     note = data_access.gene_note(cluster, ev.gene)
     if not note or not note.get("summary"):
-        # No prose, but a grounded caveat still belongs here if present.
-        return f'<div class="pano-ev-bio empty">{caveat}</div>'
+        # No prose, but a grounded caveat / note still belongs here if present.
+        return f'<div class="pano-ev-bio empty">{caveat}{lab}</div>'
 
     summary = html.escape(str(note["summary"]))
     pmid = note.get("pmid")
@@ -94,7 +117,7 @@ def _bio_html(cluster: str, ev: MarkerEvidence) -> str:
         if note.get("verify")
         else ""
     )
-    return f'<div class="pano-ev-bio">{summary} {cite}{verify}{caveat}</div>'
+    return f'<div class="pano-ev-bio">{summary} {cite}{verify}{caveat}{lab}</div>'
 
 
 # --------------------------------------------------------------------------- #
@@ -125,6 +148,11 @@ _EVIDENCE_CSS = """
 .pano-bio-cite:hover { text-decoration: underline; }
 .pano-bio-thin { font-family: var(--mono); font-size: 10px; color: var(--faint); }
 .pano-bio-verify { font-family: var(--mono); font-size: 10px; color: var(--absent); }
+/* A biologist's note anchored to this gene, shown beneath the biology. */
+.pano-ev-labnote { font-size: 11px; line-height: 1.45; color: var(--absent);
+  background: var(--absent-bg); border-left: 2px solid var(--absent); border-radius: 0 5px 5px 0;
+  padding: 4px 8px; margin-top: 6px; }
+.pano-ev-notecite { font-family: var(--mono); font-size: 9.5px; color: var(--accent); }
 /* Specificity badge: this marker localizes better with another cluster
    (jazzPanda max_gc_corr > pearson). A small outlined amber chip — cautionary,
    not alarming, and visually distinct from the teal canonical tag. */
@@ -241,6 +269,7 @@ def _render_marker_rows(st, rows, cluster: str) -> None:
     evidence table renders BEFORE the spatial stage in the same run, so the grid
     sees the change immediately. No recompute.
     """
+    anchored = data_access.anchored_notes(cluster)  # notes indexed by gene, read once
     for ev in rows:
         is_selected = state.is_marker_selected(cluster, ev.gene)
         # Canonical markers get a `canonical` tag after the gene name via CSS
@@ -260,7 +289,7 @@ def _render_marker_rows(st, rows, cluster: str) -> None:
             with n_col:
                 st.markdown(_num_html(ev), unsafe_allow_html=True)
             with b_col:
-                st.markdown(_bio_html(cluster, ev), unsafe_allow_html=True)
+                st.markdown(_bio_html(cluster, ev, anchored), unsafe_allow_html=True)
 
 
 __all__ = ["render_evidence_table"]

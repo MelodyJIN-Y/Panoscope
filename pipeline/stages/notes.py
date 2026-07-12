@@ -115,14 +115,15 @@ def _looks_meta(summary: str) -> bool:
 
 
 def _fallback_summary(cell_type: str, markers: list[str]) -> str:
-    """A clean deterministic description when the model's text is unusable.
+    """A clean deterministic TWO-sentence description when the model's text is unusable.
 
     Grounded projection only: the cell type (from the key) and its driving markers
     (from jazzPanda). No invented biology — safe under the confident floor.
     """
     ct = cell_type.replace("_", " ")
     drv = ", ".join(markers[:3])
-    return f"{ct} cells; driving markers {drv}." if drv else f"{ct} cells."
+    return (f"{ct} cells identified in human breast tissue. Key markers: {drv}."
+            if drv else f"{ct} cells identified in human breast tissue.")
 
 
 def _resolve_note(
@@ -158,13 +159,13 @@ def _query(cell_type: str, markers: list[str]) -> str:
     ct = cell_type.replace("_", " ")
     drv = ", ".join(markers[:3])
     return (
-        f"Describe, in 14 words or fewer, what a {ct} cell is in human breast "
-        f"tissue and its role, and why markers like {drv} mark it. Write ONE plain "
-        f"factual clause about the CELL TYPE itself. Do NOT mention the cluster id, "
-        f"the confidence, any statistic, or whether literature exists; never write "
-        f"about the search or the connector. If you find a supporting paper, cite "
-        f"one real PubMed PMID after the clause; if not, give the clause anyway with "
-        f"no citation."
+        f"In TWO short sentences (about 34 words total), describe what a {ct} cell is "
+        f"in human breast tissue and its role, and what its key markers such as {drv} "
+        f"indicate. Write plain factual prose about the CELL TYPE itself; you MAY name "
+        f"marker genes. Do NOT mention glm, pearson, any statistic, the cluster id, the "
+        f"confidence, or whether literature exists; never write about the search or the "
+        f"connector. If you find a supporting paper, cite one real PubMed PMID after the "
+        f"sentences; if not, give the sentences anyway with no citation."
     )
 
 
@@ -202,7 +203,8 @@ def run_celltype_notes(
             continue
         cite = resp.citations[0] if resp.citations else None
         fb = _fallback_summary(verdict.cell_type, list(verdict.key_markers))
-        summary, pmid, citation, _ = _resolve_note(resp.text, cite, fb)
+        summary, pmid, citation, _ = _resolve_note(resp.text, cite, fb,
+                                                   max_words=36, max_sentences=2)
         notes[cluster] = {
             "cluster": cluster,
             "cell_type": verdict.cell_type,

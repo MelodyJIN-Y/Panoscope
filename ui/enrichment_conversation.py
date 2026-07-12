@@ -58,12 +58,17 @@ def render_pathway_conversation(cluster: str) -> None:
     _render_header(cluster)
     st.markdown(
         '<div class="conv-hint">Ask about this cluster\'s enriched programs — what they '
-        "mean, whether they fit the cell type, or which look cross-lineage. Answers cite "
-        "live literature.</div>",
+        "mean, whether they fit the cell type, or which look cross-lineage. Reinterpret a "
+        "program (e.g. co-infiltration, not the cluster's own) and I draft a note to save. "
+        "Answers cite live literature.</div>",
         unsafe_allow_html=True,
     )
     with st.container(key="conv_thread"):
         _render_thread(cluster)
+    _process_pending(cluster)
+    # Same two-tap confirm card as the marker chat, on this cluster's pathway thread —
+    # so a program_reinterpretation captured here never collides with the marker draft.
+    convo._render_draft_card(cluster, thread_key=_thread_key(cluster))
     _render_ask_box(cluster)
 
 
@@ -104,27 +109,36 @@ def _ensure_opening(cluster: str) -> None:
     key = _thread_key(cluster)
     if state.opening_was_posted(key):
         return
-    state.append_message(key, {"role": "agent", "text": _opening_text(cluster), "resp": None})
+    text, pmids, verify = _opening_text(cluster)
+    state.append_message(key, {"role": "agent", "text": text, "resp": _opening_resp(pmids, verify)})
     state.mark_opening_posted(key)
 
 
-def _opening_text(cluster: str) -> str:
+def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
+    """The deterministic, cited opening PROSE plus the PMIDs it cites and the
+    enrichment verify flag. Returned so the bubble renders the same clickable
+    citations + 'Sources' line + re-check note as the marker opening (parity) — with
+    NO live call (the PMIDs are the precomputed real ones from pathway_notes)."""
     ce = _ce(cluster)
     ct = ce.cell_type.replace("_", " ") if ce else cluster
+    verify = bool(getattr(ce, "verify", False))
     if ce is None or (not ce.enriched and not ce.suggestive):
         return (
             f"No gene-set program clears the enrichment gate for {cluster} {ct}. "
-            "Ask me why, or about any suggestive program."
+            "Ask me why, or about any suggestive program.", [], verify,
         )
     parts = [
         f"{cluster} {ct} shows {ce.confidence} enrichment, panel-scoped: only the set genes "
         "on the 280-gene panel are measured, never genome-wide."
     ]
-    progs = []
+    progs: list[str] = []
+    pmids: list[str] = []
     for p in ce.enriched[:3]:
         note = da.pathway_note(cluster, p.gene_set) or {}
         summ = str(note.get("summary") or "").strip()
         pmid = note.get("pmid")
+        if pmid and str(pmid).strip().isdigit():
+            pmids.append(str(pmid).strip())
         cite = f" PMID:{pmid}" if pmid else ""
         if summ:
             progs.append(f"{_short(p.gene_set)}: {summ}{cite}")
@@ -136,7 +150,20 @@ def _opening_text(cluster: str) -> str:
         f"Ask me what any program means for a {ct} cluster, whether it fits the call, or "
         "which look like co-infiltration rather than this cell type's own program."
     )
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), pmids, verify
+
+
+def _opening_resp(pmids: list[str], verify: bool):
+    """A lightweight cited response for the opening bubble so it renders like the
+    marker opening: sources = jazzPanda (the enrichment scores) + PubMed (the cited
+    notes). No live call — the PMIDs are the precomputed, real ones from pathway_notes."""
+    from agent.types import AgentResponse, GroundingSidecar, Source
+
+    seen = list(dict.fromkeys(pmids))
+    sources = [Source(kind="jz", ref="enrichment", value="jazzPanda enrichment")]
+    sources += [Source(kind="lit", ref=pm, value=None) for pm in seen]
+    grounding = GroundingSidecar(numbers=(), markers=(), pmids=tuple(seen), notes_used=())
+    return AgentResponse(text="", sources=tuple(sources), verify=verify, grounding=grounding, opening=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -180,8 +207,27 @@ def _render_ask_box(cluster: str) -> None:
                 asked = st.form_submit_button("Ask", use_container_width=True, type="primary")
 
     if asked and query and query.strip():
-        _submit(cluster, query.strip())
+        # Phase 1: show the message + a thinking indicator instantly; the live agent
+        # turn runs on the next rerun (see _process_pending).
+        key = _thread_key(cluster)
+        state.append_message(key, {"role": "user", "text": query.strip(), "resp": None})
+        st.session_state[f"pending_q_{key}"] = query.strip()
         convo._rerun(st)
+
+
+def _process_pending(cluster: str) -> None:
+    """Phase 2: run the pending pathway query with a thinking indicator, then rerun."""
+    import streamlit as st
+
+    key = _thread_key(cluster)
+    pkey = f"pending_q_{key}"
+    query = st.session_state.get(pkey)
+    if not query:
+        return
+    st.session_state.pop(pkey, None)
+    with st.spinner("Reading the literature…"):
+        _run_turn(cluster, query)
+    convo._rerun(st)
 
 
 _FALLBACK_TEXT = (
@@ -191,15 +237,18 @@ _FALLBACK_TEXT = (
 )
 
 
-def _submit(cluster: str, query: str) -> None:
+def _run_turn(cluster: str, query: str) -> None:
     key = _thread_key(cluster)
-    state.append_message(key, {"role": "user", "text": query, "resp": None})
     resp = _safe_chat(cluster, query)
     # The shared agent's fallback is marker-flavored (a cell-type verdict); for a
     # pathway question that is off-topic, so substitute an honest enrichment reply.
     text = _FALLBACK_TEXT if getattr(resp, "used_fallback", False) else resp.text
     keep = None if getattr(resp, "used_fallback", False) else resp
     state.append_message(key, {"role": "agent", "text": text, "resp": keep})
+    # If the agent proposed a note (e.g. a program_reinterpretation), stash it under
+    # this pathway thread so the confirm card renders; nothing saves until confirmed.
+    if keep is not None and getattr(resp, "note_draft", None) is not None:
+        state.set_pending_draft(key, resp.note_draft)
 
 
 def _safe_chat(cluster: str, query: str):

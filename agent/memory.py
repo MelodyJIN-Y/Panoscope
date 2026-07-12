@@ -39,6 +39,7 @@ from agent.types import (
     Citation,
     Note,
     NoteDraft,
+    NoteType,
     Scope,
     ScopeRef,
     Source,
@@ -141,6 +142,12 @@ def _note_from_dict(d: dict) -> Note:
         created_at=str(d.get("created_at", "")),
         trigger=d.get("trigger", "manual_add"),
         supersedes=d.get("supersedes"),
+        # Typed/anchored fields default so pre-existing note files still parse.
+        type=d.get("type", "celltype_override"),
+        subject_gene_sets=tuple(d.get("subject_gene_sets", ())),
+        subject_clusters=tuple(d.get("subject_clusters", ())),
+        subject_lineage=str(d.get("subject_lineage", "")),
+        subject_category=str(d.get("subject_category", "")),
     )
 
 
@@ -164,11 +171,15 @@ def _reconcile_query(
     claim: str,
     subject_cell_type: Optional[str],
     subject_markers: tuple[str, ...],
+    subject_gene_sets: tuple[str, ...] = (),
 ) -> str:
-    """Build the literature query for a note's claim (markers + cell type + claim)."""
+    """Build the literature query for a note's claim (markers + gene sets + cell type + claim)."""
     parts: list[str] = []
     if subject_markers:
         parts.append(" ".join(subject_markers))
+    if subject_gene_sets:
+        # HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION -> "Epithelial Mesenchymal Transition"
+        parts.append(" ".join(gs.replace("HALLMARK_", "").replace("_", " ") for gs in subject_gene_sets))
     if subject_cell_type:
         parts.append(subject_cell_type)
     parts.append(claim)
@@ -188,7 +199,9 @@ def reconcile(note: Note, literature_search: Optional[LiteratureSearch] = None) 
     Returns a fresh :class:`Tension`. When no search is provided or nothing real
     resolves, ``thin=True`` (say the literature is thin; never invent a ref).
     """
-    query = _reconcile_query(note.claim, note.subject_cell_type, note.subject_markers)
+    query = _reconcile_query(
+        note.claim, note.subject_cell_type, note.subject_markers, note.subject_gene_sets
+    )
     looked_up_at = _now_iso()
 
     if literature_search is None:
@@ -237,17 +250,23 @@ def draft_note(
     cluster: Optional[str] = None,
     subject_cell_type: Optional[str] = None,
     subject_markers: Optional[Iterable[str]] = None,
+    note_type: NoteType = "celltype_override",
+    subject_gene_sets: Optional[Iterable[str]] = None,
+    subject_clusters: Optional[Iterable[str]] = None,
+    subject_lineage: str = "",
+    subject_category: str = "",
     dataset: str = cfg.DATASET_ID,
     literature_search: Optional[LiteratureSearch] = None,
 ) -> NoteDraft:
     """Reconcile a proposed note against the literature WITHOUT persisting it.
 
-    This is the first half of capture-at-override: the agent proposes a note, we
-    cross-check the claim against the literature (real PMIDs only), and return a
-    :class:`~agent.types.NoteDraft` carrying that tension. Nothing is written —
-    the biologist confirms scope/basis/status and only then :func:`save_draft`
-    persists it. Validates the closed-vocab fields (and a cluster for cluster
-    scope) so a malformed draft fails fast, same as :func:`create_note`.
+    This is the first half of capture-at-override: the agent proposes a note (of one
+    of the eight :data:`~agent.types.NoteType`\\ s, anchored to a gene / gene set /
+    cluster set), we cross-check the claim against the literature (real PMIDs only),
+    and return a :class:`~agent.types.NoteDraft` carrying that tension. Nothing is
+    written — the biologist confirms scope/basis/status and only then
+    :func:`save_draft` persists it. Validates the closed-vocab fields (and a cluster
+    for cluster scope) so a malformed draft fails fast.
     """
     _validate_note_fields(claim, scope, basis, status)
     if scope == "cluster":
@@ -259,6 +278,8 @@ def draft_note(
             )
 
     markers = tuple(subject_markers) if subject_markers else ()
+    gene_sets = tuple(subject_gene_sets) if subject_gene_sets else ()
+    clusters = tuple(subject_clusters) if subject_clusters else ()
     stub = Note(
         id="__draft__",
         claim=claim.strip(),
@@ -273,6 +294,11 @@ def draft_note(
         created_at=_now_iso(),
         trigger="override",
         supersedes=None,
+        type=note_type,
+        subject_gene_sets=gene_sets,
+        subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
     tension = reconcile(stub, literature_search)
     return NoteDraft(
@@ -285,6 +311,11 @@ def draft_note(
         subject_markers=markers,
         tension=tension,
         dataset=dataset,
+        type=note_type,
+        subject_gene_sets=gene_sets,
+        subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
 
 
@@ -332,6 +363,11 @@ def save_draft(
         created_at=_now_iso(),
         trigger=trigger,  # type: ignore[arg-type]
         supersedes=supersedes,
+        type=draft.type,
+        subject_gene_sets=tuple(draft.subject_gene_sets),
+        subject_clusters=tuple(draft.subject_clusters),
+        subject_lineage=draft.subject_lineage,
+        subject_category=draft.subject_category,
     )
     _write_note(note, base_dir)
     log_decision(
@@ -354,6 +390,11 @@ def create_note(
     cluster: Optional[str] = None,
     subject_cell_type: Optional[str] = None,
     subject_markers: Optional[Iterable[str]] = None,
+    note_type: NoteType = "celltype_override",
+    subject_gene_sets: Optional[Iterable[str]] = None,
+    subject_clusters: Optional[Iterable[str]] = None,
+    subject_lineage: str = "",
+    subject_category: str = "",
     dataset: str = cfg.DATASET_ID,
     attributed_to: str = "melody.xyjin@gmail.com",
     trigger: str = "override",
@@ -393,6 +434,8 @@ def create_note(
         scope_cluster = None
 
     markers = tuple(subject_markers) if subject_markers else ()
+    gene_sets = tuple(subject_gene_sets) if subject_gene_sets else ()
+    clusters = tuple(subject_clusters) if subject_clusters else ()
 
     # Reconcile against the literature FIRST, so the note is born with its tension.
     stub_note = Note(
@@ -409,6 +452,11 @@ def create_note(
         created_at=_now_iso(),
         trigger=trigger,  # type: ignore[arg-type]
         supersedes=supersedes,
+        type=note_type,
+        subject_gene_sets=gene_sets,
+        subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
     tension = reconcile(stub_note, literature_search)
 
@@ -427,6 +475,11 @@ def create_note(
         created_at=stub_note.created_at,
         trigger=trigger,  # type: ignore[arg-type]
         supersedes=supersedes,
+        type=note_type,
+        subject_gene_sets=gene_sets,
+        subject_clusters=clusters,
+        subject_lineage=subject_lineage,
+        subject_category=subject_category,
     )
     _write_note(note, base_dir)
     log_decision(
@@ -502,6 +555,11 @@ def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str = cfg.DATA
     # dataset and cluster scopes are pinned to a dataset.
     if note.scope_ref.dataset != dataset:
         return False
+
+    # An anchored note (cross_cluster) belongs to a SET of clusters and fires on each
+    # of them only — even though it is dataset-scoped, it never fires dataset-wide.
+    if note.subject_clusters:
+        return cluster is not None and cluster in note.subject_clusters
 
     if note.scope == "dataset":
         return True
@@ -604,6 +662,11 @@ def supersede_note(
         cluster=old.scope_ref.cluster,
         subject_cell_type=old.subject_cell_type,
         subject_markers=old.subject_markers,
+        note_type=old.type,
+        subject_gene_sets=old.subject_gene_sets,
+        subject_clusters=old.subject_clusters,
+        subject_lineage=old.subject_lineage,
+        subject_category=old.subject_category,
         dataset=old.scope_ref.dataset,
         attributed_to=old.author,
         trigger="manual_add",

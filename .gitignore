@@ -48,6 +48,27 @@ htmlcov/
 assets/*.pdf
 data/jazzpanda/*
 
+# ── Private jazzPanda enrichment (derived from the unpublished result) ───────
+# The enrichment tree carries the private test_statistic-derived scores/q-values
+# from data/jazzpanda/. Kept local; the app reads it directly, git stays clean.
+# A fresh clone falls back to the marker-only slice (see ui/data_access.py).
+data/datasets/*/interp/enrichment.csv
+data/datasets/*/interp/enrichment/
+data/datasets/*/interp/pathway_notes.json
+data/datasets/*/interp/pathway_themes.json
+
+# Summary working-space edits — runtime user state (the biologist's report prose),
+# written by the UI as they edit; not a build artifact to commit.
+data/datasets/*/interp/summary_edits.json
+
+# Sign-off / review state — runtime user state (which calls the biologist reviewed
+# and accepted on the Summary board); a sibling of summary_edits, not a build artifact.
+data/datasets/*/interp/review_state.json
+
+# Chat transcripts — runtime conversation state, persisted so a refresh keeps the
+# chat; the durable knowledge is the notes under context/, not this.
+data/datasets/*/interp/chat_threads.json
+
 # ── OS / editor cruft ───────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store

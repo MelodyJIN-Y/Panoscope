@@ -363,7 +363,7 @@ div[class*="st-key-seldot_"] button[data-testid="stBaseButton-primary"] {{
 
 /* (3) CONDENSED SOURCES LINE — one small muted mono line under a chat turn,
  * replacing the per-number chip stack. Numbers stay in prose; this line
- * only names the provenance (jazzPanda · PubMed · lab note). */
+ * only names the provenance (jazzPanda · PubMed · note). */
 .pano-sources {{
   font-family: var(--mono); font-size: 10px; color: var(--faint);
   letter-spacing: .02em; margin-top: 7px; line-height: 1.5;

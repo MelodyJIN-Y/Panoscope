@@ -340,10 +340,139 @@ def all_verdicts() -> list[ClusterVerdict]:
     return [verdict_for(c) for c in CLUSTER_ORDER]
 
 
-@_cache_data(show_spinner=False)
+def _excluded_clusters() -> set:
+    """Clusters carrying a firing `exclude` note. Applied at COMPOSITION only — the
+    deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md)."""
+    from agent import memory
+
+    try:
+        return {
+            n.scope_ref.cluster
+            for n in memory.read_notes()
+            if getattr(n, "type", "") == "exclude" and n.scope == "cluster" and n.scope_ref.cluster
+        }
+    except Exception:  # noqa: BLE001 - a malformed note must never break the export
+        return set()
+
+
+def _override_notes() -> dict:
+    """The most-recent firing ``celltype_override`` note per cluster (one that carries a
+    new call). Applied at COMPOSITION only — the deterministic verdict is never mutated."""
+    from agent import memory
+
+    out: dict = {}
+    try:
+        for n in memory.read_notes():  # sorted by created_at -> last write wins
+            if (
+                getattr(n, "type", "") == "celltype_override"
+                and n.scope == "cluster"
+                and n.scope_ref.cluster
+                and (getattr(n, "subject_cell_type", "") or "").strip()
+            ):
+                out[n.scope_ref.cluster] = n
+    except Exception:  # noqa: BLE001 - a malformed note never breaks the composition
+        return {}
+    return out
+
+
+def _signed_off_clusters() -> set:
+    """Clusters the biologist has reviewed and accepted on the Summary board.
+
+    Read fresh from the runtime review-state file (never cached — sign-offs mutate
+    as the biologist works). A signed-off call is treated as adjudicated: its
+    ``verify`` flag is cleared at COMPOSITION only (the deterministic verdict on
+    disk is never mutated)."""
+    from pipeline import store
+
+    try:
+        return set(store.load_review_state().keys())
+    except Exception:  # noqa: BLE001 - a missing/bad review file never breaks composition
+        return set()
+
+
+def composed_verdicts() -> list[ClusterVerdict]:
+    """``all_verdicts()`` with your confirmed overlays applied — ``exclude`` notes,
+    ``celltype_override`` notes (new cell type + lineage/category; verify flagged
+    only when the literature dissents), and sign-offs (a reviewed call's ``verify``
+    flag clears). Returns NEW objects; the cached deterministic verdicts are never
+    mutated, so the computed output stays intact and only the composed view/export
+    changes. NOT cached: notes and sign-offs are added at runtime."""
+    excluded = _excluded_clusters()
+    overrides = _override_notes()
+    signed_off = _signed_off_clusters()
+    if not excluded and not overrides and not signed_off:
+        return all_verdicts()
+    import dataclasses
+
+    out: list[ClusterVerdict] = []
+    for v in all_verdicts():
+        changes: dict = {}
+        if v.cluster in excluded:
+            changes["exclude"] = True
+        ov = overrides.get(v.cluster)
+        if ov is not None:
+            new_call = ov.subject_cell_type.strip()
+            changes["cell_type"] = new_call
+            changes["cell_type_short"] = new_call
+            if ov.subject_lineage.strip():
+                changes["lineage"] = ov.subject_lineage.strip()
+            if ov.subject_category.strip():
+                changes["category"] = ov.subject_category.strip()
+            if ov.tension.dissent:  # flag for re-check ONLY when the literature dissents
+                changes["verify"] = True
+        # A signed-off call is adjudicated: clear its re-check flag (a contested
+        # sign-off wrote a validation note recording the biologist's acceptance).
+        # Applied last so it wins over an override's dissent flag.
+        if v.cluster in signed_off:
+            changes["verify"] = False
+        out.append(dataclasses.replace(v, **changes) if changes else v)
+    return out
+
+
+def anchored_notes(cluster: str) -> dict:
+    """In-scope notes indexed by their anchor, for rendering next to the driver row:
+    ``{"gene": {GENE: [note,...]}, "gene_set": {HALLMARK_X: [note,...]}}``. Marker and
+    marker_convention notes index by gene; program_reinterpretation notes by gene set.
+    Routes through ``apply_notes`` (the fail-closed scope gate), so a c2 note never
+    shows on c3."""
+    from agent import memory
+
+    genes: dict = {}
+    sets: dict = {}
+    try:
+        for n in memory.apply_notes(cluster):
+            t = getattr(n, "type", "")
+            if t in ("marker_reinterpretation", "marker_convention"):
+                for g in getattr(n, "subject_markers", ()):
+                    genes.setdefault(g, []).append(n)
+            elif t == "program_reinterpretation":
+                for gs in getattr(n, "subject_gene_sets", ()):
+                    sets.setdefault(gs, []).append(n)
+    except Exception:  # noqa: BLE001 - a bad note never breaks a table
+        pass
+    return {"gene": genes, "gene_set": sets}
+
+
+def override_info(cluster: str) -> "Optional[dict]":
+    """For a cluster with a confirmed cell-type override: the new call, the computed
+    call it replaces, the note id, and the literature agree/dissent counts — so the UI
+    shows the override with the tension visible. None if there is no override."""
+    ov = _override_notes().get(cluster)
+    if ov is None:
+        return None
+    computed = verdict_for(cluster)
+    return {
+        "new_call": ov.subject_cell_type.strip(),
+        "computed_call": computed.cell_type,
+        "note_id": ov.id,
+        "agree": len(ov.tension.agree),
+        "dissent": len(ov.tension.dissent),
+    }
+
+
 def verdict_csv() -> str:
-    """The 11-column CSV export for all clusters (cached)."""
-    return agent_verdict.to_csv(all_verdicts())
+    """The 11-column CSV export, with any `exclude` notes applied at composition."""
+    return agent_verdict.to_csv(composed_verdicts())
 
 
 @_cache_data(show_spinner=False)
@@ -458,7 +587,7 @@ def get_agent() -> Any:
 # Notes — NOT cached (mutate on save). Always a fresh read.
 # --------------------------------------------------------------------------- #
 def read_notes() -> list[Note]:
-    """Read all lab notes fresh from disk (never cached — notes mutate on save)."""
+    """Read all notes fresh from disk (never cached — notes mutate on save)."""
     from agent import memory
 
     return memory.read_notes()
@@ -471,19 +600,68 @@ def notes_in_scope(cluster: Optional[str]) -> list[Note]:
     return memory.apply_notes(cluster)
 
 
-def save_note_draft(draft: Any) -> Note:
-    """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a lab note.
+def save_note_draft(draft: Any, trigger: str = "override") -> Note:
+    """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a note.
 
-    The second half of capture-at-override: the confirm card in the chat produced
-    a (possibly edited) draft, and this writes it via ``agent.memory.save_draft``
-    into the SAME base dir the agent reads notes from — so a just-saved note is
-    immediately in scope for recall. No second literature lookup (the tension is
-    already on the draft). Returns the written Note.
+    The second half of capture-at-override: the confirm card produced a (possibly
+    edited) draft, and this writes it via ``agent.memory.save_draft`` into the SAME
+    base dir the agent reads notes from — so a just-saved note is immediately in scope
+    for recall. No second literature lookup (the tension is already on the draft).
+    ``trigger`` records where the note was born (``override`` from a chat, or
+    ``holistic_review`` from a cross-cluster refinement). Returns the written Note.
     """
     from agent import memory
     from agent import tools
 
-    return memory.save_draft(draft, base_dir=tools.memory_base_dir())
+    return memory.save_draft(draft, trigger=trigger, base_dir=tools.memory_base_dir())
+
+
+# --------------------------------------------------------------------------- #
+# Sign-off state — the biologist's review checkmarks on the Summary board. NOT
+# cached (mutates as the biologist works). A record of which calls were reviewed
+# and accepted; never a computed value. A contested sign-off also carries the id
+# of the validation note it wrote, so the board can link to the biologist's basis.
+# --------------------------------------------------------------------------- #
+def signed_off() -> dict:
+    """The full sign-off map ``{cluster: {at, note_id}}`` (fresh read)."""
+    from pipeline import store
+
+    try:
+        return store.load_review_state()
+    except Exception:  # noqa: BLE001 - a missing/bad review file reads as none signed off
+        return {}
+
+
+def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
+    """Record that the biologist reviewed and accepted ``cluster``'s call.
+
+    ``note_id`` links the validation note a contested sign-off wrote (``None`` for a
+    clean checkmark). ``at`` is an ISO timestamp passed in by the caller (this stays
+    free of clock calls). Idempotent: re-signing a cluster just refreshes its record.
+    """
+    from pipeline import store
+
+    try:
+        reviewed = dict(store.load_review_state())
+        reviewed[cluster] = {"at": at, "note_id": note_id}
+        store.save_review_state(reviewed, saved_at=at)
+    except Exception:  # noqa: BLE001 - a failed write must never crash the board
+        pass
+
+
+def clear_signoff(cluster: str, at: str = "") -> None:
+    """Undo a sign-off: drop ``cluster`` from the review state (the call is unreviewed
+    again). The validation note a contested sign-off wrote is left in My notes — undo
+    reopens the review, it does not erase the biologist's recorded basis."""
+    from pipeline import store
+
+    try:
+        reviewed = dict(store.load_review_state())
+        if cluster in reviewed:
+            reviewed.pop(cluster, None)
+            store.save_review_state(reviewed, saved_at=at)
+    except Exception:  # noqa: BLE001 - a failed write must never crash the board
+        pass
 
 
 __all__ = [
@@ -519,4 +697,10 @@ __all__ = [
     "read_notes",
     "notes_in_scope",
     "save_note_draft",
+    "composed_verdicts",
+    "override_info",
+    "anchored_notes",
+    "signed_off",
+    "mark_signed_off",
+    "clear_signoff",
 ]

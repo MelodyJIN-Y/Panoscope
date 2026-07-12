@@ -88,3 +88,21 @@ def pathway_notes_json(dataset_id: str, root: Optional[Path] = None) -> Path:
 
 def manifest_json(dataset_id: str, root: Optional[Path] = None) -> Path:
     return dataset_dir(dataset_id, root) / "manifest.json"
+
+
+# --------------------------------------------------------------------------- #
+# Summary working-space edits (the biologist's hand-authored report prose). A
+# runtime artifact the UI writes as the lab edits the Summary page — a sibling of
+# the interp notes, not a build output. Gitignored (runtime user state).
+# --------------------------------------------------------------------------- #
+def summary_edits_json(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "summary_edits.json"
+
+
+# --------------------------------------------------------------------------- #
+# Sign-off / review state (the biologist's review checkmarks on the Summary
+# board). Runtime user state, a sibling of ``summary_edits`` — records which
+# calls the biologist has reviewed and accepted, never a computed value.
+# --------------------------------------------------------------------------- #
+def review_state_json(dataset_id: str, root: Optional[Path] = None) -> Path:
+    return interp_dir(dataset_id, root) / "review_state.json"

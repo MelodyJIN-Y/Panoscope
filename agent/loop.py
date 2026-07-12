@@ -112,16 +112,33 @@ the engine; you are the interpretation layer. You never run jazzPanda live.
    write a PMID from memory. If a lookup returns nothing, say the literature is
    thin — do not invent a reference. A fabricated citation is the worst possible
    failure.
-4. MEMORY IS SCOPED AND CITED. In-scope lab notes are given to you above; cite
-   any note you use as [note:<id>] and show its tension (never use one silently).
-   At an override/correction, PROPOSE a note with `memory_draft` (never persist on
-   your own) — it cross-checks the claim against the literature and the biologist
-   confirms scope/basis before it is saved. Tell them you drafted it and to
-   confirm below; keep the disagreement visible, never a bare acknowledgement.
+4. MEMORY IS SCOPED, TYPED, AND CITED. In-scope lab notes are given to you above;
+   cite any note you use as [note:<id>] and show its tension (never use one
+   silently). When the biologist ASSERTS a judgment that diverges from, sharpens, or
+   scopes the grounded default, PROPOSE a note with `memory_draft` (never persist on
+   your own): classify it into ONE note_type and infer its anchor — a cell-type
+   override (set subject_cell_type to the biologist's NEW call, and infer
+   subject_lineage + subject_category for that new call, e.g. CAF → Stromal); a
+   marker_reinterpretation (what one marker means here, call unchanged →
+   subject_markers=[gene]); a program_reinterpretation (an enriched program re-read
+   as co-infiltration → subject_gene_sets=[HALLMARK set]); a marker_convention (a
+   panel/tissue trust rule about a marker, scope dataset|lab → subject_markers=[gene]);
+   a validation (own IHC/flow → basis=own_validation); a confidence_adjustment (their
+   confidence stance — NEVER change a number, it is an overlay); an exclude (a
+   doublet/artifact cluster); or a cross_cluster note (two+ clusters are one →
+   scope=dataset, subject_clusters=[ids]). It cross-checks the claim against the
+   literature and the biologist confirms scope/basis before it is saved. Do NOT draft
+   for questions, acknowledgements, view commands, or mid-thought hedges. You MUST
+   actually CALL the `memory_draft` tool — that is what shows the confirm card; never
+   just say "drafting the note" without calling it. Then, in ONE short sentence, tell
+   them to confirm scope/basis below; keep the disagreement visible, never a bare
+   acknowledgement.
 5. WHEN UNSURE, say "re-check this" and set the verify flag — do not guess to
    seem helpful.
-6. Plain language. Every point names a gene and its number. State the confidence
-   and the caveat. No hype, short over long.
+6. PLAIN CHAT PROSE. This is a conversation, not a document: reply in a few short
+   sentences. NEVER use markdown headings (#), tables, or bullet lists. Every point
+   names a gene and its number; state the confidence and the caveat. No hype, short
+   over long — two or three sentences beats a formatted write-up.
 
 Inline conventions: cite literature as `PMID:xxxxxxx` and notes as `[note:id]`.
 Only state a jazzPanda number in the exact form the tool returned it (you may
@@ -370,6 +387,11 @@ def _draft_from_payload(data: Any) -> Optional[NoteDraft]:
         subject_markers=tuple(data.get("subject_markers") or ()),
         tension=tension,
         dataset=str(data.get("dataset", cfg.DATASET_ID)),
+        type=data.get("type", "celltype_override"),
+        subject_gene_sets=tuple(data.get("subject_gene_sets") or ()),
+        subject_clusters=tuple(data.get("subject_clusters") or ()),
+        subject_lineage=str(data.get("subject_lineage", "")),
+        subject_category=str(data.get("subject_category", "")),
     )
 
 
@@ -630,6 +652,14 @@ class PanoscopeAgent:
 
         base = self._fallback.opening(target)  # deterministic, grounded
 
+        # Fast path: the pipeline's precomputed, live-cited cell-type note. Its PMID
+        # was verified live at build time and the base is grounded by construction,
+        # so this is trusted — NO network, no live re-verify at open time (matching
+        # the Pathways opening). The live CHAT is unaffected and stays fully live.
+        pre = self._precomputed_opening(base, target)
+        if pre is not None:
+            return pre
+
         enriched = self._enrich_opening(base, target)
         candidate = enriched if enriched is not None else base
 
@@ -643,12 +673,14 @@ class PanoscopeAgent:
     def _enrich_opening(
         self, base: AgentResponse, cluster: str
     ) -> Optional[AgentResponse]:
-        """Add ONE real literature citation to the opening, or None on any failure.
+        """Add ONE real literature citation to the opening via a LIVE lookup, or None
+        on any failure.
 
-        Uses the loop's own literature search (the same tool the chat loop uses),
-        so a PMID only ever comes from a live connector lookup. Everything is
-        wrapped: a down/slow connector yields None and the caller keeps the pure
-        verdict opening — the demo never blocks.
+        This is the fallback path used only when no precomputed cell-type note exists
+        (``opening_interpretation`` tries :meth:`_precomputed_opening` first). Uses the
+        loop's own literature search (the same tool the chat loop uses), so a PMID only
+        ever comes from a real connector lookup. Everything is wrapped: a down/slow
+        connector yields None and the caller keeps the pure verdict opening.
         """
         op = base  # alias
         pin = op.pin_marker
@@ -682,6 +714,73 @@ class PanoscopeAgent:
         )
         lit_line = (
             f" Literature: {pin} as a {cell_type} marker — PMID:{pmid}"
+            f"{' (' + cite.title + ')' if cite.title else ''}."
+        )
+        new_sidecar = GroundingSidecar(
+            numbers=op.grounding.numbers,
+            markers=op.grounding.markers,
+            pmids=op.grounding.pmids + (pmid,),
+            notes_used=op.grounding.notes_used,
+        )
+        lit_source = Source(
+            kind="lit",
+            ref=pmid,
+            value=cite.title,
+            detail=f"{cite.authors} ({cite.year}) {cite.journal}".strip(),
+        )
+        return AgentResponse(
+            text=op.text + lit_line,
+            sources=op.sources + (lit_source,),
+            verify=op.verify,
+            grounding=new_sidecar,
+            pin_marker=op.pin_marker,
+            citations=op.citations + (cite,),
+            note_written=None,
+            used_fallback=False,
+            opening=True,
+        )
+
+    @staticmethod
+    def _load_celltype_note(cluster: str) -> Optional[dict]:
+        """The pipeline's precomputed cell-type note for ``cluster`` (keys: summary,
+        pmid, citation), or None. Fail-soft: no tree / import issue -> None (live path)."""
+        try:
+            from pipeline import store  # lazy: avoids an import cycle with pipeline
+
+            notes = store.load_celltype_notes(cfg.DATASET_ID)
+        except Exception:  # noqa: BLE001 - no tree / not importable -> live lookup
+            return None
+        note = (notes or {}).get(cluster)
+        return note if isinstance(note, dict) else None
+
+    def _precomputed_opening(
+        self, base: AgentResponse, cluster: str
+    ) -> Optional[AgentResponse]:
+        """Enrich the opening from the precomputed, live-cited cell-type note — no
+        network. None if there is no precomputed note with a real PMID (the caller
+        then does a live lookup). The PMID is real: it was fetched live in the
+        pipeline's notes stage, so this keeps the confident floor (never from memory)."""
+        note = self._load_celltype_note(cluster)
+        if not note:
+            return None
+        pmid = str(note.get("pmid", "") or "").strip()
+        if not pmid.isdigit():
+            return None
+
+        op = base
+        cinfo = note.get("citation") or {}
+        cell_type = cfg.CLUSTER_KEY[cluster]["cell_type"].replace("_", " ")
+        cite = Citation(
+            pmid=pmid,
+            title=str(cinfo.get("title", "")),
+            authors=str(cinfo.get("authors", "")),
+            year=int(cinfo["year"]) if str(cinfo.get("year", "")).isdigit() else 0,
+            journal=str(cinfo.get("journal", "")),
+            url=str(cinfo.get("url", "")) or f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+            is_real=True,
+        )
+        lit_line = (
+            f" Literature: {cell_type} biology — PMID:{pmid}"
             f"{' (' + cite.title + ')' if cite.title else ''}."
         )
         new_sidecar = GroundingSidecar(

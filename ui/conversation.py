@@ -12,7 +12,7 @@ The agent's *knowledge* of the whole annotation is NOT carried by this log — i
 comes from the grounded global-interpretation block in the system prompt
 (``agent.loop._cluster_context``). So a per-cluster thread costs the agent no
 global awareness: it still knows every cluster's call and confidence, and durable
-overrides persist across clusters through scope-enforced lab notes, not the chat.
+overrides persist across clusters through scope-enforced notes, not the chat.
 
 Override-at-chat: the biologist just tells the agent ("this is CAF, our own
 data"); the agent's ``memory_write`` tool persists a scope-enforced note and its
@@ -51,7 +51,7 @@ _SRC_NAME: dict[str, str] = {
     "jz": "jazzPanda",
     "panel": "panel",
     "lit": "PubMed",
-    "mem": "lab note",
+    "mem": "note",
 }
 # Fixed left-to-right order for the condensed line (grounded floor first).
 _SRC_ORDER: tuple[str, ...] = ("jz", "panel", "lit", "mem")
@@ -72,7 +72,7 @@ _STATUS_OPTS: tuple[tuple[str, str], ...] = (
 )
 _SCOPE_SAVED_LABEL: dict[str, str] = {
     "dataset": "this dataset",
-    "lab": "lab-wide",
+    "lab": "all datasets",
 }
 _BASIS_SAVED_LABEL: dict[str, str] = {
     "own_validation": "our own data",
@@ -144,14 +144,22 @@ _CONVO_CSS = """
 /* Hide Streamlit's "Press Enter to submit form" hint under the input. */
 .st-key-conv_ask [data-testid="InputInstructions"],
 .st-key-conv_ask [data-testid="stTextInputInstructions"] { display: none !important; }
-/* Confirm-to-save card: an accent-tinted panel between thread and ask box. */
-.st-key-conv_draft {
+/* Confirm-to-save card: an accent-tinted panel between thread and ask box. The
+   container key is per-slot (conv_draft_<cluster|pw::c|holistic::c>) so several
+   cards can render at once — e.g. the Summary board's per-row refinement cards —
+   without a duplicate-key crash; the selector matches the shared prefix. */
+div[class*="st-key-conv_draft"] {
   border: 1px solid var(--accent); border-radius: 12px;
   background: var(--accent-soft); padding: 12px 13px; margin: 4px 0 10px;
 }
 .draft-eyebrow {
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .08em; color: var(--accent); font-weight: 600; margin-bottom: 6px;
+}
+.draft-type {
+  display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700;
+  color: var(--accent); background: var(--paper); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 2px 8px; margin-bottom: 7px;
 }
 .draft-claim { font-size: 13px; line-height: 1.5; color: var(--ink); font-weight: 500; margin-bottom: 8px; }
 .draft-lbl {
@@ -165,7 +173,7 @@ _CONVO_CSS = """
 .draft-tension .thin { color: var(--faint); }
 .draft-tension a { color: var(--accent); text-decoration: none; }
 .draft-tension a:hover { text-decoration: underline; }
-.st-key-conv_draft [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
+div[class*="st-key-conv_draft"] [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
 </style>
 """
 
@@ -188,13 +196,14 @@ def render_conversation(cluster: str) -> None:
     st.markdown(
         '<div class="conv-hint">Agree, question, or override this call by telling '
         "the agent below &rarr; it keeps your call, cross-checks the literature, "
-        "and saves it to Lab knowledge.</div>",
+        "and saves it to My notes.</div>",
         unsafe_allow_html=True,
     )
 
     with st.container(key="conv_thread"):
         _render_thread(cluster)
 
+    process_pending(cluster)
     _render_draft_card(cluster)
     _render_ask_box(cluster)
 
@@ -339,7 +348,7 @@ def _sources_line_html(sources: tuple[Source, ...]) -> str:
     """ONE condensed provenance line for a turn (empty when no sources).
 
     Names only the source KINDS present (deduped), e.g.
-    ``Sources jazzPanda · PubMed · lab note`` — the numbers stay inline in the
+    ``Sources jazzPanda · PubMed · note`` — the numbers stay inline in the
     prose and cited PMIDs stay clickable via the buttons below.
     """
     kinds_present = {s.kind for s in sources}
@@ -361,6 +370,7 @@ def _linkify_citations(text: str) -> str:
     Each PMID becomes a clickable anchor to pubmed.ncbi.nlm.nih.gov (new tab) —
     the citation is one click away inline, so no separate citation box is needed.
     """
+    text = _plain_prose(text)
     parts: list[str] = []
     last = 0
     for m in _PMID_RE.finditer(text):
@@ -372,7 +382,25 @@ def _linkify_citations(text: str) -> str:
         )
         last = m.end()
     parts.append(html.escape(text[last:]))
-    return "".join(parts)
+    # Newlines -> <br> so NOTHING sits at a line start for Streamlit's markdown to
+    # promote into a giant header / table. The chat renders as plain prose, always.
+    return "".join(parts).replace("\n", "<br>")
+
+
+_MD_STRIP = re.compile(r"^\s{0,3}(#{1,6}\s*|>\s?|[-*+]\s+|\d+\.\s+)")
+
+
+def _plain_prose(text: str) -> str:
+    """Neutralise markdown block syntax so a chat reply can't render as a document
+    (giant header, table). Strips leading header/quote/bullet markers per line and
+    drops pure table-separator rows (``|---|---|``); the chat is conversational prose."""
+    out: list[str] = []
+    for line in text.split("\n"):
+        s = line.strip()
+        if "|" in s and set(s) <= {"|", "-", ":", " "}:  # a table separator row
+            continue
+        out.append(_MD_STRIP.sub("", line))
+    return "\n".join(out)
 
 
 # --------------------------------------------------------------------------- #
@@ -383,7 +411,7 @@ def _render_ask_box(cluster: str) -> None:
 
     Appends the user turn to THIS cluster's thread, calls ``agent.loop.chat`` with
     only this cluster's history, appends the grounded answer, applies any pin the
-    agent chose, and — if the turn wrote a lab note — confirms the save inline.
+    agent chose, and — if the turn wrote a note — confirms the save inline.
     """
     import streamlit as st
 
@@ -403,19 +431,42 @@ def _render_ask_box(cluster: str) -> None:
                 )
 
     if asked and query and query.strip():
-        _submit_query(cluster, query.strip())
+        # Phase 1: append the user's message and mark the query pending, then rerun —
+        # so the message and a "thinking" indicator appear INSTANTLY. The (slower) live
+        # agent turn runs on that rerun (see _process_pending), not while the user waits
+        # with nothing on screen.
+        state.append_message(cluster, {"role": _ROLE_USER, "text": query.strip(), "resp": None})
+        st.session_state[_pending_key(cluster)] = query.strip()
         _rerun(st)
 
 
-def _submit_query(cluster: str, query: str) -> None:
-    """Append the user turn, run the agent, append its grounded answer.
+def _pending_key(cluster: str) -> str:
+    return f"pending_q_{cluster}"
+
+
+def process_pending(cluster: str) -> None:
+    """Phase 2: if a query is pending, show a thinking indicator and run the grounded
+    agent turn, then rerun to show its answer. Split from submit so the user's message +
+    the spinner appear immediately instead of after the whole turn completes."""
+    import streamlit as st
+
+    pkey = _pending_key(cluster)
+    query = st.session_state.get(pkey)
+    if not query:
+        return
+    st.session_state.pop(pkey, None)  # clear first so an error can't loop
+    with st.spinner("Reading the literature…"):
+        _run_agent_turn(cluster, query)
+    _rerun(st)
+
+
+def _run_agent_turn(cluster: str, query: str) -> None:
+    """Run the agent for an already-appended user query and append its grounded answer.
 
     A chat-driven override does NOT persist a note on the model's word: the agent
     proposes one (``resp.note_draft``) and we stash it so the confirm card renders.
     Nothing is written until the biologist saves — see ``_render_draft_card``.
     """
-    state.append_message(cluster, {"role": _ROLE_USER, "text": query, "resp": None})
-
     resp = _safe_chat(cluster, query)
     state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
 
@@ -433,13 +484,22 @@ def _submit_query(cluster: str, query: str) -> None:
 # Nothing is persisted until Save; Discard drops the draft. Sits between the
 # thread and the ask box so a pending decision is always in view.
 # --------------------------------------------------------------------------- #
-def _render_draft_card(cluster: str) -> None:
-    """Render the pending note draft (if any) as a confirm card with toggles."""
+def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
+                       trigger: str = "override") -> None:
+    """Render the pending note draft (if any) as a confirm card with toggles.
+
+    ``thread_key`` is the pending-draft slot + message target (defaults to ``cluster``);
+    the Pathways chat passes its ``pw::{cluster}`` thread so its draft never collides
+    with the marker chat's. ``cluster`` stays the real cluster for the scope label and
+    the saved note's cluster. ``trigger`` records where the note was born (``override``
+    from a chat, ``holistic_review`` from a refinement capture).
+    """
     import dataclasses
 
     import streamlit as st
 
-    draft = state.get_pending_draft(cluster)
+    key = thread_key or cluster
+    draft = state.get_pending_draft(key)
     if draft is None:
         return
 
@@ -447,11 +507,12 @@ def _render_draft_card(cluster: str) -> None:
     scope_opts = (
         (f"this cluster ({cluster})", "cluster"),
         ("this dataset", "dataset"),
-        ("lab-wide", "lab"),
+        ("all datasets", "lab"),
     )
-    with st.container(key="conv_draft"):
+    with st.container(key=f"conv_draft_{key}"):
         st.markdown(
             '<div class="draft-eyebrow">Draft to save · confirm scope &amp; basis</div>'
+            f'<div class="draft-type">{_draft_type_line(draft)}</div>'
             f'<div class="draft-claim">{html.escape(draft.claim)}</div>',
             unsafe_allow_html=True,
         )
@@ -466,9 +527,9 @@ def _render_draft_card(cluster: str) -> None:
         disc = c_disc.button("Discard", key=f"ddisc_{cluster}_{nonce}", use_container_width=True)
 
     if disc:
-        state.clear_pending_draft(cluster)
+        state.clear_pending_draft(key)
         state.append_message(
-            cluster,
+            key,
             {"role": _ROLE_SYSTEM, "text": "Draft discarded — nothing was saved.", "resp": None},
         )
         _rerun(st)
@@ -480,7 +541,7 @@ def _render_draft_card(cluster: str) -> None:
             status=status,
             cluster=cluster if scope == "cluster" else None,
         )
-        _save_pending_draft(cluster, edited)
+        _save_pending_draft(key, edited, trigger)
         _rerun(st)
 
 
@@ -510,6 +571,35 @@ def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
             label_visibility="collapsed",
         )
     return val_by_label.get(picked, default_value)
+
+
+_DRAFT_TYPE_LABELS = {
+    "celltype_override": "Cell-type override",
+    "marker_reinterpretation": "Marker note",
+    "program_reinterpretation": "Program note",
+    "marker_convention": "Marker convention",
+    "validation": "Validation",
+    "confidence_adjustment": "Confidence note",
+    "exclude": "Exclude",
+    "cross_cluster": "Cross-cluster",
+}
+
+
+def _draft_type_line(draft: Any) -> str:
+    """The inferred type + anchor, shown so the biologist sees what the agent read
+    (e.g. 'Marker note · POSTN', 'Program note · G2M Checkpoint', 'Cross-cluster · c5 + c7')."""
+    name = _DRAFT_TYPE_LABELS.get(getattr(draft, "type", "celltype_override"), "Note")
+    anchors: list[str] = []
+    if getattr(draft, "subject_markers", ()):
+        anchors.append(" · ".join(draft.subject_markers))
+    if getattr(draft, "subject_gene_sets", ()):
+        anchors.append(" · ".join(
+            gs.replace("HALLMARK_", "").replace("_", " ").title() for gs in draft.subject_gene_sets
+        ))
+    if getattr(draft, "subject_clusters", ()):
+        anchors.append(" + ".join(draft.subject_clusters))
+    anchor = " · ".join(a for a in anchors if a)
+    return html.escape(name + (f" · {anchor}" if anchor else ""))
 
 
 def _draft_nonce(draft: Any) -> int:
@@ -545,23 +635,27 @@ def _pmid_links(cites) -> str:
     )
 
 
-def _save_pending_draft(cluster: str, edited: Any) -> None:
-    """Persist the confirmed draft and post an inline saved confirmation."""
+def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override") -> None:
+    """Persist the confirmed draft and post an inline saved confirmation.
+
+    ``thread_key`` is the pending-draft slot / message target (the cluster for the
+    marker chat, ``pw::{cluster}`` for the Pathways chat). ``trigger`` records the
+    note's origin (chat override vs holistic-review refinement)."""
     try:
-        note = dax.save_note_draft(edited)
+        note = dax.save_note_draft(edited, trigger=trigger)
     except Exception:  # noqa: BLE001 - surface a clean message, never crash the pane
-        state.clear_pending_draft(cluster)
+        state.clear_pending_draft(thread_key)
         state.append_message(
-            cluster,
+            thread_key,
             {"role": _ROLE_SYSTEM, "text": "Could not save the note — please try again.", "resp": None},
         )
         return
-    state.clear_pending_draft(cluster)
-    state.append_message(cluster, {"role": _ROLE_SYSTEM, "text": _saved_line(note), "resp": None})
+    state.clear_pending_draft(thread_key)
+    state.append_message(thread_key, {"role": _ROLE_SYSTEM, "text": _saved_line(note), "resp": None})
 
 
 def _saved_line(note: Any) -> str:
-    """The 'Saved to Lab knowledge · scope · basis · status' confirmation line."""
+    """The 'Saved to My notes · scope · basis · status' confirmation line."""
     if note.scope == "cluster" and note.scope_ref.cluster:
         scope_txt = f"cluster {note.scope_ref.cluster}"
     else:
@@ -573,7 +667,7 @@ def _saved_line(note: Any) -> str:
     else:
         tension = "literature thin, recorded as-is"
     return (
-        f"Saved to Lab knowledge · {scope_txt} · {basis_txt} · {note.status}. "
+        f"Saved to My notes · {scope_txt} · {basis_txt} · {note.status}. "
         f"Literature: {tension}. It is cited whenever it applies."
     )
 

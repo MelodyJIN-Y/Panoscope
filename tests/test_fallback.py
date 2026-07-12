@@ -248,3 +248,48 @@ def test_unknown_cluster_propagates_keyerror():
         F.fallback_opening("c99")
     with pytest.raises(KeyError):
         F.generic_fallback("c99")
+
+
+# --------------------------------------------------------------------------- #
+# "What would settle it" — the discriminator as a grounded fallback
+# --------------------------------------------------------------------------- #
+def test_settle_intent_is_classified():
+    assert F._classify("what would settle this?") == "settle"
+    assert F._classify("could this be myoepithelial?") == "settle"
+    assert F._classify("is this tumor or myoepithelial?") == "settle"
+    # a bare cell-type mention with no other intent routes to settle
+    assert F._classify("maybe it's a fibroblast") == "settle"
+    # other intents still win when their keywords match
+    assert F._classify("could this be a doublet?") == "doublet"
+    assert F._classify("what defines this cluster?") == "defines"
+
+
+def test_settle_answer_names_rival_and_excludes_the_call(checker):
+    # c4 is Myoepithelial; "tumor or myoepithelial" must discriminate against Tumor.
+    resp = F.fallback_answer("is this tumor or myoepithelial?", "c4")
+    assert resp is not None
+    assert "Myoepithelial" in resp.text and "Tumor" in resp.text
+    assert checker.check(resp.text, resp.grounding, "c4").ok
+
+
+def test_settle_answer_flags_offpanel_without_recommending_experiments(checker):
+    resp = F.fallback_answer("could this be myoepithelial?", "c1")
+    assert resp is not None
+    # TP63 is the off-panel myoepithelial discriminator; it must be named + flagged.
+    assert "TP63" in resp.text
+    low = resp.text.lower()
+    assert "off-panel" in low or "never measured" in low
+    assert "ihc" not in low and "experiment" not in low
+    assert checker.check(resp.text, resp.grounding, "c1").ok
+
+
+def test_proactive_settle_line_on_mixed_signal_cluster_clears_floor(checker):
+    # c3 (Macrophages) carries CD4 -> a genuine T-cell rival peaks here.
+    op = F.fallback_opening("c3")
+    assert "To settle" in op.text
+    assert checker.check(op.text, op.grounding, "c3").ok
+
+
+def test_no_proactive_settle_line_on_clean_cluster():
+    # c1 (Tumor) is a clean call with no rival in its own markers.
+    assert "To settle" not in F.fallback_opening("c1").text

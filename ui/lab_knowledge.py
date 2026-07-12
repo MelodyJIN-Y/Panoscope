@@ -68,6 +68,10 @@ _LK_CSS = """
             padding:2px 7px; border-radius:5px; }
 .lke { font-size:12px; color:var(--muted); border:1px dashed var(--hair);
        border-radius:9px; padding:16px; text-align:center; }
+.lk-callout { font-size:12.5px; color:var(--muted); background:var(--accent-soft);
+              border:1px solid var(--hair); border-radius:9px; padding:10px 12px;
+              margin:2px 0 14px; max-width:70ch; line-height:1.5; }
+.lk-callout strong { color:var(--ink); }
 """
 
 
@@ -214,6 +218,14 @@ def render_lab_page() -> None:
         f'<div class="pano-rat" style="max-width:70ch">{_DRAWER_SUB} '
         "They are captured by telling the agent in the chat (an override or a "
         "confirmation), and stay here, git-tracked and attributed.</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="lk-callout">📄 These notes are now compiled into the '
+        "<strong>Interpretation summary</strong> on the <strong>Summary</strong> page — review "
+        "the whole annotation (calls, evidence, and these notes) together and download it as "
+        "Word or PDF there. This page is for managing the individual notes.</div>",
         unsafe_allow_html=True,
     )
 
