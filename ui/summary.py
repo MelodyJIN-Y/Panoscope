@@ -47,15 +47,14 @@ _SUB = (
     "biology claim is live-cited, nothing here recomputes a value."
 )
 
-# Two exports of DIFFERENT kinds: the editable narrative (Word), and the
-# machine-readable verdict table (CSV, R-importable — the structured call, NOT the
-# free-text edits).
+# The interpretation report, in the two formats a biologist reaches for: an editable
+# Word document and a locked PDF. Both lead with the confirmed-call overview table.
 _DOCX_LABEL = "⬇  Report (Word)"
 _DOCX_NAME = "panoscope_interpretation.docx"
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-_CSV_LABEL = "⬇  Annotations (CSV)"
-_CSV_NAME = "panoscope_annotations.csv"
-_CSV_MIME = "text/csv"
+_PDF_LABEL = "⬇  Report (PDF)"
+_PDF_NAME = "panoscope_interpretation.pdf"
+_PDF_MIME = "application/pdf"
 
 # Editor auto-height: 13.5px font * 1.65 line-height ≈ 22px/line; the wide 0.76 pane
 # fits ~150 chars/line, so we estimate at 110 (a safe under-count → a little headroom,
@@ -95,8 +94,8 @@ _SUMMARY_CSS = """
 .pano-sum-saved { color: var(--faint); }
 .pano-sum-saved .err { color: var(--absent); }
 
-/* Export cluster: two downloads (Word report, CSV table). */
-.st-key-dl_docx button, .st-key-dl_csv button {
+/* Export cluster: two downloads of the same report (Word, PDF). */
+.st-key-dl_docx button, .st-key-dl_pdf button {
   border-radius: 9px !important; font-size: 12px !important; white-space: nowrap;
   min-height: 0 !important; padding: 7px 10px !important; }
 /* Per-region Save button — right-aligned directly under its editor. */
@@ -1356,25 +1355,28 @@ def render_summary_page() -> None:
 
     # ---- Top bar: title + meta + save status | [Report] [CSV] [Save] ----- #
     head_col, act_col = st.columns([0.60, 0.40], vertical_alignment="center")
+    ctx = " · ".join(p for p in (rep.tissue, rep.platform) if p) or rep.dataset
     with head_col:
         st.markdown(
             f'<div class="pano-sum-title">{html.escape(_TITLE)}</div>'
-            '<div class="pano-sum-sub">Xenium human breast · sample 1 — every number is '
+            f'<div class="pano-sum-sub">{html.escape(ctx)} · every number is '
             "jazzPanda's, every biology claim live-cited.</div>",
             unsafe_allow_html=True,
         )
     with act_col:
-        b_doc, b_csv = st.columns(2)
+        b_doc, b_pdf = st.columns(2)
+        _dl_help = ("The interpretation report: a confirmed-call overview table, per-cluster "
+                    "detail with programs, the cross-cluster review, and caveats.")
         with b_doc:
             st.download_button(
-                _DOCX_LABEL, report.working_docx(export_sections, **exp_kw),
+                _DOCX_LABEL, report.working_docx(export_sections, report_model=rep, **exp_kw),
                 _DOCX_NAME, _DOCX_MIME, key="dl_docx", use_container_width=True,
-                help="Your edited narrative — every cluster, the global check, caveats, and my notes.")
-        with b_csv:
+                help=_dl_help + " Editable Word.")
+        with b_pdf:
             st.download_button(
-                _CSV_LABEL, da.verdict_csv(), _CSV_NAME, _CSV_MIME,
-                key="dl_csv", use_container_width=True,
-                help="The 11-column verdict table (R-importable). The structured call, not your free-text edits.")
+                _PDF_LABEL, report.working_pdf(export_sections, report_model=rep, **exp_kw),
+                _PDF_NAME, _PDF_MIME, key="dl_pdf", use_container_width=True,
+                help=_dl_help + " Locked PDF.")
 
     st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 

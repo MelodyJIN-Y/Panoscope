@@ -66,10 +66,6 @@ _BASIS_OPTS: tuple[tuple[str, str], ...] = (
     ("a paper", "paper"),
     ("convention", "convention"),
 )
-_STATUS_OPTS: tuple[tuple[str, str], ...] = (
-    ("firm", "firm"),
-    ("tentative", "tentative"),
-)
 _SCOPE_SAVED_LABEL: dict[str, str] = {
     "dataset": "this dataset",
     "lab": "all datasets",
@@ -173,6 +169,11 @@ div[class*="st-key-conv_draft"] {
 .draft-tension .thin { color: var(--faint); }
 .draft-tension a { color: var(--accent); text-decoration: none; }
 .draft-tension a:hover { text-decoration: underline; }
+/* Scope is inferred (one dataset at a time), shown as a static label, not a toggle. */
+.draft-scope { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin: 3px 0 2px; }
+.draft-scope .lbl { text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 6px; }
+/* 'Also save to my memory' checkbox: quieter than the primary Save. */
+div[class*="st-key-conv_draft"] label[data-testid="stCheckbox"] { font-size: 11.5px !important; color: var(--muted) !important; }
 div[class*="st-key-conv_draft"] [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
 </style>
 """
@@ -191,6 +192,7 @@ def render_conversation(cluster: str) -> None:
     import streamlit as st
 
     st.markdown(_CONVO_CSS, unsafe_allow_html=True)
+    st.markdown(_SKEPTIC_CSS, unsafe_allow_html=True)
     _ensure_opening(cluster)
     _render_header(cluster)
     st.markdown(
@@ -199,13 +201,142 @@ def render_conversation(cluster: str) -> None:
         "and saves it to My notes.</div>",
         unsafe_allow_html=True,
     )
+    _render_skeptic_zone(cluster)
 
     with st.container(key="conv_thread"):
         _render_thread(cluster)
 
     process_pending(cluster)
+    _process_pressure_test(cluster)
     _render_draft_card(cluster)
     _render_ask_box(cluster)
+
+
+# --------------------------------------------------------------------------- #
+# Second opinion — the adversarial skeptic, surfaced where it helps: auto on a
+# verify-flagged call, on-demand ("Pressure-test this call") elsewhere. It only
+# argues from grounded facts (agent/skeptic.py) and never touches a number.
+# --------------------------------------------------------------------------- #
+_SKEPTIC_CSS = """
+<style>
+div[class*="st-key-conv_skeptic"] [data-testid="stButton"] button {
+  background: transparent !important; border: 1px dashed var(--hair) !important;
+  color: var(--muted) !important; box-shadow: none !important; min-height: 0 !important;
+  padding: 5px 0 !important; border-radius: 8px !important; font-family: var(--mono) !important;
+  font-size: 10.5px !important; letter-spacing: .06em; text-transform: uppercase;
+}
+div[class*="st-key-conv_skeptic"] [data-testid="stButton"] button:hover {
+  color: var(--accent) !important; border-color: var(--accent) !important;
+}
+.second-op { border: 1px solid var(--hair); border-radius: 11px; padding: 11px 13px;
+  margin: 4px 0 12px; background: rgba(120,120,120,.035); }
+.second-op.so-recheck { border-color: var(--absent); background: var(--absent-bg); }
+.so-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+.so-eyebrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--faint); font-weight: 600; }
+.so-chip { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; border: 1px solid var(--hair); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; }
+.second-op.so-recheck .so-chip { color: var(--absent); border-color: var(--absent); }
+.second-op.so-ok .so-chip { color: var(--accent); border-color: var(--accent); }
+.so-chal { display: flex; gap: 8px; font-size: 12px; line-height: 1.5; color: var(--ink); margin: 4px 0; }
+.so-chal .so-mark { font-family: var(--mono); font-weight: 700; width: 12px; flex: none; text-align: center; }
+.so-chal.weakens .so-mark { color: var(--absent); }
+.so-chal.supports .so-mark { color: var(--accent); }
+.so-chal.neutral .so-mark { color: var(--faint); }
+.so-line { font-size: 12px; line-height: 1.55; color: var(--muted);
+  margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--hair); }
+</style>
+"""
+
+
+def _render_skeptic_zone(cluster: str) -> None:
+    """Two layers. A deterministic RISK FLAG auto-shows on a verify-flagged call (an
+    instant, numbers-only triage light — not an agent). The live SECOND-OPINION agent
+    runs on demand ("Pressure-test this call") and posts a grounded, cited challenge
+    into the thread."""
+    import streamlit as st
+
+    verdict = _verdict_or_none(cluster)
+    if bool(getattr(verdict, "verify", False)):
+        _render_second_opinion(cluster)
+    with st.container(key="conv_skeptic"):
+        clicked = st.button(
+            "⚖  Pressure-test this call",
+            key=f"skbtn_{cluster}",
+            use_container_width=True,
+            help="Ask the live second-opinion agent to challenge this call from grounded "
+            "facts, tissue-aware and cited. Falls back to the deterministic check offline.",
+        )
+    if clicked:
+        st.session_state[_pressure_key(cluster)] = True
+        _rerun(st)
+
+
+def _pressure_key(cluster: str) -> str:
+    return f"pressure_pending_{cluster}"
+
+
+def _process_pressure_test(cluster: str) -> None:
+    """If a pressure-test is pending, run the live skeptic and post it into the thread.
+
+    Split from the button (like the ask box) so the spinner shows while the live agent
+    runs; the result is a normal agent bubble (grounded prose + any real citation)."""
+    import streamlit as st
+
+    if not st.session_state.get(_pressure_key(cluster)):
+        return
+    st.session_state.pop(_pressure_key(cluster), None)  # clear first so an error can't loop
+    with st.spinner("Pressure-testing the call…"):
+        resp = _safe_pressure_test(cluster)
+    state.append_message(
+        cluster, {"role": _ROLE_SYSTEM, "text": "Second opinion — pressure-test:", "resp": None}
+    )
+    state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
+    _rerun(st)
+
+
+def _safe_pressure_test(cluster: str) -> AgentResponse:
+    """Run the live second-opinion agent; never raise into the render path."""
+    try:
+        return dax.get_agent().pressure_test(cluster)
+    except Exception:  # noqa: BLE001 - the agent has its own deterministic fallback
+        from agent import loop as agent_loop
+
+        return agent_loop.pressure_test(cluster)
+
+
+def _render_second_opinion(cluster: str) -> None:
+    """The deterministic RISK FLAG: a numbers-only triage light (challenges + verdict).
+
+    Not an agent — a grounded screen over jazzPanda numbers, shown instantly. The live
+    agent is the on-demand pressure-test."""
+    import streamlit as st
+
+    try:
+        from agent import skeptic
+        rep = skeptic.second_opinion(cluster)
+    except Exception:  # noqa: BLE001 - never crash the pane; just skip the panel
+        return
+
+    marks = {"weakens": "−", "supports": "+", "neutral": "○"}
+    chip = "withstands" if rep.survives else "re-check"
+    css = "so-ok" if rep.survives else "so-recheck"
+    rows = "".join(
+        f'<div class="so-chal {c.effect}"><span class="so-mark">{marks.get(c.effect, "·")}</span>'
+        f'<span>{html.escape(c.detail)}</span></div>'
+        for c in rep.challenges
+    ) or ('<div class="so-chal neutral"><span class="so-mark">○</span>'
+          '<span>No grounded challenge found.</span></div>')
+    st.markdown(
+        f'<div class="second-op {css}">'
+        f'<div class="so-head"><span class="so-eyebrow">Risk flag</span>'
+        f'<span class="so-chip">{html.escape(chip)}</span></div>'
+        f'{rows}'
+        f'<div class="so-line">{html.escape(rep.verdict_line)}</div>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def _render_header(cluster: str) -> None:
@@ -480,13 +611,15 @@ def _run_agent_turn(cluster: str, query: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Confirm-to-save card — the biologist's two taps (scope + basis), then Save.
-# Nothing is persisted until Save; Discard drops the draft. Sits between the
-# thread and the ask box so a pending decision is always in view.
+# Confirm-to-save card — one tap (basis), then Save. Scope is inferred: we work one
+# dataset at a time, so a note is dataset-local by construction and shown as a static
+# label, not a toggle. Status carries the agent's proposal. An optional "save to my
+# memory" keeps a portable, distilled copy across projects. Nothing persists until
+# Save; Discard drops the draft. Sits between the thread and the ask box.
 # --------------------------------------------------------------------------- #
 def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
                        trigger: str = "override") -> None:
-    """Render the pending note draft (if any) as a confirm card with toggles.
+    """Render the pending note draft (if any) as a confirm card.
 
     ``thread_key`` is the pending-draft slot + message target (defaults to ``cluster``);
     the Pathways chat passes its ``pw::{cluster}`` thread so its draft never collides
@@ -504,22 +637,23 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
         return
 
     nonce = _draft_nonce(draft)
-    scope_opts = (
-        (f"this cluster ({cluster})", "cluster"),
-        ("this dataset", "dataset"),
-        ("all datasets", "lab"),
-    )
     with st.container(key=f"conv_draft_{key}"):
         st.markdown(
-            '<div class="draft-eyebrow">Draft to save · confirm scope &amp; basis</div>'
+            '<div class="draft-eyebrow">Draft to save · confirm basis</div>'
             f'<div class="draft-type">{_draft_type_line(draft)}</div>'
-            f'<div class="draft-claim">{html.escape(draft.claim)}</div>',
+            f'<div class="draft-claim">{html.escape(draft.claim)}</div>'
+            f'<div class="draft-scope"><span class="lbl">scope</span>'
+            f'{html.escape(_scope_static_label(draft, cluster))}</div>',
             unsafe_allow_html=True,
         )
-        scope = _seg(st, "scope", scope_opts, draft.scope, f"dscope_{cluster}_{nonce}")
         basis = _seg(st, "basis", _BASIS_OPTS, draft.basis, f"dbasis_{cluster}_{nonce}")
-        status = _seg(st, "status", _STATUS_OPTS, draft.status, f"dstatus_{cluster}_{nonce}")
         st.markdown(_draft_tension_html(draft), unsafe_allow_html=True)
+        to_memory = st.checkbox(
+            "Also save to my memory (portable across projects)",
+            key=f"dmem_{cluster}_{nonce}",
+            help="Keep a distilled, tissue-tagged copy of this decision that travels "
+            "across datasets. Local only; it never changes a jazzPanda number.",
+        )
         c_save, c_disc = st.columns([0.6, 0.4])
         save = c_save.button(
             "Save note", key=f"dsave_{cluster}_{nonce}", type="primary", use_container_width=True
@@ -530,19 +664,27 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
         state.clear_pending_draft(key)
         state.append_message(
             key,
-            {"role": _ROLE_SYSTEM, "text": "Draft discarded — nothing was saved.", "resp": None},
+            {"role": _ROLE_SYSTEM, "text": "Draft discarded, nothing was saved.", "resp": None},
         )
         _rerun(st)
     elif save:
+        # Scope + status carry the agent's proposal unchanged (only basis is confirmed).
         edited = dataclasses.replace(
             draft,
-            scope=scope,
             basis=basis,
-            status=status,
-            cluster=cluster if scope == "cluster" else None,
+            cluster=cluster if draft.scope == "cluster" else None,
         )
-        _save_pending_draft(key, edited, trigger)
+        _save_pending_draft(key, edited, trigger, to_memory=bool(to_memory))
         _rerun(st)
+
+
+def _scope_static_label(draft: Any, cluster: str) -> str:
+    """The inferred scope, as a read-only label (no toggle). A cluster-scoped note
+    reads 'this cluster (cN)'; anything else, 'this dataset'."""
+    scope = getattr(draft, "scope", "cluster")
+    if scope == "cluster":
+        return f"this cluster ({cluster})"
+    return _SCOPE_SAVED_LABEL.get(scope, "this dataset")
 
 
 def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
@@ -635,26 +777,95 @@ def _pmid_links(cites) -> str:
     )
 
 
-def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override") -> None:
+def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override",
+                        *, to_memory: bool = False) -> None:
     """Persist the confirmed draft and post an inline saved confirmation.
 
     ``thread_key`` is the pending-draft slot / message target (the cluster for the
     marker chat, ``pw::{cluster}`` for the Pathways chat). ``trigger`` records the
-    note's origin (chat override vs holistic-review refinement)."""
+    note's origin (chat override vs holistic-review refinement). ``to_memory`` also
+    writes a portable, distilled copy to the local cross-project user memory."""
     try:
         note = dax.save_note_draft(edited, trigger=trigger)
     except Exception:  # noqa: BLE001 - surface a clean message, never crash the pane
         state.clear_pending_draft(thread_key)
         state.append_message(
             thread_key,
-            {"role": _ROLE_SYSTEM, "text": "Could not save the note — please try again.", "resp": None},
+            {"role": _ROLE_SYSTEM, "text": "Could not save the note, please try again.", "resp": None},
         )
         return
     state.clear_pending_draft(thread_key)
-    state.append_message(thread_key, {"role": _ROLE_SYSTEM, "text": _saved_line(note), "resp": None})
+    mem_saved = _save_to_user_memory(note) if to_memory else False
+    state.append_message(
+        thread_key, {"role": _ROLE_SYSTEM, "text": _saved_line(note, mem_saved=mem_saved), "resp": None}
+    )
 
 
-def _saved_line(note: Any) -> str:
+def _save_to_user_memory(note: Any) -> bool:
+    """Write a distilled, portable copy of ``note`` to the local user memory.
+
+    Best-effort and local-only: composes a tissue-tagged headline from the note's
+    own (agent-written) claim + markers, and appends it to ``context/user_memory.jsonl``.
+    Never raises; returns whether it was written. It stores prose only, never a number
+    that could later override jazzPanda."""
+    try:
+        from agent import config as cfg
+        from agent import user_memory
+
+        markers = tuple(getattr(note, "subject_markers", ()) or ())
+        cell_type = getattr(note, "subject_cell_type", None) or ""
+        summary = user_memory.distill(
+            claim=note.claim, cell_type=cell_type, markers=markers, dataset_label=_dataset_label()
+        )
+        cluster = note.scope_ref.cluster if getattr(note, "scope_ref", None) else None
+        user_memory.record({
+            "id": f"um_{note.id}",
+            "date": _today_iso(),
+            "from": cfg.DATASET_ID,
+            "cluster": cluster,
+            "cell_type": cell_type,
+            "markers": list(markers),
+            "basis": note.basis,
+            "status": note.status,
+            "claim": note.claim,
+            "summary": summary,
+        })
+        return True
+    except Exception:  # noqa: BLE001 - the note itself already saved; memory is optional
+        return False
+
+
+def _dataset_label() -> str:
+    """A human tissue/platform tag for the active dataset (portability for user memory).
+
+    Reads the dataset manifest (``tissue`` · ``platform``); falls back to the id."""
+    try:
+        import json
+
+        from agent import config as cfg
+        from pipeline import paths
+
+        m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
+        parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]
+        parts = [p for p in parts if p]
+        return " · ".join(parts) if parts else cfg.DATASET_ID
+    except Exception:  # noqa: BLE001 - a missing manifest just means a plainer label
+        try:
+            from agent import config as cfg
+
+            return cfg.DATASET_ID
+        except Exception:  # noqa: BLE001
+            return ""
+
+
+def _today_iso() -> str:
+    """Today's date as an ISO ``YYYY-MM-DD`` string (the only clock call in this pane)."""
+    import datetime
+
+    return datetime.date.today().isoformat()
+
+
+def _saved_line(note: Any, *, mem_saved: bool = False) -> str:
     """The 'Saved to My notes · scope · basis · status' confirmation line."""
     if note.scope == "cluster" and note.scope_ref.cluster:
         scope_txt = f"cluster {note.scope_ref.cluster}"
@@ -666,9 +877,10 @@ def _saved_line(note: Any) -> str:
         tension = f"{len(t.agree)} agree / {len(t.dissent)} dissent kept visible"
     else:
         tension = "literature thin, recorded as-is"
+    mem = " Also saved to my memory (portable across projects)." if mem_saved else ""
     return (
         f"Saved to My notes · {scope_txt} · {basis_txt} · {note.status}. "
-        f"Literature: {tension}. It is cited whenever it applies."
+        f"Literature: {tension}. It is cited whenever it applies.{mem}"
     )
 
 

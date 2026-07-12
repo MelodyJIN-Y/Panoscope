@@ -2,7 +2,7 @@
   "dataset_id": "xenium_hbreast_sample1",
   "generated_at": "2026-07-10T01:56:57Z",
   "pipeline_version": "0.1.0",
-  "tissue": "human breast",
+  "tissue": "human breast cancer",
   "platform": "Xenium",
   "panel_gene_count": 280,
   "n_cells": 158379,

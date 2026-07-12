@@ -44,7 +44,7 @@ _RAW_SOURCES: dict[str, Path] = {
     "panel.parquet": cfg.DATA_DIR_PATH / "panels" / "panel.parquet",
     "cluster_key.json": cfg.DATA_DIR_PATH / "cluster_key.json",
 }
-_TISSUE = "human breast"
+_TISSUE = "human breast cancer"
 _PLATFORM = "Xenium"
 
 

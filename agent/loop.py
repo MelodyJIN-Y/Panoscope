@@ -148,6 +148,72 @@ absence is not a number.
 """.strip()
 
 
+# --------------------------------------------------------------------------- #
+# Second-opinion skeptic (Tier B): a live, grounded adversary. It runs the SAME
+# tool loop and the SAME grounding gate as every other answer; the deterministic
+# skeptic (agent/skeptic.py) is its fallback. Its whole job is a careful,
+# grounded challenge — never a nonsensical one.
+# --------------------------------------------------------------------------- #
+_SKEPTIC_SKILL: str = "skeptic"
+
+_SKEPTIC_QUERY: str = (
+    "Pressure-test the current cell-type call for this cluster. Try to REFUTE it "
+    "using only grounded facts. If it holds, say so plainly and stop; do not "
+    "manufacture doubt. End with exactly one of: 'the call withstands' or "
+    "'re-check this'."
+)
+
+_SKEPTIC_CONTRACT = """
+# SECOND-OPINION SKEPTIC — your role for THIS response
+
+You are a red-team reviewer of ONE cluster's cell-type call. Your ONLY job is to try
+to REFUTE the call as it currently stands — including any lab override shown in the
+in-scope notes — using ONLY grounded facts. The engine argued FOR the call; you argue
+AGAINST it, honestly. You are not here to agree, and not here to invent doubt.
+
+A REAL challenge may rest ONLY on one of these (each must quote a real number):
+1. THIN EVIDENCE — the call rests on very few supporting markers, or is already
+   flagged verify / small-n. State the count and the confidence band.
+2. LOCALIZATION TENSION — the top driver localizes at least as well with another
+   cluster (its max_gc_corr >= its pearson). Quote both numbers.
+3. A COMPETING HYPOTHESIS — a rival cell type whose CANONICAL, ON-PANEL markers
+   ALSO peak in THIS cluster. Name those genes and their glm_coef in this cluster.
+
+NONSENSE YOU MUST NEVER PRODUCE (these are wrong here — hard rules):
+- NEVER treat a missing or "low" OFF-PANEL gene as evidence against the call. An
+  off-panel gene was NEVER measured (confirm with panel_lookup); its absence is not
+  data and cannot weaken anything. Say "off-panel, cannot weigh it" — never "low" or
+  "absent".
+- NEVER invent a competing cell type that has NO on-panel marker signal in this
+  cluster. No signal = no challenge. Do not raise a rival "to be safe".
+- NEVER state a number you did not read from marker_lookup or the grounded scaffold
+  above, and NEVER attach a jazzPanda statistic to a gene that is not assigned to
+  this cluster — a marker's coefficient exists ONLY in its own winning cluster, so
+  "gene X is low in this cluster" is not a measurement you have.
+- NEVER recommend a wet-lab experiment on an off-panel gene as if the panel could
+  have settled it. You MAY say what WOULD distinguish the types, flagging off-panel
+  candidates as never-measured, never as a gap in this analysis.
+- Do NOT propose, draft, or save a note. Do NOT call memory_draft. You only challenge.
+
+CALIBRATION — do NOT cry wolf. If the drivers are strong and specific and no on-panel
+rival competes, the honest verdict is that the call WITHSTANDS. Say so in one or two
+sentences and stop. Manufacturing doubt on a clean call is as harmful as missing a
+real weakness — a skeptic the biologist cannot trust is useless.
+
+RESPECT THE BIOLOGIST. If a lab note overrode the call, critique the CURRENT call,
+keep their basis visible, and cite the note as [note:id]. You inform the decision;
+you never overrule it.
+
+HOW TO ANSWER. A few short sentences of plain prose (no headings, tables, or lists).
+Lead with the single most serious REAL concern, or with "the call withstands". Every
+point names a gene and its number. Literature is optional and, if you use it, follow
+the dataset-context rule on tissue: prefer a tissue-relevant paper but a real
+cross-tissue reference is fine — ONE real PMID fetched live, or say "literature thin"
+(never a PMID from memory). End with exactly one of: "the call withstands" or
+"re-check this".
+""".strip()
+
+
 @lru_cache(maxsize=4)
 def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
     """Load a skill's SKILL.md (cached per skill). Empty string if missing.
@@ -334,14 +400,106 @@ def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> 
     skill carries the cluster's enrichment records (``_enrichment_context``); the
     marker skill carries the marker global interpretation (``_cluster_context``).
     """
+    if skill == _SKEPTIC_SKILL:
+        parts = [
+            _SKEPTIC_CONTRACT,
+            _GROUNDING_CONTRACT,
+            _dataset_context(),
+            _research_context(),
+            _prior_knowledge_context(),
+            _cluster_context(cluster),
+            _skeptic_scaffold(cluster),
+        ]
+        return "\n\n---\n\n".join(p for p in parts if p)
+
     context = _enrichment_context(cluster) if skill == "geneset-enrichment" else _cluster_context(cluster)
     parts = [
         _skill_text(skill),
         _GROUNDING_CONTRACT,
+        _dataset_context(),
         _research_context(),
+        _prior_knowledge_context(),
         context,
     ]
     return "\n\n---\n\n".join(p for p in parts if p)
+
+
+def _prior_knowledge_context() -> str:
+    """The biologist's own saved decisions (user memory), portable across datasets.
+
+    Empty string when none saved. Open-ceiling context only: it sharpens reasoning and
+    literature search but can never invent, change, or override a jazzPanda number, a
+    marker, a confidence band, or a cell-type call (see :mod:`agent.user_memory`)."""
+    from agent import user_memory
+
+    return user_memory.as_prompt_context()
+
+
+@lru_cache(maxsize=4)
+def _dataset_context() -> str:
+    """The active dataset's tissue/assay, read from its manifest, injected into every
+    prompt so interpretation and literature search are tissue-aware.
+
+    Open-ceiling context: it sharpens reasoning and which real paper is preferred; it
+    can NEVER change a jazzPanda number, a marker, or a confidence band. Tissue is a
+    search PREFERENCE, not a citation filter — a marker's canonical biology is often
+    established in another tissue, and a real cross-tissue paper is a legitimate cite.
+    Empty string if the manifest is unreadable."""
+    try:
+        import json
+
+        from pipeline import paths
+
+        m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
+        tissue = str(m.get("tissue", "")).strip()
+        platform = str(m.get("platform", "")).strip()
+        label = ", ".join(p for p in (tissue, platform) if p)
+    except Exception:  # noqa: BLE001 - no manifest just means no tissue block
+        return ""
+    if not label:
+        return ""
+    return (
+        "# DATASET CONTEXT (tissue-aware; a search preference, NOT a citation filter)\n"
+        f"This dataset is {label}. Reason within this tissue/assay context, and prefer a "
+        "real, relevant paper FROM this tissue when one exists. But a marker's canonical "
+        "biology is often established in a DIFFERENT tissue or context, and that is a "
+        "legitimate citation: do NOT reject or distort a real, relevant paper just because "
+        "it is not from this tissue, and NEVER invent a tissue-specific reference to fill a "
+        "gap (a real cross-tissue paper always beats a fabricated on-tissue one). When a "
+        "citation's tissue differs and that matters for interpretation, say so plainly. This "
+        "context can NEVER change a jazzPanda number, a marker, or a confidence band."
+    )
+
+
+def _skeptic_scaffold(cluster: Optional[str]) -> str:
+    """Grounded adversarial facts for the skeptic: the deterministic second opinion.
+
+    Every number here is real jazzPanda output (from :func:`agent.skeptic.second_opinion`),
+    so the model may quote it directly and still clear the grounding gate. Empty string
+    when unavailable."""
+    if not cluster or cluster not in cfg.KNOWN_CLUSTERS:
+        return ""
+    try:
+        from agent import skeptic
+
+        rep = skeptic.second_opinion(cluster)
+    except Exception:  # noqa: BLE001 - the live skeptic still works without the scaffold
+        return ""
+    verdict = "WITHSTANDS" if rep.survives else "has grounds to RE-CHECK"
+    lines = [
+        "# GROUNDED ADVERSARIAL SCAFFOLD (deterministic second opinion — every number "
+        "here is real jazzPanda output you may quote directly)",
+        f"Deterministic verdict: the call {verdict}.",
+    ]
+    tag = {"weakens": "AGAINST", "supports": "FOR", "neutral": "NEUTRAL"}
+    for c in rep.challenges:
+        lines.append(f"- [{tag.get(c.effect, '')}] {c.detail}")
+    lines.append(
+        "Use these as your starting evidence. You MAY call marker_lookup / panel_lookup "
+        "to confirm or extend them, and literature_search / literature_fetch for ONE real "
+        "citation. Do not go beyond what the numbers support."
+    )
+    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------- #
@@ -864,6 +1022,67 @@ class PanoscopeAgent:
         except Exception:  # noqa: BLE001 - the loop must never raise into the UI
             return self._fallback.match(query or "", target)
 
+    # -- pressure-test (second-opinion skeptic) ---------------------------- #
+    def pressure_test(self, cluster: Optional[str] = None) -> AgentResponse:
+        """Run the live second-opinion skeptic on ``cluster``: a grounded challenge to
+        the current call, through the SAME tool loop + grounding gate as every answer.
+
+        Falls back to the deterministic skeptic (agent/skeptic.py) with no model, on any
+        error, or if the live answer fails the floor — so the biologist always gets a
+        grounded second opinion, never a spinner and never an ungrounded one."""
+        target = cluster or self._cluster
+        if target is None or target not in cfg.KNOWN_CLUSTERS:
+            target = target if target in cfg.KNOWN_CLUSTERS else cfg.CLUSTER_ORDER[0]
+            return self._deterministic_skeptic_response(target)
+
+        client = self._get_client()
+        if client is None:
+            return self._deterministic_skeptic_response(target)
+
+        try:
+            resp = self._run_loop(client, _SKEPTIC_QUERY, target, None, _SKEPTIC_SKILL)
+        except Exception:  # noqa: BLE001 - never raise into the UI
+            return self._deterministic_skeptic_response(target)
+        # A marker-style fallback (from _finalize) is not a second opinion — swap it for
+        # the deterministic skeptic so the panel always reads as a grounded challenge.
+        if resp is None or resp.used_fallback or not (resp.text or "").strip():
+            return self._deterministic_skeptic_response(target)
+        return resp
+
+    def _deterministic_skeptic_response(self, cluster: str) -> AgentResponse:
+        """The deterministic second opinion as an AgentResponse (grounded, no network)."""
+        from agent import skeptic
+        from agent import verdict as _vd
+        from agent.types import GroundingSidecar, Source
+
+        try:
+            rep = skeptic.second_opinion(cluster)
+        except Exception:  # noqa: BLE001 - last-ditch: a plain grounded fallback
+            return self._fallback.match("", cluster)
+
+        numbers: list[tuple[str, str, float]] = []
+        markers: list[str] = []
+        try:
+            support = tuple(e for e in _vd.assess(cluster).evidence if e.role == "supports")
+        except Exception:  # noqa: BLE001
+            support = ()
+        for e in support[:5]:
+            numbers.append((e.gene, "glm_coef", float(e.glm_coef)))
+            numbers.append((e.gene, "pearson", float(e.pearson)))
+            markers.append(e.gene)
+        sidecar = GroundingSidecar(
+            numbers=tuple(numbers), markers=tuple(markers), pmids=(), notes_used=()
+        )
+        source = (Source(kind="jz", ref=cluster, value=None, detail="second opinion"),)
+        return AgentResponse(
+            text=rep.verdict_line,
+            sources=source,
+            verify=not rep.survives,
+            grounding=sidecar,
+            used_fallback=True,
+            opening=False,
+        )
+
     # -- the model loop ----------------------------------------------------- #
     def _run_loop(
         self,
@@ -1151,6 +1370,11 @@ def chat(
     return _default_agent().chat(user_msg, cluster=cluster, history=history, skill=skill)
 
 
+def pressure_test(cluster: str) -> AgentResponse:
+    """Live second-opinion skeptic for ``cluster`` via the default agent."""
+    return _default_agent().pressure_test(cluster)
+
+
 def sources_of(resp: AgentResponse) -> list[Source]:
     """Return the Source chips of a response (UI helper)."""
     return list(resp.sources)
@@ -1162,5 +1386,6 @@ __all__ = [
     "set_cluster",
     "opening_interpretation",
     "chat",
+    "pressure_test",
     "sources_of",
 ]

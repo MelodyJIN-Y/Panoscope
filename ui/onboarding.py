@@ -19,12 +19,31 @@ jazzPanda run, no slow gene-note recompute. Real processing is the offline
 from __future__ import annotations
 
 import base64
+import html
 import time
 from pathlib import Path
 
 import streamlit as st
 
 from agent import profile as agent_profile
+
+
+def _detected_tissue() -> str:
+    """The active dataset's tissue and platform, read from its manifest (grounded).
+
+    Empty string if unreadable. This is the grounded tissue the agent reasons within;
+    it is derived from the data, not typed by the biologist."""
+    try:
+        import json
+
+        from agent import config as cfg
+        from pipeline import paths
+
+        m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
+        parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]
+        return " · ".join(p for p in parts if p)
+    except Exception:  # noqa: BLE001 - no manifest just means no detected-tissue chip
+        return ""
 
 _ASSETS = Path(__file__).resolve().parent.parent / "assets"
 _PAGE_KEY = "active_page"        # mirrors app.py's session page key
@@ -155,6 +174,13 @@ h1 a.anchor-link, h2 a.anchor-link { display:none !important; }
 }
 [data-testid="stTextArea"] textarea::placeholder{ color:var(--faint) !important; }
 
+/* Detected-tissue chip: read-only, grounded from the dataset manifest. */
+.pano-ob-detected{
+  display:inline-flex; align-items:center; gap:.4rem; margin:.35rem 0 .1rem;
+  font-family:var(--sans); font-size:.92rem; font-weight:600; color:var(--ink);
+  background:var(--accent-soft); border:1px solid var(--accent); border-radius:999px;
+  padding:.28rem .8rem;
+}
 .pano-ob-note{ font-family:var(--sans); color:var(--faint); font-size:.78rem; margin-top:1.1rem; }
 .pano-ob-note b{ color:var(--muted); }
 
@@ -343,13 +369,25 @@ def render_upload() -> None:
 
         names = [f.name for f in (f1, f2, f3) if f is not None]
 
-        # Optional research profile — sharpens literature search, saved locally.
+        # Tissue is read from the dataset (grounded) — the agent reasons within it and
+        # prefers tissue-relevant literature (a real cross-tissue paper is still fine).
+        tissue = _detected_tissue()
+        if tissue:
+            st.markdown(
+                '<div class="pano-ob-card-h" style="margin-top:1.4rem;">Detected from your dataset</div>'
+                f'<div class="pano-ob-detected">🧬 {html.escape(tissue)}</div>'
+                '<div class="pano-ob-card-d">Read from your data. Panoscope reasons within this tissue and '
+                "prefers tissue-relevant papers; a real cross-tissue reference is still valid.</div>",
+                unsafe_allow_html=True,
+            )
+
+        # Optional personal sub-focus — sharpens WHICH real paper is cited, saved locally.
         st.markdown(
-            '<div class="pano-ob-card-h" style="margin-top:1.4rem;">Your research focus '
+            '<div class="pano-ob-card-h" style="margin-top:1.2rem;">Anything more specific? '
             '<span style="color:var(--faint);font-weight:400;">· optional</span></div>'
-            '<div class="pano-ob-card-d">One line about your background or interest. Panoscope uses it '
-            "to make literature search more precise. <b>Saved locally on your machine; never uploaded.</b>"
-            "</div>",
+            '<div class="pano-ob-card-d">One line about your angle — a subtype, a program, a marker you '
+            "care about. It sharpens which real paper gets cited, on top of the tissue above. "
+            "<b>Saved locally on your machine; never uploaded.</b></div>",
             unsafe_allow_html=True,
         )
         with st.container(key="pano_ob_profile"):
@@ -358,7 +396,7 @@ def render_upload() -> None:
                 value=agent_profile.load(),
                 key="ob_profile",
                 label_visibility="collapsed",
-                placeholder="e.g. triple-negative breast cancer, CAF heterogeneity, spatial immunology",
+                placeholder="e.g. CAF heterogeneity, HER2+ subtypes, spatial immunology",
                 height=72,
             )
 
