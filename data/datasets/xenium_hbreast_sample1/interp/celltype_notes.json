@@ -64,22 +64,6 @@
     },
     "verify": false
   },
-  "c7": {
-    "cluster": "c7",
-    "cell_type": "Endothelial",
-    "summary": "Blood vessel-lining cells that control perfusion, nutrient delivery, and immune trafficking in breast tissue.",
-    "pmid": null,
-    "citation": null,
-    "verify": false
-  },
-  "c8": {
-    "cluster": "c8",
-    "cell_type": "Dendritic",
-    "summary": "Dendritic cells; driving markers TCL1A, LILRA4, SPIB.",
-    "pmid": null,
-    "citation": null,
-    "verify": false
-  },
   "c9": {
     "cluster": "c9",
     "cell_type": "Mast_Cells",
@@ -100,6 +84,32 @@
     "pmid": "37479733",
     "citation": {
       "pmid": "37479733",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c7": {
+    "cluster": "c7",
+    "cell_type": "Endothelial",
+    "summary": "Endothelial cells line the blood and lymphatic vessels that supply the breast tumor microenvironment, regulating perfusion, nutrient delivery, and immune cell trafficking. AQP1 marks water-channel activity in vascular endothelium.",
+    "pmid": "40518526",
+    "citation": {
+      "pmid": "40518526",
+      "title": "",
+      "authors": "",
+      "year": 0
+    },
+    "verify": false
+  },
+  "c8": {
+    "cluster": "c8",
+    "cell_type": "Dendritic",
+    "summary": "Plasmacytoid dendritic cells are rare innate immune sentinels in the breast tumor microenvironment that specialize in producing type I interferons to shape antitumor immunity. TCL1A and LILRA4 are canonical surface markers of this lineage.",
+    "pmid": "38008741",
+    "citation": {
+      "pmid": "38008741",
       "title": "",
       "authors": "",
       "year": 0

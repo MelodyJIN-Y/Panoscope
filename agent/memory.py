@@ -322,7 +322,7 @@ def draft_note(
 def save_draft(
     draft: NoteDraft,
     *,
-    attributed_to: str = "melody.xyjin@gmail.com",
+    attributed_to: str = "you@example.com",
     trigger: str = "override",
     supersedes: Optional[str] = None,
     base_dir: Path | str | None = None,
@@ -396,7 +396,7 @@ def create_note(
     subject_lineage: str = "",
     subject_category: str = "",
     dataset: str = cfg.DATASET_ID,
-    attributed_to: str = "melody.xyjin@gmail.com",
+    attributed_to: str = "you@example.com",
     trigger: str = "override",
     supersedes: Optional[str] = None,
     literature_search: Optional[LiteratureSearch] = None,
@@ -688,7 +688,7 @@ def log_decision(
     kind: str,
     cluster: Optional[str] = None,
     note_id: Optional[str] = None,
-    actor: str = "melody.xyjin@gmail.com",
+    actor: str = "you@example.com",
     detail: Optional[str] = None,
     base_dir: Path | str | None = None,
 ) -> dict:

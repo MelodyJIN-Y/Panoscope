@@ -429,6 +429,39 @@ def composed_verdicts() -> list[ClusterVerdict]:
     return out
 
 
+def _override_call(cluster: str) -> Optional[str]:
+    """The biologist's confirmed NEW cell-type call for a cluster (from a firing
+    ``celltype_override`` note), or None. Display overlay only; never mutates the verdict."""
+    ov = _override_notes().get(cluster)
+    if ov is None:
+        return None
+    return (getattr(ov, "subject_cell_type", "") or "").strip() or None
+
+
+def display_cell_type(cluster: str) -> str:
+    """The cell type to SHOW for a cluster: the confirmed override if there is one, else
+    the computed call. Reflects an override across the marker rail + Pathways tabs."""
+    return _override_call(cluster) or verdict_for(cluster).cell_type
+
+
+def display_verdict_for(cluster: str) -> ClusterVerdict:
+    """``verdict_for`` with the confirmed override applied (cell type + lineage/category)
+    for the marker header. Not cached (notes are runtime); the numbers are never mutated."""
+    v = verdict_for(cluster)
+    ov = _override_notes().get(cluster)
+    call = (getattr(ov, "subject_cell_type", "") or "").strip() if ov else ""
+    if not call:
+        return v
+    import dataclasses
+
+    changes = {"cell_type": call, "cell_type_short": call}
+    if getattr(ov, "subject_lineage", "").strip():
+        changes["lineage"] = ov.subject_lineage.strip()
+    if getattr(ov, "subject_category", "").strip():
+        changes["category"] = ov.subject_category.strip()
+    return dataclasses.replace(v, **changes)
+
+
 def anchored_notes(cluster: str) -> dict:
     """In-scope notes indexed by their anchor, for rendering next to the driver row:
     ``{"gene": {GENE: [note,...]}, "gene_set": {HALLMARK_X: [note,...]}}``. Marker and
@@ -698,6 +731,8 @@ __all__ = [
     "notes_in_scope",
     "save_note_draft",
     "composed_verdicts",
+    "display_cell_type",
+    "display_verdict_for",
     "override_info",
     "anchored_notes",
     "signed_off",

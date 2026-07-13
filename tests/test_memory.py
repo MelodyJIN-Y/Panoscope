@@ -272,7 +272,7 @@ def test_decision_log_written_under_decisions(base: Path):
     note = _make_cluster_note(base, cluster="c2")
     memory.log_decision(
         kind="override_applied", cluster="c2", note_id=note.id,
-        actor="melody.xyjin@gmail.com", detail="agent used biologist call",
+        actor="you@example.com", detail="agent used biologist call",
         base_dir=base,
     )
 

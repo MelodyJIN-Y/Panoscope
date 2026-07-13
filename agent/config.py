@@ -96,22 +96,38 @@ def _derive_cluster_order() -> tuple[str, ...]:
     return tuple(sorted(labels, key=_key))
 
 # --------------------------------------------------------------------------- #
-# Authoritative cluster -> cell type key (from clusters.Rds `anno`)
+# Authoritative cluster -> cell type key — READ from the active dataset's committed
+# inputs/cluster_key.json (the dataset's OWN annotation: jazzPanda / Seurat `anno`),
+# never a hardcoded literal. Every label traces to that provenance-hashed input file;
+# Panoscope assesses confidence FOR these labels, it does not invent them.
+# Prefix convention (jazzpanda-markers SKILL naming): Tum_ tumor, Str_ stroma,
+# Imm_Mac/Imm_T/Imm_B/Imm_DC/Imm_Mast immune subsets, Myoepi_ myoepithelial, Endo_ endothelial.
 # --------------------------------------------------------------------------- #
-# Prefix convention (from the jazzpanda-markers SKILL naming section):
-#   Tum_ tumor, Str_ stroma, Imm_Mac/Imm_T/Imm_B/Imm_DC/Imm_Mast immune subsets,
-#   Myoepi_ myoepithelial, Endo_ endothelial.
-CLUSTER_KEY: dict[str, dict[str, str]] = {
-    "c1": {"cell_type": "Tumor",         "cell_type_short": "Tum_Epi",  "category": "Epithelial",  "lineage": "Epithelial"},
-    "c2": {"cell_type": "Stromal",       "cell_type_short": "Str_Fib",  "category": "Stromal",     "lineage": "Mesenchymal"},
-    "c3": {"cell_type": "Macrophages",   "cell_type_short": "Imm_Mac",  "category": "Immune",      "lineage": "Myeloid"},
-    "c4": {"cell_type": "Myoepithelial", "cell_type_short": "Myoepi_",  "category": "Epithelial",  "lineage": "Epithelial"},
-    "c5": {"cell_type": "T_Cells",       "cell_type_short": "Imm_T",    "category": "Immune",      "lineage": "Lymphoid"},
-    "c6": {"cell_type": "B_Cells",       "cell_type_short": "Imm_B",    "category": "Immune",      "lineage": "Lymphoid"},
-    "c7": {"cell_type": "Endothelial",   "cell_type_short": "Endo_",    "category": "Endothelial", "lineage": "Endothelial"},
-    "c8": {"cell_type": "Dendritic",     "cell_type_short": "Imm_DC",   "category": "Immune",      "lineage": "Myeloid"},
-    "c9": {"cell_type": "Mast_Cells",    "cell_type_short": "Imm_Mast", "category": "Immune",      "lineage": "Myeloid"},
-}
+ACTIVE_CLUSTER_KEY_JSON: Path = _active_input(
+    "cluster_key.json", DATA_DIR_PATH / "jazzpanda" / "cluster_key.json"
+)
+
+
+def _load_cluster_key() -> dict[str, dict[str, str]]:
+    """Cluster -> {cell_type, cell_type_short, category, lineage}, from cluster_key.json.
+
+    The dataset's own input annotation, provenance-hashed in the manifest. Read from the
+    file so every label is traceable to source (no hardcoded c1..c9 literal). Raises if
+    absent — run the data prep, which copies inputs/cluster_key.json into the tree.
+    """
+    import json
+
+    if not ACTIVE_CLUSTER_KEY_JSON.exists():
+        raise FileNotFoundError(
+            f"[config] cluster key missing: {ACTIVE_CLUSTER_KEY_JSON} — produced by the "
+            f"data prep (inputs/cluster_key.json). Run the prep before importing."
+        )
+    with open(ACTIVE_CLUSTER_KEY_JSON, encoding="utf-8") as fh:
+        raw = json.load(fh)
+    return {str(c): {k: str(v) for k, v in meta.items()} for c, meta in raw.items()}
+
+
+CLUSTER_KEY: dict[str, dict[str, str]] = _load_cluster_key()
 # Derived from the active dataset's markers (never a hardcoded c1..c9 literal).
 CLUSTER_ORDER: tuple[str, ...] = _derive_cluster_order()
 KNOWN_CLUSTERS: frozenset[str] = frozenset(CLUSTER_ORDER)

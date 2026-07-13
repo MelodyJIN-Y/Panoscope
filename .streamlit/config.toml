@@ -7,3 +7,8 @@ textColor = "#161B20"
 
 [browser]
 gatherUsageStats = false
+
+# Seurat .Rds objects are large (cells + clusters + UMAP), so do not cap the upload.
+# Set very high rather than a small default; the dropzone limit text is hidden in the UI.
+[server]
+maxUploadSize = 100000

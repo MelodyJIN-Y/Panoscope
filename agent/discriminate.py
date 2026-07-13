@@ -86,6 +86,9 @@ class Discrimination:
     settleable_on_panel: bool
     reason: str
     source_trace: tuple[str, ...]
+    # The biologist named a SUBTYPE / synonym of the call's own lineage (e.g. CAF for
+    # Stromal): a within-lineage refinement, not a rivalry the panel can discriminate.
+    refinement: bool = False
 
 
 # --------------------------------------------------------------------------- #
@@ -131,6 +134,44 @@ def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
 def _canonical_types_for(gene: str) -> tuple[str, ...]:
     """All canonical cell types a gene marks (the map is disjoint, so usually <=1)."""
     return tuple(t for t in annotation.all_canonical() if _is_canonical(gene, t))
+
+
+def _lineage_keys_for(call_A: str) -> tuple[str, ...]:
+    """Comparison-keys that name the CALL's own lineage: its type name plus any alias
+    that maps to it (for Stromal: STROMAL, CAF, FIBROBLAST, FIBROBLASTS)."""
+    keys = {_canon_key(call_A)}
+    keys.update(k for k, t in _ALIASES.items() if t == call_A)
+    return tuple(k for k in keys if k)
+
+
+def _refines_call(alt_raw: str, call_A: str) -> bool:
+    """True if the biologist's alternative is a subtype/synonym of the CALL's lineage
+    (e.g. 'cancer-associated fibroblast', 'CAF', 'myofibroblast' when the call is
+    Stromal). That is a within-lineage refinement, not a distinct rival to discriminate.
+    Matched by substring so multi-word subtype names ('matrix-remodelling CAF') resolve."""
+    key = _canon_key(alt_raw)
+    if not key:
+        return False
+    return any(kw in key or key in kw for kw in _lineage_keys_for(call_A))
+
+
+def _refinement_reason(alt_raw: str, call_A: str) -> str:
+    """Honest prose for a within-lineage refinement: the panel supports the lineage, the
+    markers that would resolve a subtype are off-panel, so it is a tissue-context call."""
+    A = _label(call_A)
+    alt = alt_raw.strip()
+    off = tuple(annotation.offpanel_canonical(call_A))
+    if off:
+        tail = (
+            f" The canonical markers that would resolve a subtype ({', '.join(off)}) are "
+            f"off-panel and were never measured, so the panel cannot separate {alt} from generic {A}."
+        )
+    else:
+        tail = f" The panel cannot separate {alt} from generic {A} on the measured markers."
+    return (
+        f"{alt} is a subtype of the {A} lineage, not a distinct cell type this panel can discriminate."
+        f"{tail} Refining to {alt} is a tissue-context call to record, not one the markers settle."
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -187,12 +228,19 @@ def discriminate(cluster: str, alt_cell_type: Optional[str] = None) -> Discrimin
     )
 
     # Resolve the competing hypothesis B.
+    refinement = False
     if alt_cell_type is not None:
         alt_B = _normalize_cell_type(alt_cell_type)
-        if alt_B is None:
-            reason = f"'{alt_cell_type}' is not a cell type with a canonical marker set; cannot discriminate."
-        elif alt_B == call_A:
+        if _canon_key(alt_cell_type) == _canon_key(call_A):
+            # the biologist named the SAME type as the call: a no-op, nothing to discriminate.
             alt_B, reason = None, f"the alternative equals the call ({call_A}); nothing to discriminate."
+        elif alt_B == call_A or (alt_B is None and _refines_call(alt_cell_type, call_A)):
+            # a DIFFERENT term that maps to the call's lineage (e.g. CAF for Stromal): a
+            # within-lineage refinement, not a rivalry the panel can discriminate.
+            refinement, alt_B = True, None
+            reason = _refinement_reason(alt_cell_type, call_A)
+        elif alt_B is None:
+            reason = f"'{alt_cell_type}' is not a cell type with a canonical marker set; cannot discriminate."
         else:
             reason = ""
     else:
@@ -260,6 +308,7 @@ def discriminate(cluster: str, alt_cell_type: Optional[str] = None) -> Discrimin
         settleable_on_panel=settleable,
         reason=reason,
         source_trace=_trace(supporting_A, tuple(b_here), tuple(b_elsewhere), tuple(offpanel)),
+        refinement=refinement,
     )
 
 

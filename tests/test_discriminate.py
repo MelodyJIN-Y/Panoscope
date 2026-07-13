@@ -99,6 +99,33 @@ def test_unknown_alt_type_is_handled_not_crashed():
 def test_alt_equal_to_call_is_noop():
     d = dsc.discriminate("c1", "Tumor")
     assert d.alt_B is None  # a type cannot be discriminated from itself
+    assert d.refinement is False  # naming the same type is a no-op, not a refinement
+
+
+def test_within_lineage_subtype_is_a_refinement_not_a_rival():
+    # c2 is Stromal; CAF / fibroblast are subtypes of the stromal lineage, not distinct
+    # cell types the panel can discriminate -> a refinement, answered honestly.
+    for alt in ("cancer-associated fibroblast", "CAF", "matrix-remodelling CAF", "fibroblast"):
+        d = dsc.discriminate("c2", alt)
+        assert d.refinement is True, alt
+        assert d.alt_B is None, alt
+        low = d.reason.lower()
+        assert "subtype" in low and "off-panel" in low
+        # the on-panel drivers still ground the call
+        assert any(m.gene.upper() == "LUM" for m in d.supporting_A)
+
+
+def test_refinement_summary_is_grounded_and_honest():
+    d = dsc.discriminate("c2", "cancer-associated fibroblast")
+    s = dsc.settle_summary(d)
+    low = s.lower()
+    assert "subtype" in low and "tissue-context" in low
+    assert "never measured" in low or "off-panel" in low
+    # names the off-panel canonical markers without a number, and no bench recommendation
+    assert "FAP" in s and "ihc" not in low and "experiment" not in low
+    # every stated number still traces to source
+    from agent.grounding_check import GroundingChecker
+    assert GroundingChecker(literature_verifier=lambda _i: True).check(s).ok
 
 
 def test_settle_summary_is_grounded_and_flags_offpanel_without_bench():

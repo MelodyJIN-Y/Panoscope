@@ -24,6 +24,7 @@ from __future__ import annotations
 import html as _html
 import re as _re
 from dataclasses import dataclass
+from typing import Any, Optional
 
 from agent import config as cfg
 from agent import discriminate
@@ -476,6 +477,71 @@ def _note_text(nl: NoteLine) -> str:
     return base + (f" — {nl.tension}" if nl.tension else "")
 
 
+# --------------------------------------------------------------------------- #
+# Clickable PMID links in the exported documents (the on-page HTML already links
+# them). A ``PMID:xxxx`` token becomes a hyperlink to its PubMed record in both the
+# .docx and the PDF, so every cited claim in the report is one click from the paper.
+# --------------------------------------------------------------------------- #
+_PMID_LINK_RE = _re.compile(r"PMID:\s*(\d+)", _re.IGNORECASE)
+_LINK_HEX = "0F7B87"          # teal, matches the app accent
+_LINK_RGB = (15, 123, 135)
+
+
+def _pubmed_url(pmid: str) -> str:
+    return f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+
+
+def _docx_hyperlink(paragraph: Any, url: str, text: str) -> None:
+    """Append a clickable hyperlink run (teal, underlined) to a python-docx paragraph."""
+    from docx.oxml.shared import OxmlElement, qn
+
+    r_id = paragraph.part.relate_to(
+        url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True,
+    )
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), r_id)
+    run = OxmlElement("w:r")
+    rpr = OxmlElement("w:rPr")
+    color = OxmlElement("w:color"); color.set(qn("w:val"), _LINK_HEX); rpr.append(color)
+    underline = OxmlElement("w:u"); underline.set(qn("w:val"), "single"); rpr.append(underline)
+    run.append(rpr)
+    node = OxmlElement("w:t"); node.text = text; run.append(node)
+    link.append(run)
+    paragraph._p.append(link)
+
+
+def _docx_linked_paragraph(doc: Any, text: str, style: Optional[str] = None) -> Any:
+    """Add a paragraph whose ``PMID:xxxx`` tokens are clickable PubMed links."""
+    p = doc.add_paragraph(style=style) if style else doc.add_paragraph()
+    last = 0
+    for m in _PMID_LINK_RE.finditer(text):
+        if m.start() > last:
+            p.add_run(text[last:m.start()])
+        pmid = m.group(1)
+        _docx_hyperlink(p, _pubmed_url(pmid), f"PMID:{pmid}")
+        last = m.end()
+    if last < len(text):
+        p.add_run(text[last:])
+    return p
+
+
+def _pdf_write_linked(pdf: Any, text: str, h: float) -> None:
+    """Flow ``text`` (wrapping), rendering ``PMID:xxxx`` tokens as clickable PubMed links."""
+    last = 0
+    for m in _PMID_LINK_RE.finditer(text):
+        if m.start() > last:
+            pdf.write(h, _pdf_safe(text[last:m.start()]))
+        pmid = m.group(1)
+        pdf.set_text_color(*_LINK_RGB)
+        pdf.write(h, _pdf_safe(f"PMID:{pmid}"), link=_pubmed_url(pmid))
+        pdf.set_text_color(0, 0, 0)
+        last = m.end()
+    if last < len(text):
+        pdf.write(h, _pdf_safe(text[last:]))
+    pdf.ln(h)
+
+
 def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
     """Flatten the report into (style, text) lines shared by both exporters.
 
@@ -542,16 +608,16 @@ def _lines_to_docx(lines: list[tuple[str, str]], *, overview: list[tuple] | None
         if style == "title":
             doc.add_heading(text, level=0)
         elif style == "meta":
-            doc.add_paragraph(text)
+            _docx_linked_paragraph(doc, text)
         elif style == "overview":
             if overview:
                 _docx_overview_table(doc, overview)
         elif style == "h2":
             doc.add_heading(text, level=2)
         elif style == "note":
-            doc.add_paragraph(text, style="List Bullet")
+            _docx_linked_paragraph(doc, text, style="List Bullet")
         else:
-            doc.add_paragraph(text)
+            _docx_linked_paragraph(doc, text)
     buf = BytesIO()
     doc.save(buf)
     return buf.getvalue()
@@ -595,25 +661,24 @@ def _lines_to_pdf(lines: list[tuple[str, str]], *, overview: list[tuple] | None 
             if overview:
                 _pdf_overview_table(pdf, overview)
             continue
-        text = _pdf_safe(raw)
         if style == "title":
             pdf.set_font("Helvetica", "B", 16)
-            cell(8, text)
+            cell(8, _pdf_safe(raw))
             pdf.ln(1)
         elif style == "meta":
             pdf.set_font("Helvetica", "I", 9)
-            cell(5, text)
+            _pdf_write_linked(pdf, raw, 5)  # meta rarely has a PMID, but stays consistent
             pdf.ln(2)
         elif style == "h2":
             pdf.ln(2)
             pdf.set_font("Helvetica", "B", 12)
-            cell(6, text)
+            cell(6, _pdf_safe(raw))
         elif style == "note":
             pdf.set_font("Helvetica", "I", 10)
-            cell(5, f"  {text}")
+            _pdf_write_linked(pdf, f"  {raw}", 5)
         else:
             pdf.set_font("Helvetica", "", 10)
-            cell(5, text)
+            _pdf_write_linked(pdf, raw, 5)
     return bytes(pdf.output())
 
 

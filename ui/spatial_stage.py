@@ -173,12 +173,15 @@ def _go() -> Any:
 # --------------------------------------------------------------------------- #
 # Shared Plotly layouts
 # --------------------------------------------------------------------------- #
-def _base_layout(go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT) -> Any:
+def _base_layout(
+    go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT, equal_aspect: bool = False
+) -> Any:
     """A shared, chrome-light Plotly layout (no axis ticks — this is a map).
 
-    Used by the abstract views (UMAP, and the violin after it re-enables its
-    axes): axes are hidden and the aspect ratio is free, so the point cloud fills
-    the panel.
+    Used by the abstract views (UMAP, and the violin after it re-enables its axes):
+    axes are hidden. ``equal_aspect`` locks 1:1 unit scaling on the y-axis so an
+    embedding (the UMAP) keeps its true shape instead of stretching to fill a wide
+    panel; the violin leaves it off (its axes are not comparable).
     """
     axis = dict(
         showgrid=False,
@@ -188,13 +191,18 @@ def _base_layout(go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT) -
         visible=False,
         fixedrange=True,   # view locked — no zoom/pan (hover still works)
     )
+    yaxis = dict(axis)
+    if equal_aspect:
+        # lock one UMAP unit on y to one on x, so the point cloud keeps its shape and
+        # letterboxes within a wide panel rather than stretching.
+        yaxis.update(scaleanchor="x", scaleratio=1)
     return go_mod.Layout(
         height=height,
         margin=dict(l=8, r=8, t=8, b=8),
         paper_bgcolor=_PLOT_BG,
         plot_bgcolor=_PLOT_BG,
         xaxis=axis,
-        yaxis=axis,
+        yaxis=yaxis,
         showlegend=showlegend,
         font=dict(family="Space Grotesk, system-ui, sans-serif"),
         dragmode=False,
@@ -469,7 +477,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
     sel_mask = umap["cluster"] == cluster
     view = _downsample_bg(umap, sel_mask, _MAX_BG_POINTS)
 
-    fig = go.Figure(layout=_base_layout(go, showlegend=False))
+    fig = go.Figure(layout=_base_layout(go, showlegend=False, equal_aspect=True))
 
     if feature and gene and expr is not None:
         _umap_feature(fig, go, view, expr, cluster)

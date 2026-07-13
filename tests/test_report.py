@@ -32,7 +32,7 @@ def _note(*, cluster=None, scope="cluster", claim="", agree=(), dissent=(), thin
         subject_cell_type=None,
         subject_markers=(),
         tension=Tension(agree=tuple(agree), dissent=tuple(dissent), thin=thin, query="q", looked_up_at=""),
-        author="melody",
+        author="reviewer",
         created_at="2026-07-10T00:00:00",
         trigger="override",
         supersedes=None,

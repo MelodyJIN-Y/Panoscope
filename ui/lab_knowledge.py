@@ -155,7 +155,7 @@ def _delete_note(note: Note) -> None:
         kind="note_deleted",
         cluster=note.scope_ref.cluster,
         note_id=note.id,
-        actor=note.author or "melody.xyjin@gmail.com",
+        actor=note.author or "you@example.com",
         detail=f"scope={note.scope} basis={note.basis} status={note.status}",
     )
 

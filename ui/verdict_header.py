@@ -27,7 +27,7 @@ from typing import Optional
 from agent.types import ClusterVerdict
 
 from ui import format as fmt
-from ui.data_access import cluster_cells_df, verdict_for
+from ui.data_access import cluster_cells_df, display_verdict_for
 
 # --------------------------------------------------------------------------- #
 # Small helpers (pure; no Streamlit)
@@ -120,7 +120,7 @@ def render_verdict(cluster: str) -> None:
     """
     import streamlit as st
 
-    verdict = verdict_for(cluster)
+    verdict = display_verdict_for(cluster)  # reflects a confirmed override (call + lineage)
 
     # The header is the call itself: id line, cell type + confidence, drivers. The
     # "how to agree/override" guidance now lives in the conversation pane (where

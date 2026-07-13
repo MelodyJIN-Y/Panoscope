@@ -81,6 +81,16 @@ context/profile.json
 # projects. Local-only, never committed (privacy), same model as the profile.
 context/user_memory.jsonl
 
+# Decision log + correction notes — the biologist's own local lab knowledge,
+# written by the UI at runtime (carries author identity + specific calls).
+# Local-only, never committed (privacy); a fresh clone starts with an empty layer.
+context/decisions/
+context/corrections/
+
+# ── Claude Code local state (worktrees, settings) — never commit ────────────
+# .claude/worktrees can hold a full repo copy (100s of MB); settings are local.
+.claude/
+
 # ── OS / editor cruft ───────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
