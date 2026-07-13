@@ -1,0 +1,1500 @@
+{
+  "c1": {
+    "HALLMARK_ANDROGEN_RESPONSE": {
+      "gene_set": "HALLMARK_ANDROGEN_RESPONSE",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "tier": "enriched",
+      "score": 9.45951374182401,
+      "q_value": 0.0,
+      "panel_hits": 6,
+      "set_size_full": 100,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "ALDH1A3",
+        "CCND1",
+        "KRT8",
+        "SCD",
+        "SMS"
+      ],
+      "summary": "The Androgen Response program captures AR-driven transcriptional activity, including cell-cycle (CCND1) and lipid-metabolic (SCD) targets, consistent with AR-positive breast tumor growth. This is concordant with Tumor identity, as AR signaling is well-documented in breast epithelial malignancy.",
+      "pmid": "33352494",
+      "citation": {
+        "pmid": "33352494",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_G2M_CHECKPOINT": {
+      "gene_set": "HALLMARK_G2M_CHECKPOINT",
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "tier": "enriched",
+      "score": 6.43406987293956,
+      "q_value": 1.14914355808793e-09,
+      "panel_hits": 6,
+      "set_size_full": 200,
+      "n_leading_edge": 6,
+      "leading_edge": [
+        "CCND1",
+        "CENPF",
+        "HMGA1",
+        "MKI67",
+        "SQLE",
+        "TOP2A"
+      ],
+      "summary": "G2M Checkpoint program in Tumor; driving genes CCND1, CENPF, HMGA1.",
+      "pmid": null,
+      "citation": null,
+      "verify": false
+    }
+  },
+  "c2": {
+    "HALLMARK_INFLAMMATORY_RESPONSE": {
+      "gene_set": "HALLMARK_INFLAMMATORY_RESPONSE",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "tier": "enriched",
+      "score": 14.8698019441612,
+      "q_value": 0.0,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 8,
+      "leading_edge": [
+        "CCL5",
+        "CCR7",
+        "CD14",
+        "CD69",
+        "GPR183",
+        "IL7R",
+        "SELL",
+        "SLAMF1"
+      ],
+      "summary": "The Inflammatory Response driving genes (CCL5, CCR7, CD14, CD69, GPR183, IL7R) are all canonical immune-cell markers (T cell / monocyte panel annotations), not stromal markers. This program likely reflects infiltrating immune cells co-localizing with stroma in the spatial niche.",
+      "pmid": "41511527",
+      "citation": {
+        "pmid": "41511527",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ANGIOGENESIS": {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "tier": "enriched",
+      "score": 14.2975851921485,
+      "q_value": 0.0,
+      "panel_hits": 5,
+      "set_size_full": 36,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "LPL",
+        "LUM",
+        "S100A4",
+        "STC1"
+      ],
+      "summary": "Cancer-associated fibroblasts are established pro-angiogenic orchestrators in the tumor microenvironment. This Angiogenesis program is concordant with Stromal identity, reflecting CAF-driven vascular support.",
+      "pmid": "28706266",
+      "citation": {
+        "pmid": "28706266",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE": {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "tier": "enriched",
+      "score": 11.1868226711579,
+      "q_value": 0.0,
+      "panel_hits": 10,
+      "set_size_full": 200,
+      "n_leading_edge": 10,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "summary": "The driving genes (BANK1, CCL5, CD274, CD69, CD86, FGL2) are canonical immune-cell markers, not stromal ones; this signal likely reflects immune cell infiltration or spatially co-localised immune transcripts, not a stromal-intrinsic IFN-gamma program.",
+      "pmid": "32901110",
+      "citation": {
+        "pmid": "32901110",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ESTROGEN_RESPONSE_LATE": {
+      "gene_set": "HALLMARK_ESTROGEN_RESPONSE_LATE",
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "tier": "enriched",
+      "score": 5.54268275600296,
+      "q_value": 9.18439427843865e-08,
+      "panel_hits": 11,
+      "set_size_full": 200,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "CAV1",
+        "CXCL12",
+        "DUSP2",
+        "TPSAB1"
+      ],
+      "summary": "Estrogen-responsive stromal fibroblasts in breast tumors produce estrogen locally via aromatase and engage in paracrine crosstalk that promotes tumor progression. This program is concordant with a cancer-associated fibroblast identity in an ER+ breast microenvironment.",
+      "pmid": "33754039",
+      "citation": {
+        "pmid": "33754039",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  },
+  "c3": {
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE": {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "tier": "enriched",
+      "score": 6.46046143604099,
+      "q_value": 9.65554580734107e-10,
+      "panel_hits": 10,
+      "set_size_full": 200,
+      "n_leading_edge": 7,
+      "leading_edge": [
+        "CCL5",
+        "CD274",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1"
+      ],
+      "summary": "IFN-gamma signaling drives classical M1 macrophage activation, upregulating co-stimulatory (CD86) and checkpoint (CD274/PD-L1) molecules alongside pro-inflammatory mediators. This program is concordant with a tumor-associated macrophage identity, reflecting IFN-gamma-stimulated immune activation within the breast tumor microenvironment.",
+      "pmid": "39223929",
+      "citation": {
+        "pmid": "39223929",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_P53_PATHWAY": {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "tier": "enriched",
+      "score": 5.18639266127609,
+      "q_value": 1.32217345431377e-06,
+      "panel_hits": 4,
+      "set_size_full": 200,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "LDHB",
+        "S100A4",
+        "TRAF4"
+      ],
+      "summary": "The P53 Pathway program reflects stress-response and metabolic regulation, which p53 genuinely orchestrates in macrophages to modulate inflammation and immune activation. This is concordant with macrophage identity, as p53 signaling shapes myeloid inflammatory output in the tumor microenvironment.",
+      "pmid": "38024532",
+      "citation": {
+        "pmid": "38024532",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_GLYCOLYSIS": {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "tier": "enriched",
+      "score": 5.00696932543301,
+      "q_value": 2.55733522688817e-06,
+      "panel_hits": 5,
+      "set_size_full": 200,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "CTH",
+        "CXCR4",
+        "DSC2",
+        "EGFR"
+      ],
+      "summary": "Glycolysis reflects metabolic reprogramming toward aerobic glucose catabolism, a hallmark of pro-inflammatory (M1) macrophage activation. This program is concordant with macrophage identity, supporting an activated, inflammatory state in this cluster.",
+      "pmid": "38342630",
+      "citation": {
+        "pmid": "38342630",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_MTORC1_SIGNALING": {
+      "gene_set": "HALLMARK_MTORC1_SIGNALING",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "tier": "enriched",
+      "score": 4.79679061664952,
+      "q_value": 5.96543516182546e-06,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 8,
+      "leading_edge": [
+        "CD9",
+        "CTH",
+        "CXCR4",
+        "FGL2",
+        "SCD",
+        "SQLE",
+        "STC1",
+        "TUBA4A"
+      ],
+      "summary": "mTORC1 signaling drives macrophage metabolic reprogramming and activation state. Its enrichment here is concordant with a tumor-associated macrophage identity, reflecting anabolic and immunosuppressive programming.",
+      "pmid": "38640930",
+      "citation": {
+        "pmid": "38640930",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ALLOGRAFT_REJECTION": {
+      "gene_set": "HALLMARK_ALLOGRAFT_REJECTION",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "tier": "enriched",
+      "score": 4.65438992310533,
+      "q_value": 1.0019025670512e-05,
+      "panel_hits": 20,
+      "set_size_full": 200,
+      "n_leading_edge": 18,
+      "leading_edge": [
+        "CCL5",
+        "CD247",
+        "CD3G",
+        "CD4",
+        "CD79A",
+        "CD80",
+        "CD86",
+        "EGFR",
+        "GZMA",
+        "IGSF6",
+        "IL2RA",
+        "IL2RG",
+        "KLRD1",
+        "LTB",
+        "LY86",
+        "PRF1",
+        "PTPRC",
+        "TPD52"
+      ],
+      "summary": "The fetched paper is about ROS, not directly about Allograft Rejection in macrophages. Let me search more specifically.",
+      "pmid": "35639264",
+      "citation": {
+        "pmid": "35639264",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_KRAS_SIGNALING_UP": {
+      "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "tier": "enriched",
+      "score": 4.02817254980987,
+      "q_value": 0.000148560505044129,
+      "panel_hits": 12,
+      "set_size_full": 200,
+      "n_leading_edge": 10,
+      "leading_edge": [
+        "ALDH1A3",
+        "CXCR4",
+        "FCER1G",
+        "IL2RG",
+        "IL7R",
+        "JUP",
+        "PDCD1LG2",
+        "PECAM1",
+        "PIGR",
+        "SERPINA3"
+      ],
+      "summary": "Kras Signaling Up reflects macrophage polarization driven by tumor-derived oncogenic KRAS signals, consistent with a tumor-educated, immunosuppressive TAM state. This program is concordant with macrophage identity in a KRAS-driven tumor microenvironment.",
+      "pmid": "36574521",
+      "citation": {
+        "pmid": "36574521",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  },
+  "c4": {
+    "HALLMARK_PROTEIN_SECRETION": {
+      "gene_set": "HALLMARK_PROTEIN_SECRETION",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 29.8455397107515,
+      "q_value": 0.0,
+      "panel_hits": 3,
+      "set_size_full": 96,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "DST",
+        "EGFR",
+        "TPD52"
+      ],
+      "summary": "Myoepithelial cells actively secrete anti-angiogenic and anti-invasive factors that suppress stromal invasion. This Protein Secretion program is concordant with that canonical myoepithelial tumor-suppressive secretory role.",
+      "pmid": "20036817",
+      "citation": {
+        "pmid": "20036817",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ALLOGRAFT_REJECTION": {
+      "gene_set": "HALLMARK_ALLOGRAFT_REJECTION",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 16.003608110768,
+      "q_value": 0.0,
+      "panel_hits": 20,
+      "set_size_full": 200,
+      "n_leading_edge": 15,
+      "leading_edge": [
+        "CCL5",
+        "CD247",
+        "CD3G",
+        "CD4",
+        "CD79A",
+        "CD80",
+        "CD86",
+        "EGFR",
+        "IGSF6",
+        "IL2RA",
+        "IL2RG",
+        "LTB",
+        "LY86",
+        "PRF1",
+        "TPD52"
+      ],
+      "summary": "All six driving genes (CCL5, CD247, CD3G, CD4, CD79A, CD80) are canonical T-cell, B-cell, and macrophage markers on the panel. This is a clear cross-lineage signal.",
+      "pmid": "35639264",
+      "citation": {
+        "pmid": "35639264",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_MITOTIC_SPINDLE": {
+      "gene_set": "HALLMARK_MITOTIC_SPINDLE",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 11.7833449827649,
+      "q_value": 0.0,
+      "panel_hits": 7,
+      "set_size_full": 199,
+      "n_leading_edge": 7,
+      "leading_edge": [
+        "CDC42EP1",
+        "CENPF",
+        "CTTN",
+        "DST",
+        "FLNB",
+        "TOP2A",
+        "TUBA4A"
+      ],
+      "summary": "None of the resolved papers directly support a claim about mitotic spindle programs in myoepithelial cells. Let me try one more targeted search.",
+      "pmid": "11499843",
+      "citation": {
+        "pmid": "11499843",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_HYPOXIA": {
+      "gene_set": "HALLMARK_HYPOXIA",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 11.0794796550396,
+      "q_value": 0.0,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 8,
+      "leading_edge": [
+        "CAV1",
+        "CXCR4",
+        "EGFR",
+        "PIM1",
+        "S100A4",
+        "SDC4",
+        "STC1",
+        "TPD52"
+      ],
+      "summary": "I'll look up the literature on hypoxia in myoepithelial cells simultaneously with checking the panel status of the driving genes.",
+      "pmid": "35163668",
+      "citation": {
+        "pmid": "35163668",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ADIPOGENESIS": {
+      "gene_set": "HALLMARK_ADIPOGENESIS",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 10.2899015662514,
+      "q_value": 0.0,
+      "panel_hits": 6,
+      "set_size_full": 200,
+      "n_leading_edge": 6,
+      "leading_edge": [
+        "ADIPOQ",
+        "CAVIN2",
+        "LPL",
+        "MYLK",
+        "PPARG",
+        "SLC5A6"
+      ],
+      "summary": "I'll look up the panel membership of the driving genes and search the literature simultaneously.",
+      "pmid": null,
+      "citation": null,
+      "verify": false
+    },
+    "HALLMARK_GLYCOLYSIS": {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 10.2517824738361,
+      "q_value": 0.0,
+      "panel_hits": 5,
+      "set_size_full": 200,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "CTH",
+        "CXCR4",
+        "DSC2",
+        "EGFR",
+        "STC1"
+      ],
+      "summary": "None of those are a strong fit for myoepithelial glycolysis specifically. Let me do one more targeted search.",
+      "pmid": "24719122",
+      "citation": {
+        "pmid": "24719122",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_KRAS_SIGNALING_DN": {
+      "gene_set": "HALLMARK_KRAS_SIGNALING_DN",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 9.50407450185645,
+      "q_value": 0.0,
+      "panel_hits": 6,
+      "set_size_full": 200,
+      "n_leading_edge": 6,
+      "leading_edge": [
+        "CD80",
+        "KRT5",
+        "LYPD3",
+        "PDCD1",
+        "TCL1A",
+        "TENT5C"
+      ],
+      "summary": "The driving genes are a mixed bag: CD80 (Macrophages), PDCD1 (T cells), TCL1A (B cells), and TENT5C (T cells) are all annotated to immune lineages on this panel, with only KRT5 being a genuine myoepithelial marker. This is a cross-lineage signal.",
+      "pmid": "35811500",
+      "citation": {
+        "pmid": "35811500",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_XENOBIOTIC_METABOLISM": {
+      "gene_set": "HALLMARK_XENOBIOTIC_METABOLISM",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 7.50039069635958,
+      "q_value": 1.47368228731182e-13,
+      "panel_hits": 7,
+      "set_size_full": 200,
+      "n_leading_edge": 6,
+      "leading_edge": [
+        "AKR1C3",
+        "ESR1",
+        "IGF1",
+        "JUP",
+        "PDK4",
+        "PTGDS"
+      ],
+      "summary": "Xenobiotic Metabolism here captures steroid hormone processing (AKR1C3, ESR1) shared with luminal breast epithelium, not a defining myoepithelial program. It likely reflects panel genes co-expressed across epithelial lineages rather than a myoepithelial-specific metabolic state.",
+      "pmid": "31847455",
+      "citation": {
+        "pmid": "31847455",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_HEME_METABOLISM": {
+      "gene_set": "HALLMARK_HEME_METABOLISM",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 7.03887745648993,
+      "q_value": 3.98367758533722e-12,
+      "panel_hits": 3,
+      "set_size_full": 200,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "AQP3",
+        "SLC25A37",
+        "TENT5C"
+      ],
+      "summary": "Heme Metabolism is not a canonical myoepithelial program; it likely reflects shared iron/mitochondrial gene expression rather than a lineage-defining signal.",
+      "pmid": "20686179",
+      "citation": {
+        "pmid": "20686179",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_KRAS_SIGNALING_UP": {
+      "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "tier": "enriched",
+      "score": 6.65264292552184,
+      "q_value": 5.32571320377429e-11,
+      "panel_hits": 12,
+      "set_size_full": 200,
+      "n_leading_edge": 12,
+      "leading_edge": [
+        "ALDH1A3",
+        "CXCR4",
+        "FCER1G",
+        "IL2RG",
+        "IL7R",
+        "JUP",
+        "PDCD1LG2",
+        "PECAM1",
+        "PIGR",
+        "PRDM1",
+        "SERPINA3",
+        "TRIB1"
+      ],
+      "summary": "The driving genes (FCER1G, IL2RG, IL7R) are immune markers, not myoepithelial; this signal likely reflects immune cell infiltration or shared panel genes, not a myoepithelial RAS program.",
+      "pmid": "40122596",
+      "citation": {
+        "pmid": "40122596",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  },
+  "c5": {
+    "HALLMARK_APICAL_SURFACE": {
+      "gene_set": "HALLMARK_APICAL_SURFACE",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 14.6810620676401,
+      "q_value": 0.0,
+      "panel_hits": 3,
+      "set_size_full": 44,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "GATA3",
+        "IL2RG",
+        "LYPD3"
+      ],
+      "summary": "The Apical Surface signal here is driven by GATA3 (annotated \"Breast cancer\") and LYPD3 (annotated \"Breast glandular cells\"), both canonical luminal epithelial markers.",
+      "pmid": "38317241",
+      "citation": {
+        "pmid": "38317241",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_P53_PATHWAY": {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 10.1794833905705,
+      "q_value": 0.0,
+      "panel_hits": 4,
+      "set_size_full": 200,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4",
+        "TRAF4"
+      ],
+      "summary": "The p53 pathway governs T cell proliferation and apoptotic homeostasis via MDM2-p53 feedback. This program is concordant with T cell identity, reflecting activation-coupled stress responses that balance expansion and cell death.",
+      "pmid": "32034661",
+      "citation": {
+        "pmid": "32034661",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_GLYCOLYSIS": {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 10.1498431785981,
+      "q_value": 0.0,
+      "panel_hits": 5,
+      "set_size_full": 200,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "CTH",
+        "CXCR4",
+        "DSC2",
+        "EGFR",
+        "STC1"
+      ],
+      "summary": "Aerobic glycolysis is a hallmark of activated effector T cells, required for IFN-γ production and Th1 differentiation. This program is concordant with an activated T cell state in the tumor microenvironment.",
+      "pmid": "27745970",
+      "citation": {
+        "pmid": "27745970",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_MTORC1_SIGNALING": {
+      "gene_set": "HALLMARK_MTORC1_SIGNALING",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 8.87266191765598,
+      "q_value": 0.0,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 8,
+      "leading_edge": [
+        "CD9",
+        "CTH",
+        "CXCR4",
+        "FGL2",
+        "SCD",
+        "SQLE",
+        "STC1",
+        "TUBA4A"
+      ],
+      "summary": "mTORC1 signaling drives metabolic reprogramming required for T cell activation, proliferation, and effector function. This program is concordant with T cell identity, reflecting an activated or effector state.",
+      "pmid": "38640930",
+      "citation": {
+        "pmid": "38640930",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_HYPOXIA": {
+      "gene_set": "HALLMARK_HYPOXIA",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 8.76936952621923,
+      "q_value": 0.0,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 8,
+      "leading_edge": [
+        "CAV1",
+        "CXCR4",
+        "EGFR",
+        "PIM1",
+        "S100A4",
+        "SDC4",
+        "STC1",
+        "TPD52"
+      ],
+      "summary": "Most driving genes (CAV1, EGFR, S100A4, SDC4) carry breast cancer or stromal panel annotations, not T cell annotations; only CXCR4 is a genuine T cell marker.",
+      "pmid": "21521526",
+      "citation": {
+        "pmid": "21521526",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_PI3K_AKT_MTOR_SIGNALING": {
+      "gene_set": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 8.7191101112112,
+      "q_value": 0.0,
+      "panel_hits": 3,
+      "set_size_full": 105,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "CXCR4",
+        "EGFR",
+        "IL2RG"
+      ],
+      "summary": "PI3K/AKT/mTOR signaling is a canonical T cell activation and survival pathway, concordant with this cluster's lymphoid identity. CXCR4 and IL2RG are bona fide T cell drivers of this axis, reinforcing an activated or trafficking T cell state.",
+      "pmid": "38961036",
+      "citation": {
+        "pmid": "38961036",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_UV_RESPONSE_UP": {
+      "gene_set": "HALLMARK_UV_RESPONSE_UP",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 8.65558853236065,
+      "q_value": 0.0,
+      "panel_hits": 3,
+      "set_size_full": 158,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "AQP3",
+        "EPCAM",
+        "TUBA4A"
+      ],
+      "summary": "The UV Response Up program's driving genes here (AQP3, EPCAM, TUBA4A) are epithelial and cytoskeletal markers, not canonical T cell genes, indicating this signal reflects shared panel genes or spatial admixture with adjacent tumor cells rather than a genuine T cell program.",
+      "pmid": "35365586",
+      "citation": {
+        "pmid": "35365586",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ANGIOGENESIS": {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "tier": "enriched",
+      "score": 8.38963421735739,
+      "q_value": 0.0,
+      "panel_hits": 5,
+      "set_size_full": 36,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "LPL",
+        "LUM",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "summary": "The Angiogenesis signal here is driven by stromal genes (LUM, POSTN, S100A4) canonical to cancer-associated fibroblasts, not T cells; it likely reflects spatial admixture with adjacent stroma, not a T cell program.",
+      "pmid": "15047714",
+      "citation": {
+        "pmid": "15047714",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  },
+  "c6": {
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE": {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 15.4477519590039,
+      "q_value": 0.0,
+      "panel_hits": 10,
+      "set_size_full": 200,
+      "n_leading_edge": 9,
+      "leading_edge": [
+        "BANK1",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "summary": "The Interferon Gamma Response program here is driven largely by non-canonical B cell genes (GZMA, CD69, CD86, FGL2).",
+      "pmid": "39193910",
+      "citation": {
+        "pmid": "39193910",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_PI3K_AKT_MTOR_SIGNALING": {
+      "gene_set": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 13.8630543200853,
+      "q_value": 0.0,
+      "panel_hits": 3,
+      "set_size_full": 105,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "CXCR4",
+        "EGFR",
+        "IL2RG"
+      ],
+      "summary": "PI3K/AKT/mTOR is a canonical B cell survival and activation pathway, governing receptor-driven proliferation and metabolic reprogramming. Its enrichment here is concordant with B cell identity.",
+      "pmid": "35159274",
+      "citation": {
+        "pmid": "35159274",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_HYPOXIA": {
+      "gene_set": "HALLMARK_HYPOXIA",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 10.598161504374,
+      "q_value": 0.0,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 6,
+      "leading_edge": [
+        "CXCR4",
+        "EGFR",
+        "PIM1",
+        "SDC4",
+        "STC1",
+        "TPD52"
+      ],
+      "summary": "Hypoxia can drive CXCR4-mediated homing and dissemination in malignant B cells, making this program biologically plausible for a B cell cluster in a hypoxic tumor microenvironment. It likely reflects genuine hypoxic signaling in these cells, not a cross-lineage artifact.",
+      "pmid": "25232031",
+      "citation": {
+        "pmid": "25232031",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_INFLAMMATORY_RESPONSE": {
+      "gene_set": "HALLMARK_INFLAMMATORY_RESPONSE",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 7.38201369071922,
+      "q_value": 4.8061554736023e-13,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 8,
+      "leading_edge": [
+        "CCL5",
+        "CCR7",
+        "CD14",
+        "CD69",
+        "GPR183",
+        "IL7R",
+        "SELL",
+        "SLAMF1"
+      ],
+      "summary": "Inflammatory Response program in B Cells; driving genes CCL5, CCR7, CD14.",
+      "pmid": null,
+      "citation": null,
+      "verify": false
+    },
+    "HALLMARK_GLYCOLYSIS": {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 7.05076404132667,
+      "q_value": 4.70287301165432e-12,
+      "panel_hits": 5,
+      "set_size_full": 200,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "CXCR4",
+        "DSC2",
+        "STC1"
+      ],
+      "summary": "Glycolysis supports activated and plasma-cell-stage B cells, fuelling rapid proliferation and antibody production. The driving genes here (CXCR4, DSC2, STC1) are not canonical glycolytic enzymes, so this signal likely reflects shared panel genes rather than a B-cell-intrinsic metabolic program.",
+      "pmid": "38445519",
+      "citation": {
+        "pmid": "38445519",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_KRAS_SIGNALING_UP": {
+      "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 6.86559041589935,
+      "q_value": 1.53124318780229e-11,
+      "panel_hits": 12,
+      "set_size_full": 200,
+      "n_leading_edge": 12,
+      "leading_edge": [
+        "ALDH1A3",
+        "CXCR4",
+        "FCER1G",
+        "IL2RG",
+        "IL7R",
+        "JUP",
+        "PDCD1LG2",
+        "PECAM1",
+        "PIGR",
+        "PRDM1",
+        "SERPINA3",
+        "TRIB1"
+      ],
+      "summary": "KRAS signaling supports B cell development and BCR-driven proliferation via the Raf-1/MEK/ERK pathway. This program is concordant with B cell identity, reflecting active survival and maturation signaling.",
+      "pmid": "26773157",
+      "citation": {
+        "pmid": "26773157",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_HEME_METABOLISM": {
+      "gene_set": "HALLMARK_HEME_METABOLISM",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 6.49403038252085,
+      "q_value": 1.7178240311703e-10,
+      "panel_hits": 3,
+      "set_size_full": 200,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "AQP3",
+        "SLC25A37",
+        "TENT5C"
+      ],
+      "summary": "Heme metabolism supports B cell proliferation and plasma cell differentiation via iron-dependent cell cycle regulation. This program is concordant with B cell identity, reflecting active differentiation states in this cluster.",
+      "pmid": "37437310",
+      "citation": {
+        "pmid": "37437310",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ANGIOGENESIS": {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "tier": "enriched",
+      "score": 5.52240284949085,
+      "q_value": 6.18630200621695e-08,
+      "panel_hits": 5,
+      "set_size_full": 36,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "LPL",
+        "LUM",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "summary": "Angiogenesis program in B Cells; driving genes LPL, LUM, POSTN.",
+      "pmid": null,
+      "citation": null,
+      "verify": false
+    }
+  },
+  "c7": {
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE": {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "tier": "enriched",
+      "score": 8.01131813107188,
+      "q_value": 2.05391259555654e-14,
+      "panel_hits": 10,
+      "set_size_full": 200,
+      "n_leading_edge": 10,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "summary": "The driving genes (BANK1, CCL5, CD274, CD69, CD86, FGL2) are predominantly immune-cell markers, not canonical endothelial genes; this signal likely reflects immune cell infiltration or spatial admixture rather than an endothelial-intrinsic interferon-gamma response.",
+      "pmid": "38199298",
+      "citation": {
+        "pmid": "38199298",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_P53_PATHWAY": {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "tier": "enriched",
+      "score": 5.81020158955229,
+      "q_value": 5.77178358440733e-08,
+      "panel_hits": 4,
+      "set_size_full": 200,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4"
+      ],
+      "summary": "The p53 pathway is a genotoxic/cellular-stress response program not canonical to endothelial identity; its enrichment here likely reflects shared stress-response genes (MDM2, S100A4) with adjacent tumor cells.",
+      "pmid": "29808713",
+      "citation": {
+        "pmid": "29808713",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_UV_RESPONSE_DN": {
+      "gene_set": "HALLMARK_UV_RESPONSE_DN",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "tier": "enriched",
+      "score": 3.96440742820922,
+      "q_value": 0.000340300527346793,
+      "panel_hits": 6,
+      "set_size_full": 144,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "CAV1",
+        "KIT",
+        "PDGFRB",
+        "PPARG"
+      ],
+      "summary": "UV Response Down captures genes repressed after UV stress, and its leading drivers here (CAV1, PDGFRB) are canonical endothelial regulators of vascular homeostasis and permeability.",
+      "pmid": "36152520",
+      "citation": {
+        "pmid": "36152520",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_APOPTOSIS": {
+      "gene_set": "HALLMARK_APOPTOSIS",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "tier": "enriched",
+      "score": 2.87004224857106,
+      "q_value": 0.0147292734543526,
+      "panel_hits": 12,
+      "set_size_full": 161,
+      "n_leading_edge": 12,
+      "leading_edge": [
+        "AVPR1A",
+        "CAV1",
+        "CCND1",
+        "CD14",
+        "CD69",
+        "CTH",
+        "ERBB2",
+        "LUM",
+        "MMP2",
+        "PDGFRB",
+        "PRF1",
+        "TOP2A"
+      ],
+      "summary": "Endothelial cell apoptosis is a recognized feature of vascular remodeling and stress responses. This program is concordant with Endothelial identity, as apoptotic signaling regulates vascular homeostasis and endothelial turnover in tissue.",
+      "pmid": "38718792",
+      "citation": {
+        "pmid": "38718792",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ANGIOGENESIS": {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "tier": "enriched",
+      "score": 2.82169479126209,
+      "q_value": 0.0147292734543526,
+      "panel_hits": 5,
+      "set_size_full": 36,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "LPL",
+        "LUM",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "summary": "The driving genes (LPL, LUM, POSTN, S100A4, STC1) are predominantly stromal/CAF markers, suggesting this signal likely reflects shared panel genes or spatial admixture with adjacent stroma, not a core endothelial angiogenic program. Tumor endothelial cells do sustain active angiogenesis.",
+      "pmid": "33754039",
+      "citation": {
+        "pmid": "33754039",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  },
+  "c8": {
+    "HALLMARK_PI3K_AKT_MTOR_SIGNALING": {
+      "gene_set": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 9.53738485766525,
+      "q_value": 0.0,
+      "panel_hits": 3,
+      "set_size_full": 105,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "CXCR4",
+        "EGFR",
+        "IL2RG"
+      ],
+      "summary": "PI3K/AKT/mTOR signaling governs dendritic cell metabolism and maturation. Its activity here, driven by CXCR4, EGFR, and IL2RG, is concordant with DC identity and consistent with DC immunoregulatory function in the tumor microenvironment.",
+      "pmid": "39603146",
+      "citation": {
+        "pmid": "39603146",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_INFLAMMATORY_RESPONSE": {
+      "gene_set": "HALLMARK_INFLAMMATORY_RESPONSE",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 6.12405177908095,
+      "q_value": 3.37533341276952e-09,
+      "panel_hits": 8,
+      "set_size_full": 200,
+      "n_leading_edge": 7,
+      "leading_edge": [
+        "CCL5",
+        "CCR7",
+        "CD14",
+        "CD69",
+        "GPR183",
+        "IL7R",
+        "SELL"
+      ],
+      "summary": "Inflammatory Response here captures activated, migratory DC biology: CCR7 drives lymph-node homing and CD69/CCL5 mark early activation, programs canonical to mature DCs. This is concordant with Dendritic identity.",
+      "pmid": "40369076",
+      "citation": {
+        "pmid": "40369076",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_GLYCOLYSIS": {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 5.99914544495935,
+      "q_value": 6.11605808590691e-09,
+      "panel_hits": 5,
+      "set_size_full": 200,
+      "n_leading_edge": 5,
+      "leading_edge": [
+        "CTH",
+        "CXCR4",
+        "DSC2",
+        "EGFR",
+        "STC1"
+      ],
+      "summary": "Glycolysis is a hallmark of activated dendritic cells, fueling antigen presentation and migration. This program is concordant with DC identity, reflecting metabolic activation in the tumor microenvironment.",
+      "pmid": "36821379",
+      "citation": {
+        "pmid": "36821379",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE": {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 5.79980567289389,
+      "q_value": 1.75464074698389e-08,
+      "panel_hits": 10,
+      "set_size_full": 200,
+      "n_leading_edge": 10,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "summary": "IFN-gamma signaling drives DC maturation, upregulating co-stimulatory (CD86) and checkpoint (CD274) molecules that shape T cell priming. This program is concordant with activated DC identity in the tumor microenvironment.",
+      "pmid": "34710507",
+      "citation": {
+        "pmid": "34710507",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_IL2_STAT5_SIGNALING": {
+      "gene_set": "HALLMARK_IL2_STAT5_SIGNALING",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 4.89713625919541,
+      "q_value": 2.24875387093426e-06,
+      "panel_hits": 12,
+      "set_size_full": 199,
+      "n_leading_edge": 9,
+      "leading_edge": [
+        "CD83",
+        "CD86",
+        "CTLA4",
+        "FGL2",
+        "IL2RA",
+        "IL3RA",
+        "PIM1",
+        "RHOH",
+        "SELL"
+      ],
+      "summary": "IL2-STAT5 signaling drives dendritic cell maturation, with STAT5 directly upregulating CD83 and CD86. This program is concordant with an activated DC identity in the tumor microenvironment.",
+      "pmid": "39381601",
+      "citation": {
+        "pmid": "39381601",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ANGIOGENESIS": {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 4.85283646212048,
+      "q_value": 2.50177661561176e-06,
+      "panel_hits": 5,
+      "set_size_full": 36,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "LPL",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "summary": "The Angiogenesis signal here is driven by stromal genes (LPL, POSTN, S100A4, STC1), not canonical dendritic markers; it likely reflects spatial admixture with adjacent stroma, not a dendritic program.",
+      "pmid": "27223086",
+      "citation": {
+        "pmid": "27223086",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_P53_PATHWAY": {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "tier": "enriched",
+      "score": 4.65117311174211,
+      "q_value": 6.10596423337162e-06,
+      "panel_hits": 4,
+      "set_size_full": 200,
+      "n_leading_edge": 4,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4",
+        "TRAF4"
+      ],
+      "summary": "The p53/MDM2 pathway governs dendritic cell maturation and their capacity to stimulate T cell proliferation. MDM2 activity in DCs is a recognized modulator of antitumor immune responses in the tumor microenvironment.",
+      "pmid": "33504557",
+      "citation": {
+        "pmid": "33504557",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  },
+  "c9": {
+    "HALLMARK_UV_RESPONSE_DN": {
+      "gene_set": "HALLMARK_UV_RESPONSE_DN",
+      "cluster": "c9",
+      "cell_type": "Mast_Cells",
+      "tier": "enriched",
+      "score": 3.97832872611499,
+      "q_value": 0.000294739450507597,
+      "panel_hits": 6,
+      "set_size_full": 144,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "CAV1",
+        "KIT",
+        "PDGFRB"
+      ],
+      "summary": "The UV Response Dn program captures genes repressed after UV stress, including growth factor receptors like KIT that sustain mast cell survival and tissue residency. KIT's presence here is concordant with mast cell identity, reinforcing the c9 call.",
+      "pmid": "35184297",
+      "citation": {
+        "pmid": "35184297",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_ALLOGRAFT_REJECTION": {
+      "gene_set": "HALLMARK_ALLOGRAFT_REJECTION",
+      "cluster": "c9",
+      "cell_type": "Mast_Cells",
+      "tier": "enriched",
+      "score": 3.94542275062275,
+      "q_value": 0.000294739450507597,
+      "panel_hits": 20,
+      "set_size_full": 200,
+      "n_leading_edge": 6,
+      "leading_edge": [
+        "CD4",
+        "CD79A",
+        "CD86",
+        "EGFR",
+        "GZMA",
+        "PRF1"
+      ],
+      "summary": "The Allograft Rejection program's driving genes (CD4, CD79A, GZMA, PRF1) are canonical T cell and B cell markers, not Mast Cell markers, indicating this signal reflects co-infiltrating lymphocytes or shared panel genes rather than a Mast Cell program. Bai et al.",
+      "pmid": "37186041",
+      "citation": {
+        "pmid": "37186041",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    },
+    "HALLMARK_HEME_METABOLISM": {
+      "gene_set": "HALLMARK_HEME_METABOLISM",
+      "cluster": "c9",
+      "cell_type": "Mast_Cells",
+      "tier": "enriched",
+      "score": 2.42950071471045,
+      "q_value": 0.039959035641388,
+      "panel_hits": 3,
+      "set_size_full": 200,
+      "n_leading_edge": 3,
+      "leading_edge": [
+        "AQP3",
+        "SLC25A37",
+        "TENT5C"
+      ],
+      "summary": "Heme Metabolism captures iron handling and heme catabolism, which is not a canonical mast cell program; it likely reflects shared panel genes or local tissue context rather than mast cell identity.",
+      "pmid": "7629107",
+      "citation": {
+        "pmid": "7629107",
+        "title": "",
+        "authors": "",
+        "year": 0
+      },
+      "verify": false
+    }
+  }
+}

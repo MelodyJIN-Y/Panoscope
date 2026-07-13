@@ -52,14 +52,11 @@ htmlcov/
 assets/*.pdf
 data/jazzpanda/*
 
-# ── Private jazzPanda enrichment (derived from the unpublished result) ───────
-# The enrichment tree carries the private test_statistic-derived scores/q-values
-# from data/jazzpanda/. Kept local; the app reads it directly, git stays clean.
-# A fresh clone falls back to the marker-only slice (see ui/data_access.py).
-data/datasets/*/interp/enrichment.csv
-data/datasets/*/interp/enrichment/
-data/datasets/*/interp/pathway_notes.json
-data/datasets/*/interp/pathway_themes.json
+# jazzPanda gene-set enrichment (interp/enrichment*, interp/pathway_*.json) is COMMITTED
+# for the demo dataset — computed from jazzPanda and shareable, so the Pathways workflow
+# runs from a fresh clone. Datasets built without it fall back to the marker-only slice
+# (see ui/data_access.py). Only the runtime state below stays local. The raw jazzPanda
+# inputs under data/jazzpanda/ remain gitignored; we ship the precomputed artifacts only.
 
 # Summary working-space edits — runtime user state (the biologist's report prose),
 # written by the UI as they edit; not a build artifact to commit.

@@ -1,0 +1,325 @@
+{
+  "cluster": "c7",
+  "cell_type": "Endothelial",
+  "method": "jazzpanda_enrichment",
+  "enriched": [
+    {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 8.01131813107188,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 5.55111512312578e-16,
+      "q_value": 2.05391259555654e-14,
+      "set_size_full": 200,
+      "panel_hits": 10,
+      "panel_coverage": 0.05,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "n_leading_edge": 10,
+      "gc_corr": 0.33638130266832,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 10 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.81020158955229,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 3.11988301859856e-09,
+      "q_value": 5.77178358440733e-08,
+      "set_size_full": 200,
+      "panel_hits": 4,
+      "panel_coverage": 0.02,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4"
+      ],
+      "n_leading_edge": 3,
+      "gc_corr": 0.384570311893077,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_UV_RESPONSE_DN",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 3.96440742820922,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 3.67892461996533e-05,
+      "q_value": 0.000340300527346793,
+      "set_size_full": 144,
+      "panel_hits": 6,
+      "panel_coverage": 0.041666666666666664,
+      "leading_edge": [
+        "CAV1",
+        "KIT",
+        "PDGFRB",
+        "PPARG"
+      ],
+      "n_leading_edge": 4,
+      "gc_corr": 0.407351366753255,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 144 genes in HALLMARK_UV_RESPONSE_DN are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_APOPTOSIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 2.87004224857106,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0020520847897616,
+      "q_value": 0.0147292734543526,
+      "set_size_full": 161,
+      "panel_hits": 12,
+      "panel_coverage": 0.07453416149068323,
+      "leading_edge": [
+        "AVPR1A",
+        "CAV1",
+        "CCND1",
+        "CD14",
+        "CD69",
+        "CTH",
+        "ERBB2",
+        "LUM",
+        "MMP2",
+        "PDGFRB",
+        "PRF1",
+        "TOP2A"
+      ],
+      "n_leading_edge": 12,
+      "gc_corr": 0.294811323298233,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 12 of 161 genes in HALLMARK_APOPTOSIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 2.82169479126209,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.00238853083043555,
+      "q_value": 0.0147292734543526,
+      "set_size_full": 36,
+      "panel_hits": 5,
+      "panel_coverage": 0.1388888888888889,
+      "leading_edge": [
+        "LPL",
+        "LUM",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "n_leading_edge": 5,
+      "gc_corr": 0.217732635830001,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 36 genes in HALLMARK_ANGIOGENESIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    }
+  ],
+  "suggestive": [],
+  "all_tested": [
+    {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 8.01131813107188,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 5.55111512312578e-16,
+      "q_value": 2.05391259555654e-14,
+      "set_size_full": 200,
+      "panel_hits": 10,
+      "panel_coverage": 0.05,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "n_leading_edge": 10,
+      "gc_corr": 0.33638130266832,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 10 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.81020158955229,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 3.11988301859856e-09,
+      "q_value": 5.77178358440733e-08,
+      "set_size_full": 200,
+      "panel_hits": 4,
+      "panel_coverage": 0.02,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4"
+      ],
+      "n_leading_edge": 3,
+      "gc_corr": 0.384570311893077,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_UNFOLDED_PROTEIN_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.18924247841473,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 1.05575647335598e-07,
+      "q_value": 1.30209965047238e-06,
+      "set_size_full": 113,
+      "panel_hits": 2,
+      "panel_coverage": 0.017699115044247787,
+      "leading_edge": [
+        "EIF4EBP1",
+        "ERN1"
+      ],
+      "n_leading_edge": 2,
+      "gc_corr": 0.339441283569775,
+      "tier": "untestable",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 113 genes in HALLMARK_UNFOLDED_PROTEIN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_UV_RESPONSE_DN",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 3.96440742820922,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 3.67892461996533e-05,
+      "q_value": 0.000340300527346793,
+      "set_size_full": 144,
+      "panel_hits": 6,
+      "panel_coverage": 0.041666666666666664,
+      "leading_edge": [
+        "CAV1",
+        "KIT",
+        "PDGFRB",
+        "PPARG"
+      ],
+      "n_leading_edge": 4,
+      "gc_corr": 0.407351366753255,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 144 genes in HALLMARK_UV_RESPONSE_DN are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_APOPTOSIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 2.87004224857106,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0020520847897616,
+      "q_value": 0.0147292734543526,
+      "set_size_full": 161,
+      "panel_hits": 12,
+      "panel_coverage": 0.07453416149068323,
+      "leading_edge": [
+        "AVPR1A",
+        "CAV1",
+        "CCND1",
+        "CD14",
+        "CD69",
+        "CTH",
+        "ERBB2",
+        "LUM",
+        "MMP2",
+        "PDGFRB",
+        "PRF1",
+        "TOP2A"
+      ],
+      "n_leading_edge": 12,
+      "gc_corr": 0.294811323298233,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 12 of 161 genes in HALLMARK_APOPTOSIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 2.82169479126209,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.00238853083043555,
+      "q_value": 0.0147292734543526,
+      "set_size_full": 36,
+      "panel_hits": 5,
+      "panel_coverage": 0.1388888888888889,
+      "leading_edge": [
+        "LPL",
+        "LUM",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "n_leading_edge": 5,
+      "gc_corr": 0.217732635830001,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 36 genes in HALLMARK_ANGIOGENESIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    }
+  ],
+  "top_theme": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+  "confidence": "High",
+  "confidence_score": 0.85,
+  "verify": false,
+  "demotions": [],
+  "source_trace": [
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=8.01 q=2.05391259555654e-14 K=10/200 LE=10",
+    "HALLMARK_P53_PATHWAY: score=5.81 q=5.77178358440733e-08 K=4/200 LE=3",
+    "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=5.19 q=1.30209965047238e-06 K=2/113 LE=2",
+    "HALLMARK_UV_RESPONSE_DN: score=3.96 q=0.000340300527346793 K=6/144 LE=4",
+    "HALLMARK_APOPTOSIS: score=2.87 q=0.0147292734543526 K=12/161 LE=12",
+    "HALLMARK_ANGIOGENESIS: score=2.82 q=0.0147292734543526 K=5/36 LE=5"
+  ]
+}

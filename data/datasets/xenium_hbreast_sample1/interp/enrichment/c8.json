@@ -1,0 +1,483 @@
+{
+  "cluster": "c8",
+  "cell_type": "Dendritic",
+  "method": "jazzpanda_enrichment",
+  "enriched": [
+    {
+      "gene_set": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 9.53738485766525,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0,
+      "q_value": 0.0,
+      "set_size_full": 105,
+      "panel_hits": 3,
+      "panel_coverage": 0.02857142857142857,
+      "leading_edge": [
+        "CXCR4",
+        "EGFR",
+        "IL2RG"
+      ],
+      "n_leading_edge": 3,
+      "gc_corr": 0.481794800443522,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 3 of 105 genes in HALLMARK_PI3K_AKT_MTOR_SIGNALING are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_INFLAMMATORY_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 6.12405177908095,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 4.56126136860746e-10,
+      "q_value": 3.37533341276952e-09,
+      "set_size_full": 200,
+      "panel_hits": 8,
+      "panel_coverage": 0.04,
+      "leading_edge": [
+        "CCL5",
+        "CCR7",
+        "CD14",
+        "CD69",
+        "GPR183",
+        "IL7R",
+        "SELL"
+      ],
+      "n_leading_edge": 7,
+      "gc_corr": 0.599742455187473,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 8 of 200 genes in HALLMARK_INFLAMMATORY_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.99914544495935,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 9.91793203120039e-10,
+      "q_value": 6.11605808590691e-09,
+      "set_size_full": 200,
+      "panel_hits": 5,
+      "panel_coverage": 0.025,
+      "leading_edge": [
+        "CTH",
+        "CXCR4",
+        "DSC2",
+        "EGFR",
+        "STC1"
+      ],
+      "n_leading_edge": 5,
+      "gc_corr": 0.151426115751786,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 200 genes in HALLMARK_GLYCOLYSIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.79980567289389,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 3.31959060240195e-09,
+      "q_value": 1.75464074698389e-08,
+      "set_size_full": 200,
+      "panel_hits": 10,
+      "panel_coverage": 0.05,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "n_leading_edge": 10,
+      "gc_corr": 0.479178802784471,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 10 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_IL2_STAT5_SIGNALING",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 4.89713625919541,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 4.86217053174975e-07,
+      "q_value": 2.24875387093426e-06,
+      "set_size_full": 199,
+      "panel_hits": 12,
+      "panel_coverage": 0.06030150753768844,
+      "leading_edge": [
+        "CD83",
+        "CD86",
+        "CTLA4",
+        "FGL2",
+        "IL2RA",
+        "IL3RA",
+        "PIM1",
+        "RHOH",
+        "SELL"
+      ],
+      "n_leading_edge": 9,
+      "gc_corr": 0.469735813442002,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 12 of 199 genes in HALLMARK_IL2_STAT5_SIGNALING are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 4.85283646212048,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 6.08540257851509e-07,
+      "q_value": 2.50177661561176e-06,
+      "set_size_full": 36,
+      "panel_hits": 5,
+      "panel_coverage": 0.1388888888888889,
+      "leading_edge": [
+        "LPL",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "n_leading_edge": 4,
+      "gc_corr": 0.111761400396327,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 36 genes in HALLMARK_ANGIOGENESIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "tiny leading edge",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 4.65117311174211,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 1.65026060361395e-06,
+      "q_value": 6.10596423337162e-06,
+      "set_size_full": 200,
+      "panel_hits": 4,
+      "panel_coverage": 0.02,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4",
+        "TRAF4"
+      ],
+      "n_leading_edge": 4,
+      "gc_corr": 0.238078806030071,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    }
+  ],
+  "suggestive": [],
+  "all_tested": [
+    {
+      "gene_set": "HALLMARK_OXIDATIVE_PHOSPHORYLATION",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 12.8750190046355,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0,
+      "q_value": 0.0,
+      "set_size_full": 200,
+      "panel_hits": 2,
+      "panel_coverage": 0.01,
+      "leading_edge": [
+        "LDHB",
+        "PDK4"
+      ],
+      "n_leading_edge": 2,
+      "gc_corr": 0.447161301912049,
+      "tier": "untestable",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 200 genes in HALLMARK_OXIDATIVE_PHOSPHORYLATION are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 9.53738485766525,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0,
+      "q_value": 0.0,
+      "set_size_full": 105,
+      "panel_hits": 3,
+      "panel_coverage": 0.02857142857142857,
+      "leading_edge": [
+        "CXCR4",
+        "EGFR",
+        "IL2RG"
+      ],
+      "n_leading_edge": 3,
+      "gc_corr": 0.481794800443522,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 3 of 105 genes in HALLMARK_PI3K_AKT_MTOR_SIGNALING are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_UNFOLDED_PROTEIN_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 9.15287586828191,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0,
+      "q_value": 0.0,
+      "set_size_full": 113,
+      "panel_hits": 2,
+      "panel_coverage": 0.017699115044247787,
+      "leading_edge": [
+        "EIF4EBP1",
+        "ERN1"
+      ],
+      "n_leading_edge": 2,
+      "gc_corr": 0.253220953459998,
+      "tier": "untestable",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 113 genes in HALLMARK_UNFOLDED_PROTEIN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_APICAL_SURFACE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 7.51266045989138,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 2.89768209427166e-14,
+      "q_value": 2.68035593720128e-13,
+      "set_size_full": 44,
+      "panel_hits": 3,
+      "panel_coverage": 0.06818181818181818,
+      "leading_edge": [
+        "IL2RG",
+        "LYPD3"
+      ],
+      "n_leading_edge": 2,
+      "gc_corr": 0.272717001976204,
+      "tier": "untestable",
+      "panel_scope_caveat": "Panel-scoped: only 3 of 44 genes in HALLMARK_APICAL_SURFACE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "tiny leading edge",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_INFLAMMATORY_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 6.12405177908095,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 4.56126136860746e-10,
+      "q_value": 3.37533341276952e-09,
+      "set_size_full": 200,
+      "panel_hits": 8,
+      "panel_coverage": 0.04,
+      "leading_edge": [
+        "CCL5",
+        "CCR7",
+        "CD14",
+        "CD69",
+        "GPR183",
+        "IL7R",
+        "SELL"
+      ],
+      "n_leading_edge": 7,
+      "gc_corr": 0.599742455187473,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 8 of 200 genes in HALLMARK_INFLAMMATORY_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.99914544495935,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 9.91793203120039e-10,
+      "q_value": 6.11605808590691e-09,
+      "set_size_full": 200,
+      "panel_hits": 5,
+      "panel_coverage": 0.025,
+      "leading_edge": [
+        "CTH",
+        "CXCR4",
+        "DSC2",
+        "EGFR",
+        "STC1"
+      ],
+      "n_leading_edge": 5,
+      "gc_corr": 0.151426115751786,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 200 genes in HALLMARK_GLYCOLYSIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.79980567289389,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 3.31959060240195e-09,
+      "q_value": 1.75464074698389e-08,
+      "set_size_full": 200,
+      "panel_hits": 10,
+      "panel_coverage": 0.05,
+      "leading_edge": [
+        "BANK1",
+        "CCL5",
+        "CD274",
+        "CD69",
+        "CD86",
+        "FGL2",
+        "GZMA",
+        "PELI1",
+        "PIM1",
+        "SLAMF7"
+      ],
+      "n_leading_edge": 10,
+      "gc_corr": 0.479178802784471,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 10 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_IL2_STAT5_SIGNALING",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 4.89713625919541,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 4.86217053174975e-07,
+      "q_value": 2.24875387093426e-06,
+      "set_size_full": 199,
+      "panel_hits": 12,
+      "panel_coverage": 0.06030150753768844,
+      "leading_edge": [
+        "CD83",
+        "CD86",
+        "CTLA4",
+        "FGL2",
+        "IL2RA",
+        "IL3RA",
+        "PIM1",
+        "RHOH",
+        "SELL"
+      ],
+      "n_leading_edge": 9,
+      "gc_corr": 0.469735813442002,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 12 of 199 genes in HALLMARK_IL2_STAT5_SIGNALING are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 4.85283646212048,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 6.08540257851509e-07,
+      "q_value": 2.50177661561176e-06,
+      "set_size_full": 36,
+      "panel_hits": 5,
+      "panel_coverage": 0.1388888888888889,
+      "leading_edge": [
+        "LPL",
+        "POSTN",
+        "S100A4",
+        "STC1"
+      ],
+      "n_leading_edge": 4,
+      "gc_corr": 0.111761400396327,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 36 genes in HALLMARK_ANGIOGENESIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "tiny leading edge",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 4.65117311174211,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 1.65026060361395e-06,
+      "q_value": 6.10596423337162e-06,
+      "set_size_full": 200,
+      "panel_hits": 4,
+      "panel_coverage": 0.02,
+      "leading_edge": [
+        "LDHB",
+        "MDM2",
+        "S100A4",
+        "TRAF4"
+      ],
+      "n_leading_edge": 4,
+      "gc_corr": 0.238078806030071,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge",
+        "low spatial specificity"
+      ],
+      "source": "jazzpanda:enrichment"
+    }
+  ],
+  "top_theme": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+  "confidence": "Medium",
+  "confidence_score": 0.55,
+  "verify": true,
+  "demotions": [
+    "top set very low panel coverage -> -1 band",
+    "top set tiny leading edge -> -1 band"
+  ],
+  "source_trace": [
+    "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=12.88 q=0.0 K=2/200 LE=2",
+    "HALLMARK_PI3K_AKT_MTOR_SIGNALING: score=9.54 q=0.0 K=3/105 LE=3",
+    "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=9.15 q=0.0 K=2/113 LE=2",
+    "HALLMARK_APICAL_SURFACE: score=7.51 q=2.68035593720128e-13 K=3/44 LE=2",
+    "HALLMARK_INFLAMMATORY_RESPONSE: score=6.12 q=3.37533341276952e-09 K=8/200 LE=7",
+    "HALLMARK_GLYCOLYSIS: score=6.00 q=6.11605808590691e-09 K=5/200 LE=5",
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=5.80 q=1.75464074698389e-08 K=10/200 LE=10",
+    "HALLMARK_IL2_STAT5_SIGNALING: score=4.90 q=2.24875387093426e-06 K=12/199 LE=9",
+    "HALLMARK_ANGIOGENESIS: score=4.85 q=2.50177661561176e-06 K=5/36 LE=4",
+    "HALLMARK_P53_PATHWAY: score=4.65 q=6.10596423337162e-06 K=4/200 LE=4"
+  ]
+}

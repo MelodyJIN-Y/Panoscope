@@ -1,0 +1,310 @@
+{
+  "method": "jazzpanda_enrichment",
+  "n_clusters_with_enrichment": 9,
+  "coherence_notes": [
+    "9 of 9 clusters have at least one enriched pathway (q<0.05, >=3 driving genes on panel).",
+    "Programs shared across clusters: Interferon Gamma Response across c2, c3, c6, c7, c8 (Stromal, Macrophages, B_Cells, Endothelial, Dendritic); Angiogenesis across c2, c5, c6, c7, c8 (Stromal, T_Cells, B_Cells, Endothelial, Dendritic); Glycolysis across c3, c4, c5, c6, c8 (Macrophages, Myoepithelial, T_Cells, B_Cells, Dendritic).",
+    "Enriched clusters by compartment: Epithelial (c1 Tumor, c4 Myoepithelial); Stromal (c2 Stromal); Immune (c3 Macrophages, c5 T_Cells, c6 B_Cells, c8 Dendritic, c9 Mast_Cells); Endothelial (c7 Endothelial)."
+  ],
+  "recurring": [
+    {
+      "gene_set": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+      "clusters": [
+        "c2",
+        "c3",
+        "c6",
+        "c7",
+        "c8"
+      ],
+      "cell_types": [
+        "Stromal",
+        "Macrophages",
+        "B_Cells",
+        "Endothelial",
+        "Dendritic"
+      ],
+      "n_clusters": 5,
+      "max_score": 15.4477519590039
+    },
+    {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "clusters": [
+        "c2",
+        "c5",
+        "c6",
+        "c7",
+        "c8"
+      ],
+      "cell_types": [
+        "Stromal",
+        "T_Cells",
+        "B_Cells",
+        "Endothelial",
+        "Dendritic"
+      ],
+      "n_clusters": 5,
+      "max_score": 14.2975851921485
+    },
+    {
+      "gene_set": "HALLMARK_GLYCOLYSIS",
+      "clusters": [
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c8"
+      ],
+      "cell_types": [
+        "Macrophages",
+        "Myoepithelial",
+        "T_Cells",
+        "B_Cells",
+        "Dendritic"
+      ],
+      "n_clusters": 5,
+      "max_score": 10.2517824738361
+    },
+    {
+      "gene_set": "HALLMARK_P53_PATHWAY",
+      "clusters": [
+        "c3",
+        "c5",
+        "c7",
+        "c8"
+      ],
+      "cell_types": [
+        "Macrophages",
+        "T_Cells",
+        "Endothelial",
+        "Dendritic"
+      ],
+      "n_clusters": 4,
+      "max_score": 10.1794833905705
+    },
+    {
+      "gene_set": "HALLMARK_ALLOGRAFT_REJECTION",
+      "clusters": [
+        "c3",
+        "c4",
+        "c9"
+      ],
+      "cell_types": [
+        "Macrophages",
+        "Myoepithelial",
+        "Mast_Cells"
+      ],
+      "n_clusters": 3,
+      "max_score": 16.003608110768
+    },
+    {
+      "gene_set": "HALLMARK_INFLAMMATORY_RESPONSE",
+      "clusters": [
+        "c2",
+        "c6",
+        "c8"
+      ],
+      "cell_types": [
+        "Stromal",
+        "B_Cells",
+        "Dendritic"
+      ],
+      "n_clusters": 3,
+      "max_score": 14.8698019441612
+    },
+    {
+      "gene_set": "HALLMARK_PI3K_AKT_MTOR_SIGNALING",
+      "clusters": [
+        "c5",
+        "c6",
+        "c8"
+      ],
+      "cell_types": [
+        "T_Cells",
+        "B_Cells",
+        "Dendritic"
+      ],
+      "n_clusters": 3,
+      "max_score": 13.8630543200853
+    },
+    {
+      "gene_set": "HALLMARK_HYPOXIA",
+      "clusters": [
+        "c4",
+        "c5",
+        "c6"
+      ],
+      "cell_types": [
+        "Myoepithelial",
+        "T_Cells",
+        "B_Cells"
+      ],
+      "n_clusters": 3,
+      "max_score": 11.0794796550396
+    },
+    {
+      "gene_set": "HALLMARK_HEME_METABOLISM",
+      "clusters": [
+        "c4",
+        "c6",
+        "c9"
+      ],
+      "cell_types": [
+        "Myoepithelial",
+        "B_Cells",
+        "Mast_Cells"
+      ],
+      "n_clusters": 3,
+      "max_score": 7.03887745648993
+    },
+    {
+      "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
+      "clusters": [
+        "c3",
+        "c4",
+        "c6"
+      ],
+      "cell_types": [
+        "Macrophages",
+        "Myoepithelial",
+        "B_Cells"
+      ],
+      "n_clusters": 3,
+      "max_score": 6.86559041589935
+    },
+    {
+      "gene_set": "HALLMARK_MTORC1_SIGNALING",
+      "clusters": [
+        "c3",
+        "c5"
+      ],
+      "cell_types": [
+        "Macrophages",
+        "T_Cells"
+      ],
+      "n_clusters": 2,
+      "max_score": 8.87266191765598
+    },
+    {
+      "gene_set": "HALLMARK_UV_RESPONSE_DN",
+      "clusters": [
+        "c7",
+        "c9"
+      ],
+      "cell_types": [
+        "Endothelial",
+        "Mast_Cells"
+      ],
+      "n_clusters": 2,
+      "max_score": 3.97832872611499
+    }
+  ],
+  "per_cluster": [
+    {
+      "cluster": "c1",
+      "cell_type": "Tumor",
+      "category": "Epithelial",
+      "top_themes": [
+        "Androgen Response",
+        "G2M Checkpoint"
+      ],
+      "confidence": "High",
+      "verify": false
+    },
+    {
+      "cluster": "c2",
+      "cell_type": "Stromal",
+      "category": "Stromal",
+      "top_themes": [
+        "Inflammatory Response",
+        "Angiogenesis",
+        "Interferon Gamma Response"
+      ],
+      "confidence": "High",
+      "verify": true
+    },
+    {
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "category": "Immune",
+      "top_themes": [
+        "Interferon Gamma Response",
+        "P53 Pathway",
+        "Glycolysis"
+      ],
+      "confidence": "Medium-High",
+      "verify": false
+    },
+    {
+      "cluster": "c4",
+      "cell_type": "Myoepithelial",
+      "category": "Epithelial",
+      "top_themes": [
+        "Protein Secretion",
+        "Allograft Rejection",
+        "Mitotic Spindle"
+      ],
+      "confidence": "Medium-High",
+      "verify": true
+    },
+    {
+      "cluster": "c5",
+      "cell_type": "T_Cells",
+      "category": "Immune",
+      "top_themes": [
+        "Apical Surface",
+        "P53 Pathway",
+        "Glycolysis"
+      ],
+      "confidence": "High",
+      "verify": false
+    },
+    {
+      "cluster": "c6",
+      "cell_type": "B_Cells",
+      "category": "Immune",
+      "top_themes": [
+        "Interferon Gamma Response",
+        "Pi3K Akt Mtor Signaling",
+        "Hypoxia"
+      ],
+      "confidence": "Very High",
+      "verify": false
+    },
+    {
+      "cluster": "c7",
+      "cell_type": "Endothelial",
+      "category": "Endothelial",
+      "top_themes": [
+        "Interferon Gamma Response",
+        "P53 Pathway",
+        "Uv Response Dn"
+      ],
+      "confidence": "High",
+      "verify": false
+    },
+    {
+      "cluster": "c8",
+      "cell_type": "Dendritic",
+      "category": "Immune",
+      "top_themes": [
+        "Pi3K Akt Mtor Signaling",
+        "Inflammatory Response",
+        "Glycolysis"
+      ],
+      "confidence": "Medium",
+      "verify": true
+    },
+    {
+      "cluster": "c9",
+      "cell_type": "Mast_Cells",
+      "category": "Immune",
+      "top_themes": [
+        "Uv Response Dn",
+        "Allograft Rejection",
+        "Heme Metabolism"
+      ],
+      "confidence": "Low",
+      "verify": true
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "cluster": "c1",
+  "cell_type": "Tumor",
+  "method": "jazzpanda_enrichment",
+  "enriched": [
+    {
+      "gene_set": "HALLMARK_ANDROGEN_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 9.45951374182401,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0,
+      "q_value": 0.0,
+      "set_size_full": 100,
+      "panel_hits": 6,
+      "panel_coverage": 0.06,
+      "leading_edge": [
+        "ALDH1A3",
+        "CCND1",
+        "KRT8",
+        "SCD",
+        "SMS"
+      ],
+      "n_leading_edge": 5,
+      "gc_corr": 0.728058117177178,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 100 genes in HALLMARK_ANDROGEN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_G2M_CHECKPOINT",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 6.43406987293956,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 6.21158680047529e-11,
+      "q_value": 1.14914355808793e-09,
+      "set_size_full": 200,
+      "panel_hits": 6,
+      "panel_coverage": 0.03,
+      "leading_edge": [
+        "CCND1",
+        "CENPF",
+        "HMGA1",
+        "MKI67",
+        "SQLE",
+        "TOP2A"
+      ],
+      "n_leading_edge": 6,
+      "gc_corr": 0.829300175595044,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_G2M_CHECKPOINT are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage"
+      ],
+      "source": "jazzpanda:enrichment"
+    }
+  ],
+  "suggestive": [],
+  "all_tested": [
+    {
+      "gene_set": "HALLMARK_ANDROGEN_RESPONSE",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 9.45951374182401,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 0.0,
+      "q_value": 0.0,
+      "set_size_full": 100,
+      "panel_hits": 6,
+      "panel_coverage": 0.06,
+      "leading_edge": [
+        "ALDH1A3",
+        "CCND1",
+        "KRT8",
+        "SCD",
+        "SMS"
+      ],
+      "n_leading_edge": 5,
+      "gc_corr": 0.728058117177178,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 100 genes in HALLMARK_ANDROGEN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_G2M_CHECKPOINT",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 6.43406987293956,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 6.21158680047529e-11,
+      "q_value": 1.14914355808793e-09,
+      "set_size_full": 200,
+      "panel_hits": 6,
+      "panel_coverage": 0.03,
+      "leading_edge": [
+        "CCND1",
+        "CENPF",
+        "HMGA1",
+        "MKI67",
+        "SQLE",
+        "TOP2A"
+      ],
+      "n_leading_edge": 6,
+      "gc_corr": 0.829300175595044,
+      "tier": "enriched",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_G2M_CHECKPOINT are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage"
+      ],
+      "source": "jazzpanda:enrichment"
+    },
+    {
+      "gene_set": "HALLMARK_FATTY_ACID_METABOLISM",
+      "gene_set_collection": "MSigDB_Hallmark",
+      "score": 5.05878361111797,
+      "score_kind": "jazzpanda_enrichment",
+      "p_value": 2.10969670511041e-07,
+      "q_value": 2.60195926963617e-06,
+      "set_size_full": 158,
+      "panel_hits": 2,
+      "panel_coverage": 0.012658227848101266,
+      "leading_edge": [
+        "FASN",
+        "SMS"
+      ],
+      "n_leading_edge": 2,
+      "gc_corr": 0.880164435198625,
+      "tier": "untestable",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 158 genes in HALLMARK_FATTY_ACID_METABOLISM are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage",
+        "tiny leading edge"
+      ],
+      "source": "jazzpanda:enrichment"
+    }
+  ],
+  "top_theme": "HALLMARK_ANDROGEN_RESPONSE",
+  "confidence": "High",
+  "confidence_score": 0.85,
+  "verify": false,
+  "demotions": [],
+  "source_trace": [
+    "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=6/100 LE=5",
+    "HALLMARK_G2M_CHECKPOINT: score=6.43 q=1.14914355808793e-09 K=6/200 LE=6",
+    "HALLMARK_FATTY_ACID_METABOLISM: score=5.06 q=2.60195926963617e-06 K=2/158 LE=2"
+  ]
+}
