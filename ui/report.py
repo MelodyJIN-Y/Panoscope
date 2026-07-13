@@ -67,6 +67,8 @@ class ClusterSection:
     notes: tuple[NoteLine, ...]
     enrichment: str = ""             # plain-text enriched-programs block (with PMIDs), "" if none
     enrichment_confidence: str = ""  # the cluster's enrichment confidence band, "" if none
+    lineage: str = ""                # for the overview table
+    key_markers: str = ""            # top gene names (no numbers), for the overview table
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,9 @@ class ReportModel:
     refinements: tuple[str, ...]
     set_is_coherent: bool
     dataset_notes: tuple[NoteLine, ...]  # dataset/lab-scoped notes, shown once
+    tissue: str = ""                     # header context (from the manifest)
+    platform: str = ""                   # header context (from the manifest)
+    method: str = "jazzPanda spatial markers"
 
 
 # --------------------------------------------------------------------------- #
@@ -168,12 +173,15 @@ def build_report(
     generated_at: str = "",
     enrichments: dict | None = None,
     pathway_notes: dict | None = None,
+    tissue: str = "",
+    platform: str = "",
 ) -> ReportModel:
     """Assemble the interpretation report from durable, grounded inputs. Pure.
 
     ``enrichments`` maps cluster -> ClusterEnrichment and ``pathway_notes`` maps
     cluster -> {gene_set: note}; when given, each section integrates the cluster's
-    enriched programs + their cited biology alongside the marker call.
+    enriched programs + their cited biology alongside the marker call. ``tissue`` /
+    ``platform`` populate the report header (grounded context, from the manifest).
     """
     enrichments = enrichments or {}
     pathway_notes = pathway_notes or {}
@@ -202,6 +210,8 @@ def build_report(
                 notes=cluster_notes,
                 enrichment=enr_text,
                 enrichment_confidence=enr_conf,
+                lineage=getattr(v, "lineage", "") or "",
+                key_markers=", ".join(v.key_markers[:4]) if v.key_markers else "",
             )
         )
 
@@ -229,7 +239,24 @@ def build_report(
         refinements=refinements,
         set_is_coherent=set_is_coherent,
         dataset_notes=dataset_notes,
+        tissue=tissue,
+        platform=platform,
     )
+
+
+def _dataset_tissue_platform(dataset: str) -> tuple[str, str]:
+    """Read (tissue, platform) from the dataset manifest for the report header.
+
+    Grounded context, straight from the data; ('', '') if the manifest is unreadable."""
+    try:
+        import json
+
+        from pipeline import paths
+
+        m = json.loads((paths.dataset_dir(dataset) / "manifest.json").read_text(encoding="utf-8"))
+        return str(m.get("tissue", "")).strip(), str(m.get("platform", "")).strip()
+    except Exception:  # noqa: BLE001 - a missing manifest just means a plainer header
+        return "", ""
 
 
 def build_report_from_sources(generated_at: str = "") -> ReportModel:
@@ -246,6 +273,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
     except Exception:  # noqa: BLE001 - no enrichment slice -> marker-only report
         enrichments, pathway_notes = {}, {}
 
+    tissue, platform = _dataset_tissue_platform(cfg.DATASET_ID)
     return build_report(
         verdicts=da.composed_verdicts(),  # reflect confirmed overrides/excludes in the report
         celltype_notes=da.celltype_notes(),
@@ -256,7 +284,41 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         generated_at=generated_at,
         enrichments=enrichments,
         pathway_notes=pathway_notes,
+        tissue=tissue,
+        platform=platform,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Header + overview table — shared by the on-page HTML and the documents. The
+# overview table is the skill's Output 1 lead: the confirmed call per cluster.
+# --------------------------------------------------------------------------- #
+_OVERVIEW_COLS = ("Cluster", "Cell type", "Lineage", "Confidence", "Top markers")
+
+
+def _header_meta(report: ReportModel) -> list[str]:
+    """Grounded header lines for the report (the skill Output 1 header)."""
+    ctx = " · ".join(p for p in (report.tissue, report.platform) if p)
+    lines = [report.dataset + (f" · {ctx}" if ctx else "")]
+    lines.append(
+        f"{report.n_clusters} clusters · {report.n_flagged} flagged for re-check · "
+        f"{report.panel_size}-gene panel · marker method: {report.method}"
+    )
+    if report.generated_at:
+        lines.append(f"generated {report.generated_at}")
+    return lines
+
+
+def overview_rows(report: ReportModel) -> list[tuple[str, str, str, str, str]]:
+    """One row per cluster for the overview table: the confirmed calls at a glance.
+
+    Columns match ``_OVERVIEW_COLS``: cluster, cell type (re-check marked), lineage,
+    confidence, top markers."""
+    rows: list[tuple[str, str, str, str, str]] = []
+    for s in report.sections:
+        ct = s.cell_type.replace("_", " ") + ("  (re-check)" if s.verify else "")
+        rows.append((s.cluster, ct, s.lineage, s.confidence, s.key_markers))
+    return rows
 
 
 # --------------------------------------------------------------------------- #
@@ -303,20 +365,44 @@ def _note_html(nl: NoteLine) -> str:
     )
 
 
+def overview_table_html(report: ReportModel) -> str:
+    """The confirmed-call-per-cluster overview table as a self-contained HTML block."""
+    th = "".join(
+        '<th style="text-align:left;padding:5px 10px;border-bottom:1px solid var(--hair,#e3e3e3);'
+        'font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#777)">'
+        f'{_html.escape(c)}</th>'
+        for c in _OVERVIEW_COLS
+    )
+    trs: list[str] = []
+    for cluster, ct, lineage, conf, markers in overview_rows(report):
+        name = ct.replace("  (re-check)", "")
+        flag = ' <span style="color:#b23b3b;font-size:10px">⚑</span>' if "(re-check)" in ct else ""
+        trs.append(
+            '<tr style="border-bottom:1px solid var(--hair,#f0f0f0)">'
+            f'<td style="padding:5px 10px;font-family:var(--mono,monospace);font-size:12px">{_html.escape(cluster)}</td>'
+            f'<td style="padding:5px 10px;font-weight:600">{_html.escape(name)}{flag}</td>'
+            f'<td style="padding:5px 10px;font-size:12px;color:var(--muted,#777)">{_html.escape(lineage)}</td>'
+            f'<td style="padding:5px 10px">{_chip(conf)}</td>'
+            f'<td style="padding:5px 10px;font-size:12px;font-variant-numeric:tabular-nums">{_html.escape(markers)}</td>'
+            "</tr>"
+        )
+    return (
+        '<table style="border-collapse:collapse;width:100%;margin:6px 0 14px">'
+        f'<thead><tr>{th}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
+    )
+
+
 def report_html(report: ReportModel) -> str:
-    """The interpretation summary as a self-contained HTML string (pure)."""
-    parts: list[str] = []
-    meta = (
-        f"{report.n_clusters} clusters · {report.n_flagged} flagged for re-check · "
-        f"{report.panel_size}-gene panel"
-    )
-    if report.generated_at:
-        meta += f" · {_html.escape(report.generated_at)}"
+    """The interpretation summary as a self-contained HTML string (pure): a header, the
+    confirmed-call overview table, then the per-cluster detail (identity + programs)."""
+    parts: list[str] = ['<div style="font-size:13px">']
     parts.append(
-        f'<div style="font-size:13px"><p style="font-size:12px;color:var(--muted,#777);'
-        f'letter-spacing:.04em;text-transform:uppercase">Interpretation summary</p>'
-        f'<p style="color:var(--muted,#777);margin:-4px 0 12px">{_html.escape(meta)}</p>'
+        '<p style="font-size:12px;color:var(--muted,#777);letter-spacing:.04em;'
+        'text-transform:uppercase;margin-bottom:4px">Interpretation summary</p>'
     )
+    for h in _header_meta(report):
+        parts.append(f'<p style="color:var(--muted,#777);margin:0 0 2px;font-size:12px">{_html.escape(h)}</p>')
+    parts.append(overview_table_html(report))
     for s in report.sections:
         flag = ' <span style="color:#b23b3b;font-size:11px">⚑ re-check</span>' if s.verify else ""
         parts.append(
@@ -328,6 +414,12 @@ def report_html(report: ReportModel) -> str:
         if s.biology:
             bio = s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
             parts.append(f'<div style="font-size:12px;margin-top:4px"><em>Biology:</em> {_linkify(bio)}</div>')
+        if s.enrichment:
+            conf = f" ({_html.escape(s.enrichment_confidence)})" if s.enrichment_confidence else ""
+            parts.append(
+                f'<div style="font-size:12px;margin-top:4px"><em>Programs{conf}, panel-scoped:</em> '
+                f'{_linkify(s.enrichment)}</div>'
+            )
         if s.settle:
             parts.append(
                 f'<div style="font-size:12px;margin-top:4px;color:var(--accent,#3b6fd4)">'
@@ -389,22 +481,21 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
 
     style in {title, meta, h2, body, note}. Keeps docx and pdf in sync.
     """
-    lines: list[tuple[str, str]] = [("title", "Panoscope — interpretation summary")]
-    meta = (
-        f"{report.dataset} · {report.n_clusters} clusters · {report.n_flagged} flagged · "
-        f"{report.panel_size}-gene panel"
-    )
-    if report.generated_at:
-        meta += f" · {report.generated_at}"
-    lines.append(("meta", meta))
+    lines: list[tuple[str, str]] = [("title", "Panoscope: interpretation summary")]
+    for h in _header_meta(report):
+        lines.append(("meta", h))
+    lines.append(("overview", ""))  # rendered as a table by the doc builders
 
     for s in report.sections:
-        head = f"{s.cluster} · {s.cell_type} — {s.confidence}" + ("  [re-check]" if s.verify else "")
+        head = f"{s.cluster} · {s.cell_type} ({s.confidence})" + ("  [re-check]" if s.verify else "")
         lines.append(("h2", head))
         lines.append(("body", f"Drivers: {s.driver_line}"))
         if s.biology:
             bio = s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
             lines.append(("body", f"Biology: {bio}"))
+        if s.enrichment:
+            conf = f" ({s.enrichment_confidence})" if s.enrichment_confidence else ""
+            lines.append(("body", f"Programs{conf}, panel-scoped: {s.enrichment}"))
         if s.settle:
             lines.append(("body", f"What would settle it: {s.settle}"))
         for nl in s.notes:
@@ -423,8 +514,25 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
     return lines
 
 
-def _lines_to_docx(lines: list[tuple[str, str]]) -> bytes:
-    """Render (style, text) lines as a Word .docx (editable). Requires python-docx."""
+def _docx_overview_table(doc, overview: list[tuple]) -> None:
+    """Render the confirmed-call overview as a real Word table."""
+    table = doc.add_table(rows=1, cols=len(_OVERVIEW_COLS))
+    try:
+        table.style = "Table Grid"
+    except Exception:  # noqa: BLE001 - a missing style just means an unbordered table
+        pass
+    for i, col in enumerate(_OVERVIEW_COLS):
+        table.rows[0].cells[i].text = col
+    for row in overview:
+        cells = table.add_row().cells
+        for i, val in enumerate(row):
+            cells[i].text = str(val)
+
+
+def _lines_to_docx(lines: list[tuple[str, str]], *, overview: list[tuple] | None = None) -> bytes:
+    """Render (style, text) lines as a Word .docx (editable). Requires python-docx.
+
+    An ``("overview", "")`` line renders the confirmed-call table from ``overview``."""
     from io import BytesIO
 
     from docx import Document
@@ -435,6 +543,9 @@ def _lines_to_docx(lines: list[tuple[str, str]]) -> bytes:
             doc.add_heading(text, level=0)
         elif style == "meta":
             doc.add_paragraph(text)
+        elif style == "overview":
+            if overview:
+                _docx_overview_table(doc, overview)
         elif style == "h2":
             doc.add_heading(text, level=2)
         elif style == "note":
@@ -446,7 +557,26 @@ def _lines_to_docx(lines: list[tuple[str, str]]) -> bytes:
     return buf.getvalue()
 
 
-def _lines_to_pdf(lines: list[tuple[str, str]]) -> bytes:
+# PDF overview-table column widths (mm), summing under the ~190mm usable A4 width.
+_PDF_COL_W = (16, 40, 32, 26, 68)
+
+
+def _pdf_overview_table(pdf, overview: list[tuple]) -> None:
+    """Render the confirmed-call overview as a bordered grid in the PDF."""
+    pdf.ln(1)
+    pdf.set_font("Helvetica", "B", 8)
+    for w, col in zip(_PDF_COL_W, _OVERVIEW_COLS):
+        pdf.cell(w, 6, _pdf_safe(col), border=1)
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 7.5)
+    for row in overview:
+        for w, val in zip(_PDF_COL_W, row):
+            pdf.cell(w, 6, _pdf_safe(str(val))[:44], border=1)
+        pdf.ln()
+    pdf.ln(2)
+
+
+def _lines_to_pdf(lines: list[tuple[str, str]], *, overview: list[tuple] | None = None) -> bytes:
     """Render (style, text) lines as a PDF (locked). Requires fpdf2."""
     from fpdf import FPDF
     from fpdf.enums import XPos, YPos
@@ -461,6 +591,10 @@ def _lines_to_pdf(lines: list[tuple[str, str]]) -> bytes:
         pdf.multi_cell(0, h, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     for style, raw in lines:
+        if style == "overview":
+            if overview:
+                _pdf_overview_table(pdf, overview)
+            continue
         text = _pdf_safe(raw)
         if style == "title":
             pdf.set_font("Helvetica", "B", 16)
@@ -485,12 +619,12 @@ def _lines_to_pdf(lines: list[tuple[str, str]]) -> bytes:
 
 def report_to_docx(report: ReportModel) -> bytes:
     """Render the structured report as a Word .docx (editable). Requires python-docx."""
-    return _lines_to_docx(_section_lines(report))
+    return _lines_to_docx(_section_lines(report), overview=overview_rows(report))
 
 
 def report_to_pdf(report: ReportModel) -> bytes:
     """Render the structured report as a PDF (locked). Requires fpdf2."""
-    return _lines_to_pdf(_section_lines(report))
+    return _lines_to_pdf(_section_lines(report), overview=overview_rows(report))
 
 
 # --------------------------------------------------------------------------- #
@@ -542,19 +676,28 @@ def _working_lines(
     *,
     dataset: str,
     generated_at: str,
+    header: list[str] | None = None,
+    has_overview: bool = False,
     global_check: str = "",
     caveats: str = "",
     lab_notes: tuple[NoteLine, ...] = (),
 ) -> list[tuple[str, str]]:
-    """(style, text) lines for the EDITED working-space export — per-cluster summaries,
-    the cross-cluster global check, then the caveats (the biologist's report shape)."""
-    lines: list[tuple[str, str]] = [("title", "Panoscope — interpretation summary")]
-    meta = f"{dataset} · {len(sections)} clusters"
-    if generated_at:
-        meta += f" · {generated_at}"
-    lines.append(("meta", meta))
+    """(style, text) lines for the EDITED working-space export: an overview table, the
+    per-cluster summaries, the cross-cluster global check, then the caveats (the
+    biologist's report shape). ``header`` replaces the bare meta line when given."""
+    lines: list[tuple[str, str]] = [("title", "Panoscope: interpretation summary")]
+    if header:
+        for h in header:
+            lines.append(("meta", h))
+    else:
+        meta = f"{dataset} · {len(sections)} clusters"
+        if generated_at:
+            meta += f" · {generated_at}"
+        lines.append(("meta", meta))
+    if has_overview:
+        lines.append(("overview", ""))
     for cluster, cell_type, confidence, verify, text in sections:
-        head = f"{cluster} · {cell_type} — {confidence}" + ("  [re-check]" if verify else "")
+        head = f"{cluster} · {cell_type} ({confidence})" + ("  [re-check]" if verify else "")
         lines.append(("h2", head))
         lines.extend(_blocks(text))
     if global_check.strip():
@@ -630,14 +773,23 @@ def caveats_text(verdicts, enrichments: dict, panel_size: int) -> str:
     return "\n\n".join(paras)
 
 
-def working_docx(sections, **kw) -> bytes:
-    """Export the (edited) working space as a Word .docx."""
-    return _lines_to_docx(_working_lines(sections, **kw))
+def working_docx(sections, *, report_model: ReportModel | None = None, **kw) -> bytes:
+    """Export the (edited) working space as a Word .docx.
+
+    ``report_model`` (the assembled report) adds the grounded header and the
+    confirmed-call overview table at the top."""
+    header = _header_meta(report_model) if report_model else None
+    overview = overview_rows(report_model) if report_model else None
+    lines = _working_lines(sections, header=header, has_overview=overview is not None, **kw)
+    return _lines_to_docx(lines, overview=overview)
 
 
-def working_pdf(sections, **kw) -> bytes:
-    """Export the (edited) working space as a PDF."""
-    return _lines_to_pdf(_working_lines(sections, **kw))
+def working_pdf(sections, *, report_model: ReportModel | None = None, **kw) -> bytes:
+    """Export the (edited) working space as a PDF (with the header + overview table)."""
+    header = _header_meta(report_model) if report_model else None
+    overview = overview_rows(report_model) if report_model else None
+    lines = _working_lines(sections, header=header, has_overview=overview is not None, **kw)
+    return _lines_to_pdf(lines, overview=overview)
 
 
 __all__ = [
@@ -646,6 +798,8 @@ __all__ = [
     "ReportModel",
     "build_report",
     "build_report_from_sources",
+    "overview_rows",
+    "overview_table_html",
     "report_html",
     "render_report_html",
     "report_to_docx",

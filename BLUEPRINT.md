@@ -8,9 +8,18 @@ Lead architect synthesis of six subsystem specs into one buildable plan. Every l
 > - a **per-dataset pipeline** (`pipeline/`) that builds a self-contained `data/datasets/<id>/` tree the UI
 >   reads with no live recompute — superseding the flat `data/*` tidy layout in §1 (still read as a legacy
 >   fallback);
+> - a **fully parameterized pipeline**: the active dataset is selected with `PANOSCOPE_DATASET`, the cluster
+>   set and cell types are derived from the dataset (the marker skill's `annotate` stage writes
+>   `interp/annotation.json`), and each stage is read-if-present, else generate — with a `prep` stage
+>   (`pipeline/stages/prep.py`) for the raw `.Rds` → tidy-inputs boundary;
 > - a **second workflow + skill**, `skills/geneset-enrichment/` (the Pathways gene-set enrichment);
 > - **note-capture**: eight typed, anchored lab notes, widening the single `Note`/override in §2;
-> - a **second-opinion skeptic** specialist (`agent/skeptic.py`).
+> - a **second opinion in two layers**: a deterministic risk flag (`agent/skeptic.py`) and a live,
+>   grounded pressure-test agent (`loop.pressure_test`), both cleared by the same grounding gate;
+> - a **portable user memory** (`agent/user_memory.py`): distilled, tissue-tagged decisions kept locally
+>   across projects and loaded back as prior lab knowledge;
+> - **tissue-aware prompts**: a grounded dataset-context block (from the manifest) injected into every
+>   turn, a search preference and never a citation filter, that can never move a number.
 >
 > For the **current** architecture and the agent roles, read [`AGENTS.md`](AGENTS.md), `CLAUDE.md`, and
 > [`README.md`](README.md). Everything below is the original plan, unedited (section numbers unchanged, so

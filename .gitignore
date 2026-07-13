@@ -77,6 +77,10 @@ data/datasets/*/interp/chat_threads.json
 # onboarding to personalize literature search. Local-only, never committed (privacy).
 context/profile.json
 
+# User memory — the biologist's own decisions, distilled and portable across
+# projects. Local-only, never committed (privacy), same model as the profile.
+context/user_memory.jsonl
+
 # ── OS / editor cruft ───────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store

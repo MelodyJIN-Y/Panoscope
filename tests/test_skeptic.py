@@ -43,3 +43,45 @@ def test_every_number_in_the_report_is_grounded():
 def test_unknown_cluster_raises():
     with pytest.raises(KeyError):
         skeptic.second_opinion("c99")
+
+
+# --------------------------------------------------------------------------- #
+# The LIVE second-opinion agent (loop.pressure_test): tissue-aware prompt, and a
+# deterministic grounded fallback with no model (forced offline, no network).
+# --------------------------------------------------------------------------- #
+def test_pressure_test_offline_falls_back_to_grounded_skeptic():
+    from agent import loop
+
+    ag = loop.PanoscopeAgent()
+    ag._get_client = lambda: None  # force offline: no live model
+    resp = ag.pressure_test("c9")
+    assert resp.used_fallback is True
+    assert resp.verify is True  # c9 is fragile -> re-check
+    # the fallback prose clears the SAME grounding gate as any answer
+    checker = GroundingChecker(literature_verifier=lambda _ident: True)
+    assert checker.check(resp.text).ok, resp.text
+    # a clean call withstands (verify False)
+    assert ag.pressure_test("c2").verify is False
+
+
+def test_skeptic_system_prompt_is_tissue_aware_and_guardrailed():
+    from agent import loop
+
+    sp = loop.build_system_prompt("c9", skill="skeptic")
+    assert "SECOND-OPINION SKEPTIC" in sp          # the adversarial contract
+    assert "ADVERSARIAL SCAFFOLD" in sp            # the deterministic grounded seed
+    assert "DATASET CONTEXT" in sp and "human breast cancer" in sp  # tissue-aware
+    # the "no nonsense" guardrails must be present
+    assert "off-panel" in sp and "cannot weigh" in sp
+    assert "do NOT cry wolf" in sp.lower() or "do not cry wolf" in sp.lower()
+
+
+def test_dataset_context_is_a_preference_not_a_filter():
+    from agent import loop
+
+    loop._dataset_context.cache_clear()
+    ctx = loop._dataset_context()
+    assert "human breast cancer" in ctx
+    assert "NOT a citation filter" in ctx
+    # open-ceiling boundary: it can never move a number
+    assert "never change a jazzpanda number" in ctx.lower()
