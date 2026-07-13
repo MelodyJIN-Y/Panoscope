@@ -1,5 +1,5 @@
 # ── Private docs (explicitly kept out of the repo) ──────────────────────────
-CLAUDE.md
+# CLAUDE.md is intentionally SHIPPED (the design + grounding contract); the two below stay local.
 HACKATHON_STRATEGY.md
 DEMO.md
 # Demo / verification runners — kept local for recording, not shipped
