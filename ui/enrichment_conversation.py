@@ -70,13 +70,14 @@ def render_pathway_conversation(cluster: str) -> None:
     # so a program_reinterpretation captured here never collides with the marker draft.
     convo._render_draft_card(cluster, thread_key=_thread_key(cluster))
     _render_ask_box(cluster)
+    convo._scroll_thread_to_bottom(len(state.get_chat_thread(_thread_key(cluster))))
 
 
 def _render_header(cluster: str) -> None:
     import streamlit as st
 
     ce = _ce(cluster)
-    cell_type = html.escape(ce.cell_type.replace("_", " ")) if ce else ""
+    cell_type = html.escape(da.display_cell_type(cluster).replace("_", " "))  # reflects an override
     with st.container(key="conv_head"):
         c_title, c_clear = st.columns([0.72, 0.28], vertical_alignment="center")
         with c_title:
@@ -120,7 +121,7 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
     citations + 'Sources' line + re-check note as the marker opening (parity) — with
     NO live call (the PMIDs are the precomputed real ones from pathway_notes)."""
     ce = _ce(cluster)
-    ct = ce.cell_type.replace("_", " ") if ce else cluster
+    ct = da.display_cell_type(cluster).replace("_", " ")  # reflects an override
     verify = bool(getattr(ce, "verify", False))
     if ce is None or (not ce.enriched and not ce.suggestive):
         return (
@@ -210,9 +211,15 @@ def _render_ask_box(cluster: str) -> None:
         # Phase 1: show the message + a thinking indicator instantly; the live agent
         # turn runs on the next rerun (see _process_pending).
         key = _thread_key(cluster)
-        state.append_message(key, {"role": "user", "text": query.strip(), "resp": None})
-        st.session_state[f"pending_q_{key}"] = query.strip()
-        convo._rerun(st)
+        q = query.strip()
+        thread = state.get_chat_thread(key)
+        if thread and thread[-1].get("role") == "user" and thread[-1].get("text") == q:
+            return  # ignore an immediate duplicate of an unanswered question
+        if st.session_state.get(f"pending_q_{key}"):
+            return  # a turn is already queued
+        state.append_message(key, {"role": "user", "text": q, "resp": None})
+        st.session_state[f"pending_q_{key}"] = q
+        convo._rerun(st, scope="fragment")
 
 
 def _process_pending(cluster: str) -> None:
@@ -227,7 +234,7 @@ def _process_pending(cluster: str) -> None:
     st.session_state.pop(pkey, None)
     with st.spinner("Reading the literature…"):
         _run_turn(cluster, query)
-    convo._rerun(st)
+    convo._rerun(st, scope="fragment")
 
 
 _FALLBACK_TEXT = (

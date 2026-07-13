@@ -128,15 +128,27 @@ the engine; you are the interpretation layer. You never run jazzPanda live.
    confidence stance — NEVER change a number, it is an overlay); an exclude (a
    doublet/artifact cluster); or a cross_cluster note (two+ clusters are one →
    scope=dataset, subject_clusters=[ids]). It cross-checks the claim against the
-   literature and the biologist confirms scope/basis before it is saved. Do NOT draft
-   for questions, acknowledgements, view commands, or mid-thought hedges. You MUST
-   actually CALL the `memory_draft` tool — that is what shows the confirm card; never
-   just say "drafting the note" without calling it. Then, in ONE short sentence, tell
-   them to confirm scope/basis below; keep the disagreement visible, never a bare
-   acknowledgement.
+   literature and the biologist confirms scope/basis before it is saved. `memory_draft`
+   ALREADY cross-checks the literature for you: on an override/record assertion, call
+   `memory_draft` DIRECTLY and do NOT run a separate `literature_search`/`literature_fetch`
+   or `discriminate_call` for the same claim (that only makes the note slow; the tool
+   has it). Do NOT draft for questions, acknowledgements, view commands, or mid-thought
+   hedges. You MUST actually CALL the `memory_draft` tool — that is what shows the confirm
+   card; never just say "drafting the note" without calling it. Then, in ONE short
+   sentence, tell them to confirm scope/basis below; keep the disagreement visible, never
+   a bare acknowledgement.
 5. WHEN UNSURE, say "re-check this" and set the verify flag — do not guess to
    seem helpful.
-6. PLAIN CHAT PROSE. This is a conversation, not a document: reply in a few short
+6. TEST A RIVAL CELL TYPE AUTOMATICALLY. When the biologist proposes, hints at, or
+   asks about a DIFFERENT cell type for the cluster (e.g. "could this be X?", "I
+   think it's more like X", "isn't this X?", "might be a Y"), CALL `discriminate_call`
+   with that alternative and give the grounded comparison: which markers support the
+   current call HERE (with numbers), where the alternative's on-panel markers localize
+   (measured — they argue for or against), and which are off-panel (never measured,
+   cannot settle). Then state which the measured markers favor. A tentative hypothesis
+   is a comparison only (do NOT draft a note); a FIRM assertion of a new call is also a
+   memory_draft per rule 4.
+7. PLAIN CHAT PROSE. This is a conversation, not a document: reply in a few short
    sentences. NEVER use markdown headings (#), tables, or bullet lists. Every point
    names a gene and its number; state the confidence and the caveat. No hype, short
    over long — two or three sentences beats a formatted write-up.
@@ -600,9 +612,11 @@ class _Ledger:
         self.citations: list[Citation] = []
         self.pin_marker: Optional[str] = None
         self.note_draft: Optional[NoteDraft] = None
+        self.tools_used: set[str] = set()
 
     # -- record one tool call's envelope ----------------------------------- #
     def record(self, tool_name: str, envelope: dict[str, Any]) -> None:
+        self.tools_used.add(tool_name)  # the tool was triggered (used for UI badges)
         if not isinstance(envelope, dict) or not envelope.get("ok"):
             return
         data = envelope.get("data")
@@ -1239,6 +1253,7 @@ class PanoscopeAgent:
             note_draft=ledger.note_draft,
             used_fallback=False,
             opening=False,
+            tools_used=tuple(sorted(ledger.tools_used)),
         )
 
     # -- guarded primitives (never raise) ---------------------------------- #

@@ -64,7 +64,6 @@ _K_ASK = "conv_ask_input"
 _BASIS_OPTS: tuple[tuple[str, str], ...] = (
     ("our own data", "own_validation"),
     ("a paper", "paper"),
-    ("convention", "convention"),
 )
 _SCOPE_SAVED_LABEL: dict[str, str] = {
     "dataset": "this dataset",
@@ -111,8 +110,11 @@ _CONVO_CSS = """
   background: var(--absent-bg) !important;
 }
 /* Thread: grows to fit its content and only scrolls once it gets tall, so a
-   short thread leaves NO dead space above the ask box. */
-.st-key-conv_thread { max-height: 496px; overflow-y: auto; padding-right: 8px; }
+   short thread leaves NO dead space above the ask box. The reserve (below the
+   viewport) must leave room for the pinned ask box AND the chat's top offset, or
+   the ask row is pushed off-screen and can't be clicked; the modest min-height
+   keeps a short thread from forcing the ask box down on laptop-height screens. */
+.st-key-conv_thread { max-height: calc(100vh - 430px); min-height: 220px; overflow-y: auto; padding-right: 8px; }
 /* Turn wrappers: agent to the left, you to the right — reads as a chat. */
 .turn { display: flex; flex-direction: column; margin: 0 0 13px; }
 .turn.a { align-items: flex-start; }
@@ -175,6 +177,14 @@ div[class*="st-key-conv_draft"] {
 /* 'Also save to my memory' checkbox: quieter than the primary Save. */
 div[class*="st-key-conv_draft"] label[data-testid="stCheckbox"] { font-size: 11.5px !important; color: var(--muted) !important; }
 div[class*="st-key-conv_draft"] [data-testid="stButton"] button { min-height: 34px !important; border-radius: 8px !important; }
+/* Tool badge at the top of an answer, so the biologist SEES a specialist ran (rival-test). */
+.pano-tool { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap; }
+.pano-tool .tchip {
+  font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 20px;
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.pano-tool .tlbl { font-size: 10.5px; color: var(--faint); }
 </style>
 """
 
@@ -201,15 +211,15 @@ def render_conversation(cluster: str) -> None:
         "and saves it to My notes.</div>",
         unsafe_allow_html=True,
     )
-    _render_skeptic_zone(cluster)
+    _render_risk_flag(cluster)
 
     with st.container(key="conv_thread"):
         _render_thread(cluster)
 
     process_pending(cluster)
-    _process_pressure_test(cluster)
     _render_draft_card(cluster)
     _render_ask_box(cluster)
+    _scroll_thread_to_bottom(len(state.get_chat_thread(cluster)))
 
 
 # --------------------------------------------------------------------------- #
@@ -219,15 +229,8 @@ def render_conversation(cluster: str) -> None:
 # --------------------------------------------------------------------------- #
 _SKEPTIC_CSS = """
 <style>
-div[class*="st-key-conv_skeptic"] [data-testid="stButton"] button {
-  background: transparent !important; border: 1px dashed var(--hair) !important;
-  color: var(--muted) !important; box-shadow: none !important; min-height: 0 !important;
-  padding: 5px 0 !important; border-radius: 8px !important; font-family: var(--mono) !important;
-  font-size: 10.5px !important; letter-spacing: .06em; text-transform: uppercase;
-}
-div[class*="st-key-conv_skeptic"] [data-testid="stButton"] button:hover {
-  color: var(--accent) !important; border-color: var(--accent) !important;
-}
+/* Hide the 'press enter to submit' caption under the ask input; the placeholder is enough. */
+div[class*="st-key-conv_"] [data-testid="InputInstructions"] { display: none !important; }
 .second-op { border: 1px solid var(--hair); border-radius: 11px; padding: 11px 13px;
   margin: 4px 0 12px; background: rgba(120,120,120,.035); }
 .second-op.so-recheck { border-color: var(--absent); background: var(--absent-bg); }
@@ -250,60 +253,13 @@ div[class*="st-key-conv_skeptic"] [data-testid="stButton"] button:hover {
 """
 
 
-def _render_skeptic_zone(cluster: str) -> None:
-    """Two layers. A deterministic RISK FLAG auto-shows on a verify-flagged call (an
-    instant, numbers-only triage light — not an agent). The live SECOND-OPINION agent
-    runs on demand ("Pressure-test this call") and posts a grounded, cited challenge
-    into the thread."""
-    import streamlit as st
-
+def _render_risk_flag(cluster: str) -> None:
+    """The deterministic RISK FLAG: a numbers-only triage light auto-shown on a
+    verify-flagged call. An instant self-check ("is this call solid?"), not an agent.
+    Testing a rival cell-type idea is a chat action (see the ask box)."""
     verdict = _verdict_or_none(cluster)
     if bool(getattr(verdict, "verify", False)):
         _render_second_opinion(cluster)
-    with st.container(key="conv_skeptic"):
-        clicked = st.button(
-            "⚖  Pressure-test this call",
-            key=f"skbtn_{cluster}",
-            use_container_width=True,
-            help="Ask the live second-opinion agent to challenge this call from grounded "
-            "facts, tissue-aware and cited. Falls back to the deterministic check offline.",
-        )
-    if clicked:
-        st.session_state[_pressure_key(cluster)] = True
-        _rerun(st)
-
-
-def _pressure_key(cluster: str) -> str:
-    return f"pressure_pending_{cluster}"
-
-
-def _process_pressure_test(cluster: str) -> None:
-    """If a pressure-test is pending, run the live skeptic and post it into the thread.
-
-    Split from the button (like the ask box) so the spinner shows while the live agent
-    runs; the result is a normal agent bubble (grounded prose + any real citation)."""
-    import streamlit as st
-
-    if not st.session_state.get(_pressure_key(cluster)):
-        return
-    st.session_state.pop(_pressure_key(cluster), None)  # clear first so an error can't loop
-    with st.spinner("Pressure-testing the call…"):
-        resp = _safe_pressure_test(cluster)
-    state.append_message(
-        cluster, {"role": _ROLE_SYSTEM, "text": "Second opinion — pressure-test:", "resp": None}
-    )
-    state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
-    _rerun(st)
-
-
-def _safe_pressure_test(cluster: str) -> AgentResponse:
-    """Run the live second-opinion agent; never raise into the render path."""
-    try:
-        return dax.get_agent().pressure_test(cluster)
-    except Exception:  # noqa: BLE001 - the agent has its own deterministic fallback
-        from agent import loop as agent_loop
-
-        return agent_loop.pressure_test(cluster)
 
 
 def _render_second_opinion(cluster: str) -> None:
@@ -457,11 +413,24 @@ def _render_agent_bubble(msg: dict) -> None:
     prose_html = _linkify_citations(text)
     sources_html = _sources_line_html(resp.sources if resp else ())
     verify_html = _verify_line_html(resp)
+    tool_html = _tool_badge_html(resp)
     st.markdown(
         f'<div class="turn a"><div class="who">agent</div>'
-        f'<div class="bubble a">{prose_html}{verify_html}{sources_html}</div></div>',
+        f'<div class="bubble a">{tool_html}{prose_html}{verify_html}{sources_html}</div></div>',
         unsafe_allow_html=True,
     )
+
+
+def _tool_badge_html(resp: Optional[AgentResponse]) -> str:
+    """A badge at the top of an answer when a specialist tool actually ran, so the
+    biologist SEES what happened (not just a spinner). Today: the rival-test."""
+    used = tuple(getattr(resp, "tools_used", ()) or ()) if resp else ()
+    if "discriminate_call" in used:
+        return (
+            '<div class="pano-tool"><span class="tchip">&#9878; rival-test</span>'
+            '<span class="tlbl">weighed this call against the cell type you suggested</span></div>'
+        )
+    return ""
 
 
 def _verify_line_html(resp: Optional[AgentResponse]) -> str:
@@ -546,6 +515,9 @@ def _render_ask_box(cluster: str) -> None:
     """
     import streamlit as st
 
+    # One input. Open chat about the biology, an override, OR a rival hypothesis: when
+    # the biologist suggests a different cell type, the agent detects it and runs the
+    # grounded comparison itself (the discriminate_call tool), no separate control.
     with st.container(key="conv_ask"):
         with st.form(key=f"ask_form_{cluster}", clear_on_submit=True):
             c_in, c_send = st.columns([0.78, 0.22], vertical_alignment="bottom")
@@ -553,7 +525,7 @@ def _render_ask_box(cluster: str) -> None:
                 query = st.text_input(
                     "Ask",
                     key=_K_ASK,
-                    placeholder="Ask or override this call…",
+                    placeholder="Ask, suggest another cell type, or override this call…",
                     label_visibility="collapsed",
                 )
             with c_send:
@@ -562,13 +534,27 @@ def _render_ask_box(cluster: str) -> None:
                 )
 
     if asked and query and query.strip():
-        # Phase 1: append the user's message and mark the query pending, then rerun —
-        # so the message and a "thinking" indicator appear INSTANTLY. The (slower) live
-        # agent turn runs on that rerun (see _process_pending), not while the user waits
-        # with nothing on screen.
-        state.append_message(cluster, {"role": _ROLE_USER, "text": query.strip(), "resp": None})
-        st.session_state[_pending_key(cluster)] = query.strip()
-        _rerun(st)
+        _submit_query(cluster, query.strip())
+
+
+def _submit_query(cluster: str, query: str) -> None:
+    """Append the user turn and mark it pending, then rerun so the message + a thinking
+    indicator appear INSTANTLY; the (slower) grounded agent turn runs on that rerun
+    (see ``process_pending``), not while the user waits with nothing on screen.
+
+    Ignores an immediate duplicate: if the last message is the SAME question still
+    awaiting an answer (the user re-sent it because a slow turn looked stuck), we drop
+    the resend rather than stacking a second identical bubble + a second turn."""
+    import streamlit as st
+
+    thread = state.get_chat_thread(cluster)
+    if thread and thread[-1].get("role") == _ROLE_USER and thread[-1].get("text") == query:
+        return
+    if st.session_state.get(_pending_key(cluster)):  # a turn is already queued
+        return
+    state.append_message(cluster, {"role": _ROLE_USER, "text": query, "resp": None})
+    st.session_state[_pending_key(cluster)] = query
+    _rerun(st, scope="fragment")
 
 
 def _pending_key(cluster: str) -> str:
@@ -586,9 +572,43 @@ def process_pending(cluster: str) -> None:
     if not query:
         return
     st.session_state.pop(pkey, None)  # clear first so an error can't loop
-    with st.spinner("Reading the literature…"):
+    if _looks_like_override(query):
+        spinner = "Drafting your note and cross-checking the literature… (this takes a moment)"
+    elif _looks_like_rival(query):
+        spinner = "⚖ Testing this against the current call…"
+    else:
+        spinner = "Reading the literature…"
+    with st.spinner(spinner):
         _run_agent_turn(cluster, query)
-    _rerun(st)
+    _rerun(st, scope="fragment")
+
+
+# Detects an override/record assertion so the spinner sets the right expectation
+# (the note turn cross-checks the literature and is the slowest, ~20-30s).
+_OVERRIDE_HINT = re.compile(
+    r"record (?:it|this|that)|save (?:it|this)|our call|override|make it a|note this|"
+    r"log (?:it|this)|it'?s (?:actually |really )?(?:a |an )",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_override(query: str) -> bool:
+    return bool(_OVERRIDE_HINT.search(query or ""))
+
+
+# Heuristic used ONLY to pick the spinner label (the agent still decides what to run):
+# does the message look like the biologist proposing a rival cell type?
+_RIVAL_HINT = re.compile(
+    r"could (?:this|it) be|might (?:this|it) be|is (?:this|it) (?:a |an |actually)|"
+    r"isn'?t (?:this|it)|more like|i think (?:it'?s|this is|its)|rather than|"
+    r"instead of|\bvs\.?\b|versus|actually (?:a |an |the )|looks like|resembl",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_rival(query: str) -> bool:
+    """True if the message reads like a rival cell-type suggestion (spinner label only)."""
+    return bool(_RIVAL_HINT.search(query or ""))
 
 
 def _run_agent_turn(cluster: str, query: str) -> None:
@@ -666,7 +686,7 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
             key,
             {"role": _ROLE_SYSTEM, "text": "Draft discarded, nothing was saved.", "resp": None},
         )
-        _rerun(st)
+        _rerun(st, scope="fragment")
     elif save:
         # Scope + status carry the agent's proposal unchanged (only basis is confirmed).
         edited = dataclasses.replace(
@@ -675,7 +695,7 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
             cluster=cluster if draft.scope == "cluster" else None,
         )
         _save_pending_draft(key, edited, trigger, to_memory=bool(to_memory))
-        _rerun(st)
+        _rerun(st, scope="fragment")
 
 
 def _scope_static_label(draft: Any, cluster: str) -> str:
@@ -923,11 +943,38 @@ def _verdict_or_none(cluster: str) -> Optional[Any]:
         return None
 
 
-def _rerun(st: Any) -> None:
-    """Rerun the script (supports both the new and legacy Streamlit API)."""
+def _rerun(st: Any, *, scope: Optional[str] = None) -> None:
+    """Rerun the script, or just the current fragment when ``scope='fragment'`` (so a chat
+    turn re-renders only the chat pane, not the whole app). Falls back to a full rerun if
+    scoping is unsupported or we are not inside a fragment."""
     rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if callable(rerun):
-        rerun()
+    if not callable(rerun):
+        return
+    if scope:
+        try:
+            rerun(scope=scope)
+            return
+        except Exception:  # noqa: BLE001 - not in a fragment / older API -> full rerun
+            pass
+    rerun()
+
+
+def _scroll_thread_to_bottom(nonce: Any) -> None:
+    """Scroll the chat thread to the newest message so a reply pops into view without the
+    user scrolling. ``nonce`` (the message count) makes the injected script unique so it
+    re-runs on each new message."""
+    try:
+        import streamlit.components.v1 as components
+
+        components.html(
+            f"<script>/*{nonce}*/setTimeout(function(){{"
+            "var els=window.parent.document.querySelectorAll('[class*=\"st-key-conv_thread\"]');"
+            "els.forEach(function(e){e.scrollTop=e.scrollHeight;});"
+            "}},60);</script>",
+            height=0,
+        )
+    except Exception:  # noqa: BLE001 - auto-scroll is a nicety; never break the pane
+        pass
 
 
 __all__ = ["render_conversation"]

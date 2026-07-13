@@ -345,7 +345,7 @@ def to_csv(verdicts: list[ClusterVerdict], header=True) -> str              # 11
 ### `agent/memory.py`
 ```python
 def create_note(*, claim, scope, basis, status="firm", cluster=None, subject_cell_type=None,
-                subject_markers=None, attributed_to="melody.xyjin@gmail.com",
+                subject_markers=None, attributed_to="you@example.com",
                 trigger="override", supersedes=None, literature_search=None) -> Note
 def apply_notes(cluster: str | None, dataset=DATASET_ID) -> list[Note]      # THE scope choke point
 def reconcile(note: Note, literature_search=None) -> Tension               # agree/dissent split, real PMIDs only

@@ -68,7 +68,7 @@ def _render_set_feature_umap(cluster: str, genes: tuple[str, ...]) -> None:
         return
     sel_mask = umap["cluster"] == cluster
     view = _downsample_bg(umap, sel_mask, _MAX_BG_POINTS)
-    fig = go.Figure(layout=_base_layout(go, showlegend=False))
+    fig = go.Figure(layout=_base_layout(go, showlegend=False, equal_aspect=True))
     _umap_feature(fig, go, view, expr, cluster)
     st.plotly_chart(fig, use_container_width=True, config=_plot_config())
 

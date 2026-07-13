@@ -249,6 +249,7 @@ class AgentResponse:
     note_draft: Optional[NoteDraft] = None   # proposed note awaiting biologist confirm
     used_fallback: bool = False
     opening: bool = False
+    tools_used: tuple[str, ...] = ()         # tool names the turn actually ran (UI badges)
 
 
 # --------------------------------------------------------------------------- #

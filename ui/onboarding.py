@@ -159,6 +159,10 @@ h1 a.anchor-link, h2 a.anchor-link { display:none !important; }
   transition:border-color .15s ease, background .15s ease;
 }
 [data-testid="stFileUploaderDropzone"]:hover{ border-color:var(--accent); background:var(--accent-soft); }
+/* No file-size text at all (Seurat objects are large); the card states the type.
+   The instructions block holds only 'NGB per file • TYPE'; the Upload button is a
+   separate sibling, so hiding this leaves the button intact. */
+[data-testid="stFileUploaderDropzoneInstructions"]{ display:none !important; }
 
 /* research-focus input styled to match the dropzone cards (onboarding CSS only
    loads on these screens, so a broad stTextArea selector is safe here) */
@@ -264,7 +268,7 @@ def _hero_visual_html() -> str:
     <div class="pano-hc-row"><span class="g">LUM</span><span class="v">glm 18.00</span></div>
     <div class="pano-hc-row"><span class="g">POSTN</span><span class="v">glm 15.80</span></div>
     <div class="pano-hc-row off"><span class="g">COL1A1</span><span class="v">not measured</span></div>
-    <div class="pano-hc-cite">PMID 37479733 · live</div>
+    <div class="pano-hc-cite">cited to live literature</div>
   </div>
 </div>
 """

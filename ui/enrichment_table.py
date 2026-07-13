@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import html
 
+import streamlit as st  # module-level for the @st.fragment chat wrapper
+
 from agent.types import ClusterEnrichment, PathwayEvidence
 
 from ui import cluster_rail
@@ -29,6 +31,13 @@ from ui import format as fmt
 from ui import state
 
 _METHOD_LABEL = {"jazzpanda_enrichment": "jazzPanda competitive test"}
+
+
+@st.fragment
+def _pathway_chat_fragment(cluster: str) -> None:
+    """The Pathways chat as a fragment: a chat turn re-renders only this pane, not the
+    whole Pathways page (its reruns are scoped via ``convo._rerun(scope='fragment')``)."""
+    enrichment_conversation.render_pathway_conversation(cluster)
 
 
 def _short(gene_set: str) -> str:
@@ -169,7 +178,7 @@ def _render_center(st, ce: ClusterEnrichment) -> None:
     # Same simple header as the marker verdict: id line, big call + a pill, a one-liner.
     st.markdown(
         f'<div class="pano-idline">{html.escape(_idline(ce.cluster))}</div>'
-        f'<div class="pano-verdict"><h1>{html.escape(ce.cell_type)}</h1>'
+        f'<div class="pano-verdict"><h1>{html.escape(da.display_cell_type(ce.cluster))}</h1>'
         f'<span class="cf {css}">{html.escape(ce.confidence)} enrichment</span>{verify}</div>'
         f'<div class="pano-rat">{html.escape(rationale)}</div>',
         unsafe_allow_html=True,
@@ -238,14 +247,14 @@ def render_pathways_page() -> None:
         )
         return
 
-    rail_col, center_col, chat_col = st.columns([222, 760, 372], gap="small")
+    rail_col, center_col, chat_col = st.columns([216, 664, 474], gap="small")
     with rail_col:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
     with center_col:
         _render_center(st, da.enrichment_for(cluster))
     with chat_col:
-        enrichment_conversation.render_pathway_conversation(cluster)
+        _pathway_chat_fragment(cluster)
 
 
 __all__ = ["render_pathways_page"]

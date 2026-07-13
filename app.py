@@ -203,11 +203,87 @@ def _top_bar(page: str) -> None:
             )
 
 
+@st.fragment
+def _chat_pane_fragment(cluster: str) -> None:
+    """The marker chat as a fragment: sending a message re-renders ONLY the chat pane
+    (no whole-app refresh, no spatial-figure flicker). The chat's own reruns are scoped
+    to this fragment (ui.conversation uses ``st.rerun(scope='fragment')``)."""
+    conversation.render_conversation(cluster)
+
+
+def _kill_cross_page_bleed() -> None:
+    """Hide the "cross-page bleed" — the previous page's faded leftover after a tab switch.
+
+    On a tab switch Streamlit reuses the body container's DOM node and diffs its children in
+    place; going from a taller page (Summary) to a shorter one leaves the taller page's
+    trailing children mounted, marked ``data-stale="true"`` (rendered at opacity 0.33), and
+    only PHYSICALLY removed by a later frontend pass — which on some machines/flows lags long
+    enough that the faded block just sits below the new page. No server-side trick clears it:
+    st.rerun discards the current frame, a programmatic query-param write does not rerun, and
+    a rerun re-renders the CURRENT tree without touching orphaned stale DOM.
+
+    So we hide it at the source. A singleton parent-document watcher adds ``pano-killbleed``
+    to <html> the moment ``?page=`` changes; the CSS below then hides any ``data-stale``
+    element INSIDE a page body (the leftover), scoped so normal same-page reruns still just
+    fade as Streamlit intends. The class lifts as soon as the body has no stale leftover
+    (residue physically gone), with a 4s hard cap so it can never hide content indefinitely.
+    Same ``window.parent`` bridge the chat auto-scroll already uses.
+    """
+    import streamlit.components.v1 as components
+
+    st.markdown(
+        "<style>"
+        '.pano-killbleed [class*="st-key-page_body_"] [data-stale="true"]'
+        "{display:none !important;}"
+        "</style>",
+        unsafe_allow_html=True,
+    )
+    components.html(
+        """
+<script>
+(function() {
+  var win = window.parent, doc = win && win.document;
+  if (!doc) return;
+  function curPage() {
+    var m = (win.location.search || "").match(/[?&]page=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function bodyHasStale() {
+    var body = doc.querySelector('[class*="st-key-page_body_"]');
+    return !!(body && body.querySelector('[data-stale="true"]'));
+  }
+  if (win.__panoBleed) return;  // watcher already installed
+  win.__panoBleed = { last: curPage(), at: 0 };
+  var root = doc.documentElement;
+  var obs = new MutationObserver(function() {
+    var p = curPage();
+    if (p && p !== win.__panoBleed.last) {         // page just changed -> start hiding leftovers
+      win.__panoBleed.last = p;
+      win.__panoBleed.at = Date.now();
+      root.classList.add("pano-killbleed");
+    }
+    if (root.classList.contains("pano-killbleed")) {
+      // lift once the leftover is physically gone, or after a 4s hard cap (never hide forever)
+      if (!bodyHasStale() || Date.now() - win.__panoBleed.at > 4000) {
+        root.classList.remove("pano-killbleed");
+      }
+    }
+  });
+  obs.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-stale"] });
+})();
+</script>
+""",
+        height=0,
+    )
+
+
 def _examine_body() -> None:
     """The 3-pane review surface: rail | verdict + evidence + spatial | chat."""
     if state.is_paper_open():
         paper_drawer.render_paper_drawer()
-    rail_col, center_col, chat_col = st.columns([222, 760, 372], gap="small")
+    # Narrower center (the spatial figures letterbox less horizontally) so the chat
+    # pane gets more room; the rail stays fixed.
+    rail_col, center_col, chat_col = st.columns([216, 664, 474], gap="small")
     with rail_col:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
@@ -216,7 +292,7 @@ def _examine_body() -> None:
         evidence_table.render_evidence_table(cluster)
         spatial_stage.render_spatial_stage(cluster)
     with chat_col:
-        conversation.render_conversation(cluster)
+        _chat_pane_fragment(cluster)
 
 
 # ── One script run per rerun (no st.navigation / sidebar) ──────────────────
@@ -234,10 +310,12 @@ state.init_state()
 page = _resolve_page()
 
 if page == _PAGE_WELCOME:
-    onboarding.render_landing()
+    with st.container(key="pg_welcome"):
+        onboarding.render_landing()
     st.stop()
 if page == _PAGE_UPLOAD:
-    onboarding.render_upload()
+    with st.container(key="pg_upload"):
+        onboarding.render_upload()
     st.stop()
 
 # Dashboard. on_click tab handlers have already fired, so this reads the fresh
@@ -245,12 +323,16 @@ if page == _PAGE_UPLOAD:
 _restore_selection_from_url()
 _top_bar(page)
 
-if page == _PAGE_SUMMARY:
-    summary.render_summary_page()
-elif page == _PAGE_PATHWAYS:
-    enrichment_table.render_pathways_page()
-else:
-    _examine_body()
+# The dashboard body renders into a page-keyed container.
+with st.container(key=f"page_body_{page}"):
+    if page == _PAGE_SUMMARY:
+        summary.render_summary_page()
+    elif page == _PAGE_PATHWAYS:
+        enrichment_table.render_pathways_page()
+    else:
+        _examine_body()
+
+_kill_cross_page_bleed()
 
 # Mirror the current cluster + its selections to the URL so a refresh restores them.
 _sync_selection_to_url(page)

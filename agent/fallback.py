@@ -427,8 +427,18 @@ def _settle_answer(v: ClusterVerdict, query: str) -> AgentResponse:
     cluster's own markers. Quotes numbers only for markers that peak here, flags
     off-panel genes (never recommends an experiment), and always clears the floor.
     """
-    alts = [t for t in _alts_from_query(query) if t != v.cell_type]
-    d = discriminate.discriminate(v.cluster, alts[0] if alts else None)
+    q = (query or "").lower()
+    named = [(hint, key) for hint, key in _TYPE_HINTS if hint in q]
+    distinct = [key for hint, key in named if key != v.cell_type]
+    if distinct:
+        alt = distinct[0]
+    else:
+        # the biologist may have named a SUBTYPE/synonym of the call itself (e.g. CAF for
+        # Stromal): pass their word so the discriminator answers it as a refinement, not
+        # by auto-deriving "no competing hypothesis".
+        same = [hint for hint, key in named if key == v.cell_type]
+        alt = same[0] if same else None
+    d = discriminate.discriminate(v.cluster, alt)
     sources, numbers, marker_names = _discrimination_grounding(d, include_support=True)
     sidecar = GroundingSidecar(numbers=numbers, markers=marker_names, pmids=(), notes_used=())
     pin = d.supporting_A[0].gene if d.supporting_A else None
@@ -442,6 +452,7 @@ def _settle_answer(v: ClusterVerdict, query: str) -> AgentResponse:
         note_written=None,
         used_fallback=True,
         opening=False,
+        tools_used=("discriminate_call",),  # so the UI shows the rival-test fired offline too
     )
 
 

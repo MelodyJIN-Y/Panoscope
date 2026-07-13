@@ -4,7 +4,7 @@ python-dotenv
 pandas
 pyarrow
 plotly
-streamlit
+streamlit>=1.59        # needs st.container(key=...) — 1.59+ (older Streamlit breaks the UI)
 pytest
 pyyaml
 numpy

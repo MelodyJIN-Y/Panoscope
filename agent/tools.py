@@ -741,6 +741,7 @@ def discriminate_call(cluster: str, alt_cell_type: Optional[str] = None) -> Enve
         "cluster": d.cluster,
         "call": d.call_A,
         "alternative": d.alt_B,
+        "refinement": d.refinement,   # the alt is a within-lineage subtype, not a rival
         "settleable_on_panel": d.settleable_on_panel,
         "reason": d.reason,
         "supports_call": _num(d.supporting_A),

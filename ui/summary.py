@@ -326,9 +326,9 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .ptbl a.pmid:hover { text-decoration: underline; }
 .ptbl .cav { font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--absent); border: 1px solid var(--absent);
   border-radius: 5px; padding: 2px 7px; margin-left: 8px; white-space: nowrap; }
-/* Tick as a circle (○ open / ● teal filled), matching the reference's select-dot language. */
+/* Sign-off: an open circle (○) unsigned, a teal check (✓) when signed off. */
 .ptbl a.tick { font-size: 14px; }
-.ptbl a.tick.done { font-size: 14px; }
+.ptbl a.tick.done { font-size: 15px; font-weight: 700; }
 /* Read-only cross-cluster overview (bullets) at the top of the page. */
 .pano-ovw { background: var(--paper); border: 1px solid var(--hair); border-radius: 12px;
   padding: 13px 20px; margin: 2px 0 16px; }
@@ -464,8 +464,8 @@ def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, override
         ct = f'<span class="pano-sum-ct">{html.escape(v.cell_type)}</span>'
         ov = overrides.get(v.cluster)
         if ov:
-            ct += (f' <span class="pano-ov-lab" title="your override; computed: '
-                   f'{html.escape(ov["computed_call"])}">yours</span>')
+            ct += (f' <span class="pano-ov-lab" title="override; computed: '
+                   f'{html.escape(ov["computed_call"])}">override</span>')
             was = f'was {html.escape(ov["computed_call"])}'
             if ov["dissent"]:
                 was += f' · {ov["dissent"]} lit. dissent'
@@ -824,14 +824,14 @@ def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
         needs = (contested or refinement is not None) and not is_signed
         cls = "prow" + (" need" if needs else "") + (" done" if is_signed else "")
         if is_signed:
-            sign = f'<a class="tick done" href="?page=summary&undo={c}" target="_self" title="signed, reopen">●</a>'
+            sign = f'<a class="tick done" href="?page=summary&undo={c}" target="_self" title="signed, reopen">&#10003;</a>'
         elif needs:
             sign = ('<a class="warnflag" href="?page=summary&drill=' + c + '" target="_self" '
                     'title="needs a closer look, click for details">⚠</a>')
         else:
             sign = f'<a class="tick" href="?page=summary&sign={c}" target="_self" title="sign off">○</a>'
         color = fmt.cluster_color(c)
-        yours = ' <span class="yours">yours</span>' if override else ""
+        yours = ' <span class="yours">override</span>' if override else ""
         needs_note = _attention_note(v, override, refinement) if needs else ""
         rows.append(
             f'<tr class="{cls}"><td class="c-sign">{sign}</td>'
@@ -935,7 +935,7 @@ def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -
             st.button(v.cluster, key=f"drill_{v.cluster}", on_click=_set_active, args=(v.cluster,),
                       help="See this cluster's evidence + write-up")
         color = fmt.cluster_color(v.cluster)
-        yours = ' <span class="yours">yours</span>' if override else ""
+        yours = ' <span class="yours">override</span>' if override else ""
         cols[2].markdown(
             f'<div class="pano-tc"><span class="dot" style="background:{color}"></span>'
             f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</div>',

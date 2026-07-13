@@ -73,7 +73,8 @@ def render_rail() -> Optional[str]:
             # id is how every other surface (spatial views, chat, notes) refers to
             # the cluster, so the rail names it the same way.
             if verdict is not None:
-                name = f"{cluster} {verdict.cell_type.replace('_', ' ')}"
+                # display_cell_type reflects a confirmed override (else the computed call).
+                name = f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
                 label = f"{name}  ⚑" if verdict.verify else name
             else:
                 label = f"{cluster} {_cluster_label(cluster)}"
