@@ -10,6 +10,14 @@
 
 jazzPanda is the engine. This is the interpretation layer.
 
+<p align="center">
+  <a href="https://youtu.be/djmImgY6RU8">
+    <img src="https://img.youtube.com/vi/djmImgY6RU8/maxresdefault.jpg" alt="Watch the Panoscope demo" width="640"/>
+  </a>
+  <br/>
+  <em>▶&nbsp; Watch the 3-minute demo</em>
+</p>
+
 ## Review this in 60 seconds
 
 - **What it is.** A grounded interpretation layer over jazzPanda spatial markers. Ask about a cluster in plain language; get a cell-type call, a confidence level, and the evidence, with every number traced to jazzPanda and every citation fetched live from PubMed.
