@@ -12,7 +12,7 @@ jazzPanda is the engine. This is the interpretation layer.
 
 <p align="center">
   <a href="https://youtu.be/djmImgY6RU8">
-    <img src="https://img.youtube.com/vi/djmImgY6RU8/maxresdefault.jpg" alt="Watch the Panoscope demo" width="640"/>
+    <img src="assets/demo_thumbnail.jpg" alt="Watch the Panoscope demo" width="640"/>
   </a>
   <br/>
   <em>▶&nbsp; Watch the 3-minute demo</em>
