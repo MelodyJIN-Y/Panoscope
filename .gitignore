@@ -93,3 +93,13 @@ context/corrections/
 **/.DS_Store
 .idea/
 *.swp
+
+# ── Machine handoff bundle — local only ─────────────────────────────────────
+# Carries the Claude memory layer, the registered NCBI email, machine-specific
+# paths and secret NAMES. Move it between laptops by AirDrop/USB/private gist,
+# never through this public repo.
+handoff/
+
+# Demo video source clips (~1.1 GB of .mov; one file is 94 MB, over GitHub's
+# 100 MB limit). The shipped demo is the YouTube embed + assets/demo_thumbnail.jpg.
+assets/Panoscope demo/
