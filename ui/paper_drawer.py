@@ -4,7 +4,7 @@ When the biologist clicks a ``📄 Author Year`` citation in the conversation or
 the opening interpretation, that pane calls ``ui.state.open_paper(pmid)`` and the
 drawer renders the paper's journal / PMID / title / authors / abstract plus a
 link to ``pubmed.ncbi.nlm.nih.gov/{pmid}`` (see the ``.paper`` panel in
-``dashboard_wireframe_panels.html``).
+``docs/archive/dashboard_wireframe_panels.html``).
 
 Grounding discipline (Panoscope's confident floor): **every field shown here is
 metadata the agent layer already fetched live** — a ``Citation`` object produced

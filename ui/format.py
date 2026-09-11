@@ -2,7 +2,7 @@
 
 Everything here is a total function over already-loaded values. Colors and CSS
 class names mirror the design tokens in ``theme.py`` and the wireframe
-(``dashboard_wireframe_panels.html``). Nothing in this module computes a spatial
+(``docs/archive/dashboard_wireframe_panels.html``). Nothing in this module computes a spatial
 statistic or a confidence value — it only *labels* values the engine produced.
 
 The marker-role classifier is the one place the panel-absence rule is rendered

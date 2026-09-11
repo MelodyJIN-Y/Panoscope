@@ -1,7 +1,7 @@
 """Design-token CSS for the Panoscope UI.
 
 ``inject_css()`` writes one ``<style>`` block into the Streamlit page. Tokens
-are lifted verbatim from the wireframe (``dashboard_wireframe_panels.html``):
+are lifted verbatim from the wireframe (``docs/archive/dashboard_wireframe_panels.html``):
 teal accent ``#0F7B87``, the confidence bands (Very-High -> Low), the three
 role-chip colors (support / expected-absent / off-panel), and the Space Grotesk
 + IBM Plex Mono pairing. Fonts load via a Google Fonts ``@import`` with a full

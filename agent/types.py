@@ -1,6 +1,6 @@
 """Shared frozen dataclasses — the contracts that cross every module boundary.
 
-Transcribed from BLUEPRINT.md section 2. All dataclasses are frozen (the
+Transcribed from docs/archive/BLUEPRINT.md section 2 (superseded by IMPLEMENTATION.md). All dataclasses are frozen (the
 immutability rule): construct new objects, never mutate. Modules import these
 types rather than passing raw dicts, so the grounding tests and the UI agree on
 exactly what a marker, a verdict, a note, and an agent response are.

@@ -1,207 +1,196 @@
 # CLAUDE.md
 
-Project: Panoscope — an annotation-confidence layer for jazzPanda.
+Project: Panoscope — a human-in-the-loop interpretation layer for bioinformatics results.
 
 Context for building this project with Claude Code. Read this before writing code.
 Keep it tight. Every line here loads on every turn, so only load-bearing rules live here.
 
+**Design of record:** `ARCHITECTURE.md` (what and why) and `IMPLEMENTATION.md` (contracts, migration).
+Supporting: `docs/interface-design.md`, `docs/llm-access.md`. Superseded documents are in
+`docs/archive/` — do not build from them; two contain examples that are actively wrong.
+
 ## What this is
 
-A grounded conversation with spatial data. A biologist asks about a cluster in plain language, and
-Panoscope answers with a cell-type call, a confidence level, and the evidence behind it. It reads
-jazzPanda's spatial marker output, never invents a marker or a number, and it remembers what the lab
-tells it as context it can cite. jazzPanda is the engine. This is the interpretation layer. The chat is
-the primary interface; the panels are the evidence it stands on.
+A biologist has a result produced by someone else. Panoscope reads it faithfully, says what it supports
+and what it does not, and lets the biologist argue with it. It **does not run the analysis** — method
+output is a consumed input, never recomputed, which makes the confidence assessment an audit rather
+than a self-assessment. The biologist makes the final call.
 
 ## Core principle (never violate)
 
-Confident floor: the agent reads jazzPanda's marker output and the panel gene list. It never invents a
-marker, a number, or a confidence score. Every number in an answer must trace to jazzPanda's output,
-the panel list, or a stored lab note.
+**Confident floor.** Every marker, number and citation in an answer traces to method output, a
+capability frame, or a stored claim. Never invent one.
 
-Open ceiling: literature and context reasoning is uncertain. Label it as a direction, not a fact.
+**Open ceiling.** Literature and context reasoning is uncertain. Label it a direction, not a fact.
+
+**The rule about reference data.** Reference data determines **which question is asked of the
+measurement**. The measurement alone determines **the answer**. Reference data may select and order
+evidence, generate rivals, supply canonical lists and carry citations; it may never supply a value,
+count as agreement, or corroborate a measurement.
+
+**What the knowledge apparatus buys.** The band is a function of one method's output; every other layer
+can only subtract or flag. What the apparatus buys is the flags, the named rivals, the undecidables and
+the blocked-with-reason — not the number. Say so plainly rather than implying otherwise.
+
+## Structure: everything extensible is a registry
+
+A **workflow** owns an interpretive question and its review surface. A **method** registers into a
+workflow and declares its own statistics. Platform adapters and reference sources register the same way.
+
+```
+skills/marker-interpretation/     the question: what IS this unit?
+    methods/jazzpanda.py          spatial GLM
+    methods/seurat_de.py          cluster-vs-rest mean expression
+skills/enrichment-interpretation/ the question: what is RUNNING here?
+skills/de-interpretation/         the question: does this result MAKE SENSE?
+```
+
+A method module is **a machine-readable declaration of what a method's paper says it measures and does
+not measure**. Adding a method is a declaration, not interpretation logic. `does_not_measure` and
+`assumptions` are mandatory.
+
+## Measurement status (the headline rule, generalised)
+
+A negative observation is evidence only if the measurement was **capable** of producing a positive one.
+Four states, never two:
+
+| State | Absence is evidence? |
+| --- | --- |
+| `NEVER_MEASURED` — not in the capability frame | **no** |
+| `UNDERPOWERED` — in frame, below the floor | **no** |
+| `TESTED_ABSENT` — in frame, tested, not reported | **yes** — this is the productive half |
+| `OBSERVED` | — |
+
+One capability frame per entity kind: the panel for genes, the annotation label set for cell types, the
+design's replicate counts for conditions, detectability for genes that produced no usable signal.
+Composite subjects take the **meet** over required roles and name what blocked them.
+
+`statistic is None` **iff** the state is `TESTED_ABSENT` or `NEVER_MEASURED`, so quoting a number for an
+unmeasured thing is structurally unrepresentable.
 
 ## Hard rules for the agent
 
-- Never fabricate. If a marker, statistic, or value is not in the source, the agent does not state it.
-- Panel-absence rule: the absence of an off-panel gene is not evidence against a cell type. Check the
-  panel list before down-weighting a missing canonical marker. Say when a marker was never measured.
-- Cite everything. Every claim names its source: a jazzPanda number, a panel fact, a paper, or a lab note.
-- Citations must be real and looked up. Every interpretive claim carries a citation to a real paper,
-  fetched live through the PubMed or bioRxiv connector. Never write a PMID or DOI from memory. A fabricated
+- Never fabricate. If it is not in source, do not state it.
+- **Panel-absence rule.** The absence of an out-of-frame entity is not evidence against anything. Check
+  the frame before down-weighting. Say when something was never measured.
+- **But measured absence *is* evidence.** A marker that was measured and peaked elsewhere argues against
+  a rival. Do not collapse the four states into "unknown".
+- Cite everything. Every claim names its source.
+- **Citations must be real and looked up live.** Never write a PMID or DOI from memory. A fabricated
   citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the
-  literature is thin, do not invent a reference.
-- When evidence is insufficient, set verify = TRUE and say re-check this. Do not guess to seem helpful.
-- No overclaiming. The tool accumulates the lab's knowledge, it does not learn on its own. The feedback
-  loop writes note files and re-reads them. It does not train anything.
+  literature is thin.
+- When evidence is insufficient, set `verify = TRUE` and say re-check this. **`verify` comes from the
+  deterministic rubric — never offer the model the choice.**
+- No overclaiming. The tool accumulates the lab's knowledge; it does not learn on its own.
+
+## Task kinds
+
+Three, frozen. **Task kind belongs to the method, not to the use.**
+
+| Kind | Question | Band? |
+| --- | --- | --- |
+| `ASSIGNMENT` | what *is* this? | yes — there is a label space |
+| `CHARACTERISATION` | what is running here? | **no** |
+| `COMPARISON` | does this result make sense? | **no** |
+
+No label space means a unit-level band is *undefined*, not merely unhelpful. Header for those two is
+per-item counts: *4 enriched, 3 untestable, top EMT z 4.2 on 18/200 panel genes*.
+
+`unit_kind`, subject shape and method are open registries; only `TaskKind` is frozen.
 
 ## Memory: a reconciliation layer, not a memory of the user
 
 Memory is where the biologist's judgment and the literature get reconciled into something the lab owns.
-The biologist has depth (tissue-specific truth, lab convention, unpublished context). The agent has
-breadth (the literature). The point is to combine them, with disagreement made visible, not to make the
-agent agree faster.
 
-- The value is in the disagreement. When the biologist overrides, the agent uses the call AND cross-checks
-  the literature, reporting agreement and dissent with real citations, keeping the biologist's call with
-  the tension visible. Never a bare "got it", never a silent overrule.
-- Capture at override. That is where the biologist's knowledge diverges from the default. Ask scope and
-  basis in two taps, not a form.
-- The biologist decides, always. The tool informs and preserves the decision. It never makes the call.
+- **The value is in the disagreement.** When the biologist overrides, use the call AND cross-check the
+  literature, reporting agreement and dissent with real citations, keeping the call with the tension
+  visible. Never a bare "got it", never a silent overrule.
+- **Capture at override**, asking scope and basis in two taps, not a form.
+- **The biologist decides, always.**
 
-A note is a structured object, not free text:
-`{ claim, scope: cluster|dataset|lab, basis: paper|own_validation|convention, status: firm|tentative, tension: [citations] }`
-Stored as versioned, scoped plain-text files under context/ that a lab version-controls as its own
-knowledge (kept local in this public demo for privacy). Scope is enforced (a dataset or cluster note must
-not fire elsewhere). The agent must cite a note to use it, and must show any attached tension when it does.
-This is not a model that learns. It is a knowledge layer the lab owns, and it compounds because it
-accumulates checkable, attributed knowledge.
+Claims are one object type across measurement, lab, curated and literature, ordered by authority and
+**never merged**. Scope is enforced fail-closed. The agent may propose; only the biologist commits. No
+background consolidation, no LLM dedupe, no recency-based resolution.
 
-A decision can also be saved to a portable user memory (agent/user_memory.py, local-only
-context/user_memory.jsonl): a distilled, tissue-tagged copy that travels across projects and is loaded
-back as prior lab knowledge on future datasets. Like the dataset tissue context, it is open-ceiling: it
-sharpens reasoning and which real paper is cited, and can never change a jazzPanda number.
+## Study intake
 
-## Opening interpretation (first thing the biologist sees)
+The step that populates `Conditions` — every applicability check reads that object. Each field carries
+provenance (`stated` / `read` / `inferred` / `unknown`); `unknown` is first-class and propagates.
 
-When a cluster opens, the agent posts its interpretation before any question: the call and confidence, the
-driving markers with their jazzPanda numbers, and the literature basis for the cell-type assignment, each
-claim carrying a real, clickable citation. Every citation here is fetched live, never written from memory.
+Blocks the study: the measured set, clustering mode when multi-sample, tissue, platform.
+Declared-unknown allowed: fixation, segmentation.
 
-## Spatial views (viewing controls, not analysis knobs)
+Interaction: read everything derivable from files first, then show a **checklist** the biologist ticks,
+then chat only about ticked items and blocking gaps. Stop early.
 
-One pinned marker drives three linked views the biologist switches between. Click a marker in the
-evidence table to pin it, hover to preview.
+## Interface
 
-- Transcript density: raw transcripts hex-binned, before cell calling. "Is the signal really there."
-- Cell map: segmented cells at their tissue locations. "Did it land in the assigned cells." Default view.
-- UMAP: expression space. "Is the cluster a clean island or bleeding into a neighbour."
+The review surface is **part of the interpretation contract**, declared by the workflow — not a UI
+concern. See `docs/interface-design.md`.
 
-The hex-bin bin size is a small preset control in µm (for example 25 / 50 / 100). The bin size and the
-view toggle are viewing controls: they change the picture, never a value. Keep the density colour scale
-area-normalized so coarser bins do not look hotter and mislead. Persist the pinned marker and bin size
-across views.
+- **Every plot carries its conditionality.** A volcano on a targeted panel is indistinguishable from a
+  whole-transcriptome one unless the figure says so. A plot with no conditionality record refuses to draw.
+- **Plots render, they do not derive.** No plot computes a statistic not already in the evidence.
+- **Measurement status is visible**, not implied. A never-measured item is not a blank row and not a zero.
+- **Click-back.** Every sentence resolves to its claim, with authority and conditions visible. A sentence
+  with nothing to click should not have been rendered.
+- Viewing controls (bin size, view toggle, sample switcher) change the picture, **never a value**.
 
 ## Commands
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py                             # the app
+pip install -e ".[dev,app,agent,export]"
 pytest -m "not live"                             # grounding tests, must pass before every commit
-python -m pipeline.run --dataset <id>            # (re)build a dataset's tree: verdicts + manifest (deterministic)
-python -m pipeline.stages.notes --dataset <id>   # live: skill-grounded gene + cell-type notes (PubMed)
+panoscope run                                    # the app
+panoscope build --study <id>                     # (re)build a study tree (deterministic)
+panoscope explain <unit>                         # render the interpretation record
+panoscope doctor                                 # resolved paths, studies, versions, credentials
 ```
-
-## The pipeline (how a dataset is processed)
-
-The skill is the interpretation contract; the **per-dataset pipeline is its executor and persistence layer**. One command per dataset builds a self-contained `data/datasets/<id>/` tree the UI reads with no live recomputation. Two tiers, both skill-driven:
-
-- **Tier A — the skill's mechanical rules as deterministic code** (`agent/verdict.py` = Steps 3a/3b/3d): per-gene evaluation + confidence rubric + panel-absence. No LLM, no network.
-- **Tier B — the skill's literature interpretation, live** (SKILL.md is in the agent's system prompt): the Output-4 per-marker biology note (grounded in that gene's Tier-A evidence) and the per-cluster cell-type note. One real live PMID or none.
-
-jazzPanda is never run — its output is a consumed input. The UI falls back to legacy flat files when a tree artifact is absent, so the app works mid-migration.
-
-## Repo layout
-
-```
-data/
-  datasets/<id>/    # THE per-dataset pipeline output the UI reads (built by pipeline.run)
-    inputs/         #   raw inputs copied + hashed (markers_top.csv, panel, cluster_key)
-    interp/         #   verdicts.csv, clusters/c{n}.json, gene_notes.json, celltype_notes.json
-    manifest.json   #   provenance + artifact sha256s + views_available
-  jazzpanda/ panels/ cells/ transcripts/ embeddings/ density/   # inputs + precomputed viz frames
-  gene_notes/       # legacy flat notes (fallback until the tree's gene_notes is complete)
-pipeline/           # ONE command per dataset: validate -> verdicts -> notes -> manifest
-  run.py            #   entrypoint; stages/ = validate (0), verdicts (4), notes (6, live), enrichment, viz
-  serialize.py store.py paths.py manifest.py calibration.py
-skills/
-  jazzpanda-markers/SKILL.md    # the marker interpretation contract; the pipeline executes it
-  geneset-enrichment/SKILL.md   # the Pathways workflow contract (gene-set enrichment)
-agent/
-  verdict.py        # the skill's Steps 3a/3b/3d as deterministic code (Tier A)
-  loop.py tools.py  # tool-use loop + tools (panel/marker/literature MCP/memory). Never generates stats.
-                    #   every prompt also carries grounded tissue context (from the manifest) + user memory; open-ceiling, never moves a number
-  skeptic.py        # second opinion: deterministic risk flag + live pressure-test (loop.pressure_test); same grounding gate
-  user_memory.py    # portable, distilled decisions kept locally across projects (context/user_memory.jsonl)
-ui/                 # Streamlit surfaces; read via ui/data_access.py (tree first, legacy fallback)
-context/            # lab notes (corrections/) + decision log (scoped, versioned; a lab tracks its own, local here) + user_memory.jsonl (local, portable)
-app.py  tests/  README.md
-```
-
-## Data check  [LOCKED — verified against the real data 2026-07-08]
-
-- Marker statistic + schema: `glm_coef` (spatial GLM Estimate, primary ranking) from jazzPanda
-  `top_result`. Columns: `gene, top_cluster (c1–c9|NoSig), glm_coef, pearson, max_gg_corr, max_gc_corr`.
-  `pearson` = gene↔assigned-cluster spatial specificity. Multivariate spatial GLM, not per-cluster DE.
-- Confidence mapping (replaces mean-expression pct.1/pct.2): `glm_coef` DIRECT — bigger coef = higher
-  band. Bands in `agent/config.py`: ≥10 Very High, ≥5 High, ≥2.5 Medium-High, ≥1 Medium, else Low.
-  `pearson` corroborates (±1 band). Few-marker (1–2) clusters are capped and flagged `verify`;
-  NoSig/near-cutoff = Low + verify. No within-cluster percentile.
-- Demo dataset: 10x Xenium FFPE Human Breast Cancer Rep1 — **sample1 / biorep `hb1` only** (sample2
-  dropped). Panel: analyzed set = **280 genes** (TSV Annotation≠Custom); Custom add-ons + neg-controls
-  are off-panel. Panel size is DYNAMIC across datasets — derive `panel_contains` from the file, never
-  assert a constant. 9 clusters: c1 Tumor, c2 Stromal, c3 Macrophages, c4 Myoepithelial, c5 T_Cells,
-  c6 B_Cells, c7 Endothelial, c8 Dendritic, c9 Mast_Cells.
-- Cell coordinates: yes — `cells.csv` (158,379 sample1 cells, x/y centroids). Cell map = default view.
-- Transcript-level coordinates: yes — `transcripts.csv.gz`; hex-bins precomputed per demo marker,
-  area-normalized, neg-controls + qv<20 filtered.
-- UMAP embedding: yes — `umap.csv` (sample1, Idents c1–c9).
-- Default hex bin size: 50µm (presets 25 / 50 / 100).
-
-The cell map needs only cell coordinates. Density and UMAP each depend on the two coordinate/embedding
-files above; if either is missing for a new dataset, that view is out — do not fake it. Precompute hex
-bins for the demo markers rather than binning live.
-
-## Skills
-
-Each skill is a SKILL.md the agent loads. The jazzpanda-markers skill encodes the panel-absence rule,
-the confidence rubric on jazzPanda's spatial signal, and the holistic review (re-check the whole set of
-calls after annotating each cluster). It must install and run standalone, independent of the app. Adding
-support for a new method means writing a new skill file — `skills/geneset-enrichment/` is the second such
-skill (the Pathways workflow: jazzPanda-result-driven gene-set enrichment, executed by
-`pipeline/stages/enrichment.py` and surfaced in the Pathways UI), grounded by the same no-fabrication /
-real-citation discipline.
 
 ## Grounding tests (the guarantee, not an afterthought)
 
-tests/ parses each agent answer and checks that every marker, number, note, and citation in it traces back
-to jazzPanda's output, the panel list, a stored lab note, or a real literature record from an actual
-connector lookup. The suite fails if the agent states anything not in source, uses a lab note without
-citing it, or produces a citation that does not resolve to a real record. Run on every change and wire it
-into CI so the badge is green. Also keep a small calibration set (a few well-supported calls, a few shaky
-ones) with expected verdicts, reported as a table in the README.
+`tests/` parses each agent answer and checks that every marker, number, claim and citation traces back
+to source. The suite fails if the agent states anything not in source, uses a claim without citing it,
+uses one outside its scope, or produces a citation that does not resolve.
 
-## Output format
+**The golden-output test is the most valuable artifact in the repo**: it makes refactoring safe, and it
+is the reproducibility claim. Keep it byte-stable.
 
-Per cluster: cell-type call, confidence level, the markers and numbers used, a short rationale, a verify
-flag. Confidence labels: Very High, High, Medium-High, Medium, Low. Low or ambiguous clusters get
-verify = TRUE.
+Report refusal rate next to accuracy. A gate that fails closed can look safe while refusing.
 
-CSV columns, in order:
-`cluster, cell_type, cell_type_short, confidence, confidence_score, key_markers, notes, category, lineage, exclude, verify`
+## Data
 
-## Agent response style
+- Demo: 10x Xenium FFPE human breast cancer, sample1 only. Analyzed panel = **280 genes**; panel size is
+  **dynamic across studies — derive it from the file, never assert a constant.** 9 clusters.
+  `glm_coef` (spatial GLM) is the primary statistic; `pearson` corroborates. Bands live in config and
+  are tuned against the calibration set.
+- Second study: human kidney, **immuno-oncology panel**, multiple samples, **joint clustering**. The
+  panel was designed for a different question than the tissue, so kidney-resident types have almost no
+  canonical markers on-panel — the panel-absence rule at maximum severity.
+- **49 of 280 demo panel genes (17.5%) yield no usable spatial signal.** Detectability is a capability
+  frame, not a footnote.
 
-Plain language for a wet-lab biologist. Every point cites a gene and its number. State the confidence
-and name the caveat. Say plainly when a marker was off-panel and what that does and does not tell us.
-When unsure, say re-check this and why. No hype, short over long.
+## Compliance
 
-## Compliance and demo safety
-
-- New work only. jazzPanda is a published dependency. Everything in this repo is new work built fresh
-  for this project. Build the interpretation skill fresh here; do not paste prior work in as-is.
-- License: MIT. Everything shown must be open source.
-- Precomputed jazzPanda output only. Do not run jazzPanda live in the demo.
-- Deterministic fallback for every agent call so a slow or failed request never breaks the demo.
+- New work only; the upstream method is a published dependency, not vendored.
+- MIT. Everything shown must be open source. Fetch restrictively-licensed data, never bundle it.
+- Precomputed method output only. Never run the analysis live.
+- Deterministic fallback for every agent call, so a slow or failed request never breaks the demo.
+- **Never use a consumer AI subscription programmatically.** Prohibited by every major provider's terms.
+  See `docs/llm-access.md`.
 
 ## What not to do
 
-- Do not invent markers, stats, or confidence values.
-- Do not treat off-panel absence as evidence against a cell type.
-- Do not apply a lab note without citing it, or across a scope it was not saved for.
-- Do not let a viewing control (bin size, view toggle) change any value.
+- Do not invent markers, stats or confidence values.
+- Do not treat out-of-frame absence as evidence against anything — **or** treat measured absence as
+  uninformative.
+- Do not let reference data supply a value or corroborate a measurement.
+- Do not apply a claim without citing it, or outside its scope.
+- Do not put a unit-level band on characterisation or comparison.
+- Do not let a viewing control change a value, or a plot derive a statistic.
+- Do not let the model decide `verify`.
 - Do not claim the tool learns on its own.
-- Do not run jazzPanda live in the demo.
-- Do not add breadth (more platforms, more methods, more views) before the one marker path is solid
-  end to end.
+- Do not report "% conditional" as a result — it is a measured constant.
+- **Refused by decision:** a novelty verdict ("is this finding new?"); SVG interpretation; consumer
+  subscription auth. Reasons are in `ARCHITECTURE.md` §15.
