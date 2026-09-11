@@ -183,12 +183,19 @@ def get_marker(gene: str) -> pd.Series | None:
 # --------------------------------------------------------------------------- #
 @_per_study
 def load_cluster_key() -> dict[str, dict]:
-    """Return the 9-entry cluster -> {cell_type, cell_type_short, category, lineage}."""
+    """Return cluster -> {cell_type, cell_type_short, category, lineage}.
+
+    Deliberately asserts no entry count. It used to require exactly 9, which is the
+    bundled demo's cluster count and nothing more general -- a hard blocker for any
+    second study, and one that pipeline/stages/validate.py swallowed as a bare
+    Exception so a 3-cluster study silently skipped key validation entirely. What
+    matters is that the entries are well-formed, not how many there are.
+    """
     path = _require(_cluster_key_json(), "scripts prep (cluster_key.json)")
     with open(path) as fh:
         key = json.load(fh)
-    if len(key) != 9:
-        raise ValueError(f"[data] cluster_key.json must have 9 entries, got {len(key)}")
+    if not isinstance(key, dict) or not key:
+        raise ValueError(f"[data] cluster_key.json at {path} is empty or not an object")
     return key
 
 

@@ -27,7 +27,9 @@ from panoscope.agent.types import ClusterVerdict, MarkerEvidence, MarkerRole
 # cluster reads as "home". Keyed by cluster id, never by index, so a reorder
 # never reassigns a color.
 # --------------------------------------------------------------------------- #
-CLUSTER_COLORS: dict[str, str] = {
+# The bundled demo's hand-assigned hues, kept so the demo's figures are stable and
+# each colour still matches its cell type.
+_DEMO_CLUSTER_COLORS: dict[str, str] = {
     "c1": "#FC8D62",  # orange (Tumor)
     "c2": "#66C2A5",  # teal-green (Stromal)
     "c3": "#8DA0CB",  # blue-violet (Macrophages)
@@ -38,12 +40,32 @@ CLUSTER_COLORS: dict[str, str] = {
     "c8": "#E5C498",  # tan (Dendritic)
     "c9": "#0000FF",  # blue (Mast cells)
 }
+
+# A qualitative scale for any other study. 24 entries, so a study with more units
+# than the demo does not render most of them identical grey -- which is what a
+# nine-entry literal did.
+_QUALITATIVE: tuple[str, ...] = (
+    "#FC8D62", "#66C2A5", "#8DA0CB", "#E78AC3", "#A6D854", "#87CEEB",
+    "#7D26CD", "#E5C498", "#0000FF", "#FFD92F", "#B3B3B3", "#1B9E77",
+    "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D",
+    "#666666", "#1F78B4", "#B2DF8A", "#FB9A99", "#CAB2D6", "#FF7F00",
+)
 _FALLBACK_CLUSTER_COLOR = "#9AA3AB"
 
 
 def cluster_color(cluster: str) -> str:
-    """Return the stable hex color for a cluster id (grey fallback if unknown)."""
-    return CLUSTER_COLORS.get(cluster, _FALLBACK_CLUSTER_COLOR)
+    """Stable hex colour for a unit id, for ANY study.
+
+    The demo keeps its hand-assigned hues. Any other study indexes the qualitative
+    scale by the unit's position in that study's own order, so the assignment is
+    stable per study and never collapses to grey past nine units.
+    """
+    if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and cluster in _DEMO_CLUSTER_COLORS:
+        return _DEMO_CLUSTER_COLORS[cluster]
+    order = cfg.CLUSTER_ORDER
+    if cluster in order:
+        return _QUALITATIVE[order.index(cluster) % len(_QUALITATIVE)]
+    return _FALLBACK_CLUSTER_COLOR
 
 
 def cluster_palette() -> dict[str, str]:
@@ -190,7 +212,7 @@ def short_cluster_id(cluster: str) -> str:
 
 
 __all__ = [
-    "CLUSTER_COLORS",
+    "_DEMO_CLUSTER_COLORS",
     "cluster_color",
     "cluster_palette",
     "confidence_chip",

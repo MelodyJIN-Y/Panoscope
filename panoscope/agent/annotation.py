@@ -48,8 +48,19 @@ def _annotation_path(dataset_id: Optional[str] = None) -> Path:
     )
 
 
-@lru_cache(maxsize=8)
 def load_annotation(dataset_id: Optional[str] = None) -> dict[str, dict]:
+    """Resolve ``None`` to the current study BEFORE caching.
+
+    Caching on the raw argument meant ``load_annotation(None)`` shared one entry
+    across every study, so switching study silently served the previous study's
+    annotation -- and that annotation is what drives cell-type labels and canonical
+    markers. The public signature is unchanged.
+    """
+    return _load_annotation_cached(dataset_id or cfg.DATASET_ID)
+
+
+@lru_cache(maxsize=8)
+def _load_annotation_cached(dataset_id: str) -> dict[str, dict]:
     """cluster -> {cell_type, cell_type_short, category, lineage, canonical_markers, offpanel_canonical}.
 
     Reads the per-dataset skill annotation (``interp/annotation.json``) when present,
@@ -106,20 +117,57 @@ def _by_cell_type(field: str, dataset_id: Optional[str] = None) -> dict[str, tup
     return out
 
 
+def _is_bundled_demo(dataset_id: Optional[str] = None) -> bool:
+    """Whether we are reading the bundled demo study.
+
+    The fallback marker maps below are BREAST maps. They belong to the bundled demo
+    and to nothing else.
+    """
+    return (dataset_id or cfg.DATASET_ID) == cfg.BUNDLED_DEMO_ID
+
+
 def canonical_markers(cell_type: str, dataset_id: Optional[str] = None) -> tuple[str, ...]:
-    """Canonical markers for ``cell_type`` (from the annotation, else the fallback map)."""
-    return _by_cell_type("canonical_markers", dataset_id).get(
-        cell_type, CANONICAL_MARKERS_FALLBACK.get(cell_type, ())
-    )
+    """Canonical markers for ``cell_type`` in THIS study.
+
+    The bundled breast fallback fires only for the bundled demo. It used to fire for
+    any study: a kidney or lung dataset whose annotation happened to name a cluster
+    "Tumor" silently inherited ERBB2/EPCAM/KRT8/KRT7/FOXA1/GATA3/KRT18, and those
+    markers feed ``verdict._is_canonical`` -> driver selection -> the confidence band.
+    Wrong-tissue curated knowledge moving a band is the precise failure this project
+    exists to prevent, so it is guarded structurally rather than by convention.
+
+    A study with no annotated markers for a cell type returns empty. Empty means
+    "this study says nothing", which the caller reports honestly; it never means
+    "use another tissue's markers".
+    """
+    found = _by_cell_type("canonical_markers", dataset_id).get(cell_type)
+    if found:
+        return found
+    if _is_bundled_demo(dataset_id):
+        return CANONICAL_MARKERS_FALLBACK.get(cell_type, ())
+    return ()
 
 
 def offpanel_canonical(cell_type: str, dataset_id: Optional[str] = None) -> tuple[str, ...]:
-    """Off-panel canonical markers for ``cell_type`` (panel-absence note source)."""
-    return _by_cell_type("offpanel_canonical", dataset_id).get(
-        cell_type, OFF_PANEL_CANONICAL_FALLBACK.get(cell_type, ())
-    )
+    """Off-panel canonical markers for ``cell_type`` (panel-absence note source).
+
+    Same guard as ``canonical_markers``: the fallback is a breast map and fires only
+    for the bundled demo. An off-panel note naming another tissue's genes would be a
+    fabricated caveat.
+    """
+    found = _by_cell_type("offpanel_canonical", dataset_id).get(cell_type)
+    if found:
+        return found
+    if _is_bundled_demo(dataset_id):
+        return OFF_PANEL_CANONICAL_FALLBACK.get(cell_type, ())
+    return ()
 
 
 def all_canonical(dataset_id: Optional[str] = None) -> dict[str, tuple[str, ...]]:
     """cell_type -> canonical markers, over every annotated cluster (for discrimination)."""
     return _by_cell_type("canonical_markers", dataset_id)
+
+
+# Keep the public cache_clear() working; pipeline/stages/annotate.py calls it after
+# writing a fresh annotation.json.
+load_annotation.cache_clear = _load_annotation_cached.cache_clear  # type: ignore[attr-defined]

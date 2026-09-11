@@ -303,7 +303,7 @@ div[class*="st-key-seldot_"] button[data-testid="stBaseButton-primary"] {{
  * sit on one line, aligned. Shrinking the label child (flex 0 1 auto, width auto)
  * lets justify-content:flex-start pack dot+name left. Selected row = a simple
  * accent-soft tint (like a selected gene row), no left bar/bracket.
- * NB: the per-cluster dot colours mirror ui/format.py CLUSTER_COLORS. */
+ * NB: the per-cluster dot colours mirror ui/format.py _DEMO_CLUSTER_COLORS. */
 .st-key-pano_rail div[data-testid="stButton"] > button {{
   background: transparent !important; border: 0 !important; box-shadow: none !important;
   min-height: 0 !important; padding: 6px 10px !important; border-radius: 7px !important;

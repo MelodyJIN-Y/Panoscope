@@ -47,6 +47,10 @@ _REFINE_LIT_QUERY: str = "LILRA4 plasmacytoid dendritic cell marker"
 # Breast-TME compartment grouping of the 9 authoritative clusters. This is a
 # GROUPING of the CLUSTER_KEY, not new biology: it names which major compartment
 # each cluster's cell type belongs to so the coherence check can assert coverage.
+# Breast-TME compartment grouping of the bundled demo's clusters. Used ONLY for the
+# demo's coherence note; any other study groups by its own annotation categories via
+# _compartments_for_study(). A hardcoded breast grouping applied to another tissue
+# would assert coverage of compartments that tissue does not have.
 _COMPARTMENTS: dict[str, tuple[str, ...]] = {
     "epithelial tumor": ("c1",),
     "myoepithelial": ("c4",),
@@ -200,7 +204,13 @@ def holistic_review() -> HolisticReview:
     # The one bundled refinement (c8 Dendritic -> pDC) is demo-specific; surface it
     # only when that cluster and call are actually present in this dataset.
     refinements: tuple[Refinement, ...] = ()
-    if _REFINE_CLUSTER in cfg.KNOWN_CLUSTERS and \
+    # Gated on the bundled demo, not merely on "a cluster with this id and label
+    # exists". Without the study check, ANY study with a c8 called Dendritic emitted
+    # this breast-specific pDC refinement -- a fabricated finding attributed to the
+    # wrong tissue. The refinement itself is demo content and leaves when the
+    # reference layer can derive subtype sharpenings from an ontology.
+    if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and \
+            _REFINE_CLUSTER in cfg.KNOWN_CLUSTERS and \
             annotation.cell_type_for(_REFINE_CLUSTER) == _REFINE_FROM:
         refinements = (_c8_refinement(),)
     return HolisticReview(
