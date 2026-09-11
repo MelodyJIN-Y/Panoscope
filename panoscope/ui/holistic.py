@@ -27,10 +27,10 @@ import html
 from functools import lru_cache
 from typing import Optional
 
-from agent.holistic import HolisticReview, Refinement
-from agent.types import Citation
+from panoscope.agent.holistic import HolisticReview, Refinement
+from panoscope.agent.types import Citation
 
-from ui import data_access
+from panoscope.ui import data_access
 
 # --------------------------------------------------------------------------- #
 # Copy — kept as constants so prose never drifts.
@@ -144,7 +144,7 @@ def _first_real_citation(lit_query: str) -> Optional[Citation]:
     if not q:
         return None
 
-    from agent import tools
+    from panoscope.agent import tools
 
     try:
         env = tools.literature_search(q, max_results=_LIT_MAX_RESULTS)

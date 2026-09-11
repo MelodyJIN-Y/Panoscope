@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from agent import config as cfg
-from agent import enrichment as E
-from agent.types import ClusterEnrichment
+from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as E
+from panoscope.agent.types import ClusterEnrichment
 
 # The jazzPanda enrichment result is unpublished + gitignored, so it may be absent
 # on a fresh clone / CI. Skip the whole module then rather than fail.

@@ -21,10 +21,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from agent.types import Citation, Note
+from panoscope.agent.types import Citation, Note
 
-from ui import data_access as da
-from ui import format as fmt
+from panoscope.ui import data_access as da
+from panoscope.ui import format as fmt
 
 # --------------------------------------------------------------------------- #
 # Human-readable labels for the closed vocabularies (Scope / Basis / Status).
@@ -143,7 +143,7 @@ def _delete_note(note: Note) -> None:
     owned by the memory module. A missing file is a no-op (already gone). The
     deletion is logged to the append-only decision ledger for the audit trail.
     """
-    from agent import memory
+    from panoscope.agent import memory
 
     path = memory._note_path(note.id, None)
     try:

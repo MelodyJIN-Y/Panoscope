@@ -32,11 +32,11 @@ from __future__ import annotations
 import os
 from typing import Any, Callable, Iterable, Optional
 
-from agent import config as cfg
-from agent import data
-from agent import discriminate
-from agent import memory
-from agent.types import Citation, Source
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent import discriminate
+from panoscope.agent import memory
+from panoscope.agent.types import Citation, Source
 
 # --------------------------------------------------------------------------- #
 # Envelope helpers
@@ -118,7 +118,7 @@ def _live_literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_M
     free.
     """
     try:
-        from agent import mcp_client
+        from panoscope.agent import mcp_client
     except Exception:  # pragma: no cover - mcp module import guard
         return []
     try:
@@ -404,7 +404,7 @@ def literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_MAX) ->
 
     # Live MCP path.
     try:
-        from agent import mcp_client
+        from panoscope.agent import mcp_client
     except Exception as exc:  # pragma: no cover
         return _fail(f"literature connector unavailable: {exc!r}")
 
@@ -439,7 +439,7 @@ def literature_fetch(pmids: list[str] | str) -> Envelope:
         return _fail("literature_fetch requires at least one numeric PMID")
 
     try:
-        from agent import mcp_client
+        from panoscope.agent import mcp_client
     except Exception as exc:  # pragma: no cover
         return _fail(f"literature connector unavailable: {exc!r}")
 

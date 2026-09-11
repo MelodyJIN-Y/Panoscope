@@ -9,8 +9,8 @@ confusing failure three stages later.
 
 from __future__ import annotations
 
-from agent import config as cfg
-from agent import data
+from panoscope.agent import config as cfg
+from panoscope.agent import data
 
 
 def validate(dataset_id: str = cfg.DATASET_ID) -> None:

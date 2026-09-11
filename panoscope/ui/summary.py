@@ -30,12 +30,12 @@ import datetime
 import html
 import math
 
-from agent.types import ClusterVerdict
+from panoscope.agent.types import ClusterVerdict
 
-from ui import data_access as da
-from ui import format as fmt
-from ui import report
-from ui import state
+from panoscope.ui import data_access as da
+from panoscope.ui import format as fmt
+from panoscope.ui import report
+from panoscope.ui import state
 
 # --------------------------------------------------------------------------- #
 # Copy + export metadata. Constants so prose never drifts.
@@ -666,7 +666,7 @@ def _reconciliation_line_html(items: list) -> str:
 def _lit_search():
     """The literature connector (or None -> an honest thin tension on the note)."""
     try:
-        from agent import tools
+        from panoscope.agent import tools
 
         return tools._literature_search_fn()
     except Exception:  # noqa: BLE001 - no connector -> thin
@@ -692,7 +692,7 @@ def _begin_signoff(cluster: str, claim: str) -> None:
     """on_click: draft a validation note for a contested sign-off (a flagged call or an
     override the literature dissents from), reconciled live against the literature, and
     stash it so the confirm card renders. Nothing persists until the biologist confirms."""
-    from agent import memory
+    from panoscope.agent import memory
 
     try:
         draft = memory.draft_note(
@@ -710,7 +710,7 @@ def _render_signoff_card(st, cluster: str) -> None:
     sign-off (which clears the re-check flag at composition). Cancel drops the draft."""
     import dataclasses
 
-    from ui import conversation as convo
+    from panoscope.ui import conversation as convo
 
     slot = _SIGNOFF_SLOT.format(cluster)
     draft = state.get_pending_draft(slot)
@@ -948,7 +948,7 @@ def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -
         _render_row_subline(st, v, override, refinement, contested)
     _render_signoff_card(st, v.cluster)
     if refinement is not None:
-        from ui import conversation as convo
+        from panoscope.ui import conversation as convo
 
         convo._render_draft_card(v.cluster, thread_key=f"holistic::{v.cluster}",
                                  trigger="holistic_review")
@@ -1137,7 +1137,7 @@ def _reset_ws_all(defaults: dict, dataset: str) -> None:
     st.session_state.pop("_sum_saved_snapshot", None)
     st.session_state.pop("_sum_saved_at", None)
     try:
-        from pipeline import store
+        from panoscope.pipeline import store
 
         store.save_summary_edits({}, dataset, saved_at="")
     except Exception:  # noqa: BLE001 - clearing the disk copy is best-effort
@@ -1173,12 +1173,12 @@ def _draft_refinement(r) -> None:
     thread so the same two-tap confirm card renders. Saved with trigger=holistic_review.
     A refinement is a within-lineage subtype sharpening, so lineage/category are left to
     the computed values (subject_cell_type carries the new call)."""
-    from agent import memory
-    from ui import state
+    from panoscope.agent import memory
+    from panoscope.ui import state
 
     lit = None
     try:
-        from agent import tools
+        from panoscope.agent import tools
 
         lit = tools._literature_search_fn()
     except Exception:  # noqa: BLE001 - no connector -> honest thin tension
@@ -1294,7 +1294,7 @@ def render_summary_page() -> None:
     # Restore the biologist's saved edits (edits win over the fresh auto-draft), so a
     # browser refresh brings the edited text back. Seed session state once per session.
     try:
-        from pipeline import store
+        from panoscope.pipeline import store
 
         saved = store.load_summary_edits(rep.dataset)
     except Exception:  # noqa: BLE001 - no tree / import issue -> just use auto-drafts
@@ -1425,7 +1425,7 @@ def render_summary_page() -> None:
                                       signed.get(s.cluster), refinements.get(s.cluster))
             _render_signoff_card(st, s.cluster)
             if s.cluster in refinements:
-                from ui import conversation as convo
+                from panoscope.ui import conversation as convo
 
                 convo._render_draft_card(s.cluster, thread_key=f"holistic::{s.cluster}",
                                          trigger="holistic_review")

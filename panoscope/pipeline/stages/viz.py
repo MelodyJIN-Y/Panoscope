@@ -21,9 +21,9 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
+from panoscope.agent import config as cfg
 
-from pipeline import paths
+from panoscope.pipeline import paths
 
 
 def collect_viz(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:

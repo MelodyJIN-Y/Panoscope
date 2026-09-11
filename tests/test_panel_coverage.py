@@ -14,7 +14,7 @@ which is not data-gated.
 """
 from __future__ import annotations
 
-from agent import enrichment as E
+from panoscope.agent import enrichment as E
 
 # Confidence order (best -> worst), mirroring agent.enrichment._band_cluster.
 _ORDER = ("Very High", "High", "Medium-High", "Medium", "Low")

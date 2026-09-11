@@ -38,8 +38,8 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
-from agent import config as cfg
-from agent import data
+from panoscope.agent import config as cfg
+from panoscope.agent import data
 
 # --------------------------------------------------------------------------- #
 # Tolerances

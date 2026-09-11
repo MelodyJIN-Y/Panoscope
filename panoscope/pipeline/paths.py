@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
+from panoscope.agent import config as cfg
 
 DEFAULT_DATASETS_ROOT: Path = cfg.DATA_DIR_PATH / "datasets"
 

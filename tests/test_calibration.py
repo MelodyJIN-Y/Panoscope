@@ -37,8 +37,8 @@ from __future__ import annotations
 
 import pytest
 
-from agent import verdict as V
-from agent.types import ClusterVerdict
+from panoscope.agent import verdict as V
+from panoscope.agent.types import ClusterVerdict
 
 # --------------------------------------------------------------------------- #
 # The calibration set: (cluster, cell_type, confidence, verify).

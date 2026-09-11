@@ -18,8 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from agent import memory
-from agent.types import Citation, Note, Source
+from panoscope.agent import memory
+from panoscope.agent.types import Citation, Note, Source
 
 DATASET = "xenium_hbreast_sample1"
 

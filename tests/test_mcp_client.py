@@ -20,7 +20,7 @@ import warnings
 
 import pytest
 
-from agent.mcp_client import (
+from panoscope.agent.mcp_client import (
     PubMedMCP,
     _article_to_citation,
     _format_authors,

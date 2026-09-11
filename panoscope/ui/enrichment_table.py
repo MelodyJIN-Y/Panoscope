@@ -21,14 +21,14 @@ import html
 
 import streamlit as st  # module-level for the @st.fragment chat wrapper
 
-from agent.types import ClusterEnrichment, PathwayEvidence
+from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
 
-from ui import cluster_rail
-from ui import data_access as da
-from ui import enrichment_conversation
-from ui import enrichment_spatial
-from ui import format as fmt
-from ui import state
+from panoscope.ui import cluster_rail
+from panoscope.ui import data_access as da
+from panoscope.ui import enrichment_conversation
+from panoscope.ui import enrichment_spatial
+from panoscope.ui import format as fmt
+from panoscope.ui import state
 
 _METHOD_LABEL = {"jazzpanda_enrichment": "jazzPanda competitive test"}
 
@@ -169,7 +169,7 @@ def _render_pathway_rows(st, cluster: str, pathways, suggestive: bool) -> None:
 
 
 def _render_center(st, ce: ClusterEnrichment) -> None:
-    from ui.verdict_header import _idline  # reuse the marker id line, verbatim
+    from panoscope.ui.verdict_header import _idline  # reuse the marker id line, verbatim
 
     css, _ = fmt.confidence_chip(ce.confidence)
     verify = f' <span class="pano-verify">{html.escape(fmt.verify_badge(True))}</span>' if ce.verify else ""

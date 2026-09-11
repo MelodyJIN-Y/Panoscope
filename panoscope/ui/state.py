@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from agent.config import CLUSTER_ORDER
+from panoscope.agent.config import CLUSTER_ORDER
 
 # --------------------------------------------------------------------------- #
 # Key names (one place; accessors reference these, never bare strings)
@@ -97,7 +97,7 @@ def _hydrate_threads(ss: dict) -> None:
     non-empty thread marks its opening as already posted so the opening interpretation
     is not re-posted on top of the restored transcript."""
     try:
-        from ui import chat_store
+        from panoscope.ui import chat_store
 
         threads = chat_store.load_all()
     except Exception:  # noqa: BLE001 - a bad transcript never blocks startup
@@ -115,7 +115,7 @@ def _hydrate_threads(ss: dict) -> None:
 def _persist_threads() -> None:
     """Best-effort write of all chat threads to disk (so a refresh restores them)."""
     try:
-        from ui import chat_store
+        from panoscope.ui import chat_store
 
         chat_store.save_all(_threads())
     except Exception:  # noqa: BLE001 - losing the transcript must not break the app

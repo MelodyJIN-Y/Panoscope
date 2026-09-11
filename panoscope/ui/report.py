@@ -26,9 +26,9 @@ import re as _re
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from agent import config as cfg
-from agent import discriminate
-from agent.types import ClusterVerdict, MarkerEvidence, Note
+from panoscope.agent import config as cfg
+from panoscope.agent import discriminate
+from panoscope.agent.types import ClusterVerdict, MarkerEvidence, Note
 
 # --------------------------------------------------------------------------- #
 # Human labels for the closed note vocabularies (relabel only; never change one).
@@ -252,7 +252,7 @@ def _dataset_tissue_platform(dataset: str) -> tuple[str, str]:
     try:
         import json
 
-        from pipeline import paths
+        from panoscope.pipeline import paths
 
         m = json.loads((paths.dataset_dir(dataset) / "manifest.json").read_text(encoding="utf-8"))
         return str(m.get("tissue", "")).strip(), str(m.get("platform", "")).strip()
@@ -266,7 +266,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
     Used by the Summary page. Lazily imports data_access so the pure functions above
     (and the doc exporters) never require a Streamlit runtime.
     """
-    from ui import data_access as da
+    from panoscope.ui import data_access as da
 
     try:
         enrichments = {ce.cluster: ce for ce in da.all_enrichments()}

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from ui import data_access as da
+from panoscope.ui import data_access as da
 
 
 def _expr_available() -> bool:

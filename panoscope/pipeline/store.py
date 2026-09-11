@@ -12,13 +12,13 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
-from agent.enrichment_themes import PathwayThemes
-from agent.holistic import HolisticReview
-from agent.types import ClusterEnrichment, ClusterVerdict
+from panoscope.agent import config as cfg
+from panoscope.agent.enrichment_themes import PathwayThemes
+from panoscope.agent.holistic import HolisticReview
+from panoscope.agent.types import ClusterEnrichment, ClusterVerdict
 
-from pipeline import paths
-from pipeline.serialize import (
+from panoscope.pipeline import paths
+from panoscope.pipeline.serialize import (
     enrichment_from_dict,
     holistic_from_dict,
     pathway_themes_from_dict,

@@ -23,7 +23,7 @@ from functools import lru_cache
 
 import pandas as pd
 
-from agent import config as cfg
+from panoscope.agent import config as cfg
 
 # --------------------------------------------------------------------------- #
 # Tidy file locations (all under data/)

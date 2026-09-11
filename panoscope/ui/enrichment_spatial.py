@@ -23,9 +23,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ui import data_access as da
-from ui import state
-from ui.spatial_stage import (
+from panoscope.ui import data_access as da
+from panoscope.ui import state
+from panoscope.ui.spatial_stage import (
     _MAX_BG_POINTS,
     _base_layout,
     _downsample_bg,

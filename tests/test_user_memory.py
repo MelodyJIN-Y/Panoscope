@@ -6,7 +6,7 @@ number that would override jazzPanda.
 """
 from __future__ import annotations
 
-from agent import user_memory
+from panoscope.agent import user_memory
 
 
 def test_distill_is_deterministic_and_tissue_tagged():

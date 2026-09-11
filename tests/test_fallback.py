@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import pytest
 
-from agent import config as cfg
-from agent import data
-from agent import fallback as F
-from agent.grounding_check import GroundingChecker
-from agent.types import AgentResponse, GroundingSidecar, Source
-from agent.verdict import verdict_for_cluster
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent import fallback as F
+from panoscope.agent.grounding_check import GroundingChecker
+from panoscope.agent.types import AgentResponse, GroundingSidecar, Source
+from panoscope.agent.verdict import verdict_for_cluster
 
 
 # --------------------------------------------------------------------------- #

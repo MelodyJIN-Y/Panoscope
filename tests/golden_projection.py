@@ -44,11 +44,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent import config as cfg
-from agent import holistic as agent_holistic
-from agent import verdict as V
-from pipeline import calibration as calibration_mod
-from pipeline import serialize
+from panoscope.agent import config as cfg
+from panoscope.agent import holistic as agent_holistic
+from panoscope.agent import verdict as V
+from panoscope.pipeline import calibration as calibration_mod
+from panoscope.pipeline import serialize
 
 # --------------------------------------------------------------------------- #
 # Fixture location + the documented regeneration path

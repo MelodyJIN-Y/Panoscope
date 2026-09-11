@@ -41,7 +41,7 @@ _CANDIDATE_PACKAGES = ("agent", "ui", "pipeline", "panoscope")
 # the body in "bare mode"), verified rather than assumed — but importing it in the
 # pytest process would execute st.set_page_config and friends inside a process that
 # other UI tests share, so it gets its own subprocess below.
-_APP_MODULE = "app"
+_APP_MODULE = "panoscope.app"
 
 # A module may be unimportable ONLY because one of these optional distributions is
 # absent (the extras in IMPLEMENTATION.md §8: app / agent / export / spatial). A
@@ -140,7 +140,7 @@ def test_every_first_party_module_imports_cleanly() -> None:
 
 
 def test_streamlit_entrypoint_imports_headless() -> None:
-    """``app.py`` imports with no Streamlit server running.
+    """``panoscope/app.py`` imports with no Streamlit server running.
 
     Run in a subprocess because importing it executes the full page render; the
     point is only that the import graph is intact, not that the render is silent.

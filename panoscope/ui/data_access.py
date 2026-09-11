@@ -24,11 +24,11 @@ from typing import Any, Callable, Optional
 
 import pandas as pd
 
-from agent import config as cfg
-from agent import data as agent_data
-from agent import verdict as agent_verdict
-from agent.config import CLUSTER_ORDER, DEMO_MARKERS
-from agent.types import ClusterVerdict, Note
+from panoscope.agent import config as cfg
+from panoscope.agent import data as agent_data
+from panoscope.agent import verdict as agent_verdict
+from panoscope.agent.config import CLUSTER_ORDER, DEMO_MARKERS
+from panoscope.agent.types import ClusterVerdict, Note
 
 # --------------------------------------------------------------------------- #
 # File paths this module reads directly (marker_expr + density index; everything
@@ -298,7 +298,7 @@ def gene_notes() -> dict:
     """
     import json
 
-    from pipeline import store
+    from panoscope.pipeline import store
 
     tree = store.load_gene_notes()
     if tree:
@@ -328,7 +328,7 @@ def verdict_for(cluster: str) -> ClusterVerdict:
     is identical either way — reading it just avoids recomputation and makes the
     verdict a portable dataset artifact. Depends only on the cluster id.
     """
-    from pipeline import store
+    from panoscope.pipeline import store
 
     persisted = store.load_verdict(cluster)
     return persisted if persisted is not None else agent_verdict.verdict_for_cluster(cluster)
@@ -343,7 +343,7 @@ def all_verdicts() -> list[ClusterVerdict]:
 def _excluded_clusters() -> set:
     """Clusters carrying a firing `exclude` note. Applied at COMPOSITION only — the
     deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md)."""
-    from agent import memory
+    from panoscope.agent import memory
 
     try:
         return {
@@ -358,7 +358,7 @@ def _excluded_clusters() -> set:
 def _override_notes() -> dict:
     """The most-recent firing ``celltype_override`` note per cluster (one that carries a
     new call). Applied at COMPOSITION only — the deterministic verdict is never mutated."""
-    from agent import memory
+    from panoscope.agent import memory
 
     out: dict = {}
     try:
@@ -382,7 +382,7 @@ def _signed_off_clusters() -> set:
     as the biologist works). A signed-off call is treated as adjudicated: its
     ``verify`` flag is cleared at COMPOSITION only (the deterministic verdict on
     disk is never mutated)."""
-    from pipeline import store
+    from panoscope.pipeline import store
 
     try:
         return set(store.load_review_state().keys())
@@ -468,7 +468,7 @@ def anchored_notes(cluster: str) -> dict:
     marker_convention notes index by gene; program_reinterpretation notes by gene set.
     Routes through ``apply_notes`` (the fail-closed scope gate), so a c2 note never
     shows on c3."""
-    from agent import memory
+    from panoscope.agent import memory
 
     genes: dict = {}
     sets: dict = {}
@@ -515,7 +515,7 @@ def celltype_notes() -> dict:
     Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
     the pipeline notes stage has not run. Each summary is a short, grounded,
     live-cited description of the cell type (never fabricated)."""
-    from pipeline import store
+    from panoscope.pipeline import store
 
     return store.load_celltype_notes()
 
@@ -538,9 +538,9 @@ def holistic():
     piece (the refinement's citation) is still fetched at render time in
     ``ui.holistic``; this returns only the grounded coherence + refinement data.
     """
-    from agent import holistic as agent_holistic
+    from panoscope.agent import holistic as agent_holistic
 
-    from pipeline import store
+    from panoscope.pipeline import store
 
     persisted = store.load_holistic()
     return persisted if persisted is not None else agent_holistic.holistic_review()
@@ -554,9 +554,9 @@ def holistic():
 @_cache_data(show_spinner=False)
 def enrichment_for(cluster: str):
     """Enrichment verdict for one cluster (persisted tree first, else live)."""
-    from agent import enrichment as agent_enrichment
+    from panoscope.agent import enrichment as agent_enrichment
 
-    from pipeline import store
+    from panoscope.pipeline import store
 
     persisted = store.load_enrichment(cluster)
     return persisted if persisted is not None else agent_enrichment.enrichment_for_cluster(cluster)
@@ -571,9 +571,9 @@ def all_enrichments() -> list:
 @_cache_data(show_spinner=False)
 def pathway_themes():
     """Cross-cluster pathway themes (persisted tree first, else live)."""
-    from agent import enrichment_themes
+    from panoscope.agent import enrichment_themes
 
-    from pipeline import store
+    from panoscope.pipeline import store
 
     persisted = store.load_pathway_themes()
     return persisted if persisted is not None else enrichment_themes.pathway_themes()
@@ -591,7 +591,7 @@ def enrichment_available() -> bool:
 @_cache_data(show_spinner=False)
 def pathway_notes() -> dict:
     """Live-cited per-pathway biology notes ``{cluster: {gene_set: note}}`` ({} if none)."""
-    from pipeline import store
+    from panoscope.pipeline import store
 
     return store.load_pathway_notes()
 
@@ -611,7 +611,7 @@ def get_agent() -> Any:
     Wrapping ``agent.loop``'s module-level default agent keeps one instance (and
     its background MCP loop) alive across Streamlit reruns.
     """
-    from agent import loop as agent_loop
+    from panoscope.agent import loop as agent_loop
 
     return agent_loop._default_agent()
 
@@ -621,14 +621,14 @@ def get_agent() -> Any:
 # --------------------------------------------------------------------------- #
 def read_notes() -> list[Note]:
     """Read all notes fresh from disk (never cached — notes mutate on save)."""
-    from agent import memory
+    from panoscope.agent import memory
 
     return memory.read_notes()
 
 
 def notes_in_scope(cluster: Optional[str]) -> list[Note]:
     """Notes whose scope fires for the given cluster (fresh read; the scope gate)."""
-    from agent import memory
+    from panoscope.agent import memory
 
     return memory.apply_notes(cluster)
 
@@ -643,8 +643,8 @@ def save_note_draft(draft: Any, trigger: str = "override") -> Note:
     ``trigger`` records where the note was born (``override`` from a chat, or
     ``holistic_review`` from a cross-cluster refinement). Returns the written Note.
     """
-    from agent import memory
-    from agent import tools
+    from panoscope.agent import memory
+    from panoscope.agent import tools
 
     return memory.save_draft(draft, trigger=trigger, base_dir=tools.memory_base_dir())
 
@@ -657,7 +657,7 @@ def save_note_draft(draft: Any, trigger: str = "override") -> Note:
 # --------------------------------------------------------------------------- #
 def signed_off() -> dict:
     """The full sign-off map ``{cluster: {at, note_id}}`` (fresh read)."""
-    from pipeline import store
+    from panoscope.pipeline import store
 
     try:
         return store.load_review_state()
@@ -672,7 +672,7 @@ def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -
     clean checkmark). ``at`` is an ISO timestamp passed in by the caller (this stays
     free of clock calls). Idempotent: re-signing a cluster just refreshes its record.
     """
-    from pipeline import store
+    from panoscope.pipeline import store
 
     try:
         reviewed = dict(store.load_review_state())
@@ -686,7 +686,7 @@ def clear_signoff(cluster: str, at: str = "") -> None:
     """Undo a sign-off: drop ``cluster`` from the review state (the call is unreviewed
     again). The validation note a contested sign-off wrote is left in My notes — undo
     reopens the review, it does not erase the biologist's recorded basis."""
-    from pipeline import store
+    from panoscope.pipeline import store
 
     try:
         reviewed = dict(store.load_review_state())

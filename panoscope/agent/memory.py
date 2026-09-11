@@ -33,8 +33,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
-from agent import config as cfg
-from agent.types import (
+from panoscope.agent import config as cfg
+from panoscope.agent.types import (
     Basis,
     Citation,
     Note,

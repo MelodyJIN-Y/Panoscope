@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from pipeline import run as pipeline_run
-from pipeline.stages.notes import (
+from panoscope.pipeline import run as pipeline_run
+from panoscope.pipeline.stages.notes import (
     _balance_parens,
     _fallback_summary,
     _looks_meta,

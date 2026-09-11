@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from agent import config as cfg
-from agent import enrichment as agent_enrichment
-from agent.types import ClusterEnrichment
+from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as agent_enrichment
+from panoscope.agent.types import ClusterEnrichment
 
 _RECUR_MIN_CLUSTERS = 2   # enriched in >= 2 clusters to count as a recurring theme
 _TOP_PER_CLUSTER = 3      # top enriched programs named per cluster

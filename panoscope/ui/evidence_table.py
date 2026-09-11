@@ -25,9 +25,9 @@ from __future__ import annotations
 import html
 from typing import Optional
 
-from agent.types import ClusterVerdict, MarkerEvidence
+from panoscope.agent.types import ClusterVerdict, MarkerEvidence
 
-from ui import data_access, format as fmt, state
+from panoscope.ui import data_access, format as fmt, state
 
 # --------------------------------------------------------------------------- #
 # Pure HTML fragments (escape all source-derived text)

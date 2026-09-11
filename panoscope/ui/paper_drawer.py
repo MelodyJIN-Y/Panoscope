@@ -29,11 +29,11 @@ from __future__ import annotations
 import html
 from typing import Any, Iterable, Optional
 
-from agent.types import Citation
+from panoscope.agent.types import Citation
 
-from ui import data_access as ui_data  # shared cached-read layer (infra)
-from ui import format as ui_format  # shared pure formatters (infra)
-from ui import state as ui_state
+from panoscope.ui import data_access as ui_data  # shared cached-read layer (infra)
+from panoscope.ui import format as ui_format  # shared pure formatters (infra)
+from panoscope.ui import state as ui_state
 
 # ``ui_data``/``ui_format`` are imported per the pane's shared-infra contract.
 # The drawer displays already-fetched citation metadata verbatim, so it does not

@@ -26,9 +26,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from agent import annotation
-from agent import config as cfg
-from agent import data
+from panoscope.agent import annotation
+from panoscope.agent import config as cfg
+from panoscope.agent import data
 
 # --------------------------------------------------------------------------- #
 # Constants for the single grounded refinement (c8 -> pDC).

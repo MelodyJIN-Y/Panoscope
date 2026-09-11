@@ -11,7 +11,7 @@ implementation, so the two can never drift.
 
 from __future__ import annotations
 
-from agent.types import ClusterVerdict
+from panoscope.agent.types import ClusterVerdict
 
 # How many driving canonical markers to name per row (keeps the table readable).
 MAX_DRIVERS: int = 3

@@ -25,9 +25,9 @@ from pathlib import Path
 
 import pytest
 
-from agent import data as _data
-from agent import tools
-from agent.types import Citation
+from panoscope.agent import data as _data
+from panoscope.agent import tools
+from panoscope.agent.types import Citation
 
 # --------------------------------------------------------------------------- #
 # LUM's real jazzPanda numbers for c2 (read straight from agent.data at collect

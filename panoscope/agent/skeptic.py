@@ -29,9 +29,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from agent import discriminate as disc
-from agent import verdict as vd
-from agent.types import ClusterVerdict, MarkerEvidence
+from panoscope.agent import discriminate as disc
+from panoscope.agent import verdict as vd
+from panoscope.agent.types import ClusterVerdict, MarkerEvidence
 
 # A gene "localizes at least as well elsewhere" when its correlation to some other
 # cluster meets or exceeds its correlation to its own assigned cluster, beyond a

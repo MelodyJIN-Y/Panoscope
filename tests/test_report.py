@@ -11,10 +11,10 @@ from io import BytesIO
 
 import pytest
 
-from agent import holistic as agent_holistic
-from agent import verdict as agent_verdict
-from agent.types import Citation, Note, ScopeRef, Tension
-from ui import report as R
+from panoscope.agent import holistic as agent_holistic
+from panoscope.agent import verdict as agent_verdict
+from panoscope.agent.types import Citation, Note, ScopeRef, Tension
+from panoscope.ui import report as R
 
 
 def _cite(pmid: str = "22264274") -> Citation:

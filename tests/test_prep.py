@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from pipeline.stages import prep
+from panoscope.pipeline.stages import prep
 
 
 def test_noop_when_tidy_inputs_present():

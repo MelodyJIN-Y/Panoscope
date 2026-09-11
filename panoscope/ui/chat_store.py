@@ -16,8 +16,8 @@ from types import SimpleNamespace
 
 
 def _path():
-    from agent import config as cfg
-    from pipeline import paths
+    from panoscope.agent import config as cfg
+    from panoscope.pipeline import paths
 
     return paths.interp_dir(cfg.DATASET_ID) / "chat_threads.json"
 
@@ -36,7 +36,7 @@ def _msg_from_dict(d: dict) -> dict:
     """Rebuild a render-ready message. Agent turns get a minimal resp carrying the
     source kinds + verify flag so the 'Sources' line and re-check note re-render (the
     clickable PMIDs come from the text). User/system turns keep resp=None."""
-    from agent.types import Source
+    from panoscope.agent.types import Source
 
     kinds = d.get("src_kinds") or []
     verify = bool(d.get("verify", False))

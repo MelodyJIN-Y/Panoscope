@@ -39,8 +39,8 @@ import json
 
 import pytest
 
-from agent import config as cfg
-from agent import verdict as V
+from panoscope.agent import config as cfg
+from panoscope.agent import verdict as V
 from tests import golden_projection as G
 
 

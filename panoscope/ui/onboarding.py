@@ -25,7 +25,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from agent import profile as agent_profile
+from panoscope.agent import profile as agent_profile
 
 
 def _detected_tissue() -> str:
@@ -36,8 +36,8 @@ def _detected_tissue() -> str:
     try:
         import json
 
-        from agent import config as cfg
-        from pipeline import paths
+        from panoscope.agent import config as cfg
+        from panoscope.pipeline import paths
 
         m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
         parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]

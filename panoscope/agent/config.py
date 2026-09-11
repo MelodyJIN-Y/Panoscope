@@ -20,8 +20,21 @@ import pandas as pd
 # --------------------------------------------------------------------------- #
 # Paths
 # --------------------------------------------------------------------------- #
-# Project root = parent of the agent/ package directory.
-PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
+# Repo root = two levels above this package directory (panoscope/agent/config.py).
+#
+# TRANSITIONAL. Deriving the data root from ``__file__`` is exactly what breaks under
+# a site-packages install, and moving the package under ``panoscope/`` already broke
+# it once. ``PANOSCOPE_DATA_ROOT`` is the lever that lets a caller point at a store
+# that is not adjacent to the source; Phase C replaces the whole block with
+# ``panoscope/data/layout.py::resolve_data_root()`` and a ``Study`` object.
+def _resolve_repo_root() -> Path:
+    env = os.getenv("PANOSCOPE_DATA_ROOT")
+    if env:
+        return Path(env).expanduser().resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+PROJECT_ROOT: Path = _resolve_repo_root()
 
 # Raw input roots (these directory names contain spaces / underscores on disk).
 RAW_JZ: str = "jazzPanda output"

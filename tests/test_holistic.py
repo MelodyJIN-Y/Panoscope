@@ -16,9 +16,9 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from agent import config as cfg
-from agent import data
-from agent.holistic import HolisticReview, Refinement, holistic_review
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent.holistic import HolisticReview, Refinement, holistic_review
 
 
 @pytest.fixture(scope="module")

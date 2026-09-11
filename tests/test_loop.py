@@ -25,12 +25,12 @@ import os
 
 import pytest
 
-from agent import config as cfg  # noqa: F401 - imported for parity / future use
-from agent import data as _data
-from agent import loop as agent_loop
-from agent.grounding_check import GroundingChecker
-from agent.loop import PanoscopeAgent
-from agent.types import AgentResponse, GroundingSidecar, Source
+from panoscope.agent import config as cfg  # noqa: F401 - imported for parity / future use
+from panoscope.agent import data as _data
+from panoscope.agent import loop as agent_loop
+from panoscope.agent.grounding_check import GroundingChecker
+from panoscope.agent.loop import PanoscopeAgent
+from panoscope.agent.types import AgentResponse, GroundingSidecar, Source
 
 # --------------------------------------------------------------------------- #
 # LUM's real jazzPanda numbers for c2 (read straight from agent.data so the
@@ -245,7 +245,7 @@ def test_opening_response_shape(offline_agent):
     assert isinstance(resp.grounding, GroundingSidecar)
     assert all(isinstance(s, Source) for s in resp.sources)
     # verify mirrors the verdict for c2 (Very High -> verify False).
-    from agent.verdict import verdict_for_cluster
+    from panoscope.agent.verdict import verdict_for_cluster
 
     assert resp.verify == verdict_for_cluster("c2").verify
 

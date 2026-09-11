@@ -19,7 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
+from panoscope.agent import config as cfg
 
 # --------------------------------------------------------------------------- #
 # Fallback / bootstrap domain knowledge (the bundled demo map). A processed

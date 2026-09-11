@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from agent import data
-from agent import discriminate as dsc
-from agent.verdict import CANONICAL_MARKERS
+from panoscope.agent import data
+from panoscope.agent import discriminate as dsc
+from panoscope.agent.verdict import CANONICAL_MARKERS
 
 
 def _genes(markers) -> set[str]:
@@ -124,7 +124,7 @@ def test_refinement_summary_is_grounded_and_honest():
     # names the off-panel canonical markers without a number, and no bench recommendation
     assert "FAP" in s and "ihc" not in low and "experiment" not in low
     # every stated number still traces to source
-    from agent.grounding_check import GroundingChecker
+    from panoscope.agent.grounding_check import GroundingChecker
     assert GroundingChecker(literature_verifier=lambda _i: True).check(s).ok
 
 

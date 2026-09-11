@@ -23,9 +23,9 @@ from __future__ import annotations
 import html
 from typing import Any, Optional
 
-from ui import conversation as convo
-from ui import data_access as da
-from ui import state
+from panoscope.ui import conversation as convo
+from panoscope.ui import data_access as da
+from panoscope.ui import state
 
 _SKILL = "geneset-enrichment"
 _K_ASK = "pwconv_ask_input"
@@ -158,7 +158,7 @@ def _opening_resp(pmids: list[str], verify: bool):
     """A lightweight cited response for the opening bubble so it renders like the
     marker opening: sources = jazzPanda (the enrichment scores) + PubMed (the cited
     notes). No live call — the PMIDs are the precomputed, real ones from pathway_notes."""
-    from agent.types import AgentResponse, GroundingSidecar, Source
+    from panoscope.agent.types import AgentResponse, GroundingSidecar, Source
 
     seen = list(dict.fromkeys(pmids))
     sources = [Source(kind="jz", ref="enrichment", value="jazzPanda enrichment")]
@@ -263,7 +263,7 @@ def _safe_chat(cluster: str, query: str):
     try:
         return da.get_agent().chat(query, cluster=cluster, history=history, skill=_SKILL)
     except Exception:  # noqa: BLE001 - the agent has its own fallback; belt + braces
-        from agent import loop as agent_loop
+        from panoscope.agent import loop as agent_loop
 
         return agent_loop.chat(query, cluster=cluster, skill=_SKILL)
 

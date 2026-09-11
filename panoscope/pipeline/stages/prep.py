@@ -29,8 +29,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
-from pipeline import paths
+from panoscope.agent import config as cfg
+from panoscope.pipeline import paths
 
 _R_PREP_SCRIPT = cfg.PROJECT_ROOT / "scripts" / "prep_data.R"
 _REQUIRED = ("markers_top.csv", "panel.parquet")

@@ -18,11 +18,11 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from agent import annotation as agent_annotation
-from agent import config as cfg
-from agent import data
-from agent import loop as agent_loop
-from pipeline import paths
+from panoscope.agent import annotation as agent_annotation
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent import loop as agent_loop
+from panoscope.pipeline import paths
 
 _REQUIRED = ("cell_type", "cell_type_short", "category", "lineage")
 _TOP_MARKERS = 8

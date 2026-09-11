@@ -12,16 +12,16 @@ import json
 
 import pytest
 
-from agent import config as cfg
-from agent import enrichment as agent_enrichment
-from agent import enrichment_themes as agent_enrichment_themes
-from agent import holistic as agent_holistic
-from agent import verdict as agent_verdict
+from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as agent_enrichment
+from panoscope.agent import enrichment_themes as agent_enrichment_themes
+from panoscope.agent import holistic as agent_holistic
+from panoscope.agent import verdict as agent_verdict
 
-from pipeline import paths
-from pipeline import run as pipeline_run
-from pipeline import store
-from pipeline.serialize import (
+from panoscope.pipeline import paths
+from panoscope.pipeline import run as pipeline_run
+from panoscope.pipeline import store
+from panoscope.pipeline.serialize import (
     enrichment_from_dict,
     enrichment_to_dict,
     holistic_from_dict,
@@ -31,7 +31,7 @@ from pipeline.serialize import (
     verdict_from_dict,
     verdict_to_dict,
 )
-from pipeline.stages.validate import validate
+from panoscope.pipeline.stages.validate import validate
 
 _HAS_ENRICHMENT = agent_enrichment._JZ_ENRICHMENT_CSV.exists()
 

@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import pytest
 
-from agent import config as cfg
-from agent import data
-from agent import verdict as V
-from agent.types import ClusterVerdict, MarkerEvidence
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent import verdict as V
+from panoscope.agent.types import ClusterVerdict, MarkerEvidence
 
 
 # --------------------------------------------------------------------------- #

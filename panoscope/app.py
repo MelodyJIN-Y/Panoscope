@@ -18,7 +18,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from ui import (
+from panoscope.ui import (
     cluster_rail,
     conversation,
     enrichment_table,

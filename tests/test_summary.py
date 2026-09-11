@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import html
 
-from agent import verdict as agent_verdict
-from agent.config import CLUSTER_ORDER
-from ui import data_access as da
-from ui import summary
+from panoscope.agent import verdict as agent_verdict
+from panoscope.agent.config import CLUSTER_ORDER
+from panoscope.ui import data_access as da
+from panoscope.ui import summary
 
 
 def test_all_verdicts_returns_nine_complete_calls() -> None:
@@ -60,8 +60,8 @@ def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     """A confirmed celltype_override overlays the new call + lineage/category at
     composition (verify flagged only when the literature dissents), never mutating the
     deterministic verdict (docs/note-capture-design.md; user decision 2026-07-10)."""
-    from agent import config as cfg
-    from agent.types import Citation, Note, ScopeRef, Tension
+    from panoscope.agent import config as cfg
+    from panoscope.agent.types import Citation, Note, ScopeRef, Tension
 
     dissent = Citation(pmid="30000009", title="", authors="", year=2020, journal="",
                        stance="dissent", is_real=True)
@@ -119,7 +119,7 @@ def test_overview_table_column_order_and_grounding() -> None:
 def test_review_state_roundtrip(tmp_path) -> None:
     """The sign-off store persists and reads back ``{cluster: {at, note_id}}`` under a
     dataset tree, and a missing file reads as 'nothing signed off'."""
-    from pipeline import store
+    from panoscope.pipeline import store
 
     assert store.load_review_state(root=tmp_path) == {}
     store.save_review_state(
@@ -153,8 +153,8 @@ def test_sign_off_clears_verify_at_composition(monkeypatch) -> None:
 def test_sign_off_wins_over_override_dissent_flag(monkeypatch) -> None:
     """A sign-off is the last word: it clears the verify flag an override's literature
     dissent would otherwise raise (the biologist adjudicated, with a note recorded)."""
-    from agent import config as cfg
-    from agent.types import Citation, Note, ScopeRef, Tension
+    from panoscope.agent import config as cfg
+    from panoscope.agent.types import Citation, Note, ScopeRef, Tension
 
     dissent = Citation(pmid="30000009", title="", authors="", year=2020, journal="",
                        stance="dissent", is_real=True)
@@ -232,8 +232,8 @@ def test_board_renders_headless() -> None:
         pytest.skip("streamlit.testing.v1 unavailable")
 
     def _run() -> None:
-        from ui import state as _state
-        from ui import summary as _summary
+        from panoscope.ui import state as _state
+        from panoscope.ui import summary as _summary
 
         _state.init_state()
         _summary.render_summary_page()
@@ -290,9 +290,9 @@ def test_pending_signoff_card_renders_on_drilldown() -> None:
         pytest.skip("streamlit.testing.v1 unavailable")
 
     def _run() -> None:
-        from agent import memory
-        from ui import state as _state
-        from ui import summary as _summary
+        from panoscope.agent import memory
+        from panoscope.ui import state as _state
+        from panoscope.ui import summary as _summary
 
         _state.init_state()
         import streamlit as _st

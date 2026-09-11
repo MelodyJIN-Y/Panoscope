@@ -5,7 +5,7 @@ import re
 
 import pandas as pd
 
-from agent import config as cfg
+from panoscope.agent import config as cfg
 
 
 def _natural(c: str):

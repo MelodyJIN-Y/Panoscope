@@ -13,12 +13,12 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
-from agent import verdict as agent_verdict
-from agent.types import ClusterVerdict
+from panoscope.agent import config as cfg
+from panoscope.agent import verdict as agent_verdict
+from panoscope.agent.types import ClusterVerdict
 
-from pipeline import paths
-from pipeline.serialize import verdict_to_dict
+from panoscope.pipeline import paths
+from panoscope.pipeline.serialize import verdict_to_dict
 
 
 def run_verdicts(

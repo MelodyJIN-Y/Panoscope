@@ -14,12 +14,12 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from agent import config as cfg
-from agent import enrichment as agent_enrichment
-from agent.types import ClusterEnrichment
+from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as agent_enrichment
+from panoscope.agent.types import ClusterEnrichment
 
-from pipeline import paths
-from pipeline.serialize import enrichment_to_dict
+from panoscope.pipeline import paths
+from panoscope.pipeline.serialize import enrichment_to_dict
 
 
 def run_enrichment(

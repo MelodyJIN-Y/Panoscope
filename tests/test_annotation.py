@@ -6,8 +6,8 @@ resolve, and (c) a NON-demo dataset never inherits the demo's cell types.
 """
 from __future__ import annotations
 
-from agent import annotation
-from agent import config as cfg
+from panoscope.agent import annotation
+from panoscope.agent import config as cfg
 
 
 def test_reads_annotation_file_for_the_demo():

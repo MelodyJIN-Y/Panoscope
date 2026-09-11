@@ -26,10 +26,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from agent.config import CLUSTER_KEY, CLUSTER_ORDER
-from agent.types import ClusterVerdict
+from panoscope.agent.config import CLUSTER_KEY, CLUSTER_ORDER
+from panoscope.agent.types import ClusterVerdict
 
-from ui import data_access, state
+from panoscope.ui import data_access, state
 
 # The rail dot is the cluster button's CSS ``::before`` (coloured per cluster in
 # ui/theme.py to match that cluster's colour in the cell map, UMAP, and dot plot),

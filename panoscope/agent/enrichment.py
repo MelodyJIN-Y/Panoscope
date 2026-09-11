@@ -29,10 +29,10 @@ from __future__ import annotations
 import csv
 from functools import lru_cache
 
-from agent import annotation
-from agent import config as cfg
-from agent import data
-from agent.types import ClusterEnrichment, PathwayEvidence
+from panoscope.agent import annotation
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
 
 # The dataset's jazzPanda enrichment result: prefer the per-dataset tree
 # (inputs/enrichment.csv), else the bundled legacy demo file. Absent -> no

@@ -20,12 +20,12 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-from agent import config as cfg
-from agent import enrichment as agent_enrichment
-from agent import loop as agent_loop
-from agent import verdict as agent_verdict
+from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as agent_enrichment
+from panoscope.agent import loop as agent_loop
+from panoscope.agent import verdict as agent_verdict
 
-from pipeline import paths
+from panoscope.pipeline import paths
 
 _MAX_WORDS = 16
 _INLINE_PMID = re.compile(r"\s*[\(\[]?\s*PMID[:\s]*\d+\s*[\)\]]?", re.IGNORECASE)

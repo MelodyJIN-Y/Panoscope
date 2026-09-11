@@ -24,10 +24,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from agent.types import ClusterVerdict
+from panoscope.agent.types import ClusterVerdict
 
-from ui import format as fmt
-from ui.data_access import cluster_cells_df, display_verdict_for
+from panoscope.ui import format as fmt
+from panoscope.ui.data_access import cluster_cells_df, display_verdict_for
 
 # --------------------------------------------------------------------------- #
 # Small helpers (pure; no Streamlit)

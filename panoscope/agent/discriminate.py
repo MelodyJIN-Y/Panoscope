@@ -37,8 +37,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from agent import annotation
-from agent import data
+from panoscope.agent import annotation
+from panoscope.agent import data
 
 
 def _is_canonical(gene: str, cell_type: str) -> bool:

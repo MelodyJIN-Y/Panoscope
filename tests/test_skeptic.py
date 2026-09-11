@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from agent import skeptic
-from agent.grounding_check import GroundingChecker
+from panoscope.agent import skeptic
+from panoscope.agent.grounding_check import GroundingChecker
 
 
 def test_clean_call_withstands_challenge():
@@ -50,7 +50,7 @@ def test_unknown_cluster_raises():
 # deterministic grounded fallback with no model (forced offline, no network).
 # --------------------------------------------------------------------------- #
 def test_pressure_test_offline_falls_back_to_grounded_skeptic():
-    from agent import loop
+    from panoscope.agent import loop
 
     ag = loop.PanoscopeAgent()
     ag._get_client = lambda: None  # force offline: no live model
@@ -65,7 +65,7 @@ def test_pressure_test_offline_falls_back_to_grounded_skeptic():
 
 
 def test_skeptic_system_prompt_is_tissue_aware_and_guardrailed():
-    from agent import loop
+    from panoscope.agent import loop
 
     sp = loop.build_system_prompt("c9", skill="skeptic")
     assert "SECOND-OPINION SKEPTIC" in sp          # the adversarial contract
@@ -77,7 +77,7 @@ def test_skeptic_system_prompt_is_tissue_aware_and_guardrailed():
 
 
 def test_dataset_context_is_a_preference_not_a_filter():
-    from agent import loop
+    from panoscope.agent import loop
 
     loop._dataset_context.cache_clear()
     ctx = loop._dataset_context()

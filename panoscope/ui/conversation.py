@@ -32,10 +32,10 @@ import html
 import re
 from typing import Any, Optional
 
-from agent.types import AgentResponse, Source
+from panoscope.agent.types import AgentResponse, Source
 
-from ui import data_access as dax
-from ui import state
+from panoscope.ui import data_access as dax
+from panoscope.ui import state
 
 # --------------------------------------------------------------------------- #
 # Thread message dicts (per cluster, via ui.state.append_message):
@@ -270,7 +270,7 @@ def _render_second_opinion(cluster: str) -> None:
     import streamlit as st
 
     try:
-        from agent import skeptic
+        from panoscope.agent import skeptic
         rep = skeptic.second_opinion(cluster)
     except Exception:  # noqa: BLE001 - never crash the pane; just skip the panel
         return
@@ -348,7 +348,7 @@ def _safe_opening(cluster: str) -> AgentResponse:
     try:
         return dax.get_agent().opening_interpretation(cluster)
     except Exception:  # noqa: BLE001 - the pane must never crash the app
-        from agent import loop as agent_loop
+        from panoscope.agent import loop as agent_loop
 
         return agent_loop.opening_interpretation(cluster)
 
@@ -829,8 +829,8 @@ def _save_to_user_memory(note: Any) -> bool:
     Never raises; returns whether it was written. It stores prose only, never a number
     that could later override jazzPanda."""
     try:
-        from agent import config as cfg
-        from agent import user_memory
+        from panoscope.agent import config as cfg
+        from panoscope.agent import user_memory
 
         markers = tuple(getattr(note, "subject_markers", ()) or ())
         cell_type = getattr(note, "subject_cell_type", None) or ""
@@ -862,8 +862,8 @@ def _dataset_label() -> str:
     try:
         import json
 
-        from agent import config as cfg
-        from pipeline import paths
+        from panoscope.agent import config as cfg
+        from panoscope.pipeline import paths
 
         m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
         parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]
@@ -871,7 +871,7 @@ def _dataset_label() -> str:
         return " · ".join(parts) if parts else cfg.DATASET_ID
     except Exception:  # noqa: BLE001 - a missing manifest just means a plainer label
         try:
-            from agent import config as cfg
+            from panoscope.agent import config as cfg
 
             return cfg.DATASET_ID
         except Exception:  # noqa: BLE001
@@ -910,7 +910,7 @@ def _safe_chat(cluster: str, query: str) -> AgentResponse:
         history = _history_for_agent(cluster)
         return dax.get_agent().chat(query, cluster=cluster, history=history)
     except Exception:  # noqa: BLE001 - agent has its own fallback; belt + braces
-        from agent import loop as agent_loop
+        from panoscope.agent import loop as agent_loop
 
         return agent_loop.chat(query, cluster=cluster)
 

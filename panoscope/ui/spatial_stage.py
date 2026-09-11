@@ -55,11 +55,11 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
-from agent.config import CLUSTER_ORDER
+from panoscope.agent.config import CLUSTER_ORDER
 
-from ui import data_access as da
-from ui import format as fmt
-from ui import state
+from panoscope.ui import data_access as da
+from panoscope.ui import format as fmt
+from panoscope.ui import state
 
 # --------------------------------------------------------------------------- #
 # Constants — all purely cosmetic (viewing only)
@@ -379,7 +379,7 @@ def _cluster_celltype_map() -> dict:
     Read straight from the authoritative ``CLUSTER_KEY``; unassigned cells (blank
     cluster) read as ``unassigned``. Nothing is computed.
     """
-    from agent.config import CLUSTER_KEY, CLUSTER_ORDER
+    from panoscope.agent.config import CLUSTER_KEY, CLUSTER_ORDER
 
     labels = {
         c: CLUSTER_KEY.get(c, {}).get("cell_type", c).replace("_", " ")

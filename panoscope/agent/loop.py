@@ -39,12 +39,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from agent import config as cfg
-from agent import fallback as fb
-from agent import profile as agent_profile
-from agent import tools as agent_tools
-from agent.grounding_check import GroundingChecker
-from agent.types import (
+from panoscope.agent import config as cfg
+from panoscope.agent import fallback as fb
+from panoscope.agent import profile as agent_profile
+from panoscope.agent import tools as agent_tools
+from panoscope.agent.grounding_check import GroundingChecker
+from panoscope.agent.types import (
     AgentResponse,
     Citation,
     GroundingSidecar,
@@ -251,7 +251,7 @@ def _global_interpretation_lines() -> str:
     does this sit next to c4?") and the agent keeps the annotation coherent.
     Cached (verdicts are static within a run). Falls back to the key on any error.
     """
-    from agent import verdict as _verdict
+    from panoscope.agent import verdict as _verdict
 
     lines: list[str] = []
     for c in cfg.CLUSTER_ORDER:
@@ -282,7 +282,7 @@ def _inscope_notes_block(cluster: Optional[str]) -> str:
     if not cluster or cluster not in cfg.KNOWN_CLUSTERS:
         return ""
     try:
-        from agent import memory
+        from panoscope.agent import memory
 
         notes = memory.apply_notes(cluster, base_dir=agent_tools.memory_base_dir())
     except Exception:  # pragma: no cover - notes are best-effort context
@@ -347,7 +347,7 @@ def _enrichment_context(cluster: Optional[str]) -> str:
     if not cluster or cluster not in cfg.KNOWN_CLUSTERS:
         return ""
     try:
-        from agent import enrichment as agent_enrichment
+        from panoscope.agent import enrichment as agent_enrichment
 
         ce = agent_enrichment.enrichment_for_cluster(cluster)
     except Exception:  # noqa: BLE001 - no enrichment -> no context, never crash
@@ -442,7 +442,7 @@ def _prior_knowledge_context() -> str:
     Empty string when none saved. Open-ceiling context only: it sharpens reasoning and
     literature search but can never invent, change, or override a jazzPanda number, a
     marker, a confidence band, or a cell-type call (see :mod:`agent.user_memory`)."""
-    from agent import user_memory
+    from panoscope.agent import user_memory
 
     return user_memory.as_prompt_context()
 
@@ -460,7 +460,7 @@ def _dataset_context() -> str:
     try:
         import json
 
-        from pipeline import paths
+        from panoscope.pipeline import paths
 
         m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
         tissue = str(m.get("tissue", "")).strip()
@@ -492,7 +492,7 @@ def _skeptic_scaffold(cluster: Optional[str]) -> str:
     if not cluster or cluster not in cfg.KNOWN_CLUSTERS:
         return ""
     try:
-        from agent import skeptic
+        from panoscope.agent import skeptic
 
         rep = skeptic.second_opinion(cluster)
     except Exception:  # noqa: BLE001 - the live skeptic still works without the scaffold
@@ -529,7 +529,7 @@ def _default_literature_verifier(ident: str) -> bool:
     if not pid.isdigit():
         return False
     try:
-        from agent import mcp_client
+        from panoscope.agent import mcp_client
 
         client = mcp_client.get_mcp_client()
         if not client.available:
@@ -941,7 +941,7 @@ class PanoscopeAgent:
         """The pipeline's precomputed cell-type note for ``cluster`` (keys: summary,
         pmid, citation), or None. Fail-soft: no tree / import issue -> None (live path)."""
         try:
-            from pipeline import store  # lazy: avoids an import cycle with pipeline
+            from panoscope.pipeline import store  # lazy: avoids an import cycle with pipeline
 
             notes = store.load_celltype_notes(cfg.DATASET_ID)
         except Exception:  # noqa: BLE001 - no tree / not importable -> live lookup
@@ -1065,9 +1065,9 @@ class PanoscopeAgent:
 
     def _deterministic_skeptic_response(self, cluster: str) -> AgentResponse:
         """The deterministic second opinion as an AgentResponse (grounded, no network)."""
-        from agent import skeptic
-        from agent import verdict as _vd
-        from agent.types import GroundingSidecar, Source
+        from panoscope.agent import skeptic
+        from panoscope.agent import verdict as _vd
+        from panoscope.agent.types import GroundingSidecar, Source
 
         try:
             rep = skeptic.second_opinion(cluster)
@@ -1341,7 +1341,7 @@ def _cluster_verify_default(cluster: str) -> bool:
     Wrapped so a verdict failure never breaks a chat answer (defaults to False).
     """
     try:
-        from agent.verdict import verdict_for_cluster
+        from panoscope.agent.verdict import verdict_for_cluster
 
         return bool(verdict_for_cluster(cluster).verify)
     except Exception:  # pragma: no cover

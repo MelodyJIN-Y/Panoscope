@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import pytest
 
-from agent.grounding_check import (
+from panoscope.agent.grounding_check import (
     Extractor,
     GroundingChecker,
     GroundingResult,
     SourceIndex,
 )
-from agent.types import GroundingSidecar
+from panoscope.agent.types import GroundingSidecar
 
 
 # --------------------------------------------------------------------------- #

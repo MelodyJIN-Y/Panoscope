@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from agent import verdict as V
-from ui import evidence_table as et
+from panoscope.agent import verdict as V
+from panoscope.ui import evidence_table as et
 
 _CAVEAT = "localizes better with another cluster"
 

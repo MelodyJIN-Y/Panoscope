@@ -13,9 +13,9 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
-from agent.enrichment_themes import ClusterThemeLine, PathwayThemes, RecurringTheme
-from agent.holistic import HolisticReview, Refinement
-from agent.types import (
+from panoscope.agent.enrichment_themes import ClusterThemeLine, PathwayThemes, RecurringTheme
+from panoscope.agent.holistic import HolisticReview, Refinement
+from panoscope.agent.types import (
     ClusterEnrichment,
     ClusterVerdict,
     LiteratureHook,

@@ -5,7 +5,7 @@ run writes only under a pytest tmp dir (never the bundled demo tree).
 """
 from __future__ import annotations
 
-from pipeline.stages import annotate
+from panoscope.pipeline.stages import annotate
 
 
 def test_parse_accepts_valid_and_rejects_bad():

@@ -36,8 +36,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from agent import discriminate
-from agent.types import (
+from panoscope.agent import discriminate
+from panoscope.agent.types import (
     AgentResponse,
     ClusterVerdict,
     GroundingSidecar,
@@ -45,7 +45,7 @@ from agent.types import (
     OffPanelNote,
     Source,
 )
-from agent.verdict import opening_interpretation, verdict_for_cluster
+from panoscope.agent.verdict import opening_interpretation, verdict_for_cluster
 
 # Number formatting: two decimals is inside the grounding checker's absolute
 # tolerance (1e-2) for these stats, so a rendered "18.00" grounds to LUM's real

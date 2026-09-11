@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from agent.config import CLUSTER_ORDER
-from agent.types import ClusterVerdict, MarkerEvidence, MarkerRole
+from panoscope.agent.config import CLUSTER_ORDER
+from panoscope.agent.types import ClusterVerdict, MarkerEvidence, MarkerRole
 
 # --------------------------------------------------------------------------- #
 # Cluster colors — one stable color per cluster c1..c9.

@@ -22,20 +22,20 @@ from typing import Any, Optional
 
 import pandas as pd
 
-from agent import config as cfg
-from agent import data
-from agent import enrichment_themes as agent_enrichment_themes
-from agent import holistic as agent_holistic
+from panoscope.agent import config as cfg
+from panoscope.agent import data
+from panoscope.agent import enrichment_themes as agent_enrichment_themes
+from panoscope.agent import holistic as agent_holistic
 
-from pipeline import calibration as calibration_mod
-from pipeline import manifest as manifest_mod
-from pipeline import paths
-from pipeline import serialize
-from pipeline.stages.enrichment import run_enrichment
-from pipeline.stages.prep import run_prep
-from pipeline.stages.validate import validate
-from pipeline.stages.verdicts import run_verdicts
-from pipeline.stages.viz import collect_viz
+from panoscope.pipeline import calibration as calibration_mod
+from panoscope.pipeline import manifest as manifest_mod
+from panoscope.pipeline import paths
+from panoscope.pipeline import serialize
+from panoscope.pipeline.stages.enrichment import run_enrichment
+from panoscope.pipeline.stages.prep import run_prep
+from panoscope.pipeline.stages.validate import validate
+from panoscope.pipeline.stages.verdicts import run_verdicts
+from panoscope.pipeline.stages.viz import collect_viz
 
 # Legacy raw-input sources copied into <id>/inputs/ for provenance. (In a later
 # slice tissue/platform become per-dataset metadata inputs rather than constants.)
@@ -135,7 +135,7 @@ def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
     output root, so the bundled demo skips the live annotate stage even when the
     pipeline writes into a fresh/temporary tree.
     """
-    from agent import annotation as agent_annotation
+    from panoscope.agent import annotation as agent_annotation
 
     ann = agent_annotation.load_annotation(dataset_id)
     return bool(ann) and all(
@@ -153,7 +153,7 @@ def _ensure_annotation(dataset_id: str, root: Optional[Path]) -> None:
     """
     if _annotation_complete(dataset_id, root):
         return
-    from pipeline.stages import annotate as annotate_stage  # lazy (pulls the agent loop)
+    from panoscope.pipeline.stages import annotate as annotate_stage  # lazy (pulls the agent loop)
 
     annotate_stage.run_annotate(dataset_id, root)
 
@@ -165,7 +165,7 @@ def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
     MCP session. Resumable and fail-soft inside each stage: a slow or failed lookup
     degrades to an honest deterministic clause, never a fabricated PMID.
     """
-    from pipeline.stages import notes as notes_stage
+    from panoscope.pipeline.stages import notes as notes_stage
 
     notes_stage.run_celltype_notes(dataset_id, root)
     notes_stage.run_gene_notes(dataset_id, root)
