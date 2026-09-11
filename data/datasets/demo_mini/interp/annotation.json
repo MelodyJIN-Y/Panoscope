@@ -1,0 +1,79 @@
+{
+  "dataset": "demo_mini",
+  "method": "jazzpanda-markers skill (Output 2)",
+  "clusters": {
+    "c1": {
+      "cluster": "c1",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "cell_type_short": "Tum_HER2pos",
+      "category": "Epithelial",
+      "lineage": "Tumor",
+      "canonical_markers": [
+        "ERBB2",
+        "KRT7",
+        "KRT8",
+        "KRT18",
+        "KRT19",
+        "EPCAM",
+        "MUC1",
+        "GATA3"
+      ],
+      "offpanel_canonical": [
+        "KRT8",
+        "KRT18",
+        "KRT19",
+        "EPCAM",
+        "MUC1",
+        "GATA3"
+      ]
+    },
+    "c2": {
+      "cluster": "c2",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "cell_type_short": "CAF_Secretory",
+      "category": "Stromal",
+      "lineage": "Mesenchymal",
+      "canonical_markers": [
+        "LUM",
+        "POSTN",
+        "CCDC80",
+        "DCN",
+        "COL1A1",
+        "FAP",
+        "PDGFRA",
+        "VIM",
+        "FN1"
+      ],
+      "offpanel_canonical": [
+        "DCN",
+        "COL1A1",
+        "FAP",
+        "PDGFRA",
+        "VIM",
+        "FN1"
+      ]
+    },
+    "c3": {
+      "cluster": "c3",
+      "cell_type": "Macrophages",
+      "cell_type_short": "Imm_Mac",
+      "category": "Myeloid",
+      "lineage": "Immune",
+      "canonical_markers": [
+        "LYZ",
+        "CD68",
+        "FCER1G",
+        "CSF1R",
+        "MRC1",
+        "ITGAM",
+        "ADGRE1"
+      ],
+      "offpanel_canonical": [
+        "CSF1R",
+        "MRC1",
+        "ITGAM",
+        "ADGRE1"
+      ]
+    }
+  }
+}

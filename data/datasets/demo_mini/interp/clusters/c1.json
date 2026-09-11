@@ -1,0 +1,220 @@
+{
+  "cluster": "c1",
+  "cell_type": "HER2+ Breast Tumor Epithelial",
+  "cell_type_short": "Tum_HER2pos",
+  "confidence": "Very High",
+  "confidence_score": 0.95,
+  "key_markers": [
+    "ERBB2",
+    "KRT7",
+    "SCD"
+  ],
+  "notes": "HER2+ Breast Tumor Epithelial call driven by ERBB2 glm_coef=21.44/pearson=0.91, KRT7 glm_coef=13.48/pearson=0.92. Confidence Very High.",
+  "category": "Epithelial",
+  "lineage": "Tumor",
+  "exclude": false,
+  "verify": false,
+  "small_n": false,
+  "evidence": [
+    {
+      "gene": "ERBB2",
+      "top_cluster": "c1",
+      "glm_coef": 21.4378453933592,
+      "pearson": 0.906160189145375,
+      "max_gg_corr": 0.929441174999956,
+      "max_gc_corr": 0.906160189145375,
+      "p_value": null,
+      "within_cluster_pctile": 1.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "KRT7",
+      "top_cluster": "c1",
+      "glm_coef": 13.4791912852199,
+      "pearson": 0.915787770740654,
+      "max_gg_corr": 0.968649020953259,
+      "max_gc_corr": 0.915787770740654,
+      "p_value": null,
+      "within_cluster_pctile": 0.5,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "SCD",
+      "top_cluster": "c1",
+      "glm_coef": 12.0348354639908,
+      "pearson": 0.876679091567331,
+      "max_gg_corr": 0.916564210174625,
+      "max_gc_corr": 0.876679091567331,
+      "p_value": null,
+      "within_cluster_pctile": 0.0,
+      "is_canonical": false,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    }
+  ],
+  "offpanel_notes": [
+    {
+      "gene": "KRT8",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "message": "KRT8 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "KRT18",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "message": "KRT18 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "KRT19",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "message": "KRT19 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "EPCAM",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "message": "EPCAM is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "MUC1",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "message": "MUC1 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "GATA3",
+      "cell_type": "HER2+ Breast Tumor Epithelial",
+      "message": "GATA3 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+      "source": "panel:absence"
+    }
+  ],
+  "opening": {
+    "cluster": "c1",
+    "cell_type": "HER2+ Breast Tumor Epithelial",
+    "confidence": "Very High",
+    "headline": "HER2+ Breast Tumor Epithelial, Very High confidence, driven by ERBB2 (glm_coef 21.44, pearson 0.91).",
+    "driving_markers": [
+      {
+        "gene": "ERBB2",
+        "top_cluster": "c1",
+        "glm_coef": 21.4378453933592,
+        "pearson": 0.906160189145375,
+        "max_gg_corr": 0.929441174999956,
+        "max_gc_corr": 0.906160189145375,
+        "p_value": null,
+        "within_cluster_pctile": 1.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "KRT7",
+        "top_cluster": "c1",
+        "glm_coef": 13.4791912852199,
+        "pearson": 0.915787770740654,
+        "max_gg_corr": 0.968649020953259,
+        "max_gc_corr": 0.915787770740654,
+        "p_value": null,
+        "within_cluster_pctile": 0.5,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      }
+    ],
+    "offpanel_notes": [
+      {
+        "gene": "KRT8",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "message": "KRT8 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "KRT18",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "message": "KRT18 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "KRT19",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "message": "KRT19 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "EPCAM",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "message": "EPCAM is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "MUC1",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "message": "MUC1 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "GATA3",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "message": "GATA3 is off-panel (never measured); its absence is not evidence against HER2+ Breast Tumor Epithelial.",
+        "source": "panel:absence"
+      }
+    ],
+    "literature_hooks": [
+      {
+        "claim": "ERBB2 marks HER2+ Breast Tumor Epithelial",
+        "marker": "ERBB2",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "query_terms": [
+          "ERBB2",
+          "HER2+ Breast Tumor Epithelial",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "KRT7 marks HER2+ Breast Tumor Epithelial",
+        "marker": "KRT7",
+        "cell_type": "HER2+ Breast Tumor Epithelial",
+        "query_terms": [
+          "KRT7",
+          "HER2+ Breast Tumor Epithelial",
+          "marker"
+        ],
+        "status": "unfilled"
+      }
+    ],
+    "verify": false
+  },
+  "band_basis": "glm_coef direct",
+  "demotions": [],
+  "source_trace": [
+    "jz:ERBB2:glm_coef=21.437845",
+    "jz:ERBB2:pearson=0.906160",
+    "jz:KRT7:glm_coef=13.479191",
+    "jz:KRT7:pearson=0.915788",
+    "jz:SCD:glm_coef=12.034835",
+    "jz:SCD:pearson=0.876679",
+    "panel:KRT8:off_panel=True",
+    "panel:KRT18:off_panel=True",
+    "panel:KRT19:off_panel=True",
+    "panel:EPCAM:off_panel=True",
+    "panel:MUC1:off_panel=True",
+    "panel:GATA3:off_panel=True"
+  ]
+}

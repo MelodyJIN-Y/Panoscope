@@ -1,0 +1,9 @@
+{
+  "coherence_notes": [
+    "Compartments represented across the dataset: Epithelial (HER2+ Breast Tumor Epithelial); Stromal (Cancer-Associated Fibroblast); Myeloid (Macrophages).",
+    "Cell-count proportions are unavailable for this dataset (no per-cell coordinates provided).",
+    "No redundancy: all 3 clusters carry distinct cell types (HER2+ Breast Tumor Epithelial, Cancer-Associated Fibroblast, Macrophages); no two clusters collapse onto the same call."
+  ],
+  "refinements": [],
+  "set_is_coherent": true
+}

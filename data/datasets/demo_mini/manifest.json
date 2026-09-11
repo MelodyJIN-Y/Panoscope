@@ -1,0 +1,54 @@
+{
+  "dataset_id": "demo_mini",
+  "generated_at": "2026-07-12T11:23:43Z",
+  "pipeline_version": "0.1.0",
+  "tissue": "human breast cancer",
+  "platform": "Xenium",
+  "panel_gene_count": 9,
+  "n_cells": null,
+  "clusters": [
+    "c1",
+    "c2",
+    "c3"
+  ],
+  "views_available": {
+    "cell_map": false,
+    "umap": false,
+    "density": false,
+    "expr": false
+  },
+  "inputs": {
+    "markers_top.csv": {
+      "file": "markers_top.csv",
+      "sha256": "bc64284bb566f77a08558f23507c16f43b76a86c17000512234f3e5153b5c4a1"
+    },
+    "panel.parquet": {
+      "file": "panel.parquet",
+      "sha256": "8d7516d9ffbf863f3e48b4ca3bc6bd6b3b32b7ccd6f4903b81616e8212cc191c"
+    }
+  },
+  "artifacts": {
+    "interp/clusters/c1.json": {
+      "sha256": "d2d6db06311173c0b8f82a972d754dc7535e84e674eef938e60b30cb2fb42b34"
+    },
+    "interp/clusters/c2.json": {
+      "sha256": "06e687327d414b3525acadf2e2cb95dc1a3a145f739bd9d2091adcea005490e0"
+    },
+    "interp/clusters/c3.json": {
+      "sha256": "5ce3beadf8578a0c9ebe06d528756b4133adf9805823720026bc794c1cdba9cc"
+    },
+    "interp/verdicts.csv": {
+      "sha256": "27bef263fb29e717e4abd005bae0acc940e98187245b7dc350bd0b72a5aa3db6",
+      "rows": 3
+    },
+    "interp/holistic.json": {
+      "sha256": "025fa0d133081c10aa01345352cddc88ad5c27f5892edf84934e75306b750860"
+    },
+    "interp/calibration.md": {
+      "sha256": "d0bd52e1754f226783baaf5a1843e3201a22cd62a606a2b826a41224e2e2d167"
+    },
+    "viz/hexbin/": {
+      "n_frames": 0
+    }
+  }
+}

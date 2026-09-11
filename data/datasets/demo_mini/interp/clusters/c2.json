@@ -1,0 +1,246 @@
+{
+  "cluster": "c2",
+  "cell_type": "Cancer-Associated Fibroblast",
+  "cell_type_short": "CAF_Secretory",
+  "confidence": "Very High",
+  "confidence_score": 0.95,
+  "key_markers": [
+    "LUM",
+    "POSTN",
+    "CCDC80"
+  ],
+  "notes": "Cancer-Associated Fibroblast call driven by LUM glm_coef=18.00/pearson=0.91, POSTN glm_coef=15.80/pearson=0.80, CCDC80 glm_coef=6.94/pearson=0.79. Confidence Very High.",
+  "category": "Stromal",
+  "lineage": "Mesenchymal",
+  "exclude": false,
+  "verify": false,
+  "small_n": false,
+  "evidence": [
+    {
+      "gene": "LUM",
+      "top_cluster": "c2",
+      "glm_coef": 17.9978807964945,
+      "pearson": 0.908125030077264,
+      "max_gg_corr": 0.892434651041087,
+      "max_gc_corr": 0.908125030077264,
+      "p_value": null,
+      "within_cluster_pctile": 1.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "POSTN",
+      "top_cluster": "c2",
+      "glm_coef": 15.7967446458044,
+      "pearson": 0.798551442388682,
+      "max_gg_corr": 0.892434651041087,
+      "max_gc_corr": 0.798551442388682,
+      "p_value": null,
+      "within_cluster_pctile": 0.5,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    },
+    {
+      "gene": "CCDC80",
+      "top_cluster": "c2",
+      "glm_coef": 6.93759860179172,
+      "pearson": 0.791363166956382,
+      "max_gg_corr": 0.89994585819675,
+      "max_gc_corr": 0.791363166956382,
+      "p_value": null,
+      "within_cluster_pctile": 0.0,
+      "is_canonical": true,
+      "is_on_panel": true,
+      "role": "supports",
+      "caveats": [],
+      "source": "jazzpanda:top_result"
+    }
+  ],
+  "offpanel_notes": [
+    {
+      "gene": "DCN",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "message": "DCN is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "COL1A1",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "message": "COL1A1 is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "FAP",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "message": "FAP is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "PDGFRA",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "message": "PDGFRA is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "VIM",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "message": "VIM is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "FN1",
+      "cell_type": "Cancer-Associated Fibroblast",
+      "message": "FN1 is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+      "source": "panel:absence"
+    }
+  ],
+  "opening": {
+    "cluster": "c2",
+    "cell_type": "Cancer-Associated Fibroblast",
+    "confidence": "Very High",
+    "headline": "Cancer-Associated Fibroblast, Very High confidence, driven by LUM (glm_coef 18.00, pearson 0.91).",
+    "driving_markers": [
+      {
+        "gene": "LUM",
+        "top_cluster": "c2",
+        "glm_coef": 17.9978807964945,
+        "pearson": 0.908125030077264,
+        "max_gg_corr": 0.892434651041087,
+        "max_gc_corr": 0.908125030077264,
+        "p_value": null,
+        "within_cluster_pctile": 1.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "POSTN",
+        "top_cluster": "c2",
+        "glm_coef": 15.7967446458044,
+        "pearson": 0.798551442388682,
+        "max_gg_corr": 0.892434651041087,
+        "max_gc_corr": 0.798551442388682,
+        "p_value": null,
+        "within_cluster_pctile": 0.5,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      },
+      {
+        "gene": "CCDC80",
+        "top_cluster": "c2",
+        "glm_coef": 6.93759860179172,
+        "pearson": 0.791363166956382,
+        "max_gg_corr": 0.89994585819675,
+        "max_gc_corr": 0.791363166956382,
+        "p_value": null,
+        "within_cluster_pctile": 0.0,
+        "is_canonical": true,
+        "is_on_panel": true,
+        "role": "supports",
+        "caveats": [],
+        "source": "jazzpanda:top_result"
+      }
+    ],
+    "offpanel_notes": [
+      {
+        "gene": "DCN",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "message": "DCN is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "COL1A1",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "message": "COL1A1 is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "FAP",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "message": "FAP is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "PDGFRA",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "message": "PDGFRA is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "VIM",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "message": "VIM is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "FN1",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "message": "FN1 is off-panel (never measured); its absence is not evidence against Cancer-Associated Fibroblast.",
+        "source": "panel:absence"
+      }
+    ],
+    "literature_hooks": [
+      {
+        "claim": "LUM marks Cancer-Associated Fibroblast",
+        "marker": "LUM",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "query_terms": [
+          "LUM",
+          "Cancer-Associated Fibroblast",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "POSTN marks Cancer-Associated Fibroblast",
+        "marker": "POSTN",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "query_terms": [
+          "POSTN",
+          "Cancer-Associated Fibroblast",
+          "marker"
+        ],
+        "status": "unfilled"
+      },
+      {
+        "claim": "CCDC80 marks Cancer-Associated Fibroblast",
+        "marker": "CCDC80",
+        "cell_type": "Cancer-Associated Fibroblast",
+        "query_terms": [
+          "CCDC80",
+          "Cancer-Associated Fibroblast",
+          "marker"
+        ],
+        "status": "unfilled"
+      }
+    ],
+    "verify": false
+  },
+  "band_basis": "glm_coef direct",
+  "demotions": [],
+  "source_trace": [
+    "jz:LUM:glm_coef=17.997881",
+    "jz:LUM:pearson=0.908125",
+    "jz:POSTN:glm_coef=15.796745",
+    "jz:POSTN:pearson=0.798551",
+    "jz:CCDC80:glm_coef=6.937599",
+    "jz:CCDC80:pearson=0.791363",
+    "panel:DCN:off_panel=True",
+    "panel:COL1A1:off_panel=True",
+    "panel:FAP:off_panel=True",
+    "panel:PDGFRA:off_panel=True",
+    "panel:VIM:off_panel=True",
+    "panel:FN1:off_panel=True"
+  ]
+}
