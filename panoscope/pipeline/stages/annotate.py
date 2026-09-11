@@ -109,13 +109,14 @@ def _save(out_path: Path, dataset_id: str, clusters: dict[str, dict]) -> None:
 
 
 def run_annotate(
-    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None, force: bool = False
+    dataset_id: str | None = None, root: Optional[Path] = None, force: bool = False
 ) -> dict[str, dict]:
     """Generate (resumable) the per-cluster skill annotation into interp/annotation.json.
 
     Reads an existing file and only fills clusters that are missing or "Unknown"
     (unless ``force``). Clears the annotation cache so downstream stages see it.
     """
+    dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "annotation.json"
     clusters: dict[str, dict] = {} if force else _load_existing(out_path)
 

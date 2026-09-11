@@ -489,7 +489,7 @@ def _note_payload(note) -> dict[str, Any]:
     }
 
 
-def memory_read(cluster: Optional[str] = None, dataset: str = cfg.DATASET_ID) -> Envelope:
+def memory_read(cluster: Optional[str] = None, dataset: str | None = None) -> Envelope:
     """Return the lab notes whose scope FIRES for ``cluster`` (the scope choke point).
 
     Goes through :func:`agent.memory.apply_notes`, so a cluster-scoped note fires
@@ -497,6 +497,7 @@ def memory_read(cluster: Optional[str] = None, dataset: str = cfg.DATASET_ID) ->
     carries a ``[note:<id>]`` citation Source — the caller MUST cite a note to use
     it (cite-on-use), and any attached tension is surfaced.
     """
+    dataset = dataset or cfg.DATASET_ID
     cl = str(cluster).strip() if cluster else None
     if cl and cl not in cfg.KNOWN_CLUSTERS:
         return _fail(f"unknown cluster {cl!r}; known: {sorted(cfg.KNOWN_CLUSTERS)}")
@@ -523,7 +524,7 @@ def memory_write(
     cluster: Optional[str] = None,
     subject_cell_type: Optional[str] = None,
     subject_markers: Optional[list[str]] = None,
-    dataset: str = cfg.DATASET_ID,
+    dataset: str | None = None,
     trigger: str = "override",
 ) -> Envelope:
     """Create a lab note AND reconcile it against the literature (real PMIDs only).
@@ -536,6 +537,7 @@ def memory_write(
     Scope is enforced at birth (a cluster note must name a cluster). Returns the
     written note (with tension) + its ``[note:<id>]`` citation Source.
     """
+    dataset = dataset or cfg.DATASET_ID
     if not claim or not str(claim).strip():
         return _fail("memory_write requires a non-empty claim")
     if scope not in ("cluster", "dataset", "lab"):
@@ -632,7 +634,7 @@ def memory_draft(
     subject_clusters: Optional[list[str]] = None,
     subject_lineage: str = "",
     subject_category: str = "",
-    dataset: str = cfg.DATASET_ID,
+    dataset: str | None = None,
 ) -> Envelope:
     """PROPOSE a lab note (reconciled against the literature) WITHOUT saving it.
 
@@ -643,6 +645,7 @@ def memory_draft(
     persisted. Nothing is written here. Use this at an override/correction/validation/
     convention — never persist a note the biologist has not confirmed.
     """
+    dataset = dataset or cfg.DATASET_ID
     if not claim or not str(claim).strip():
         return _fail("memory_draft requires a non-empty claim")
     if scope not in ("cluster", "dataset", "lab"):

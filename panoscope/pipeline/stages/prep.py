@@ -57,7 +57,7 @@ def _contract_error(dataset_id: str, idir: Path) -> FileNotFoundError:
     )
 
 
-def run_prep(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> None:
+def run_prep(dataset_id: str | None = None, root: Optional[Path] = None) -> None:
     """Ensure the dataset's tidy inputs exist. No-op if present; else run the R prep.
 
     Read-if-present: when ``inputs/markers_top.csv`` + ``inputs/panel.parquet`` are
@@ -65,6 +65,7 @@ def run_prep(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> N
     prep to convert the raw ``.Rds`` objects into the tidy contract; raises a clear,
     actionable error if R is unavailable or the prep did not produce the inputs.
     """
+    dataset_id = dataset_id or cfg.DATASET_ID
     if _tidy_inputs_present(dataset_id):
         return
 

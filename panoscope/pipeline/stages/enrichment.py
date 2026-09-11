@@ -23,9 +23,10 @@ from panoscope.pipeline.serialize import enrichment_to_dict
 
 
 def run_enrichment(
-    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+    dataset_id: str | None = None, root: Optional[Path] = None
 ) -> list[ClusterEnrichment]:
     """Compute all enrichment verdicts, write per-cluster JSON + enrichment.csv."""
+    dataset_id = dataset_id or cfg.DATASET_ID
     enrichments = agent_enrichment.all_enrichments()
 
     edir = paths.enrichment_dir(dataset_id, root)

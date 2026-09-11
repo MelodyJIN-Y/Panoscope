@@ -26,8 +26,9 @@ from panoscope.agent import config as cfg
 from panoscope.pipeline import paths
 
 
-def collect_viz(dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None) -> Path:
+def collect_viz(dataset_id: str | None = None, root: Optional[Path] = None) -> Path:
     """Move legacy precomputed viz frames into ``<id>/viz/``. Returns the viz dir."""
+    dataset_id = dataset_id or cfg.DATASET_ID
     vdir = paths.viz_dir(dataset_id, root)
     hexdir = vdir / "hexbin"
     vdir.mkdir(parents=True, exist_ok=True)

@@ -37,14 +37,23 @@ from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
 # The dataset's jazzPanda enrichment result: prefer the per-dataset tree
 # (inputs/enrichment.csv), else the bundled legacy demo file. Absent -> no
 # Pathways slice (fail-soft in the pipeline).
-_JZ_ENRICHMENT_CSV = cfg._active_input(
-    "enrichment.csv",
-    # the bundled demo file is a fallback ONLY for the demo; any other dataset that
-    # lacks inputs/enrichment.csv simply has no Pathways slice (never the demo's).
-    cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv"
-    if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID
-    else cfg._DATASET_INPUTS / "enrichment.csv",
-)
+def _jz_enrichment_csv():
+    """The active study's jazzPanda enrichment result, resolved at CALL time.
+
+    Was a module constant, which froze the study at import AND referenced a private
+    config attribute removed in the Study refactor. Because the ternary
+    short-circuited under the bundled demo, the breakage was invisible there and
+    made the whole Pathways slice unimportable for every other study.
+
+    The bundled demo file is a fallback ONLY for the demo; any other study lacking
+    inputs/enrichment.csv simply has no Pathways slice, never the demo's.
+    """
+    legacy = (
+        cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv"
+        if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID
+        else cfg.current_study().inputs / "enrichment.csv"
+    )
+    return cfg._active_input("enrichment.csv", legacy)
 _JZ_SCORE_KIND = "jazzpanda_enrichment"
 _JZ_COLLECTION = "MSigDB_Hallmark"
 
@@ -83,7 +92,7 @@ def _load_jazzpanda_rows() -> tuple[dict, ...]:
     p_adj_bh, gc_corr, n_sig_features, genes_selected, cluster, anno. The honest
     driving genes are ``genes_selected`` (the lasso sig_features), NOT n_overlap.
     """
-    path = _JZ_ENRICHMENT_CSV
+    path = _jz_enrichment_csv()
     if not path.exists():
         raise FileNotFoundError(
             f"[enrichment] jazzPanda enrichment result missing: {path}. "

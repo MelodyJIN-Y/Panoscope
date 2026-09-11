@@ -16,7 +16,7 @@ from panoscope.agent.types import ClusterEnrichment
 # The jazzPanda enrichment result is unpublished + gitignored, so it may be absent
 # on a fresh clone / CI. Skip the whole module then rather than fail.
 pytestmark = pytest.mark.skipif(
-    not E._JZ_ENRICHMENT_CSV.exists(),
+    not E._jz_enrichment_csv().exists(),
     reason="jazzPanda enrichment result not present (gitignored)",
 )
 

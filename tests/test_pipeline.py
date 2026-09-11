@@ -33,7 +33,7 @@ from panoscope.pipeline.serialize import (
 )
 from panoscope.pipeline.stages.validate import validate
 
-_HAS_ENRICHMENT = agent_enrichment._JZ_ENRICHMENT_CSV.exists()
+_HAS_ENRICHMENT = agent_enrichment._jz_enrichment_csv().exists()
 
 
 def test_verdict_roundtrip_equals_computed():

@@ -22,9 +22,10 @@ from panoscope.pipeline.serialize import verdict_to_dict
 
 
 def run_verdicts(
-    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+    dataset_id: str | None = None, root: Optional[Path] = None
 ) -> list[ClusterVerdict]:
     """Compute all verdicts, write per-cluster JSON + verdicts.csv, return them."""
+    dataset_id = dataset_id or cfg.DATASET_ID
     verdicts = agent_verdict.all_verdicts()
 
     cdir = paths.clusters_dir(dataset_id, root)

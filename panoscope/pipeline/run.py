@@ -161,7 +161,7 @@ def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
 
 
 def run(
-    dataset_id: str = cfg.DATASET_ID,
+    dataset_id: str | None = None,
     root: Optional[Path] = None,
     notes: bool = False,
 ) -> Path:
@@ -172,6 +172,7 @@ def run(
     (real-PubMed cell-type + per-marker biology notes) before the manifest, so
     the notes are hashed into it too.
     """
+    dataset_id = dataset_id or cfg.DATASET_ID
     ddir = paths.dataset_dir(dataset_id, root)
     ddir.mkdir(parents=True, exist_ok=True)
 

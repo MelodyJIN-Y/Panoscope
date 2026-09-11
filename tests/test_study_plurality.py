@@ -25,10 +25,16 @@ NOT used as a discriminator here -- unit counts, labels and markers are.
 
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
+
 import pytest
 
 from panoscope.agent import annotation, config as cfg, data, holistic
 from panoscope.data.study import Study
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 DEMO = "xenium_hbreast_sample1"
 MINI = "demo_mini"
@@ -119,3 +125,48 @@ def test_study_scope_is_restored_on_exception():
         with cfg.use_study(MINI):
             raise RuntimeError("boom")
     assert cfg.DATASET_ID == before
+
+
+def test_every_module_imports_under_a_switched_study():
+    """Import the whole package in a fresh process with a non-demo study active.
+
+    This exists because a real regression slipped past everything else. A module
+    constant in agent/enrichment.py froze the study at import AND referenced a
+    private config attribute removed during the Study refactor. The expression
+    short-circuited under the bundled demo, so the demo-only suite stayed green
+    while the entire Pathways slice was unimportable for every other study.
+
+    The import-surface test imports each module once, under the demo. That is not
+    enough: a study-conditional expression is only exercised when the study differs.
+
+    A subprocess rather than importlib.reload -- reloading config rebinds its
+    ContextVar, so tokens from the old one cannot be reset, and a reloaded module
+    graph is not what a real run does anyway.
+    """
+    import subprocess
+    import sys
+
+    child = (
+        "import importlib, pkgutil, json, sys\n"
+        "import panoscope\n"
+        "fails = []\n"
+        "for m in pkgutil.walk_packages(panoscope.__path__, 'panoscope.'):\n"
+        "    if '.app' in m.name:\n"
+        "        continue\n"
+        "    try:\n"
+        "        importlib.import_module(m.name)\n"
+        "    except Exception as e:\n"
+        "        fails.append(f'{m.name}: {type(e).__name__}: {e}')\n"
+        "print(json.dumps(fails))\n"
+    )
+    env = {**os.environ, "PANOSCOPE_DATASET": MINI}
+    proc = subprocess.run(
+        [sys.executable, "-c", child],
+        cwd=str(REPO_ROOT), env=env, capture_output=True, text=True, timeout=180,
+    )
+    assert proc.returncode == 0, f"child failed:\n{proc.stderr[-2000:]}"
+    failures = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert not failures, (
+        f"{len(failures)} module(s) fail to import under study {MINI!r}:\n  "
+        + "\n  ".join(failures)
+    )

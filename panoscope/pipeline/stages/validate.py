@@ -13,8 +13,9 @@ from panoscope.agent import config as cfg
 from panoscope.agent import data
 
 
-def validate(dataset_id: str = cfg.DATASET_ID) -> None:
+def validate(dataset_id: str | None = None) -> None:
     """Assert the dataset's inputs are present and well-formed. Raises on any gap."""
+    dataset_id = dataset_id or cfg.DATASET_ID
     markers = data.load_markers()
     panel = data.load_panel()
 

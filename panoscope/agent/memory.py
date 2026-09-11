@@ -255,7 +255,7 @@ def draft_note(
     subject_clusters: Optional[Iterable[str]] = None,
     subject_lineage: str = "",
     subject_category: str = "",
-    dataset: str = cfg.DATASET_ID,
+    dataset: str | None = None,
     literature_search: Optional[LiteratureSearch] = None,
 ) -> NoteDraft:
     """Reconcile a proposed note against the literature WITHOUT persisting it.
@@ -268,6 +268,7 @@ def draft_note(
     :func:`save_draft` persists it. Validates the closed-vocab fields (and a cluster
     for cluster scope) so a malformed draft fails fast.
     """
+    dataset = dataset or cfg.DATASET_ID
     _validate_note_fields(claim, scope, basis, status)
     if scope == "cluster":
         if cluster is None:
@@ -395,7 +396,7 @@ def create_note(
     subject_clusters: Optional[Iterable[str]] = None,
     subject_lineage: str = "",
     subject_category: str = "",
-    dataset: str = cfg.DATASET_ID,
+    dataset: str | None = None,
     attributed_to: str = "you@example.com",
     trigger: str = "override",
     supersedes: Optional[str] = None,
@@ -412,6 +413,7 @@ def create_note(
     note carries its tension from the moment it is captured — at the override,
     where the lab's knowledge diverges from the default.
     """
+    dataset = dataset or cfg.DATASET_ID
     if not claim or not claim.strip():
         raise ValueError("[memory] note claim must be non-empty")
     if scope not in ("cluster", "dataset", "lab"):
@@ -537,7 +539,7 @@ def get_note(note_id: str, base_dir: Path | str | None = None) -> Note | None:
 # --------------------------------------------------------------------------- #
 # Scope enforcement — THE choke point
 # --------------------------------------------------------------------------- #
-def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str = cfg.DATASET_ID) -> bool:
+def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str | None = None) -> bool:
     """True iff ``note`` is allowed to fire in the given (cluster, dataset) context.
 
     Fail-closed rule (lab ⊇ dataset ⊇ cluster):
@@ -549,6 +551,7 @@ def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str = cfg.DATA
     A cluster-scoped note therefore NEVER fires for a different cluster, and a
     dataset/cluster note NEVER fires for a different dataset.
     """
+    dataset = dataset or cfg.DATASET_ID
     if note.scope == "lab":
         return True
 
@@ -573,7 +576,7 @@ def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str = cfg.DATA
 
 def apply_notes(
     cluster: Optional[str],
-    dataset: str = cfg.DATASET_ID,
+    dataset: str | None = None,
     base_dir: Path | str | None = None,
 ) -> list[Note]:
     """Return only the notes whose scope FIRES for ``(cluster, dataset)``.
@@ -582,6 +585,7 @@ def apply_notes(
     only for their own cluster; dataset and lab notes fire for all. Everything
     else is filtered out (fail-closed).
     """
+    dataset = dataset or cfg.DATASET_ID
     return [
         n for n in read_notes(base_dir) if note_in_scope(n, cluster=cluster, dataset=dataset)
     ]

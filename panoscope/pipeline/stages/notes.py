@@ -184,9 +184,10 @@ def _save(out_path: Path, notes: dict[str, Any]) -> None:
 
 
 def run_celltype_notes(
-    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+    dataset_id: str | None = None, root: Optional[Path] = None
 ) -> dict[str, Any]:
     """Generate (resumable) one cited cell-type note per cluster into the tree."""
+    dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "celltype_notes.json"
     notes = _load(out_path)
 
@@ -257,7 +258,7 @@ def _gene_query(gene: str, cell_type: str, cluster: str, ev: Any) -> str:
 
 
 def run_gene_notes(
-    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+    dataset_id: str | None = None, root: Optional[Path] = None
 ) -> dict[str, Any]:
     """Generate (resumable) a skill-grounded biology note for EVERY assigned marker.
 
@@ -267,6 +268,7 @@ def run_gene_notes(
     Confident floor: one real live PMID or none; deterministic role-only fallback
     when the model's text is unusable.
     """
+    dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "gene_notes.json"
     notes = _load(out_path)
 
@@ -348,7 +350,7 @@ def _pathway_query(gene_set: str, cell_type: str, leading_edge: list[str]) -> st
 
 
 def run_pathway_notes(
-    dataset_id: str = cfg.DATASET_ID, root: Optional[Path] = None
+    dataset_id: str | None = None, root: Optional[Path] = None
 ) -> dict[str, Any]:
     """Generate (resumable) a skill-grounded biology note for EVERY surfaced program.
 
@@ -357,6 +359,7 @@ def run_pathway_notes(
     program's leading-edge genes, then records the evaluation fields alongside it.
     Confident floor: one real live PMID or none; deterministic fallback when unusable.
     """
+    dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.pathway_notes_json(dataset_id, root)
     notes = _load(out_path)
 

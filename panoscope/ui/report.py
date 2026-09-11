@@ -170,7 +170,7 @@ def build_report(
     notes: list[Note],
     holistic,
     panel_size: int,
-    dataset: str = cfg.DATASET_ID,
+    dataset: str | None = None,
     generated_at: str = "",
     enrichments: dict | None = None,
     pathway_notes: dict | None = None,
@@ -184,6 +184,7 @@ def build_report(
     enriched programs + their cited biology alongside the marker call. ``tissue`` /
     ``platform`` populate the report header (grounded context, from the manifest).
     """
+    dataset = dataset or cfg.DATASET_ID
     enrichments = enrichments or {}
     pathway_notes = pathway_notes or {}
     sections: list[ClusterSection] = []
