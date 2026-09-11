@@ -2,23 +2,37 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
-    branches: [main]
+    branches: [main, v2]
 
 jobs:
   test:
-    name: Offline grounding tests
+    name: Offline grounding tests (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      # Report every version's result; one red cell must not cancel the others.
+      fail-fast: false
+      matrix:
+        # IMPLEMENTATION.md §8 sets requires-python = ">=3.10" — reviewers run
+        # 3.10/3.11 on conda-forge and HPC. Verified before adding: the offline
+        # suite passes identically on all four, no module uses 3.11+ syntax or
+        # stdlib API, and every requirement resolves on 3.10.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # ~568 MB of loose git objects and 51 MB of committed data: a shallow
+          # checkout is materially faster and CI never needs the history.
+          fetch-depth: 1
 
-      - name: Set up Python 3.12
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install dependencies
@@ -28,3 +42,77 @@ jobs:
 
       - name: Run offline test suite
         run: pytest -m "not live" -q
+
+  # ---------------------------------------------------------------------------
+  # DO NOT DELETE THIS JOB WHEN IT IS RED. IT IS SUPPOSED TO BE RED RIGHT NOW.
+  #
+  # pytest.ini sets `pythonpath = .`, which puts the repo root on sys.path and so
+  # hides every "works because cwd happens to be the repo root" bug — imports that
+  # only resolve in-tree, and data/asset paths resolved relative to the working
+  # directory instead of the package. This job installs the package and runs the
+  # suite from a directory that is not the repo root, with the repo moved aside,
+  # so none of that is available.
+  #
+  # It CANNOT pass today: there is no pyproject.toml, so there is nothing to
+  # install and every test file dies at collection on `ModuleNotFoundError: No
+  # module named 'panoscope'`. That failure is the signal, which is why the job
+  # is continue-on-error and non-blocking.
+  #
+  # It flips to required at the end of Phase C (IMPLEMENTATION.md §7), when
+  # pyproject.toml exists and the package is installable. Fix it by finishing the
+  # packaging work, never by deleting the job or by adding the repo root back to
+  # sys.path.
+  # ---------------------------------------------------------------------------
+  out-of-tree:
+    name: Out-of-tree install + tests (canary, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ -f pyproject.toml ]; then
+            # Deliberately NOT `-e .`: an editable install drops the repo root
+            # back onto sys.path via a .pth file, which is exactly what this job
+            # exists to do without.
+            pip install .
+          else
+            echo "::notice title=Phase A canary::No pyproject.toml yet, so there is no package to install. The run below is expected to fail at import — see IMPLEMENTATION.md §7 Phase C."
+          fi
+
+      - name: Stage the tests outside the repo
+        run: |
+          mkdir -p "$RUNNER_TEMP/oot"
+          cp -R tests "$RUNNER_TEMP/oot/tests"
+          # A config with NO `pythonpath`. That one setting is what this job is
+          # here to defeat, so the repo's pytest.ini must not be used.
+          cat > "$RUNNER_TEMP/oot/pytest.ini" <<'EOF'
+          [pytest]
+          markers =
+              live: exercises the network / live PubMed MCP (deselect with -m "not live")
+          EOF
+
+      - name: Run the suite with the repo moved aside
+        # cwd is runner.temp, not the workspace, so this step still runs while
+        # the checkout is renamed out from under it.
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          trap 'mv "$RUNNER_TEMP/repo-moved-aside" "$GITHUB_WORKSPACE" 2>/dev/null || true' EXIT
+          mv "$GITHUB_WORKSPACE" "$RUNNER_TEMP/repo-moved-aside"
+          cd "$RUNNER_TEMP/oot"
+          python -c 'import sys; print("\n".join(sys.path))'
+          python -m pytest -c pytest.ini tests -m "not live" -q

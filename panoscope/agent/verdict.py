@@ -62,53 +62,15 @@ FRAGILE_FLOOR_BAND: str = "Medium"  # a fragile cluster with a canonical driver 
 
 
 # --------------------------------------------------------------------------- #
-# Canonical marker map, the on-panel canonical markers per cell type.
-# Grounded: these are established lineage markers; the driver is whichever of
-# these ranks highest by glm_coef among the cluster's assigned (on-panel) rows.
-# Only genes actually present in the cluster's marker table can ever drive a
-# verdict, so an entry that is off-panel or absent simply never fires.
+# The canonical / off-panel marker maps used to live here, duplicated.
+#
+# They were dead at runtime: ``_is_canonical`` reads
+# ``annotation.canonical_markers()``, and ``offpanel_notes`` reads
+# ``annotation.offpanel_canonical()``. Worse, the import-time assertion that
+# guarded them validated the UNUSED copy, and did filesystem I/O at import to do
+# it. Both are gone. The live maps are in agent/annotation.py, and the invariant
+# is now a test (tests/test_verdict.py) asserted against the map actually used.
 # --------------------------------------------------------------------------- #
-CANONICAL_MARKERS: dict[str, tuple[str, ...]] = {
-    "Tumor": ("ERBB2", "EPCAM", "KRT8", "KRT7", "FOXA1", "GATA3", "KRT18"),
-    "Stromal": ("LUM", "POSTN", "PDGFRA", "PDGFRB", "DCN", "COL1A1"),
-    "Macrophages": ("LYZ", "CD68", "CD163", "ITGAX", "FCGR3A", "FCER1G", "CSF1R"),
-    "Myoepithelial": ("MYLK", "ACTA2", "KRT14", "KRT5", "MYH11", "OXTR", "TP63"),
-    "T_Cells": ("IL7R", "PTPRC", "TRAC", "CD3E", "CD3D", "CD8A", "CD4"),
-    "B_Cells": ("MS4A1", "CD79A", "CD79B", "CD19", "BANK1", "MZB1"),
-    "Endothelial": ("PECAM1", "VWF", "CD93", "AQP1", "CLDN5", "CDH5", "FLT1"),
-    "Dendritic": ("LILRA4", "TCL1A", "SPIB", "PLD4", "IL3RA", "CLEC4C", "IRF7"),
-    "Mast_Cells": ("CPA3", "TPSAB1", "KIT", "CTSG", "MS4A2", "TPSB2"),
-}
-
-# --------------------------------------------------------------------------- #
-# Panel-absence notes (P8). P0 populates only c2/Stromal. These are canonical
-# markers that were NEVER on the panel: their absence is not evidence against
-# the type. Notes are context only, they never touch band/score/verify.
-# --------------------------------------------------------------------------- #
-OFF_PANEL_CANONICAL: dict[str, tuple[str, ...]] = {
-    "Stromal": ("COL1A1", "COL1A2", "DCN", "VIM", "FAP"),
-}
-
-
-def _assert_off_panel_map() -> None:
-    """Fail loud if any listed off-panel canonical gene is actually on the panel.
-
-    The whole point of a panel-absence note is that the gene was never measured;
-    listing an on-panel gene here would be a grounding error, so we refuse to
-    import rather than emit a misleading note.
-    """
-    for cell_type, genes in OFF_PANEL_CANONICAL.items():
-        for gene in genes:
-            if data.panel_contains(gene):
-                raise AssertionError(
-                    f"[verdict] OFF_PANEL_CANONICAL[{cell_type!r}] lists {gene!r} "
-                    f"but data.panel_contains({gene!r}) is True, it IS on the panel. "
-                    f"An off-panel-absence note must reference a gene that was never "
-                    f"measured. Fix the map."
-                )
-
-
-_assert_off_panel_map()
 
 
 # --------------------------------------------------------------------------- #

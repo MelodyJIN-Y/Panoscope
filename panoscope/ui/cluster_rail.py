@@ -22,11 +22,11 @@ the ``pano-raildot`` span. Streamlit is imported lazily inside ``render_rail`` s
 ``import ui.cluster_rail`` needs no running server.
 """
 
+
 from __future__ import annotations
 
+from panoscope.agent import config as cfg
 from typing import Optional
-
-from panoscope.agent.config import CLUSTER_KEY, CLUSTER_ORDER
 from panoscope.agent.types import ClusterVerdict
 
 from panoscope.ui import data_access, state
@@ -38,7 +38,7 @@ from panoscope.ui import data_access, state
 
 def _cluster_label(cluster: str) -> str:
     """Human cell-type name for a cluster from the authoritative key (fallback: id)."""
-    entry = CLUSTER_KEY.get(cluster)
+    entry = cfg.CLUSTER_KEY.get(cluster)
     if entry:
         return entry["cell_type"].replace("_", " ")
     return cluster
@@ -54,7 +54,7 @@ def render_rail() -> Optional[str]:
     only mutates ``selected_cluster``) via ``on_click`` and Streamlit reruns.
 
     Selection is fail-closed: ``set_selected_cluster`` ignores ids outside
-    ``CLUSTER_ORDER``, so a stray click can never point the app at a phantom
+    ``cfg.CLUSTER_ORDER``, so a stray click can never point the app at a phantom
     cluster.
     """
     import streamlit as st
@@ -65,7 +65,7 @@ def render_rail() -> Optional[str]:
     selected = state.get_selected_cluster()
 
     with st.container(key="pano_rail"):
-        for cluster in CLUSTER_ORDER:
+        for cluster in cfg.CLUSTER_ORDER:
             verdict: Optional[ClusterVerdict] = verdicts.get(cluster)
             is_sel = cluster == selected
 

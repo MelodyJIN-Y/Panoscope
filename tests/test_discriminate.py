@@ -12,7 +12,7 @@ import pytest
 
 from panoscope.agent import data
 from panoscope.agent import discriminate as dsc
-from panoscope.agent.verdict import CANONICAL_MARKERS
+from panoscope.agent.annotation import all_canonical
 
 
 def _genes(markers) -> set[str]:
@@ -85,7 +85,7 @@ def test_derived_alt_is_valid_type_when_present():
     for c in ("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"):
         d = dsc.discriminate(c)
         if d.alt_B is not None:
-            assert d.alt_B in CANONICAL_MARKERS
+            assert d.alt_B in all_canonical()
             assert d.alt_B != d.call_A
 
 

@@ -19,15 +19,15 @@ the underlying functions are plain and independently testable.
 
 from __future__ import annotations
 
+from panoscope.agent import config as cfg
 import json
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 import pandas as pd
 
-from panoscope.agent import config as cfg
 from panoscope.agent import data as agent_data
 from panoscope.agent import verdict as agent_verdict
-from panoscope.agent.config import CLUSTER_ORDER, DEMO_MARKERS
 from panoscope.agent.types import ClusterVerdict, Note
 
 # --------------------------------------------------------------------------- #
@@ -36,22 +36,26 @@ from panoscope.agent.types import ClusterVerdict, Note
 # (data/datasets/<id>/viz/) when present, falling back to the legacy flat path.
 #   expr.parquet : cell_id (int) + one float column per panel marker
 # --------------------------------------------------------------------------- #
-_DATASET_DIR = cfg.DATA_DIR_PATH / "datasets" / cfg.DATASET_ID
+def _resolved(tree_rel: str, legacy_rel: str) -> Path:
+    """The current study's tree path if it exists, else the legacy flat path.
+
+    Resolved at CALL time. The module-level version froze these to whichever study
+    was active at first import -- the same bug fixed in agent/data.py.
+    """
+    cand = cfg.current_study().dir / tree_rel
+    return cand if cand.exists() else cfg.DATA_DIR_PATH / legacy_rel
 
 
-def _resolved(tree_rel: str, legacy):
-    """Return the per-dataset tree path if present, else the legacy flat path."""
-    cand = _DATASET_DIR / tree_rel
-    return cand if cand.exists() else legacy
+def _marker_expr_parquet() -> Path:
+    return _resolved("viz/expr.parquet", "embeddings/marker_expr.parquet")
 
 
-_MARKER_EXPR_PARQUET = _resolved(
-    "viz/expr.parquet", cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.parquet"
-)
-_MARKER_EXPR_CSV = cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.csv"
-_DENSITY_INDEX = _resolved(
-    "viz/hexbin/_index.json", cfg.DATA_DIR_PATH / "density" / "_index.json"
-)
+def _marker_expr_csv() -> Path:
+    return cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.csv"
+
+
+def _density_index() -> Path:
+    return _resolved("viz/hexbin/_index.json", "density/_index.json")
 
 
 # --------------------------------------------------------------------------- #
@@ -162,15 +166,15 @@ def available_density_markers() -> list[str]:
     the index is missing or unparseable.
     """
     try:
-        if _DENSITY_INDEX.exists():
-            with open(_DENSITY_INDEX) as fh:
+        if _density_index().exists():
+            with open(_density_index()) as fh:
                 idx = json.load(fh)
             genes = idx.get("genes") or idx.get("markers")
             if isinstance(genes, list):
                 return [str(g) for g in genes]
     except Exception:
         pass
-    return list(DEMO_MARKERS)
+    return list(cfg.DEMO_MARKERS)
 
 
 # --------------------------------------------------------------------------- #
@@ -182,9 +186,9 @@ def marker_expr_df() -> pd.DataFrame:
     on a cluster-stratified cell subsample. Read once and cached; parquet-first
     (the committed artifact), CSV fallback for a raw prep output.
     """
-    if _MARKER_EXPR_PARQUET.exists():
-        return pd.read_parquet(_MARKER_EXPR_PARQUET)
-    return pd.read_csv(_MARKER_EXPR_CSV)
+    if _marker_expr_parquet().exists():
+        return pd.read_parquet(_marker_expr_parquet())
+    return pd.read_csv(_marker_expr_csv())
 
 
 @_cache_data(show_spinner=False)
@@ -337,7 +341,7 @@ def verdict_for(cluster: str) -> ClusterVerdict:
 @_cache_data(show_spinner=False)
 def all_verdicts() -> list[ClusterVerdict]:
     """Verdicts for all nine clusters (c1..c9), computed once and cached."""
-    return [verdict_for(c) for c in CLUSTER_ORDER]
+    return [verdict_for(c) for c in cfg.CLUSTER_ORDER]
 
 
 def _excluded_clusters() -> set:
@@ -565,7 +569,7 @@ def enrichment_for(cluster: str):
 @_cache_data(show_spinner=False)
 def all_enrichments() -> list:
     """Enrichment verdicts for all nine clusters (cached)."""
-    return [enrichment_for(c) for c in CLUSTER_ORDER]
+    return [enrichment_for(c) for c in cfg.CLUSTER_ORDER]
 
 
 @_cache_data(show_spinner=False)

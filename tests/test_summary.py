@@ -7,17 +7,17 @@ the per-cluster output format promises.
 """
 from __future__ import annotations
 
+from panoscope.agent import config as cfg
 import html
 
 from panoscope.agent import verdict as agent_verdict
-from panoscope.agent.config import CLUSTER_ORDER
 from panoscope.ui import data_access as da
 from panoscope.ui import summary
 
 
 def test_all_verdicts_returns_nine_complete_calls() -> None:
     verdicts = da.all_verdicts()
-    assert len(verdicts) == len(CLUSTER_ORDER) == 9
+    assert len(verdicts) == len(cfg.CLUSTER_ORDER) == 9
     for v in verdicts:
         # the columns the summary table shows must be populated
         assert v.cell_type and v.cell_type_short
@@ -31,7 +31,7 @@ def test_verdict_csv_has_full_header_and_nine_rows() -> None:
     for col in agent_verdict.CSV_COLUMNS:
         assert col in header
     # header + one row per cluster
-    assert len(lines) == 1 + len(CLUSTER_ORDER)
+    assert len(lines) == 1 + len(cfg.CLUSTER_ORDER)
 
 
 def test_exclude_note_flips_the_export_at_composition(monkeypatch) -> None:

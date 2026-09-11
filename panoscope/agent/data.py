@@ -19,7 +19,7 @@ Grounding discipline:
 from __future__ import annotations
 
 import json
-from functools import lru_cache
+from functools import lru_cache, wraps
 
 import pandas as pd
 
@@ -32,23 +32,49 @@ from panoscope.agent import config as cfg
 # tree-first with a fall back to the legacy flat path, so the app reads the
 # pipeline output where it exists and keeps working mid-migration. Resolved at
 # import: the tree either exists (pipeline has run) or it does not.
-_DATASET_DIR = cfg.DATA_DIR_PATH / "datasets" / cfg.DATASET_ID
+def _resolved(tree_rel: str, legacy_rel: str) -> Path:
+    """The current study's tree path if it exists, else the legacy flat path.
+
+    Resolved at CALL time against the current study. It used to be resolved at
+    import, which froze every path to whichever study happened to be active when
+    the module was first imported -- so opening a second study silently served the
+    first study's frames to everything downstream.
+    """
+    study = cfg.current_study()
+    cand = study.dir / tree_rel
+    return cand if cand.exists() else cfg.DATA_DIR_PATH / legacy_rel
 
 
-def _resolved(tree_rel: str, legacy):
-    """Return the per-dataset tree path if present, else the legacy flat path."""
-    cand = _DATASET_DIR / tree_rel
-    return cand if cand.exists() else legacy
+def _markers_top() -> Path:
+    return _resolved("inputs/markers_top.csv", "jazzpanda/markers_top.csv")
 
 
-_MARKERS_TOP = _resolved("inputs/markers_top.csv", cfg.DATA_DIR_PATH / "jazzpanda" / "markers_top.csv")
-_PANEL_PARQUET = _resolved("inputs/panel.parquet", cfg.DATA_DIR_PATH / "panels" / "panel.parquet")
-_CLUSTER_KEY_JSON = _resolved("inputs/cluster_key.json", cfg.DATA_DIR_PATH / "cluster_key.json")
-_CELLS_PARQUET = _resolved("viz/cells.parquet", cfg.DATA_DIR_PATH / "cells" / "cells.parquet")
-_CELLS_CSV = _resolved("viz/cells.csv", cfg.DATA_DIR_PATH / "cells" / "cells.csv")
-_UMAP_PARQUET = _resolved("viz/umap.parquet", cfg.DATA_DIR_PATH / "embeddings" / "umap.parquet")
-_UMAP_CSV = _resolved("viz/umap.csv", cfg.DATA_DIR_PATH / "embeddings" / "umap.csv")
-_DENSITY_DIR = _resolved("viz/hexbin", cfg.DATA_DIR_PATH / "density")
+def _panel_parquet() -> Path:
+    return _resolved("inputs/panel.parquet", "panels/panel.parquet")
+
+
+def _cluster_key_json() -> Path:
+    return _resolved("inputs/cluster_key.json", "cluster_key.json")
+
+
+def _cells_parquet() -> Path:
+    return _resolved("viz/cells.parquet", "cells/cells.parquet")
+
+
+def _cells_csv() -> Path:
+    return _resolved("viz/cells.csv", "cells/cells.csv")
+
+
+def _umap_parquet() -> Path:
+    return _resolved("viz/umap.parquet", "embeddings/umap.parquet")
+
+
+def _umap_csv() -> Path:
+    return _resolved("viz/umap.csv", "embeddings/umap.csv")
+
+
+def _density_dir() -> Path:
+    return _resolved("viz/hexbin", "density")
 
 _MARKERS_TOP_COLS = [
     "gene",
@@ -60,6 +86,23 @@ _MARKERS_TOP_COLS = [
     "cell_type",
 ]
 _PANEL_COLS = ["gene", "ensembl_id", "annotation"]
+
+
+def _per_study(fn):
+    """Cache a zero-arg reader per study.
+
+    The readers take no arguments, so a plain lru_cache keys everything on the empty
+    tuple -- one slot, shared across studies. Keying on the current study is what
+    makes cross-study staleness unrepresentable rather than merely tested for.
+    """
+    cached = lru_cache(maxsize=16)(lambda _study: fn())
+
+    @wraps(fn)
+    def wrapper():
+        return cached(cfg.current_study())
+
+    wrapper.cache_clear = cached.cache_clear
+    return wrapper
 
 
 def _require(path, produced_by: str):
@@ -91,14 +134,14 @@ def _read_table(parquet_path, csv_path, produced_by: str) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 # Markers
 # --------------------------------------------------------------------------- #
-@lru_cache(maxsize=1)
+@_per_study
 def load_markers() -> pd.DataFrame:
     """Return the full jazzPanda top-marker table (280 rows, incl. NoSig).
 
     Columns: gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr,
     cell_type. Cached; callers must not mutate the returned frame.
     """
-    path = _require(_MARKERS_TOP, "scripts prep (markers_top.csv)")
+    path = _require(_markers_top(), "scripts prep (markers_top.csv)")
     df = pd.read_csv(path)
     missing = set(_MARKERS_TOP_COLS) - set(df.columns)
     if missing:
@@ -138,10 +181,10 @@ def get_marker(gene: str) -> pd.Series | None:
 # --------------------------------------------------------------------------- #
 # Cluster key
 # --------------------------------------------------------------------------- #
-@lru_cache(maxsize=1)
+@_per_study
 def load_cluster_key() -> dict[str, dict]:
     """Return the 9-entry cluster -> {cell_type, cell_type_short, category, lineage}."""
-    path = _require(_CLUSTER_KEY_JSON, "scripts prep (cluster_key.json)")
+    path = _require(_cluster_key_json(), "scripts prep (cluster_key.json)")
     with open(path) as fh:
         key = json.load(fh)
     if len(key) != 9:
@@ -160,10 +203,10 @@ def cell_type_for(cluster: str) -> str:
 # --------------------------------------------------------------------------- #
 # Panel (the absence primitive)
 # --------------------------------------------------------------------------- #
-@lru_cache(maxsize=1)
+@_per_study
 def load_panel() -> pd.DataFrame:
     """Return the panel table (280 analyzed genes): gene, ensembl_id, annotation."""
-    path = _require(_PANEL_PARQUET, "scripts prep (panel.parquet)")
+    path = _require(_panel_parquet(), "scripts prep (panel.parquet)")
     df = pd.read_parquet(path)
     missing = set(_PANEL_COLS) - set(df.columns)
     if missing:
@@ -171,7 +214,7 @@ def load_panel() -> pd.DataFrame:
     return df[_PANEL_COLS]
 
 
-@lru_cache(maxsize=1)
+@_per_study
 def _panel_gene_set() -> frozenset[str]:
     """Case-insensitive frozenset of panel gene names, derived FROM the file."""
     return frozenset(load_panel()["gene"].astype(str).str.upper())
@@ -199,14 +242,14 @@ def panel_annotation(gene: str) -> str | None:
 # --------------------------------------------------------------------------- #
 # Spatial readers (files produced by sibling agents — pure readers only)
 # --------------------------------------------------------------------------- #
-@lru_cache(maxsize=1)
+@_per_study
 def load_cells() -> pd.DataFrame:
     """Return per-cell coordinates + cluster labels (cell_id, cluster, x, y).
 
     Reads data/cells/cells.parquet (produced by the R prep step). Fails loudly
     with a named FileNotFoundError if the file is missing.
     """
-    return _read_table(_CELLS_PARQUET, _CELLS_CSV, "scripts/prep_data.R (cells.parquet/.csv)")
+    return _read_table(_cells_parquet(), _cells_csv(), "scripts/prep_data.R (cells.parquet/.csv)")
 
 
 def get_cluster_cells(cluster: str) -> pd.DataFrame:
@@ -219,13 +262,13 @@ def get_cluster_cells(cluster: str) -> pd.DataFrame:
     return cells[cells["cluster"] == cluster].reset_index(drop=True)
 
 
-@lru_cache(maxsize=1)
+@_per_study
 def load_umap() -> pd.DataFrame:
     """Return UMAP coordinates per cell (cell_id, umap_1, umap_2, cluster).
 
     Reads data/embeddings/umap.parquet (produced by the R prep step).
     """
-    return _read_table(_UMAP_PARQUET, _UMAP_CSV, "scripts/prep_data.R (umap.parquet/.csv)")
+    return _read_table(_umap_parquet(), _umap_csv(), "scripts/prep_data.R (umap.parquet/.csv)")
 
 
 def get_density(gene: str, bin_um: int = 50) -> pd.DataFrame:
@@ -236,6 +279,6 @@ def get_density(gene: str, bin_um: int = 50) -> pd.DataFrame:
     precomputed frame — this reader NEVER re-bins. FileNotFoundError names the
     missing frame so the caller can fall back to the cell map.
     """
-    path = _DENSITY_DIR / f"{gene}_{int(bin_um)}um.parquet"
+    path = _density_dir() / f"{gene}_{int(bin_um)}um.parquet"
     _require(path, "scripts/precompute_density.py (density hexbins)")
     return pd.read_parquet(path)

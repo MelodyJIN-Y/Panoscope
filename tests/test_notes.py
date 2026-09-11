@@ -91,13 +91,21 @@ def test_looks_meta_catches_review_examples():
     assert not _looks_meta("LUM is a small leucine-rich proteoglycan in stroma.")
 
 
-def test_read_tree_frame_prefers_csv_else_none(tmp_path):
-    import pandas as pd
+def test_manifest_cell_count_reads_the_built_tree():
+    """n_cells in the manifest comes from the tree the run just built.
 
-    vdir = tmp_path / "viz"
-    vdir.mkdir()
-    assert pipeline_run._read_tree_frame(vdir, "cells") is None  # neither present
+    Replaces a test for pipeline_run._read_tree_frame, a private workaround that
+    existed only because agent.data froze its paths at import -- to the legacy
+    location, before collect_viz moved the frames -- causing two confirmed
+    first-run manifest bugs. The readers now resolve against the current study at
+    call time, so the pipeline scopes itself to the tree it is writing and reads
+    through the normal loader. What matters is the invariant, not the helper.
+    """
+    import json
 
-    pd.DataFrame({"cell_id": [1, 2, 3]}).to_csv(vdir / "cells.csv", index=False)
-    got = pipeline_run._read_tree_frame(vdir, "cells")
-    assert got is not None and len(got) == 3
+    from panoscope.agent import config as cfg, data
+
+    manifest = json.loads(
+        (cfg.DATA_DIR_PATH / "datasets" / cfg.BUNDLED_DEMO_ID / "manifest.json").read_text()
+    )
+    assert manifest["n_cells"] == len(data.load_cells())

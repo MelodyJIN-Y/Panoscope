@@ -48,14 +48,14 @@ Streamlit and Plotly are imported lazily inside the render functions so the
 module imports cleanly with no server running.
 """
 
+
 from __future__ import annotations
 
+from panoscope.agent import config as cfg
 from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-
-from panoscope.agent.config import CLUSTER_ORDER
 
 from panoscope.ui import data_access as da
 from panoscope.ui import format as fmt
@@ -376,14 +376,13 @@ def _downsample_bg(df: pd.DataFrame, keep_mask: pd.Series, bg_cap: int) -> pd.Da
 def _cluster_celltype_map() -> dict:
     """Map each cluster id to its human cell-type label for hover tooltips.
 
-    Read straight from the authoritative ``CLUSTER_KEY``; unassigned cells (blank
+    Read straight from the authoritative ``cfg.CLUSTER_KEY``; unassigned cells (blank
     cluster) read as ``unassigned``. Nothing is computed.
     """
-    from panoscope.agent.config import CLUSTER_KEY, CLUSTER_ORDER
 
     labels = {
-        c: CLUSTER_KEY.get(c, {}).get("cell_type", c).replace("_", " ")
-        for c in CLUSTER_ORDER
+        c: cfg.CLUSTER_KEY.get(c, {}).get("cell_type", c).replace("_", " ")
+        for c in cfg.CLUSTER_ORDER
     }
     labels[""] = "unassigned"
     return labels
@@ -735,7 +734,7 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
     # else is derived).
     rows: list[tuple[str, str, float, float]] = []
     for gene, by in frames:
-        for c in CLUSTER_ORDER:
+        for c in cfg.CLUSTER_ORDER:
             vals = by.loc[by["cluster"] == c, "value"]
             if len(vals) == 0:
                 continue
@@ -809,7 +808,7 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
             zeroline=False,
             type="category",
             categoryorder="array",
-            categoryarray=list(CLUSTER_ORDER),
+            categoryarray=list(cfg.CLUSTER_ORDER),
             tickfont=dict(family="IBM Plex Mono, monospace", size=10),
         ),
         yaxis=dict(

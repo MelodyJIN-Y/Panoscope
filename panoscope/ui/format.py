@@ -14,11 +14,11 @@ gene is in the evidence set, and falls back to ``panel_contains`` for genes the
 biologist adds by hand.
 """
 
+
 from __future__ import annotations
 
+from panoscope.agent import config as cfg
 from typing import Optional
-
-from panoscope.agent.config import CLUSTER_ORDER
 from panoscope.agent.types import ClusterVerdict, MarkerEvidence, MarkerRole
 
 # --------------------------------------------------------------------------- #
@@ -48,7 +48,7 @@ def cluster_color(cluster: str) -> str:
 
 def cluster_palette() -> dict[str, str]:
     """Return the cluster->color map in c1..c9 order (fresh dict, safe to mutate)."""
-    return {c: cluster_color(c) for c in CLUSTER_ORDER}
+    return {c: cluster_color(c) for c in cfg.CLUSTER_ORDER}
 
 
 # --------------------------------------------------------------------------- #

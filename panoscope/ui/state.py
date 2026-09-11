@@ -19,11 +19,11 @@ session. The keys and their defaults are declared once in ``_DEFAULTS`` and
 seeded idempotently by ``init_state()``.
 """
 
+
 from __future__ import annotations
 
+from panoscope.agent import config as cfg
 from typing import Any, Optional
-
-from panoscope.agent.config import CLUSTER_ORDER
 
 # --------------------------------------------------------------------------- #
 # Key names (one place; accessors reference these, never bare strings)
@@ -45,7 +45,13 @@ K_INITIALIZED = "_ui_initialized"
 BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)  # µm presets from the wireframe
 DEFAULT_BIN_UM = 25
 
-DEFAULT_CLUSTER = CLUSTER_ORDER[0]  # "c1"
+def default_unit() -> str:
+    """First unit of the CURRENT study.
+
+    Was a module-level ``DEFAULT_CLUSTER = CLUSTER_ORDER[0]``, which froze to
+    whichever study was active when ui.state was first imported.
+    """
+    return cfg.CLUSTER_ORDER[0]
 
 # Small-multiples cap: how many selected genes get a density + feature-UMAP pair.
 # Extras stay in ``selected_markers`` (and in the evidence table) but the spatial
@@ -57,7 +63,7 @@ DEFAULT_MARKER_CAP = 4
 # is shared across reruns/sessions (thread/list must be a fresh object).
 # --------------------------------------------------------------------------- #
 _DEFAULTS: dict[str, Any] = {
-    K_SELECTED_CLUSTER: DEFAULT_CLUSTER,
+    K_SELECTED_CLUSTER: None,  # resolved lazily via default_unit()
     K_SELECTED_MARKERS: dict,   # {cluster: [gene, ...]} — per-cluster multi-select
     K_SELECTED_PATHWAYS: dict,  # {cluster: [gene_set, ...]} — per-cluster multi-select
     K_BIN_UM: DEFAULT_BIN_UM,
@@ -127,7 +133,7 @@ def _persist_threads() -> None:
 # --------------------------------------------------------------------------- #
 def get_selected_cluster() -> str:
     """Return the active cluster id (defaults to c1 before init)."""
-    return _ss().get(K_SELECTED_CLUSTER, DEFAULT_CLUSTER)
+    return _ss().get(K_SELECTED_CLUSTER) or default_unit()
 
 
 def set_selected_cluster(cluster: str) -> None:
@@ -136,7 +142,7 @@ def set_selected_cluster(cluster: str) -> None:
     Switching clusters keeps the selected markers and bin size — those persist
     across clusters per the viewing-control spec.
     """
-    if cluster not in CLUSTER_ORDER:
+    if cluster not in cfg.CLUSTER_ORDER:
         return
     _ss()[K_SELECTED_CLUSTER] = cluster
 
@@ -154,7 +160,7 @@ def open_cluster_chat(cluster: str) -> None:
     The Summary board's "open chat" action: it lands the biologist in the cluster's
     live thread, where the full override/question flow lives. Ignores an unknown id
     (fail-closed), same as ``set_selected_cluster``."""
-    if cluster not in CLUSTER_ORDER:
+    if cluster not in cfg.CLUSTER_ORDER:
         return
     ss = _ss()
     ss[K_SELECTED_CLUSTER] = cluster
@@ -440,7 +446,7 @@ def close_paper() -> None:
 __all__ = [
     # keys / vocabularies
     "BIN_SIZES_UM",
-    "DEFAULT_CLUSTER",
+    "default_unit",
     "DEFAULT_BIN_UM",
     "DEFAULT_MARKER_CAP",
     # lifecycle

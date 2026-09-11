@@ -68,8 +68,19 @@ def test_c2_offpanel_notes_include_col1a1_and_vim():
 
 
 def test_offpanel_map_asserts_all_off_panel():
-    """The OFF_PANEL_CANONICAL map must contain only genes absent from the panel."""
-    for cell_type, genes in V.OFF_PANEL_CANONICAL.items():
+    """Every gene named as off-panel canonical must really be absent from the panel.
+
+    This was an import-time assertion in agent/verdict.py. It has been moved here for
+    two reasons: it did filesystem I/O at import, and it guarded a duplicated map that
+    nothing read. It now guards the map the runtime actually uses -- the one
+    ``annotation.offpanel_canonical()`` resolves -- so a wrong entry fails loudly
+    instead of passing against a dead copy.
+    """
+    from panoscope.agent import annotation
+
+    live = annotation.OFF_PANEL_CANONICAL_FALLBACK
+    assert live, "the off-panel canonical map is empty; the invariant would pass vacuously"
+    for cell_type, genes in live.items():
         for g in genes:
             assert data.panel_contains(g) is False, f"{g} for {cell_type} is on-panel"
 

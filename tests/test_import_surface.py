@@ -176,8 +176,8 @@ _NO_IO_CHILD = (
     "    if event == 'open' and args and isinstance(args[0], str) and args[0].startswith(DATA)\n"
     "    else None\n"
     ")\n"
-    "import agent.config\n"   # reads cluster_key.json + markers_top.csv + panel.parquet
-    "import agent.verdict\n"  # module-scope _assert_off_panel_map() reads panel.parquet
+    "import panoscope.agent.config\n"   # reads cluster_key.json + markers_top.csv + panel.parquet
+    "import panoscope.agent.verdict\n"  # module-scope _assert_off_panel_map() reads panel.parquet
     "print('PANOSCOPE_DATASET_READS ' + json.dumps(sorted(set(reads))))\n"
 )
 
@@ -189,14 +189,11 @@ _NO_IO_CHILD = (
 _ABSENT_DATASET = "no_such_dataset_for_import_surface_test"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "agent/config.py reads three dataset files at module scope (lines 130-132) "
-        "and agent/verdict.py:111 asserts against panel.parquet at module scope. "
-        "Becomes a hard assert at the end of Phase C (IMPLEMENTATION.md §7)."
-    ),
-)
+# Flipped from xfail(strict=True) to a hard assert at the end of Phase C, as its
+# original reason promised. What changed: config.py's dataset-derived globals moved
+# behind a PEP 562 __getattr__ resolving against the current Study, and verdict.py's
+# module-scope _assert_off_panel_map() -- which read panel.parquet at import to
+# validate a map nothing used -- was deleted and became a test.
 def test_import_does_not_read_dataset_files(tmp_path: Path) -> None:
     """Importing the package reads nothing that depends on a built dataset.
 

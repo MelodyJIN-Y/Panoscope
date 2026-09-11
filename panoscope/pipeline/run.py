@@ -23,6 +23,7 @@ from typing import Any, Optional
 import pandas as pd
 
 from panoscope.agent import config as cfg
+from panoscope.data.study import Study
 from panoscope.agent import data
 from panoscope.agent import enrichment_themes as agent_enrichment_themes
 from panoscope.agent import holistic as agent_holistic
@@ -55,22 +56,6 @@ def _now_iso() -> str:
         .isoformat()
         .replace("+00:00", "Z")
     )
-
-
-def _read_tree_frame(vdir: Path, stem: str) -> Optional[pd.DataFrame]:
-    """Read a viz frame straight from the tree (parquet, else csv), or None.
-
-    Reads the collected tree files directly rather than through agent.data, whose
-    paths are frozen at import to the pre-move legacy location.
-    """
-    for suffix, reader in ((".parquet", pd.read_parquet), (".csv", pd.read_csv)):
-        p = vdir / f"{stem}{suffix}"
-        if p.exists():
-            try:
-                return reader(p)
-            except Exception:  # noqa: BLE001 - a corrupt frame is a None, not a crash
-                return None
-    return None
 
 
 def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, Any]]:
@@ -244,13 +229,18 @@ def run(
     except Exception:  # noqa: BLE001
         panel_n = 0
 
-    # views_available and n_cells are read from the tree viz/ contents we just
-    # collected — NOT via data.load_cells(), whose paths agent.data froze at
-    # import (to the legacy location, before collect_viz MOVED the frames), and
-    # NOT via the legacy dir, which collect_viz leaves behind empty. Both were
-    # confirmed first-run manifest bugs.
-    cells_frame = _read_tree_frame(vdir, "cells")
-    n_cells: Optional[int] = int(len(cells_frame)) if cells_frame is not None else None
+    # n_cells comes from agent.data, scoped to the tree we just built.
+    #
+    # This used to go through a private _read_tree_frame() helper, because
+    # agent.data froze its paths at import -- to the legacy location, before
+    # collect_viz MOVED the frames -- which produced two confirmed first-run
+    # manifest bugs. Now that the readers resolve against the current study at call
+    # time, scoping the study to this tree is enough and the workaround is gone.
+    with cfg.use_study(Study(id=dataset_id, data_root=ddir.parent.parent)):
+        try:
+            n_cells: Optional[int] = int(len(data.load_cells()))
+        except (FileNotFoundError, ValueError):
+            n_cells = None
     views = {
         "cell_map": (vdir / "cells.parquet").exists() or (vdir / "cells.csv").exists(),
         "umap": (vdir / "umap.parquet").exists() or (vdir / "umap.csv").exists(),

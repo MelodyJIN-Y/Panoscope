@@ -13,9 +13,15 @@ than silently substituting a stale list.
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Optional, TYPE_CHECKING
 from pathlib import Path
 
 import pandas as pd
+
+from panoscope.data import layout
+from panoscope.data.study import Study
 
 # --------------------------------------------------------------------------- #
 # Paths
@@ -53,12 +59,18 @@ TRANSCRIPTS_CSV_GZ: Path = RAW_XEN_DIR / "transcripts.csv.gz"
 
 # Tidy output root (relative name per task; absolute helper for callers).
 DATA_DIR: str = "data"
-DATA_DIR_PATH: Path = PROJECT_ROOT / DATA_DIR
 
-# Committed tidy files the app reads at runtime (incl. DEMO_MARKERS / panel-set
-# derivation) — so a fresh clone or CI works WITHOUT the raw (gitignored) inputs.
-TIDY_MARKERS_CSV: Path = DATA_DIR_PATH / "jazzpanda" / "markers_top.csv"
-TIDY_PANEL_PARQUET: Path = DATA_DIR_PATH / "panels" / "panel.parquet"
+
+def _data_dir_path() -> Path:
+    return layout.resolve_data_root()
+
+
+def _tidy_markers_csv() -> Path:
+    return _data_dir_path() / "jazzpanda" / "markers_top.csv"
+
+
+def _tidy_panel_parquet() -> Path:
+    return _data_dir_path() / "panels" / "panel.parquet"
 
 # --------------------------------------------------------------------------- #
 # Model
@@ -72,22 +84,57 @@ PRIMARY_MODEL: str = os.getenv("PANOSCOPE_MODEL", "claude-sonnet-4-6")
 # The bundled demo dataset. Its identity is fixed (the bundled fallback maps /
 # legacy files belong to it); any OTHER dataset derives everything from its own tree.
 BUNDLED_DEMO_ID: str = "xenium_hbreast_sample1"
-DATASET_ID: str = os.getenv("PANOSCOPE_DATASET", BUNDLED_DEMO_ID)
-SAMPLE1_N_CELLS: int = 158_379  # demo cell count (informational only)
-PANEL_GENE_COUNT: int = 280     # informational only; panel size is dataset-dependent
 
-# Active-dataset input resolution: prefer the per-dataset tree, else the bundled
-# legacy flat files (so the demo works with or without a built tree).
-_DATASET_INPUTS: Path = DATA_DIR_PATH / "datasets" / DATASET_ID / "inputs"
+
+# --------------------------------------------------------------------------- #
+# The current study.
+#
+# A ContextVar rather than a module global: it gives ``use_study()`` scoping for
+# tests and pipeline runs, correct per-session behaviour under Streamlit (which runs
+# each session in its own thread), and thread-safety alongside the async MCP client.
+# --------------------------------------------------------------------------- #
+_CURRENT_STUDY: ContextVar[Optional[Study]] = ContextVar("panoscope_study", default=None)
+
+
+def current_study() -> Study:
+    """The active study. Environment is read at CALL time, never at import time."""
+    s = _CURRENT_STUDY.get()
+    if s is not None:
+        return s
+    s = Study.open(layout.default_study_id() or BUNDLED_DEMO_ID)
+    _CURRENT_STUDY.set(s)
+    return s
+
+
+def set_study(study: Study | str) -> Study:
+    """Set the active study for this context. Accepts a Study or a study id."""
+    s = study if isinstance(study, Study) else Study.open(study)
+    _CURRENT_STUDY.set(s)
+    return s
+
+
+@contextmanager
+def use_study(study: Study | str):
+    """Scope the active study to a block. The idiom tests should use."""
+    token = _CURRENT_STUDY.set(study if isinstance(study, Study) else Study.open(study))
+    try:
+        yield _CURRENT_STUDY.get()
+    finally:
+        _CURRENT_STUDY.reset(token)
 
 
 def _active_input(name: str, legacy: Path) -> Path:
-    cand = _DATASET_INPUTS / name
+    """Prefer the study's own tree; fall back to the bundled legacy flat file."""
+    cand = current_study().inputs / name
     return cand if cand.exists() else legacy
 
 
-ACTIVE_MARKERS_CSV: Path = _active_input("markers_top.csv", TIDY_MARKERS_CSV)
-ACTIVE_PANEL_PARQUET: Path = _active_input("panel.parquet", TIDY_PANEL_PARQUET)
+def _active_markers_csv() -> Path:
+    return _active_input("markers_top.csv", _tidy_markers_csv())
+
+
+def _active_panel_parquet() -> Path:
+    return _active_input("panel.parquet", _tidy_panel_parquet())
 
 
 def _derive_cluster_order() -> tuple[str, ...]:
@@ -95,11 +142,11 @@ def _derive_cluster_order() -> tuple[str, ...]:
     naturally (c1, c2, ... c10). Derived from the data, never a hardcoded literal."""
     import re
 
-    if not ACTIVE_MARKERS_CSV.exists():
+    if not _active_markers_csv().exists():
         raise FileNotFoundError(
-            f"[config] markers missing: {ACTIVE_MARKERS_CSV} (run the data prep)"
+            f"[config] markers missing: {_active_markers_csv()} (run the data prep)"
         )
-    m = pd.read_csv(ACTIVE_MARKERS_CSV)
+    m = pd.read_csv(_active_markers_csv())
     labels = {str(x) for x in m["top_cluster"].unique() if str(x) != "NoSig"}
 
     def _key(c: str):
@@ -116,34 +163,28 @@ def _derive_cluster_order() -> tuple[str, ...]:
 # Prefix convention (jazzpanda-markers SKILL naming): Tum_ tumor, Str_ stroma,
 # Imm_Mac/Imm_T/Imm_B/Imm_DC/Imm_Mast immune subsets, Myoepi_ myoepithelial, Endo_ endothelial.
 # --------------------------------------------------------------------------- #
-ACTIVE_CLUSTER_KEY_JSON: Path = _active_input(
-    "cluster_key.json", DATA_DIR_PATH / "jazzpanda" / "cluster_key.json"
-)
+def _active_cluster_key_json() -> Path:
+    return _active_input("cluster_key.json", _data_dir_path() / "jazzpanda" / "cluster_key.json")
 
 
 def _load_cluster_key() -> dict[str, dict[str, str]]:
-    """Cluster -> {cell_type, cell_type_short, category, lineage}, from cluster_key.json.
+    """Unit -> {cell_type, cell_type_short, category, lineage}.
 
-    The dataset's own input annotation, provenance-hashed in the manifest. Read from the
-    file so every label is traceable to source (no hardcoded c1..c9 literal). Raises if
-    absent — run the data prep, which copies inputs/cluster_key.json into the tree.
+    Resolved by ``Study.unit_labels``: the pipeline's annotation first, the legacy
+    ``inputs/cluster_key.json`` second, empty third. That order is the one
+    ``pipeline/stages/validate.py`` already documents, and routing through it fixes a
+    real bug -- three modules previously resolved this file to two different paths,
+    and the one config used is gitignored and absent, so no second study could be
+    opened at all.
+
+    Does not raise on absence. A study with neither source has no labels, which the
+    caller reports at the point of use.
     """
-    import json
-
-    if not ACTIVE_CLUSTER_KEY_JSON.exists():
-        raise FileNotFoundError(
-            f"[config] cluster key missing: {ACTIVE_CLUSTER_KEY_JSON} — produced by the "
-            f"data prep (inputs/cluster_key.json). Run the prep before importing."
-        )
-    with open(ACTIVE_CLUSTER_KEY_JSON, encoding="utf-8") as fh:
-        raw = json.load(fh)
-    return {str(c): {k: str(v) for k, v in meta.items()} for c, meta in raw.items()}
+    return {c: {k: str(v) for k, v in meta.items() if isinstance(v, (str, int, float))}
+            for c, meta in current_study().unit_labels.items()}
 
 
-CLUSTER_KEY: dict[str, dict[str, str]] = _load_cluster_key()
 # Derived from the active dataset's markers (never a hardcoded c1..c9 literal).
-CLUSTER_ORDER: tuple[str, ...] = _derive_cluster_order()
-KNOWN_CLUSTERS: frozenset[str] = frozenset(CLUSTER_ORDER)
 
 # --------------------------------------------------------------------------- #
 # Confidence bands (TUNABLE) — glm_coef magnitude -> label.
@@ -229,15 +270,15 @@ def _load_panel_gene_set() -> frozenset[str]:
     The 33 "Custom" add-on genes are already excluded when the tidy panel is built,
     and panel size is dataset-dependent (dynamic), so no fixed count is asserted.
     """
-    if not ACTIVE_PANEL_PARQUET.exists():
+    if not _active_panel_parquet().exists():
         raise FileNotFoundError(
-            f"[config] panel missing: {ACTIVE_PANEL_PARQUET} — produced by the data "
+            f"[config] panel missing: {_active_panel_parquet()} — produced by the data "
             f"prep (inputs/panel.parquet). Run the prep before importing."
         )
-    panel = pd.read_parquet(ACTIVE_PANEL_PARQUET)
+    panel = pd.read_parquet(_active_panel_parquet())
     if "gene" not in panel.columns:
         raise ValueError(
-            f"[config] panel {ACTIVE_PANEL_PARQUET} has no 'gene' column; got {list(panel.columns)}"
+            f"[config] panel {_active_panel_parquet()} has no 'gene' column; got {list(panel.columns)}"
         )
     return frozenset(panel["gene"].astype(str))
 
@@ -250,17 +291,17 @@ def _derive_demo_markers() -> list[str]:
     data on a fresh clone / CI. NoSig rows and off-panel genes are excluded.
     Order within a cluster is glm_coef descending; clusters are emitted c1..c9.
     """
-    if not ACTIVE_MARKERS_CSV.exists():
+    if not _active_markers_csv().exists():
         raise FileNotFoundError(
-            f"[config] top-marker file missing: {ACTIVE_MARKERS_CSV} — produced by "
+            f"[config] top-marker file missing: {_active_markers_csv()} — produced by "
             f"the data prep (inputs/markers_top.csv). Run the prep before importing."
         )
-    markers = pd.read_csv(ACTIVE_MARKERS_CSV)
+    markers = pd.read_csv(_active_markers_csv())
     expected_cols = {"gene", "top_cluster", "glm_coef"}
     missing = expected_cols - set(markers.columns)
     if missing:
         raise ValueError(
-            f"[config] markers CSV {ACTIVE_MARKERS_CSV} missing columns {missing}; "
+            f"[config] markers CSV {_active_markers_csv()} missing columns {missing}; "
             f"got {list(markers.columns)}"
         )
 
@@ -273,7 +314,7 @@ def _derive_demo_markers() -> list[str]:
     ]
 
     demo: list[str] = []
-    for cluster in CLUSTER_ORDER:
+    for cluster in _derive_cluster_order():
         sub = on_panel[on_panel["top_cluster"] == cluster].sort_values(
             "glm_coef", ascending=False
         )
@@ -281,10 +322,62 @@ def _derive_demo_markers() -> list[str]:
     return demo
 
 
-# Computed once at import.
-DEMO_MARKERS: list[str] = _derive_demo_markers()
 
 
 if __name__ == "__main__":
-    print("DEMO_MARKERS =", DEMO_MARKERS)
-    print("count =", len(DEMO_MARKERS))
+    _dm = _derive_demo_markers()
+    print("DEMO_MARKERS =", _dm)
+    print("count =", len(_dm))
+
+
+# --------------------------------------------------------------------------- #
+# Lazy module attributes (PEP 562).
+#
+# This is what makes the de-singleton incremental. ~190 call sites read
+# ``cfg.CLUSTER_ORDER``, ``cfg.DATASET_ID`` and friends; routing them through
+# __getattr__ makes every one of them resolve against the CURRENT study, at call
+# time, without editing any of them. Only the handful that did
+# ``from ...config import CLUSTER_ORDER`` need touching, because those re-freeze at
+# the importing module's import time.
+#
+# Nothing below is computed at import. Importing this module now performs no
+# filesystem I/O, which is what the no-import-IO test asserts.
+# --------------------------------------------------------------------------- #
+_LAZY = {
+    "DATASET_ID":          lambda: current_study().id,
+    "CLUSTER_KEY":         _load_cluster_key,
+    "CLUSTER_ORDER":       _derive_cluster_order,
+    "KNOWN_CLUSTERS":      lambda: frozenset(_derive_cluster_order()),
+    "DEMO_MARKERS":        _derive_demo_markers,
+    "DATA_DIR_PATH":       _data_dir_path,
+    "TIDY_MARKERS_CSV":    _tidy_markers_csv,
+    "TIDY_PANEL_PARQUET":  _tidy_panel_parquet,
+    "ACTIVE_MARKERS_CSV":  _active_markers_csv,
+    "ACTIVE_PANEL_PARQUET": _active_panel_parquet,
+    "ACTIVE_CLUSTER_KEY_JSON": _active_cluster_key_json,
+}
+
+
+def __getattr__(name: str):
+    fn = _LAZY.get(name)
+    if fn is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return fn()
+
+
+def __dir__():
+    return sorted({*globals(), *_LAZY})
+
+
+if TYPE_CHECKING:  # so type checkers and IDEs still see the names
+    DATASET_ID: str
+    CLUSTER_KEY: dict[str, dict[str, str]]
+    CLUSTER_ORDER: tuple[str, ...]
+    KNOWN_CLUSTERS: frozenset[str]
+    DEMO_MARKERS: list[str]
+    DATA_DIR_PATH: Path
+    TIDY_MARKERS_CSV: Path
+    TIDY_PANEL_PARQUET: Path
+    ACTIVE_MARKERS_CSV: Path
+    ACTIVE_PANEL_PARQUET: Path
+    ACTIVE_CLUSTER_KEY_JSON: Path
