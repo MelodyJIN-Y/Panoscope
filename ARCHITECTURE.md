@@ -26,8 +26,11 @@ did: telling a model the 280-gene panel drops false claims about the assay from 
 1.5%**, and adding an explicit rule takes it to zero. So the warrant for the deterministic layer is
 not reasoning quality — it is the **systems guarantee that the measurement conditions are present and
 correct**, which a prompt has only when someone remembers and the architecture has structurally. The
-bare-arm 94.8% survives as a measured fabrication rate about experimental conditions, pending one
-open check: whether published tools put the gene universe in the prompt at all.
+bare-arm 94.8% survives as a measured fabrication rate about experimental conditions -- and the field
+check that would have qualified it instead sharpened it: **seven of seven published annotation tools,
+read at source, never put the measured gene set in the prompt** (`docs/field-survey-panel.md`), so
+that number describes the field's operating condition on targeted panels rather than a property of
+models.
 
 **Everything extensible becomes a registry with a declared contract** (§4). Workflows, methods,
 platform adapters and reference sources all have the same shape: declare, register, and the core does
@@ -1021,12 +1024,31 @@ framing that claims otherwise is not supported by our own data.
 > has it when someone remembers to include the panel; the architecture has it structurally,
 > because the measured set is read from the panel file and can never be asserted by a model.
 
-**The bare-arm figure stands on its own.** 94.8% is a measured fabrication rate about
-experimental conditions, in a domain where §16.1's survey found fabrication is essentially
-never measured. Its weight depends on one open question: *do published tools put the gene
-universe in the prompt?* If they do not, the bare arm is their operating condition and the
-number describes the field rather than the models. That check is cheap and should be done
-before the number is used in a write-up.
+**The bare-arm figure stands on its own, and the field check settles its weight.**
+94.8% is a measured fabrication rate about experimental conditions, in a domain where
+fabrication is essentially never measured. The open question was whether published tools
+put the gene universe in the prompt. **They do not** — seven of seven verifiable tools,
+read at prompt-construction source rather than from their papers' prose
+(`docs/field-survey-panel.md`): GPTCelltype, CASSIA, mLLMCelltype, NanoCellAnnotator,
+scExtract, GPTBioInsightor, scChat. None serialises the measured gene set into the API
+payload. None warns about targeted panels anywhere in its documentation.
+
+So **the bare arm is the field's operating condition on targeted-panel data**, and 94.8%
+describes the field rather than the models.
+
+The sharpest single data point: **NanoCellAnnotator is the one spatial, panel-aware tool,
+and it still does not tell the model.** It takes the panel as a *required* CLI argument
+and uses it as the hypergeometric background for over-representation analysis — then never
+passes it into any prompt, across every version and ablation arm in its repo. The
+constraint it applies is on the output label space, not the input gene universe. The
+information is loaded, in memory, one variable away. That is the signature of a blind spot
+rather than an oversight, and it is the strongest evidence that this is a real gap.
+
+Two qualifications to carry: CASSIA and GPTBioInsightor have free-text fields a user
+*could* paste a panel into, though neither defaults to it nor documents it; and these
+tools are safe-by-accident on whole-transcriptome data, where a missing canonical marker
+usually *is* biologically absent. None has a mechanism that survives a targeted panel —
+which is the regime spatial work is moving into.
 
 **Caveats to carry.** Three model tiers but one family. Nine clusters — wide enough for a
 60-point effect, not a subtle one. Models were not pinned to dated snapshots; pin before
