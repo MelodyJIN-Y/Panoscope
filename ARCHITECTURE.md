@@ -9,7 +9,8 @@ Version 5, September 2026. Supersedes `docs/archive/ARCHITECTURE_v4.md`, which s
 
 ## Changes from v4
 
-Four are structural, one is a retraction, and the retraction is the important one.
+Four are structural, and **two are retractions**. The retractions are the important part: both
+were found by measuring, before review rather than during it.
 
 **The transfer check does not work as specified, and we can now prove it.** v4 called conditional
 validity "the novel contribution". Measured against the data on disk (§7.4), the check returns a
@@ -18,6 +19,15 @@ validity "the novel contribution". Measured against the data on disk (§7.4), th
 claims. v5 splits the function, restricts the verdict-bearing half to claims whose conditions come
 from a manifest, and adds the rule that actually discriminates: **detectability**. The claim that
 survives is stronger than the one it replaces, because it is measured rather than asserted.
+
+**The gate is not justified by out-reasoning the model, and we can now prove that too.** The panel
+ablation (§16.2) was placed before the engineering so a negative answer would arrive cheaply, and it
+did: telling a model the 280-gene panel drops false claims about the assay from **94.8% of calls to
+1.5%**, and adding an explicit rule takes it to zero. So the warrant for the deterministic layer is
+not reasoning quality — it is the **systems guarantee that the measurement conditions are present and
+correct**, which a prompt has only when someone remembers and the architecture has structurally. The
+bare-arm 94.8% survives as a measured fabrication rate about experimental conditions, pending one
+open check: whether published tools put the gene universe in the prompt at all.
 
 **Everything extensible becomes a registry with a declared contract** (§4). Workflows, methods,
 platform adapters and reference sources all have the same shape: declare, register, and the core does
@@ -980,17 +990,54 @@ claim returned outside its scope. Ground truth is free by construction.
 **Report the false-positive rate on clean data alongside recall.** Recall alone is meaningless for a
 gate that fails closed. The baseline that isolates the new work is the existing grounding checker alone.
 
-### 16.2 The panel-masking benchmark
+### 16.2 The panel ablation — **run 2026-09-22, and it came back negative**
 
-Every existing benchmark in this field feeds models top-N differential genes from **whole-transcriptome**
-data, so "this canonical marker was never on the panel" cannot arise as a failure mode. Generate the
-missing benchmark: take a whole-transcriptome dataset with known cell types, mask genes to simulate a
-realistic targeted panel, and every masked canonical marker becomes a ground-truth item. Unlimited
-items, no new data, no annotation cost.
+This experiment was placed before the engineering precisely so a negative answer would
+arrive cheaply. It did. The result is recorded here rather than quietly dropped.
 
-The arms that matter: marker table alone; marker table **plus the panel list**; plus an explicit
-instruction that off-panel absence is uninformative; and Panoscope. If telling a model the panel fixes
-the error, the contribution is a prompting insight; if it does not, the deterministic layer is justified.
+**Design.** Three model tiers, 9 clusters, 3 arms, 5 replicates, 405/405 calls parsed.
+Each gene a model raised had to be classified `measured_not_enriched` / `not_measured` /
+**`cannot_tell`** — an explicit abstention option, so the result cannot be dismissed as
+"you asked it to guess".
+
+| Arm | Calls containing a false or unwarranted claim about the assay |
+| --- | --- |
+| bare — top markers only, no panel | **94.8%** [89.7, 97.5] |
+| panel — the full 280-gene list in the prompt | **1.5%** [0.4, 5.2] |
+| panel + an explicit statement of the rule | **0.0%** [0.0, 2.8] |
+
+Per individual claim the bare arm asserts measurement status it cannot know ~60% of the
+time, consistently across tiers (Haiku 56.5%, Sonnet 59.1%, Opus 61.1%). Given the panel:
+2 errors in 1,502 claims, both the *inverse* direction, zero fabricated absences.
+
+**What this does not support.** Supplying the panel essentially solves this failure mode.
+**The deterministic layer is therefore not justified by out-reasoning the model**, and any
+framing that claims otherwise is not supported by our own data.
+
+**What it does support**, and this is the narrower claim to make:
+
+> The contribution is not reasoning about the measurement conditions better than a model.
+> It is **guaranteeing they are present and correct**. That is a systems property. A prompt
+> has it when someone remembers to include the panel; the architecture has it structurally,
+> because the measured set is read from the panel file and can never be asserted by a model.
+
+**The bare-arm figure stands on its own.** 94.8% is a measured fabrication rate about
+experimental conditions, in a domain where §16.1's survey found fabrication is essentially
+never measured. Its weight depends on one open question: *do published tools put the gene
+universe in the prompt?* If they do not, the bare arm is their operating condition and the
+number describes the field rather than the models. That check is cheap and should be done
+before the number is used in a write-up.
+
+**Caveats to carry.** Three model tiers but one family. Nine clusters — wide enough for a
+60-point effect, not a subtle one. Models were not pinned to dated snapshots; pin before
+any published run. Full method, raw results and the v1 design whose metric failed are in
+`evals/panel_absence/`.
+
+**The panel-masking generalisation still stands as the way to scale this**: take a
+whole-transcriptome dataset with known cell types, mask genes to simulate a realistic
+targeted panel, and every masked canonical marker becomes a ground-truth item — unlimited
+items, no annotation cost. It is worth building for the bare-arm question, not for the
+gate question, which is now answered.
 
 ### 16.3 Generator ablation and Tier-A invariance
 
