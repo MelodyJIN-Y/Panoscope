@@ -25,9 +25,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from agent import config as cfg  # noqa: E402
-from agent import verdict as V  # noqa: E402
-from pipeline.calibration import calibration_markdown  # noqa: E402
+from panoscope.agent import config as cfg  # noqa: E402
+from panoscope.agent import verdict as V  # noqa: E402
+from panoscope.pipeline.calibration import calibration_markdown  # noqa: E402
 
 
 def build_markdown() -> str:

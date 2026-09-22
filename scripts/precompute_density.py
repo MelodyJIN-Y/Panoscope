@@ -38,7 +38,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from agent import config  # noqa: E402
+from panoscope.agent import config  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Constants
@@ -85,7 +85,7 @@ def _all_panel_genes() -> list[str]:
     """All analyzed panel genes (from the tidy top-marker table) so EVERY marker
     the app can pin gets a precomputed density frame — not just the demo set.
     Sorted and unique (280 genes for the Xenium breast panel)."""
-    from agent import data as agent_data
+    from panoscope.agent import data as agent_data
 
     return sorted(agent_data.load_markers()["gene"].astype(str).unique())
 
