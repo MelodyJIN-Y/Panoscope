@@ -83,6 +83,35 @@ def test_member_order_does_not_change_identity():
     assert a == b
 
 
+def test_member_set_does_not_change_the_join_key():
+    """Identity must not depend on the apparatus.
+
+    The same gene set read off a 280-gene panel and a 5,000-gene panel has different
+    measured members. If those produced different keys, reconciliation -- which is a
+    join across task kinds on exactly this key -- would silently under-report, and two
+    methods' readings of HALLMARK_EMT would never meet.
+
+    Members are coverage, not identity. This is the same rule ``resolve()`` already
+    follows by excluding MEMBER roles from the meet.
+    """
+    wide = subject("gene_set", set=gene_set("HALLMARK_EMT"),
+                   member=[gene("A"), gene("B"), gene("C")])
+    narrow = subject("gene_set", set=gene_set("HALLMARK_EMT"), member=[gene("A")])
+    none_measured = subject("gene_set", set=gene_set("HALLMARK_EMT"))
+    assert wide.key == narrow.key == none_measured.key
+    # ...but a DIFFERENT set is still a different subject
+    assert subject("gene_set", set=gene_set("HALLMARK_G2M")).key != wide.key
+
+
+def test_required_roles_still_determine_identity():
+    """The converse: excluding members must not collapse distinct subjects."""
+    a = subject("interaction", ligand=gene("LUM"), receptor=gene("CXCR4"),
+                source=cell_type("Stromal"), target=cell_type("Tumor"))
+    b = subject("interaction", ligand=gene("LUM"), receptor=gene("CXCR4"),
+                source=cell_type("Tumor"), target=cell_type("Stromal"))
+    assert a.key != b.key
+
+
 def test_unregistered_shape_raises():
     """Fail loudly; never guess. A silently malformed subject corrupts the join key."""
     with pytest.raises(UnknownShape):

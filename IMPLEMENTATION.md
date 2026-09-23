@@ -3,7 +3,7 @@
 Developer companion to `ARCHITECTURE.md`. Version 3. Supersedes
 `docs/archive/IMPLEMENTATION_SPEC_v2.md`.
 
-Python 3.10+. Every contract is a `Protocol` or a frozen dataclass so it can be tested against a stub
+Python 3.11+. Every contract is a `Protocol` or a frozen dataclass so it can be tested against a stub
 before the implementation exists.
 
 Anything called an **invariant** has a test that fails loudly. **Those tests are the deliverable, not
@@ -23,7 +23,7 @@ the feature.**
 | Transfer | one 7-rule function | `evaluability` + `transfer_check`, split by conditions provenance | The 7-rule form is measurably constant on curated claims |
 | UI | `UISpec` in the UI layer | `UISpec` declared by the workflow | The review surface is part of the interpretation contract |
 | `Conditions` | inlines `panel_genes: frozenset[str]` | `frames: tuple[FrameRef, ...]` | Claims are git-tracked and re-read per retrieval; inlining a panel is ~8 KB per claim |
-| Python floor | 3.11 | **3.10** | No 3.11-only syntax is used; reviewers run 3.10 on conda-forge and HPC |
+| Python floor | 3.11 | **3.11** (v3 briefly lowered to 3.10, then reverted) | The 3.10 floor rested on "no 3.11-only syntax is used". `types/` uses `enum.StrEnum`, which is 3.11+, so that justification no longer holds. Reverted rather than shimmed: a `(str, Enum)` backport renders `str(member)` as `Class.MEMBER` instead of the value, which would make record bytes depend on the interpreter — the one thing ARCHITECTURE §17.3 forbids. 3.10 also reaches end-of-life in October 2026 |
 | `requires-python` | — | upper-bounded deps + lockfile | Unbounded pins are a reproducibility hazard |
 
 Two v2 bugs made a stated invariant unsatisfiable: `corroborating: dict[str, float]` and
@@ -699,7 +699,7 @@ hardening → evaluation.
 ```toml
 [project]
 name = "panoscope"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["pandas>=2,<3", "pyarrow>=14", "numpy>=1.26,<3", "pyyaml>=6", "platformdirs>=4"]
 
 [project.optional-dependencies]

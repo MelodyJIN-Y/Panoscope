@@ -151,8 +151,24 @@ class Subject:
 
     @property
     def key(self) -> str:
-        """Stable, sortable, join-safe identity. The one thing consumers may rely on."""
-        return self.shape + "|" + "|".join(f"{r}={e}" for r, e in self.parts)
+        """Stable, sortable, join-safe identity. The one thing consumers may rely on.
+
+        MEMBER roles are EXCLUDED. They are coverage, not identity: HALLMARK_EMT is
+        HALLMARK_EMT whether 22 or 180 of its genes fell inside the capability frame.
+        Including them made a subject's identity depend on the apparatus, so the same
+        gene set read off a 280-gene panel and a 5,000-gene panel produced two keys
+        that could never join -- and reconciliation is a join across task kinds on
+        exactly this key, so it would have under-reported in silence.
+
+        This also makes the rule consistent with ``resolve()``, where MEMBER roles are
+        already excluded from the meet and contribute only via ``Coverage``.
+        """
+        sh = SHAPES.get(self.shape)
+        parts = self.parts if sh is None else tuple(
+            (r, e) for r, e in self.parts
+            if (ro := sh.role(r)) is None or ro.gate is not Gate.MEMBER
+        )
+        return self.shape + "|" + "|".join(f"{r}={e}" for r, e in parts)
 
     def one(self, role: str) -> Entity | None:
         return next((e for r, e in self.parts if r == role), None)

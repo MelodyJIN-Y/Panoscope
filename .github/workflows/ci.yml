@@ -15,11 +15,11 @@ jobs:
       # Report every version's result; one red cell must not cancel the others.
       fail-fast: false
       matrix:
-        # IMPLEMENTATION.md §8 sets requires-python = ">=3.10" — reviewers run
-        # 3.10/3.11 on conda-forge and HPC. Verified before adding: the offline
-        # suite passes identically on all four, no module uses 3.11+ syntax or
-        # stdlib API, and every requirement resolves on 3.10.
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        # IMPLEMENTATION.md §8 sets requires-python = ">=3.11". The floor was
+        # briefly 3.10; panoscope/types/ uses enum.StrEnum (3.11+), and a
+        # (str, Enum) backport renders str(member) differently, which would make
+        # record bytes interpreter-dependent. 3.10 also EOLs in October 2026.
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout
