@@ -66,6 +66,19 @@ def test_every_core_function_returns_traced():
     assert not bad, "core functions not returning Traced[...]: " + "; ".join(bad)
 
 
+def _mentions_trace(t) -> bool:
+    """True if ``Trace`` appears anywhere in an annotation, including inside a union.
+
+    The naive ``t is Trace`` missed ``Trace | None = None`` -- which is not a corner
+    case, it is the shape the seam would ACTUALLY take. Nobody adds a required Trace
+    parameter to an existing signature; they add an optional one with a default, and
+    every call site keeps working. That version passed the first draft of this test.
+    """
+    if t is Trace:
+        return True
+    return any(_mentions_trace(a) for a in typing.get_args(t))
+
+
 def test_no_core_function_accepts_a_trace():
     """The whole design. A Trace parameter is an injection seam: a caller could pass
     in a recorder that narrates, and ``test_record_not_generated`` would then rest on
@@ -75,9 +88,19 @@ def test_no_core_function_accepts_a_trace():
         for name, fn in _public_functions(mod):
             hints = typing.get_type_hints(fn)
             for param, t in hints.items():
-                if param != "return" and t is Trace:
-                    bad.append(f"{mod.__name__}.{name}({param})")
+                if param != "return" and _mentions_trace(t):
+                    bad.append(f"{mod.__name__}.{name}({param}: {t})")
     assert not bad, "core functions accepting a Trace: " + "; ".join(bad)
+
+
+def test_the_trace_detector_sees_through_a_union():
+    """Pins the hole above, since no core function currently has one to catch."""
+    assert _mentions_trace(Trace)
+    assert _mentions_trace(typing.Optional[Trace])
+    assert _mentions_trace(Trace | None)
+    assert _mentions_trace(dict[str, Trace | None])
+    assert not _mentions_trace(int)
+    assert not _mentions_trace(Traced[int] | None)
 
 
 def test_the_core_scan_is_wired():

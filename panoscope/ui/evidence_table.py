@@ -43,11 +43,29 @@ def _num_html(ev: MarkerEvidence) -> str:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Flag copy. The ONE home for the English of a registered evidence flag
+# (``types.evidence.FLAGS``). Copy belongs in the UI layer; ids belong everywhere
+# else. The badge below used to be decided by a literal English phrase that was
+# duplicated into its own test, so a copy edit in the analysis layer silently
+# stopped the badge rendering and the test stayed green.
+#
+# ``agent/verdict.py::_caveats_for`` still emits the prose itself — rewiring it to
+# emit ids is the method refactor, not this change. When it does, this table is
+# already the other half and only the lookup in ``_caveat_badge`` moves.
+# --------------------------------------------------------------------------- #
+FLAG_COPY: dict[str, str] = {
+    "specificity:localises_elsewhere": "localizes better with another cluster",
+    "specificity:not_unique": "spatial pattern not unique",
+    "specificity:low": "low spatial specificity",
+}
+
 # The one jazzPanda-derived caveat we surface as a specificity badge: the gene's
 # transcripts correlate more with ANOTHER cluster's spatial pattern than with this
 # one (max_gc_corr > pearson). The skill treats this as a specificity caveat — the
 # marker also marks another lineage — so we flag it at a glance.
-_SPECIFICITY_CAVEAT = "localizes better with another cluster"
+_SPECIFICITY_FLAG = "specificity:localises_elsewhere"
+_SPECIFICITY_CAVEAT = FLAG_COPY[_SPECIFICITY_FLAG]
 
 
 def _caveat_badge(ev: MarkerEvidence) -> str:
