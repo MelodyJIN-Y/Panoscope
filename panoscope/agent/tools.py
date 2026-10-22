@@ -368,21 +368,30 @@ def _citation_payload(c: Citation) -> dict[str, Any]:
 
 
 def _citation_source(c: Citation) -> Source:
+    # A search that returned PMIDs only must not render as "(0)" — year 0 means
+    # the server did not send one, not that the paper has one. Say so instead.
+    bits = (c.authors, f"({c.year})" if c.year else "", c.journal)
+    detail = " ".join(b for b in bits if b).strip()
     return Source(
         kind="lit",
         ref=c.pmid,
         value=c.title,
-        detail=f"{c.authors} ({c.year}) {c.journal}".strip(),
+        detail=detail or "PMID only — no metadata in this response; use literature_fetch",
     )
 
 
 def literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_MAX) -> Envelope:
     """Search PubMed for real PMIDs via the live MCP connector.
 
-    Returns ``ok=True`` with a list of real PMID records when the connector is up
-    (even if zero hits — that is honest "thin literature"), and ``ok=False`` when
-    the connector is unavailable, so the caller falls back to the frozen citation
-    cache. Never returns a remembered / fabricated PMID.
+    Returns ``ok=True`` with a list of real PMID records when the connector is up,
+    and ``ok=False`` when the connector is unavailable OR the lookup itself failed,
+    so the caller falls back to the frozen citation cache. Never returns a
+    remembered / fabricated PMID.
+
+    ``ok=True, n_results=0`` is reserved for a search the server actually ran and
+    answered with nothing — that, and only that, is honest "thin literature". A
+    broken, timed-out or unparseable lookup is ``ok=False``: "the literature is
+    thin" is a claim about the world, and a failed lookup does not support it.
 
     When a stub is injected via :func:`set_literature_search`, it is used instead
     of the network (tests), and its returned citations are treated as the result.
@@ -415,6 +424,12 @@ def literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_MAX) ->
             f"fall back to frozen citation cache"
         )
     hits = client.search_articles(q, max_results=max_results)
+    if not hits and client.last_error:
+        # Empty + an error is a failed lookup, NOT a thin literature.
+        return _fail(
+            f"PubMed lookup failed ({client.last_error}); "
+            f"fall back to frozen citation cache"
+        )
     cites = [_citation_from_mcp(h) for h in hits if str(h.get("pmid", "")).strip()]
     payload = {"query": q, "n_results": len(cites), "results": [_citation_payload(c) for c in cites]}
     return _ok(payload, tuple(_citation_source(c) for c in cites))
@@ -426,9 +441,12 @@ def literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_MAX) ->
 def literature_fetch(pmids: list[str] | str) -> Envelope:
     """Fetch full metadata (incl. abstract) for real PMIDs via the MCP connector.
 
-    ``ok=False`` when the connector is down (caller falls back to the frozen
-    cache). Only PMIDs the server actually resolves are returned — a PMID the
-    connector cannot resolve is dropped, never faked.
+    ``ok=False`` when the connector is down or the fetch failed (caller falls back
+    to the frozen cache). Only PMIDs the server actually resolves are returned — a
+    PMID the connector cannot resolve is dropped, never faked, and lands in
+    ``unresolved``. ``ok=True`` with everything unresolved means the server
+    answered and knows none of these ids; a failed fetch says nothing about them
+    and is ``ok=False``.
     """
     if isinstance(pmids, str):
         ids = [p.strip() for p in pmids.replace(",", " ").split() if p.strip()]
@@ -450,6 +468,12 @@ def literature_fetch(pmids: list[str] | str) -> Envelope:
             f"fall back to frozen citation cache"
         )
     recs = client.fetch_articles(ids)
+    if not recs and client.last_error:
+        # Empty + an error is a failed fetch, NOT "PubMed does not have these".
+        return _fail(
+            f"PubMed fetch failed ({client.last_error}); "
+            f"fall back to frozen citation cache"
+        )
     cites = [_citation_from_mcp(r) for r in recs if str(r.get("pmid", "")).strip()]
     resolved = {c.pmid for c in cites}
     unresolved = [p for p in ids if p not in resolved]

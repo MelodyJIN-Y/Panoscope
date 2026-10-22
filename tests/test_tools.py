@@ -395,3 +395,55 @@ def test_memory_write_not_exposed_to_model():
     schema_names = {s["name"] for s in tools.TOOL_SCHEMAS}
     assert "memory_write" not in schema_names
     assert "memory_draft" in schema_names
+
+
+# --------------------------------------------------------------------------- #
+# The envelope must tell a FAILED lookup apart from a genuinely empty one.
+# "ok=True, n_results=0" reads downstream as "the literature is thin" — a claim
+# about the world. A broken connector has not earned that claim.
+# --------------------------------------------------------------------------- #
+class _StubClient:
+    """A started connector whose call returns nothing, with or without an error."""
+
+    def __init__(self, last_error=None):
+        self.available = True
+        self.last_error = last_error
+
+    def search_articles(self, query, max_results=5):
+        return []
+
+    def fetch_articles(self, pmids):
+        return []
+
+
+def _use_stub_client(monkeypatch, client):
+    from panoscope.agent import mcp_client
+
+    monkeypatch.setattr(mcp_client, "get_mcp_client", lambda: client)
+
+
+def test_literature_search_broken_connector_is_not_thin_literature(monkeypatch):
+    """An unparseable/failed lookup must be ok=False, never ok=True with 0 results."""
+    _use_stub_client(monkeypatch, _StubClient("pubmed_search_articles: unrecognized response shape"))
+    env = tools.dispatch("literature_search", {"query": "LUM fibroblast marker"})
+    _assert_envelope(env)
+    assert env["ok"] is False
+    assert "unrecognized response shape" in env["error"]
+
+
+def test_literature_search_genuine_zero_hits_stays_ok(monkeypatch):
+    """A search the server ran and answered with nothing IS thin literature."""
+    _use_stub_client(monkeypatch, _StubClient(None))
+    env = tools.dispatch("literature_search", {"query": "no such thing anywhere"})
+    _assert_envelope(env)
+    assert env["ok"] is True
+    assert env["data"]["n_results"] == 0
+
+
+def test_literature_fetch_broken_connector_is_not_unresolved(monkeypatch):
+    """A failed fetch says nothing about the ids — it must not report them unresolved."""
+    _use_stub_client(monkeypatch, _StubClient("pubmed_fetch_articles timed out after 8.0s"))
+    env = tools.dispatch("literature_fetch", {"pmids": ["37692065"]})
+    _assert_envelope(env)
+    assert env["ok"] is False
+    assert "timed out" in env["error"]

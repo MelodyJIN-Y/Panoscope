@@ -19,6 +19,18 @@ Design (see docs/archive/BLUEPRINT.md §5):
   / ``fetch_articles`` return ``[]``; ``verify_pmid`` returns ``False``. Every
   method also records the failure so callers (and ``is_available()``) can decide
   to fall back to a frozen citation cache. The demo never breaks on the network.
+* **Two response shapes.** The server answers with either ``structuredContent``
+  JSON or a Markdown report in its ``content`` text blocks (what
+  @cyanheads/pubmed-mcp-server 2.10.x emits). Both are parsed; structured wins
+  when present. The text parsers are deliberately literal: they read only the
+  server's own labelled fields and refuse — returning nothing — on any shape
+  they do not recognize, because a guessed PMID is worse than no PMID.
+* **Empty is not ambiguous.** ``[]`` with ``last_error is None`` means the server
+  genuinely returned zero records. ``[]`` with ``last_error`` set means the
+  lookup failed (transport, timeout, or a shape we could not parse). Callers MUST
+  keep the two apart: the first is thin literature, the second is a broken
+  lookup, and reporting the second as the first is a claim about the world we
+  never made.
 
 The returned dicts are Citation-shaped and flat:
 ``{"pmid", "title", "authors", "year", "journal"}`` (``fetch_articles`` adds
@@ -30,6 +42,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import threading
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Optional
@@ -81,6 +94,132 @@ def _structured(result: Any) -> dict[str, Any]:
     """Return the tool's structuredContent as a dict, or {} if absent."""
     sc = getattr(result, "structuredContent", None)
     return sc if isinstance(sc, dict) else {}
+
+
+def _text(result: Any) -> str:
+    """Join every text block of a tool result (the server sends 2+) into one string."""
+    out: list[str] = []
+    for block in getattr(result, "content", None) or ():
+        txt = getattr(block, "text", None)
+        if isinstance(txt, str):
+            out.append(txt)
+    return "\n".join(out)
+
+
+# The Markdown report the server emits. Every pattern is anchored on a label the
+# server wrote itself — never a bare run of digits, which could be a year, a
+# result count ("3 of 17"), a volume, an ISSN or a PMID inside a URL.
+_SEARCH_HEADER = "## PubMed Search Results"
+_FETCH_HEADER = "## PubMed Articles"
+_RE_RETURNED = re.compile(r"^\*\*Returned:\*\*\s*(\d+)\s+of\s+\d+", re.M)
+_RE_PMIDS_LINE = re.compile(r"^\*\*PMIDs:\*\*[ \t]*([\d,\s]+?)[ \t]*$", re.M)
+_RE_N_ARTICLES = re.compile(r"^\*\*Articles Returned:\*\*\s*(\d+)", re.M)
+_RE_PMID_FIELD = re.compile(r"^\*\*PMID:\*\*[ \t]*(\d+)[ \t]*$", re.M)
+_RE_AUTHOR_LINE = re.compile(r"^-\s+(.+?)\s+\(([^)]*)\)(?:\s+\[aff[^\]]*\])?\s*$", re.M)
+_RE_JOURNAL_LINE = re.compile(r"^\*\*Journal:\*\*[ \t]*(.+)$", re.M)
+_RE_YEAR = re.compile(r"(?<!\d)(19|20)\d{2}(?!\d)")
+
+
+def _search_pmids_from_text(text: str) -> Optional[list[str]]:
+    """PMIDs out of a Markdown search report, or None if the shape is not ours.
+
+    Trusts exactly two of the server's own lines: the ``**Returned:** n of m``
+    count and the ``**PMIDs:**`` list. The count is a cross-check, not a source —
+    if it disagrees with the ids we read, we parsed something we do not
+    understand and return None (the caller then reports a failed lookup) rather
+    than surface a half-read list. ``[]`` means the server reported zero hits.
+    """
+    if _SEARCH_HEADER not in text:
+        return None
+    m_count = _RE_RETURNED.search(text)
+    if m_count is None:
+        return None
+    m_line = _RE_PMIDS_LINE.search(text)
+    pmids = (
+        [p for p in re.split(r"[,\s]+", m_line.group(1)) if p.isdigit()]
+        if m_line is not None
+        else []
+    )
+    if len(pmids) != int(m_count.group(1)):
+        return None
+    return pmids
+
+
+def _authors_from_text_block(block: str) -> str:
+    """Flatten the ``- Zehuai Guo (Z) [aff 0]`` bullets into a citation string.
+
+    Only the ``**Authors (n):**`` section is read, so the affiliation bullets
+    that follow it can never be mistaken for people.
+    """
+    _, sep, tail = block.partition("**Authors")
+    if not sep:
+        return ""
+    section = tail.split("\n**", 1)[0]
+    people: list[dict[str, Any]] = []
+    for name, initials in _RE_AUTHOR_LINE.findall(section):
+        words = name.split()
+        if not words:
+            continue
+        # ponytail: last whitespace-token is the surname; "van der Berg" reads as
+        # "Berg". Swap in a real name parser only if the display is wrong often.
+        people.append({"lastName": words[-1], "initials": initials.strip()})
+    return _format_authors(people)
+
+
+def _article_from_text_block(block: str, pmid: str) -> dict[str, Any]:
+    """One ``### <title>`` block of a Markdown fetch report -> a Citation dict.
+
+    Every field is read off a label the server wrote. A field that is not there
+    stays empty (or year 0) — this never fills a gap from anywhere but these
+    bytes.
+    """
+    title = block.splitlines()[0].strip() if block else ""
+    journal, year = "", 0
+    m_journal = _RE_JOURNAL_LINE.search(block)
+    if m_journal is not None:
+        line = m_journal.group(1)
+        journal = line.split(",")[0].strip()
+        m_year = _RE_YEAR.search(line)
+        if m_year is not None:
+            year = int(m_year.group(0))
+    abstract = ""
+    _, sep, tail = block.partition("#### Abstract")
+    if sep:
+        # The abstract runs to the next bolded field (e.g. "**Keywords:**").
+        abstract = tail.split("\n**", 1)[0].strip()
+    return {
+        "pmid": pmid,
+        "title": title,
+        "authors": _authors_from_text_block(block),
+        "year": year,
+        "journal": journal,
+        "abstract": abstract,
+        "url": PUBMED_URL_TMPL.format(pmid=pmid),
+    }
+
+
+def _articles_from_text(text: str) -> Optional[list[dict[str, Any]]]:
+    """Articles out of a Markdown fetch report, or None if the shape is not ours.
+
+    Same discipline as :func:`_search_pmids_from_text`: a block we cannot key to
+    an explicit ``**PMID:**`` field, or a block count that disagrees with the
+    server's own ``**Articles Returned:**``, voids the whole response. ``[]``
+    means the server resolved none of the requested ids (the bogus-PMID case).
+    """
+    if _FETCH_HEADER not in text:
+        return None
+    m_count = _RE_N_ARTICLES.search(text)
+    if m_count is None:
+        return None
+    out: list[dict[str, Any]] = []
+    for block in text.split("\n### ")[1:]:
+        m_pmid = _RE_PMID_FIELD.search(block)
+        if m_pmid is None:
+            return None
+        out.append(_article_from_text_block(block, m_pmid.group(1)))
+    if len(out) != int(m_count.group(1)):
+        return None
+    return out
 
 
 def _format_authors(authors: Any, limit: int = 8) -> str:
@@ -335,6 +474,9 @@ class PubMedMCP:
         if getattr(result, "isError", False):
             self.last_error = f"{name} returned isError"
             return None
+        # A clean response clears any earlier failure, so ``last_error`` always
+        # describes THIS call: an empty result plus a None error is a real zero.
+        self.last_error = None
         return result
 
     # -- public API -------------------------------------------------------- #
@@ -343,8 +485,16 @@ class PubMedMCP:
     ) -> list[dict[str, Any]]:
         """Search PubMed. Returns a list of flat Citation-like dicts (possibly
         empty). Every returned PMID came from the live server, never memory.
+
+        An empty list means zero hits ONLY when ``last_error`` is None; otherwise
+        the lookup failed and the caller must say so rather than report thin
+        literature. The Markdown shape carries PMIDs and no per-article
+        metadata, so those records come back with an empty title/journal and
+        year 0 — ``fetch_articles`` is how you get the rest. Nothing is filled in
+        from anywhere but the server's own bytes.
         """
         if not query or not query.strip():
+            self.last_error = "empty query"
             return []
         args = {"query": query.strip(), "maxResults": max(1, int(max_results))}
         result = self._call_tool(TOOL_SEARCH, args, timeout)
@@ -353,19 +503,23 @@ class PubMedMCP:
 
         data = _structured(result)
         pmids = data.get("pmids")
-        if not isinstance(pmids, list):
-            return []
-        summaries = data.get("summaries")
-        summaries = summaries if isinstance(summaries, list) else []
+        if isinstance(pmids, list):
+            summaries = data.get("summaries")
+            summaries = summaries if isinstance(summaries, list) else []
+            out: list[dict[str, Any]] = []
+            for i, pmid in enumerate(pmids):
+                pmid = str(pmid).strip()
+                if not pmid:
+                    continue
+                summary = summaries[i] if i < len(summaries) else None
+                out.append(_summary_to_citation(pmid, summary))
+            return out
 
-        out: list[dict[str, Any]] = []
-        for i, pmid in enumerate(pmids):
-            pmid = str(pmid).strip()
-            if not pmid:
-                continue
-            summary = summaries[i] if i < len(summaries) else None
-            out.append(_summary_to_citation(pmid, summary))
-        return out
+        text_pmids = _search_pmids_from_text(_text(result))
+        if text_pmids is None:
+            self.last_error = f"{TOOL_SEARCH}: unrecognized response shape"
+            return []
+        return [_summary_to_citation(p, None) for p in text_pmids]
 
     def fetch_articles(
         self, pmids: list[str], *, timeout: float = DEFAULT_TIMEOUT_S
@@ -373,9 +527,14 @@ class PubMedMCP:
         """Fetch full metadata for PMIDs. Returns flat Citation-like dicts
         (with abstract + url), possibly empty. Only PMIDs the server actually
         resolved are returned.
+
+        As with :meth:`search_articles`, an empty list is "the server resolved
+        none of these" only when ``last_error`` is None; set, it means the fetch
+        failed and nothing can be concluded about the ids.
         """
         clean = [str(p).strip() for p in (pmids or []) if str(p).strip().isdigit()]
         if not clean:
+            self.last_error = "no numeric PMIDs requested"
             return []
         args = {"pmids": clean, "includeMesh": False}
         result = self._call_tool(TOOL_FETCH, args, timeout)
@@ -383,9 +542,13 @@ class PubMedMCP:
             return []
         data = _structured(result)
         articles = data.get("articles")
-        if not isinstance(articles, list):
+        if isinstance(articles, list):
+            return [_article_to_citation(a) for a in articles if isinstance(a, dict)]
+        text_articles = _articles_from_text(_text(result))
+        if text_articles is None:
+            self.last_error = f"{TOOL_FETCH}: unrecognized response shape"
             return []
-        return [_article_to_citation(a) for a in articles if isinstance(a, dict)]
+        return text_articles
 
     def verify_pmid(self, pmid: str, *, timeout: float = DEFAULT_TIMEOUT_S) -> bool:
         """True iff ``pmid`` resolves to a real PubMed record via a live fetch.

@@ -209,3 +209,162 @@ def test_live_fetch_returns_real_metadata_for_known_pmid():
         print(f"\n[live] fetched: {rec['title'][:80]!r} ({rec['year']})")
     finally:
         reset_mcp_client()
+
+
+# --------------------------------------------------------------------------- #
+# Markdown response shape — the bytes @cyanheads/pubmed-mcp-server 2.10.x sends
+#
+# Captured verbatim from a live call; no network is touched by these tests. The
+# server returns NO structuredContent for either tool, so the text path is the
+# only thing standing between a real lookup and three silently discarded PMIDs.
+# --------------------------------------------------------------------------- #
+SEARCH_TEXT = (
+    "## PubMed Search Results\n"
+    "**Query:** lumican LUM fibroblast marker\n"
+    "**Returned:** 3 of 17 | **Offset:** 0\n"
+    "**Search URL:** https://pubmed.ncbi.nlm.nih.gov/?term=lumican%20LUM%20fibroblast%20marker\n"
+    "\n"
+    "**PMIDs:** 41553378, 37692065, 39613390"
+)
+# The server sends a second text block; both must be tolerated.
+SEARCH_TEXT_TAIL = (
+    "\n\n**Effective Query:** lumican LUM fibroblast marker\n**Applied Filters:** none"
+)
+SEARCH_PMIDS = ["41553378", "37692065", "39613390"]
+
+FETCH_TEXT = (
+    "## PubMed Articles\n"
+    "**Articles Returned:** 1\n"
+    "\n"
+    "### Multi-omics analysis reveals the prognostic and tumor micro-environmental "
+    "value of lumican in multiple cancer types.\n"
+    "\n"
+    "**Authors (9):**\n"
+    "- Zehuai Guo (Z) [aff 0]\n"
+    "- Zeyun Li (Z) [aff 1]\n"
+    "\n"
+    "**Affiliations:**\n"
+    "- [0] Department of Internal Medicine, Cancer Hospital of Shantou University (SUMC)\n"
+    "\n"
+    "**Journal:** Frontiers in molecular biosciences, (Front Mol Biosci), 2023, **10**, "
+    "1158747, pii: 1158747, ISSN 2296-889X\n"
+    "**Record Type:** journal-article\n"
+    "**PMID:** 37692065\n"
+    "**DOI:** 10.3389/fmolb.2023.1158747\n"
+    "**PubMed:** https://pubmed.ncbi.nlm.nih.gov/37692065/\n"
+    "**Article Dates:** Electronic 2023-08-24\n"
+    "\n"
+    "#### Abstract\n"
+    "Background: Lumican (LUM), a proteoglycan of the extracellular matrix.\n"
+    "\n"
+    "**Keywords:** Lumican, TME"
+)
+FETCH_ZERO_TEXT = "## PubMed Articles\n**Articles Returned:** 0\n**Unavailable PMIDs:** 99999999999"
+
+
+class _FakeBlock:
+    """One ``content`` text block of an MCP tool result."""
+
+    def __init__(self, text: str) -> None:
+        self.type = "text"
+        self.text = text
+
+
+class _FakeResult:
+    """A CallToolResult stand-in: text blocks plus optional structuredContent."""
+
+    def __init__(self, *texts: str, structured=None) -> None:
+        self.content = [_FakeBlock(t) for t in texts]
+        self.structuredContent = structured
+        self.isError = False
+
+
+def _client_returning(result) -> PubMedMCP:
+    """A client whose one tool call returns ``result`` (the server is never spawned)."""
+    client = PubMedMCP()
+    client._call_tool = lambda *_a, **_k: result  # type: ignore[assignment]
+    client.last_error = None
+    return client
+
+
+def test_search_text_shape_yields_the_real_pmids():
+    """The Markdown shape must surface the server's PMIDs, not discard them."""
+    client = _client_returning(_FakeResult(SEARCH_TEXT, SEARCH_TEXT_TAIL))
+    hits = client.search_articles("lumican LUM fibroblast marker", max_results=3)
+    assert [h["pmid"] for h in hits] == SEARCH_PMIDS
+    assert client.last_error is None
+    # This shape carries no per-article metadata; we leave it empty rather than
+    # invent any. literature_fetch is how a title is obtained.
+    assert all(h["title"] == "" and h["year"] == 0 for h in hits)
+
+
+def test_search_structured_shape_still_wins():
+    """The old structured path is intact and takes precedence over the text."""
+    structured = {"pmids": ["11111111"], "summaries": [{"title": "T", "journal": "J", "year": "2020"}]}
+    client = _client_returning(_FakeResult(SEARCH_TEXT, structured=structured))
+    hits = client.search_articles("q")
+    assert [h["pmid"] for h in hits] == ["11111111"]
+    assert hits[0]["title"] == "T"
+    assert hits[0]["year"] == 2020
+
+
+def test_search_text_count_mismatch_is_refused_not_guessed():
+    """If the server's own count disagrees with the ids we read, surface nothing."""
+    tampered = SEARCH_TEXT.replace("**PMIDs:** 41553378, 37692065, 39613390", "**PMIDs:** 41553378")
+    client = _client_returning(_FakeResult(tampered))
+    assert client.search_articles("q") == []
+    assert client.last_error is not None  # a failed lookup, not thin literature
+
+
+def test_search_unrecognized_text_is_an_error_not_an_empty_result():
+    client = _client_returning(_FakeResult("Service temporarily unavailable (503)."))
+    assert client.search_articles("q") == []
+    assert client.last_error is not None
+
+
+def test_search_text_never_reads_a_count_or_a_url_as_a_pmid():
+    """No digits outside the server's own **PMIDs:** line may become a PMID."""
+    zero = (
+        "## PubMed Search Results\n"
+        "**Query:** zzz\n"
+        "**Returned:** 0 of 0 | **Offset:** 0\n"
+        "**Search URL:** https://pubmed.ncbi.nlm.nih.gov/?term=12345678\n"
+    )
+    client = _client_returning(_FakeResult(zero))
+    assert client.search_articles("zzz") == []
+    # A search the server ran and answered with nothing is NOT a failure.
+    assert client.last_error is None
+
+
+def test_fetch_text_shape_yields_real_metadata():
+    client = _client_returning(_FakeResult(FETCH_TEXT))
+    recs = client.fetch_articles(["37692065"])
+    assert len(recs) == 1
+    rec = recs[0]
+    assert rec["pmid"] == "37692065"
+    assert rec["title"].startswith("Multi-omics analysis reveals")
+    assert rec["authors"] == "Guo Z, Li Z"  # affiliation bullets are not people
+    assert rec["year"] == 2023
+    assert rec["journal"] == "Frontiers in molecular biosciences"
+    assert rec["abstract"].startswith("Background: Lumican")
+    assert "Keywords" not in rec["abstract"]
+    assert rec["url"] == "https://pubmed.ncbi.nlm.nih.gov/37692065/"
+
+
+def test_verify_pmid_resolves_through_the_text_shape():
+    """The grounding gate's verifier works again (it fails every PMID otherwise)."""
+    client = _client_returning(_FakeResult(FETCH_TEXT))
+    assert client.verify_pmid("37692065") is True
+    assert client.verify_pmid("41553378") is False  # not among the returned records
+
+
+def test_fetch_zero_articles_is_a_real_answer_not_a_failure():
+    client = _client_returning(_FakeResult(FETCH_ZERO_TEXT))
+    assert client.fetch_articles(["99999999999"]) == []
+    assert client.last_error is None
+
+
+def test_fetch_unrecognized_text_is_an_error():
+    client = _client_returning(_FakeResult("### A block with no PMID field\n"))
+    assert client.fetch_articles(["37692065"]) == []
+    assert client.last_error is not None
