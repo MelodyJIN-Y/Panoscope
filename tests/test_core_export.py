@@ -1,0 +1,178 @@
+"""Invariants for the CSV export profiles.
+
+The single thing this module can get wrong is a byte. The 11-column verdict CSV is
+pinned by ``tests/test_golden.py``, restated in ``skills/marker-interpretation/
+SKILL.md`` Output 2 and read by downstream R; the 14-column enrichment CSV is a
+committed artifact. So the central tests here do not inspect the output and judge it
+-- they feed the same rows through ``agent.verdict.to_csv`` / ``agent.enrichment.to_csv``
+and through the profile and assert the two strings are ``==``. "Looks the same" is
+what lets a trailing ``\\r`` or a ``0.70`` for a ``0.7`` through.
+
+Both halves are tested: the real demo study (which is what the golden hash covers)
+and synthetic rows chosen for the cases the real data happens not to contain -- a
+``None`` q_value, a band anchor whose ``str()`` and ``.2f`` differ, and a notes field
+holding a comma, a quote and a newline, which is where two csv spellings would
+diverge if they ever did.
+
+Rows are duck-typed stubs rather than real ``ClusterVerdict``s. ``core/`` does not
+import ``agent/``, and the profile getters only ever do attribute access; building
+the real frozen dataclass would drag in the loaders and test the fixtures instead.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace as NS
+
+import pytest
+
+from panoscope.agent import enrichment as E
+from panoscope.agent import verdict as V
+from panoscope.core.export import (
+    ASSIGNMENT_COLUMNS, CHARACTERISATION_COLUMNS, PROFILES, NoExportProfile, to_csv,
+)
+from panoscope.types.outputs import TaskKind
+from panoscope.types.trace import Traced
+
+
+def _pairs(enrichments) -> list[tuple[object, object]]:
+    """The characterisation row shape: one row per surfaced pathway, carrying its
+    unit. Enriched then suggestive, which is the order the committed file is in."""
+    return [(ce, p) for ce in enrichments for p in (*ce.enriched, *ce.suggestive)]
+
+
+# --------------------------------------------------------------------------- #
+# Byte-identity against the two hand-written exporters -- the whole contract
+# --------------------------------------------------------------------------- #
+def test_assignment_profile_is_byte_identical_on_the_demo_study():
+    verdicts = V.all_verdicts()
+    assert to_csv(TaskKind.ASSIGNMENT, verdicts).value == V.to_csv(verdicts)
+
+
+def test_characterisation_profile_is_byte_identical_on_the_demo_study():
+    enrichments = E.all_enrichments()
+    assert to_csv(TaskKind.CHARACTERISATION, _pairs(enrichments)).value == E.to_csv(
+        enrichments
+    )
+
+
+def test_byte_identical_without_a_header_too():
+    """``header=False`` is the append path; a profile that got the header right and
+    the rows wrong would still pass the two tests above on their first line."""
+    verdicts = V.all_verdicts()
+    assert to_csv(TaskKind.ASSIGNMENT, verdicts, header=False).value == V.to_csv(
+        verdicts, header=False
+    )
+    enrichments = E.all_enrichments()
+    assert to_csv(
+        TaskKind.CHARACTERISATION, _pairs(enrichments), header=False
+    ).value == E.to_csv(enrichments, header=False)
+
+
+# --------------------------------------------------------------------------- #
+# The cases the demo study does not contain
+# --------------------------------------------------------------------------- #
+_NASTY = 'driven by ERBB2, "strongly"\nsecond line; ;'
+
+_VERDICT_STUBS = (
+    NS(cluster="c1", cell_type="Tumor", cell_type_short="Tum", confidence="Very High",
+       confidence_score=0.95, key_markers=("ERBB2", "KRT7"), notes=_NASTY,
+       category="Epithelial", lineage="Epithelial", exclude=False, verify=False),
+    # 0.70 is a real band anchor and the reason confidence_score must stay unformatted:
+    # str(0.70) is "0.7" and f"{0.70:.2f}" is "0.70".
+    NS(cluster="c9", cell_type="Unknown", cell_type_short="Unk", confidence="Medium",
+       confidence_score=0.70, key_markers=(), notes="", category="", lineage="",
+       exclude=True, verify=True),
+)
+
+
+def _pathway(**kw):
+    base = dict(gene_set="HALLMARK_EMT", tier="enriched", score=6.5,
+                score_kind="jazzpanda_enrichment", q_value=1.2e-9, panel_hits=6,
+                set_size_full=200, panel_coverage=0.03, n_leading_edge=2,
+                leading_edge=("CCND1", "SCD"))
+    return NS(**(base | kw))
+
+
+_ENRICHMENT_STUBS = (
+    (NS(cluster="c1", cell_type="Tumor", confidence="High", verify=False), _pathway()),
+    # q_value None renders as an empty cell, and an empty leading edge as an empty
+    # one too -- two blanks a tuple writer and a dict writer could disagree about.
+    (NS(cluster="c2", cell_type='Stromal, "fibro"', confidence="Low", verify=True),
+     _pathway(q_value=None, leading_edge=(), n_leading_edge=0, score=0.0,
+              panel_coverage=0.0, tier="suggestive")),
+)
+
+
+def test_assignment_profile_matches_the_exporter_on_awkward_values():
+    rows = [V.to_csv_row(v) for v in _VERDICT_STUBS]
+    import csv
+    import io
+
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=list(V.CSV_COLUMNS))
+    w.writeheader()
+    for r in rows:
+        w.writerow(r)
+    assert to_csv(TaskKind.ASSIGNMENT, _VERDICT_STUBS).value == buf.getvalue()
+
+
+def test_characterisation_profile_matches_the_exporter_on_awkward_values():
+    import csv
+    import io
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(E.ENRICHMENT_CSV_COLUMNS)
+    for ce, p in _ENRICHMENT_STUBS:
+        w.writerow(E._csv_row(ce, p))
+    assert to_csv(TaskKind.CHARACTERISATION, _ENRICHMENT_STUBS).value == buf.getvalue()
+
+
+def test_the_band_anchor_is_not_reformatted():
+    """Pins the one cell where a tidy-up would move the golden hash."""
+    out = to_csv(TaskKind.ASSIGNMENT, _VERDICT_STUBS, header=False).value
+    assert ",0.7," in out and ",0.70," not in out
+
+
+# --------------------------------------------------------------------------- #
+# The column contracts, frozen in count and in order
+# --------------------------------------------------------------------------- #
+def test_assignment_columns_are_the_eleven_in_exact_order():
+    assert PROFILES[TaskKind.ASSIGNMENT].names == V.CSV_COLUMNS
+    assert len(ASSIGNMENT_COLUMNS) == 11
+
+
+def test_characterisation_columns_are_the_fourteen_in_exact_order():
+    assert PROFILES[TaskKind.CHARACTERISATION].names == E.ENRICHMENT_CSV_COLUMNS
+    assert len(CHARACTERISATION_COLUMNS) == 14
+
+
+def test_each_profile_keeps_the_csv_api_its_committed_file_was_written_with():
+    """Not cosmetic: it is what stops a dialect change made for one table from
+    reaching the other because they had silently become one writer."""
+    assert PROFILES[TaskKind.ASSIGNMENT].dict_rows is True
+    assert PROFILES[TaskKind.CHARACTERISATION].dict_rows is False
+
+
+def test_a_profile_is_keyed_on_its_own_task_kind():
+    for kind, profile in PROFILES.items():
+        assert profile.task_kind is kind
+
+
+# --------------------------------------------------------------------------- #
+# Failing closed, and the empty record
+# --------------------------------------------------------------------------- #
+def test_a_task_kind_with_no_profile_raises_rather_than_exporting_nothing():
+    """COMPARISON has no committed CSV. A header-only file would read to the
+    biologist as a run that found nothing."""
+    with pytest.raises(NoExportProfile):
+        to_csv(TaskKind.COMPARISON, ())
+
+
+def test_export_records_no_decisions():
+    """An export projects an interpretation, it does not make one. A decision here
+    would put a rule in the record that explains a formatting choice as an
+    inference."""
+    out = to_csv(TaskKind.ASSIGNMENT, V.all_verdicts())
+    assert isinstance(out, Traced)
+    assert out.decisions == ()
