@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from panoscope.agent import config as cfg
 import json
+from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -67,13 +68,48 @@ def _identity(*_dargs: Any, **_dkw: Any) -> Callable:
 
 
 def _cache_data(*dargs: Any, **dkw: Any) -> Callable:
-    """``st.cache_data`` if Streamlit is importable, else a no-op decorator."""
+    """``st.cache_data``, KEYED ON THE CURRENT STUDY, else a no-op decorator.
+
+    The readers below are either zero-arg or keyed on a cluster/gene, so a plain
+    ``st.cache_data`` keys the demo's 280-gene panel and the second study's
+    12-gene panel to the SAME cache entry: whichever study is opened first wins
+    for the life of the session, and every later study silently reads its frames
+    — a measured value from the wrong study reaching a plot header and the band.
+    Not reachable today (there is no in-app study picker), but the kidney study is
+    the second study on disk and the picker is what would make it reachable.
+
+    The fix is ``agent.data._per_study``'s, applied at the one place every reader
+    in this module routes through rather than as a second mechanism: the real
+    function is cached behind a leading study key and the public wrapper supplies
+    it, so cross-study staleness is unrepresentable instead of merely tested for.
+    The key is the study's tree path, not its id, because two studies under
+    different data roots may share an id (``tests`` open exactly that pair).
+
+    ``functools.wraps`` is load-bearing here: Streamlit derives a function's cache
+    namespace from ``__module__``/``__qualname__`` plus ``inspect.getsource``, and
+    ``getsource`` unwraps. Without it every reader in this module would share one
+    namespace — the same collision one level worse.
+    """
     try:
         import streamlit as st
-
-        return st.cache_data(*dargs, **dkw)
     except Exception:  # pragma: no cover - import-time fallback
         return _identity(*dargs, **dkw)
+
+    def deco(fn: Callable) -> Callable:
+        @wraps(fn)
+        def keyed(_study: str, *args: Any, **kw: Any):
+            return fn(*args, **kw)
+
+        cached = st.cache_data(*dargs, **dkw)(keyed)
+
+        @wraps(fn)
+        def wrapper(*args: Any, **kw: Any):
+            return cached(str(cfg.current_study().dir), *args, **kw)
+
+        wrapper.clear = cached.clear  # keep st.cache_data's public API
+        return wrapper
+
+    return deco
 
 
 def _cache_resource(*dargs: Any, **dkw: Any) -> Callable:

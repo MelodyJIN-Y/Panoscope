@@ -528,16 +528,28 @@ def test_no_canonical_driver_reads_low_with_its_rule():
 def test_a_tested_absent_canonical_marker_is_the_nosig_branch():
     """NoSig means in-panel, tested, not assigned here -- which is TESTED_ABSENT. It
     reads Low like 'no canonical driver', but it is a different answer: the marker WAS
-    measured, so its absence argues, and the record has to say which happened."""
+    measured, so its absence argues, and the record has to say which happened.
+
+    ``basis`` is the ``band_basis`` column of ``interp/verdicts.csv`` and of the
+    Summary table, so it is read by a biologist and not only by code. It must not say
+    "NoSig": an item only reaches TESTED_ABSENT once every frame for its kind admitted
+    it, detectability included, so "no usable signal" is the one thing this branch has
+    ruled out. The band, the rule id and ``verify`` are pinned here unchanged -- the
+    words moved, the ladder did not.
+    """
     v = C.assess(
         (_item("ERBB2", None, state=MeasuredState.TESTED_ABSENT),
          _item("ACTA2", 30.0, 0.9), _item("PTPRC", 20.0, 0.9), _item("CD3E", 9.0, 0.9)),
         frozenset({"ERBB2"}),
     ).value
     assert v.band == "Low"
-    assert v.basis == "driver NoSig"
+    assert v.basis == "canonical driver tested-absent"
     assert v.demotions == ("band:driver_nosig",)
     assert v.verify is True
+    assert "nosig" not in v.basis.lower(), (
+        "the band_basis the biologist reads says the measurement produced no signal, "
+        "when TESTED_ABSENT means it produced one and it was not assigned here"
+    )
 
 
 def test_a_low_pearson_canonical_marker_is_disqualified_not_demoted():

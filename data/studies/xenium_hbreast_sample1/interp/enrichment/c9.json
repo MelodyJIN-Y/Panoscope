@@ -44,10 +44,9 @@
         "CD79A",
         "CD86",
         "EGFR",
-        "GZMA",
-        "PRF1"
+        "GZMA"
       ],
-      "n_leading_edge": 6,
+      "n_leading_edge": 5,
       "gc_corr": 0.178733637848586,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 17 of 200 genes in HALLMARK_ALLOGRAFT_REJECTION were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -199,10 +198,9 @@
         "CD79A",
         "CD86",
         "EGFR",
-        "GZMA",
-        "PRF1"
+        "GZMA"
       ],
-      "n_leading_edge": 6,
+      "n_leading_edge": 5,
       "gc_corr": 0.178733637848586,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 17 of 200 genes in HALLMARK_ALLOGRAFT_REJECTION were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -270,7 +268,7 @@
     "HALLMARK_P53_PATHWAY: score=5.09 q=3.31327084934774e-06 K=4/200 LE=1",
     "HALLMARK_PI3K_AKT_MTOR_SIGNALING: score=4.31 q=9.9137584836965e-05 K=3/105 LE=2",
     "HALLMARK_UV_RESPONSE_DN: score=3.98 q=0.000294739450507597 K=5/144 LE=3",
-    "HALLMARK_ALLOGRAFT_REJECTION: score=3.95 q=0.000294739450507597 K=17/200 LE=6",
+    "HALLMARK_ALLOGRAFT_REJECTION: score=3.95 q=0.000294739450507597 K=17/200 LE=5",
     "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=2.65 q=0.0248365043103869 K=2/200 LE=2",
     "HALLMARK_HEME_METABOLISM: score=2.43 q=0.039959035641388 K=3/200 LE=3"
   ]

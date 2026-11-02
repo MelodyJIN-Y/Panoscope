@@ -14,17 +14,18 @@
       "panel_hits": 5,
       "panel_coverage": 0.05,
       "leading_edge": [
-        "ALDH1A3",
         "CCND1",
         "KRT8",
         "SCD",
         "SMS"
       ],
-      "n_leading_edge": 5,
+      "n_leading_edge": 4,
       "gc_corr": 0.728058117177178,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 5 of 100 genes in HALLMARK_ANDROGEN_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
-      "caveats": [],
+      "caveats": [
+        "tiny leading edge"
+      ],
       "source": "jazzpanda:enrichment"
     },
     {
@@ -68,17 +69,18 @@
       "panel_hits": 5,
       "panel_coverage": 0.05,
       "leading_edge": [
-        "ALDH1A3",
         "CCND1",
         "KRT8",
         "SCD",
         "SMS"
       ],
-      "n_leading_edge": 5,
+      "n_leading_edge": 4,
       "gc_corr": 0.728058117177178,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 5 of 100 genes in HALLMARK_ANDROGEN_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
-      "caveats": [],
+      "caveats": [
+        "tiny leading edge"
+      ],
       "source": "jazzpanda:enrichment"
     },
     {
@@ -136,7 +138,7 @@
   "top_theme": "HALLMARK_ANDROGEN_RESPONSE",
   "verify": false,
   "source_trace": [
-    "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=5/100 LE=5",
+    "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=5/100 LE=4",
     "HALLMARK_G2M_CHECKPOINT: score=6.43 q=1.14914355808793e-09 K=6/200 LE=6",
     "HALLMARK_FATTY_ACID_METABOLISM: score=5.06 q=2.60195926963617e-06 K=2/158 LE=2"
   ]

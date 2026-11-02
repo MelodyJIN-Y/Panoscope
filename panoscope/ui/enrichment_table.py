@@ -124,16 +124,25 @@ def _state_of(p: PathwayEvidence) -> MeasuredState:
 
 
 def _reason(p: PathwayEvidence, mstate: MeasuredState) -> str:
-    """Why this row is in this state -- the hover on the hatch, named not implied."""
+    """Why this row is in this state -- the hover on the hatch, named not implied.
+
+    Both counts say *usably measured*, not *on panel*. Neither number is a panel
+    fact any more: ``panel_hits`` is the set genes every gene capability frame
+    admits, and ``n_leading_edge`` is the selected genes those same frames admit,
+    so a sentence that called either one "on panel" would describe the panel design
+    where it is reporting what the apparatus could actually see -- and on exactly
+    the rows (a set below the leading-edge floor only because the detectability
+    frame rejected its drivers) where the difference is the whole explanation.
+    """
     if mstate is MeasuredState.UNDERPOWERED:
-        return (f"{p.panel_hits} of {p.set_size_full} set genes on panel "
+        return (f"{p.panel_hits} of {p.set_size_full} set genes usably measured "
                 f"(floor {cfg.MIN_PANEL_HITS}), {p.n_leading_edge} driving gene(s) "
-                f"(floor {cfg.MIN_LEADING_EDGE}): below the capability floor, so its "
-                "absence here argues nothing.")
+                f"the frames admit (floor {cfg.MIN_LEADING_EDGE}): below the "
+                "capability floor, so its absence here argues nothing.")
     if mstate is MeasuredState.TESTED_ABSENT:
-        return (f"scored on {p.panel_hits} of {p.set_size_full} set genes and not "
-                f"reported for this unit (q at or above {cfg.SUGGESTIVE_Q_MAX}); "
-                "absence IS evidence here.")
+        return (f"scored on {p.panel_hits} of {p.set_size_full} usably measured set "
+                f"genes and not reported for this unit (q at or above "
+                f"{cfg.SUGGESTIVE_Q_MAX}); absence IS evidence here.")
     return p.panel_scope_caveat
 
 

@@ -19,7 +19,8 @@ do not depend on the demo agreeing:
 2. **A study where the two engines disagree.** On
    ``synthetic_multisample_fixture`` c3 they return the same Low band for
    different stated reasons -- v1 "no canonical marker supports the call",
-   ``core/`` "driving marker is NoSig". That sentence is what the Summary table
+   ``core/`` "leading canonical marker was measured and did not mark this unit".
+   That sentence is what the Summary table
    prints and what the exported CSV's ``notes`` column carries, so it is a
    difference the biologist reads.
 
@@ -257,14 +258,23 @@ def test_the_persisted_arm_and_the_fallback_arm_agree(core_verdicts):
         assert persisted == core_verdicts[unit], unit
 
 
-def test_the_fallback_states_the_cores_reason_not_the_v1_engines():
+def test_the_fallback_states_the_cores_reason_not_the_v1_engines(monkeypatch):
     """The one study on disk where the two engines tell different stories.
 
-    ``synthetic_multisample_fixture`` has no ``interp/clusters`` tree, so
-    ``verdict_for`` takes its fallback arm. Both engines band c3 Low; they
-    disagree about WHY, and the sentence is printed in the Summary table's notes
-    column and exported in the CSV. This is the assertion that fails if the
-    fallback goes back to ``agent/verdict.py`` -- no monkeypatching involved.
+    ``synthetic_multisample_fixture`` c3: both engines band it Low and they disagree
+    about WHY, and the sentence is printed in the Summary table's notes column and
+    exported in the CSV. This is the assertion that fails if the fallback goes back
+    to ``agent/verdict.py``.
+
+    **Why ``load_verdict`` is forced to miss.** This used to assert that the fixture
+    had NO built tree, which made the one gate pinning the verdict retirement -- on
+    the one study where the two band engines differ at all -- depend on nobody ever
+    running the documented ``panoscope build --study synthetic_multisample_fixture``.
+    The fixture exists to be built against, so the gate punished the thing it is
+    for. Forcing the miss is the sibling test's move one function up, for the same
+    reason: the fallback arm is reachable whatever is on disk, and the arm that was
+    left on the v1 engine is the one being pinned. The persisted arm is pinned
+    below, so this module now covers whichever arm a given working copy takes.
     """
     from panoscope.data.study import Study
 
@@ -275,8 +285,8 @@ def test_the_fallback_states_the_cores_reason_not_the_v1_engines():
     from panoscope.pipeline import store
     from panoscope.ui import data_access as da
 
+    monkeypatch.setattr(store, "load_verdict", lambda *_a, **_k: None)
     with cfg.use_study(DIVERGENT_STUDY):
-        assert store.load_verdict(DIVERGENT_UNIT) is None, "fixture grew a built tree"
         _clear(da.verdict_for)
         shown = da.verdict_for(DIVERGENT_UNIT)
         _clear(da.verdict_for)
@@ -286,9 +296,36 @@ def test_the_fallback_states_the_cores_reason_not_the_v1_engines():
         "the two engines agree here now; this test is no longer evidence and "
         "needs a study on which they still differ"
     )
-    assert shown.band_basis == "driver NoSig"
-    assert "driving marker is NoSig" in shown.notes
+    assert shown.band_basis == "canonical driver tested-absent"
+    assert "leading canonical marker was measured and did not mark this unit" \
+        in shown.notes
     assert "no canonical marker supports the call" not in shown.notes
+
+
+def test_the_fixtures_persisted_arm_states_the_cores_reason_too():
+    """And if this working copy HAS built the fixture, the arm it takes is pinned too.
+
+    ``panoscope build --study synthetic_multisample_fixture`` is a documented
+    command and the fixture is there to be built against, so whether
+    ``interp/clusters/`` exists is a property of the checkout and not of the code.
+    Skipping on absence is honest here in a way it was not above: there is nothing
+    to read, rather than a code path going unchecked. The build writes through
+    ``core/``, so a persisted verdict stating the v1 engine's reason would mean the
+    stage had been reverted.
+    """
+    from panoscope.data.study import Study
+    from panoscope.pipeline import store
+
+    if not Study.open(DIVERGENT_STUDY).exists:
+        pytest.skip(f"study {DIVERGENT_STUDY!r} is not on disk")
+
+    with cfg.use_study(DIVERGENT_STUDY):
+        persisted = store.load_verdict(DIVERGENT_UNIT)
+        if persisted is None:
+            pytest.skip(f"{DIVERGENT_STUDY} is not built in this working copy")
+        from panoscope.pipeline import v1_verdicts
+
+        assert persisted == v1_verdicts.verdict_for(DIVERGENT_UNIT)
 
 
 def test_exported_csv_carries_the_11_frozen_columns(core_verdicts):

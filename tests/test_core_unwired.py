@@ -11,10 +11,17 @@ no producer yet, and wiring it today would put a check on the review surface tha
 biologist would see run and find nothing. That is the failure the four-state lattice
 exists to prevent, arriving one layer up -- a silence read as a negative result.
 
-``core/concordance.py`` and ``core/failure_modes.py`` are deliberately NOT in here.
-Their inputs exist today (``PlatformAdapter.sample_inputs`` resolves two per-sample
-tables on the multi-sample fixture; ``detect`` raises a named mode on eight of the
-demo's nine units), so for those two "unwired" is a gap, not a justification.
+``core/concordance.py`` and ``core/failure_modes.py`` were deliberately NOT in here,
+because their inputs exist today (``PlatformAdapter.sample_inputs`` resolves two
+per-sample tables on the multi-sample fixture; ``detect`` raises a named mode on
+eight of the demo's nine units) -- so for those two "unwired" was a gap, not a
+justification.
+
+``core/concordance.py`` is now wired: ``pipeline/records._concordance`` runs it from
+the composition root, and ``tests/test_concordance_wired.py`` holds that gap closed
+from the record end. ``core/failure_modes.py`` is still open, and it is a gap rather
+than a justification -- ``InterpretationRecord`` has no field a named mode could be
+written into, and ``types/record.py`` is where that would have to be added.
 """
 
 from __future__ import annotations

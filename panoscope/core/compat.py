@@ -240,10 +240,26 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
     coverage sentence itself is imported from ``core.verdict`` rather than written
     again here: a second copy would drift from v1 silently, and only on a study where
     the rule fires -- which is never the demo.
+
+    **One sentence is deliberately NOT v1's, and this is the only one.**
+    ``band:driver_nosig`` fires when the leading canonical marker is ``TESTED_ABSENT``
+    -- in frame, tested, and not assigned to this unit. v1 printed "driving marker is
+    NoSig" for it, which a biologist reads as *the assay said nothing about this
+    gene*; the measurement says the opposite, because an item only reaches
+    ``TESTED_ABSENT`` after every frame for its kind admitted it, detectability
+    included (``core/verdict.py``, "A note on NoSig"). Transcribing v1 faithfully here
+    would carry a false sentence into ``interp/verdicts.csv``'s ``notes`` column and
+    the Summary table, and on a joint-clustered study -- where a canonical marker
+    peaking in another cluster is the ordinary case -- it would be there on most
+    units. The BAND is unchanged (still Low, still the same rung, still the same
+    ``verify``); only the words are. ``tests/test_core_verdict.py::_RULE_FOR`` still
+    maps v1's sentence to this id, because v1 is the reference implementation the
+    equivalence gate reads and it still says what it always said.
     """
     plain = {
         "band:no_canonical_driver": "no canonical marker supports the call",
-        "band:driver_nosig": "driving marker is NoSig",
+        "band:driver_nosig":
+            "leading canonical marker was measured and did not mark this unit",
         "band:demote_localises_elsewhere":
             "driver localizes better with another cluster -> -1 band",
         "band:demote_not_unique": "driver spatial pattern not unique -> -1 band",

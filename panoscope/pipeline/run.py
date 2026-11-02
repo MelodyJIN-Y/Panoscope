@@ -213,10 +213,35 @@ def run(
     calibration -> manifest). Pass ``notes=True`` to also run the LIVE notes stage
     (real-PubMed cell-type + per-marker biology notes) before the manifest, so
     the notes are hashed into it too.
+
+    **The whole build is scoped to the study being built**, which is what this
+    wrapper exists for. Every agent-layer reader inside -- ``cfg.CLUSTER_ORDER``,
+    ``cfg.DATASET_ID``, ``data.load_panel()``, each stage's own reads -- resolves
+    against ``cfg.current_study()`` at CALL time. The scope used to sit around
+    ``data.load_cells()`` alone, so ``panoscope build --study X`` built the
+    *environment's default* study into X's directory and exited 0: nine demo
+    clusters and a 280-gene panel written under a three-cluster, twelve-gene
+    fixture, every number tracing honestly to method output -- the wrong
+    specimen's. That is the confident floor satisfied per value and violated per
+    study, which is its worst form, and nothing printed. Scoping here rather than
+    in ``cli.py`` covers every caller: the CLI, ``python -m panoscope.pipeline.run``
+    and the tests.
+
+    The scope resolves the study at its CANONICAL location, not under ``root``.
+    ``root`` means *write the tree here*, not *read it from here*: the inputs are
+    copied out of the canonical tree by ``_copy_inputs`` and the destination is
+    empty when the build starts, so pointing the readers at it would block every
+    build on its own missing manifest.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     ddir = paths.dataset_dir(dataset_id, root)
     ddir.mkdir(parents=True, exist_ok=True)
+    with cfg.use_study(Study.open(dataset_id)):
+        return _run_scoped(dataset_id, ddir, root, notes)
+
+
+def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) -> Path:
+    """The build itself, with ``dataset_id`` guaranteed to be the active study."""
     declared = _declared(dataset_id, root)  # read BEFORE the build rewrites the file
 
     run_prep(dataset_id, root)  # raw .Rds -> tidy inputs (no-op if already present)
@@ -279,13 +304,15 @@ def run(
     except Exception:  # noqa: BLE001
         panel_n = 0
 
-    # n_cells comes from agent.data, scoped to the tree we just built.
+    # n_cells comes from agent.data, scoped to the tree we just BUILT rather than
+    # the canonical one ``run`` scoped: collect_viz has by now MOVED the frames into
+    # it, so this is the only read in the build that must look at the destination.
     #
     # This used to go through a private _read_tree_frame() helper, because
     # agent.data froze its paths at import -- to the legacy location, before
-    # collect_viz MOVED the frames -- which produced two confirmed first-run
+    # collect_viz moved the frames -- which produced two confirmed first-run
     # manifest bugs. Now that the readers resolve against the current study at call
-    # time, scoping the study to this tree is enough and the workaround is gone.
+    # time, re-scoping for this one read is enough and the workaround is gone.
     with cfg.use_study(Study(id=dataset_id, data_root=ddir.parent.parent)):
         try:
             n_cells: Optional[int] = int(len(data.load_cells()))

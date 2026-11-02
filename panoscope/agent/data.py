@@ -24,6 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 from panoscope.agent import config as cfg
+from panoscope.platforms.xenium import is_control_probe
 
 # --------------------------------------------------------------------------- #
 # Tidy file locations (all under data/)
@@ -231,13 +232,41 @@ def cell_type_for(cluster: str) -> str:
 # --------------------------------------------------------------------------- #
 @_per_study
 def load_panel() -> pd.DataFrame:
-    """Return the panel table (280 analyzed genes): gene, ensembl_id, annotation."""
+    """Return the panel GENES: gene, ensembl_id, annotation. Controls excluded.
+
+    ``panel.parquet`` is the vendor's probe table, and Xenium ships its negative
+    controls in it -- ``NegControlProbe_*``, ``NegControlCodeword_*``,
+    ``UnassignedCodeword_*`` and friends, dozens of rows on a real panel. They are
+    probes, not genes, so they are dropped here with
+    :data:`~panoscope.platforms.xenium.CONTROL_PREFIXES` -- the adapter's list,
+    imported rather than copied, because two lists are two answers.
+
+    This is the root of a count that was wrong everywhere downstream.
+    ``XeniumAdapter.frames`` already filtered, so the capability frame was right and
+    every consumer of this reader was wrong by the number of control rows: the
+    multi-sample fixture's 12-gene assay read as 13 in ``manifest.panel_gene_count``
+    (``pipeline/run.py`` counts these rows), in ``agent/enrichment._panel_size`` and
+    so in every "...on this N-gene panel" caveat sentence, and in
+    ``ui/conditionality._panel_scope``, the line under every plot. A control row in
+    the panel inflates a coverage denominator, which is the one place a panel size
+    is load-bearing rather than decorative. The demo panel was pre-stripped, which is
+    the only reason this never showed.
+
+    **Excluded and named, not invisible.** A control probe genuinely ran on the
+    instrument, so "never measured" is the wrong thing to say about one; it is simply
+    not a panel gene. The rows leave the panel (and therefore
+    :func:`panel_contains`, the coverage denominators and the autocomplete list) and
+    ``panel.parquet`` keeps them untouched, with
+    :func:`~panoscope.platforms.xenium.is_control_probe` available to tell a caller
+    which kind of off-panel a name is.
+    """
     path = _require(_panel_parquet(), "scripts prep (panel.parquet)")
     df = pd.read_parquet(path)
     missing = set(_PANEL_COLS) - set(df.columns)
     if missing:
         raise ValueError(f"[data] panel.parquet missing columns {missing}")
-    return df[_PANEL_COLS]
+    genes = df["gene"].astype(str)
+    return df.loc[~genes.map(is_control_probe), _PANEL_COLS].reset_index(drop=True)
 
 
 @_per_study

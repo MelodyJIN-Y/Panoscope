@@ -33,12 +33,25 @@ from panoscope.pipeline.stages.enrichment import run_enrichment
 from tests.conftest import DEMO_ID
 
 # Same gate as tests/test_enrichment.py: the jazzPanda enrichment result is
-# unpublished and gitignored, so it may be absent on a fresh clone / CI.
+# unpublished and gitignored (.gitignore:53), so it is absent on a fresh clone and on
+# CI. It stays out -- its rows are MSigDB Hallmark sets scored on 10x's Xenium breast
+# demo, and restrictively-licensed data is fetched, never bundled.
+#
+# This skip used to take the enrichment coverage with it, which mattered more than a
+# normal skip: ``tests/golden_projection.py`` feeds ``panel_hits`` from the committed
+# records straight back in, names this module as the backstop for a panel or
+# detectability change, and that backstop did not run where it was needed.
+# ``tests/test_enrichment_records_fresh_clone.py`` now runs the same
+# ``run_enrichment`` path unconditionally on the synthetic fixture. What stays here,
+# and only here, is the committed DEMO view: byte-equality of ``enrichment.csv`` and
+# ``interp/enrichment/c*.json``, which no synthetic study can stand in for.
 pytestmark = pytest.mark.skipif(
     not E._jz_enrichment_csv().exists(),
     reason=(
         f"jazzPanda enrichment result not present (gitignored): "
-        f"{E._jz_enrichment_csv()}."
+        f"{E._jz_enrichment_csv()}. The frame arithmetic, the record shape and the "
+        f"engine-agreement check run unconditionally in "
+        f"tests/test_enrichment_records_fresh_clone.py."
     ),
 )
 

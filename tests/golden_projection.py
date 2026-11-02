@@ -140,8 +140,14 @@ def normalise(value: Any) -> Any:
 # are NOT re-derived here, because `panel_hits` in a committed record already is the
 # frame count and is fed straight back. A change to the study's panel or
 # detectability file therefore reaches this projection only after the enrichment
-# records are rebuilt. `tests/test_pipeline_enrichment_records.py` builds from the
-# real inputs and is where a frame change is caught.
+# records are rebuilt, and the backstop is a build from the real inputs.
+#
+# That backstop used to be named as `tests/test_pipeline_enrichment_records.py`
+# alone, which reads the gitignored demo result and so does not run on a fresh clone
+# -- the ceiling was uncovered exactly where this file's blindness is not
+# compensated by someone's laptop. `tests/test_enrichment_records_fresh_clone.py`
+# runs the same build path on the committed synthetic fixture with no skip, so a
+# frame change is caught on CI; the demo module still covers the committed demo view.
 #
 # Known ceiling: a change to the RAW numbers in those committed JSONs would be
 # absorbed rather than flagged, because they are the input here. Committing

@@ -15,6 +15,11 @@ against EVERY gene frame the study declares, through the same
   ``n_overlap`` on 35 of 70 rows — the second half matters, because a test that only
   checked "panel_hits == the frame count" would also pass if the frame count happened
   to equal ``n_overlap`` everywhere, and would then be proving nothing;
+* the LEADING EDGE goes through the same frames, which the first version of this
+  change forgot: ``panel_hits`` was recounted and ``genes_selected`` was not, so a
+  record could say "3 of 36 genes usably measured" and then name four drivers, two
+  of them rejected by the detectability frame. Those genes are also what
+  ``ui/enrichment_spatial`` plots;
 * the loud failures: a result with no ``genes_tested``, and a study with no gene
   frame, both raise rather than quietly counting zero;
 * the committed artifacts carry no band — on every unit, in the JSON and in the CSV.
@@ -46,6 +51,12 @@ _needs_result = pytest.mark.skipif(
 #: equality check below evidence rather than a tautology.
 EXPECTED_DIFFERING_ROWS = 35
 EXPECTED_TOTAL_ROWS = 70
+
+#: Rows whose ``genes_selected`` holds at least one gene the frames reject. Same
+#: reasoning as above: without this number the leading-edge check below would also
+#: pass on an engine that filtered nothing, in a study where every selected gene
+#: happened to be detectable.
+EXPECTED_ROWS_WITH_REJECTED_DRIVERS = 33
 
 
 def _raw_rows() -> list[dict]:
@@ -197,3 +208,61 @@ def test_the_committed_enrichment_csv_has_counts_where_the_band_was():
                   int(row["cluster_n_untestable"]))
         assert sum(counts) > 0, row["cluster"]
         assert row["cluster_verify"] in ("TRUE", "FALSE")
+
+
+@_needs_result
+def test_the_leading_edge_names_only_genes_the_frames_admit_on_every_unit():
+    """The drivers are frame-filtered, and filtering them MOVED 33 of 70 rows.
+
+    Three things, because the bug was one record telling two stories: the named
+    genes are the admitted ones, the count matches the list, and the count can no
+    longer exceed the set's measured footprint -- ``n_leading_edge <= panel_hits``
+    is the invariant ``tests/test_panel_coverage`` already assumed in prose and
+    that an unfiltered leading edge quietly broke on 12 rows.
+    """
+    world = E._gene_world()
+    by_key = {(r["cluster"], r["gene_set"]): r for r in E._load_jazzpanda_rows()}
+    rejecting = checked = 0
+    for ce in E.all_enrichments():
+        for p in ce.all_tested:
+            selected = _split(by_key[(ce.cluster, p.gene_set)]["genes_selected"])
+            admitted = tuple(g for g in selected if _in_frame((g,), world))
+            assert p.leading_edge == admitted, (ce.cluster, p.gene_set)
+            assert p.n_leading_edge == len(p.leading_edge)
+            assert p.n_leading_edge <= p.panel_hits, (ce.cluster, p.gene_set)
+            checked += 1
+            rejecting += len(selected) != len(admitted)
+
+    assert checked == EXPECTED_TOTAL_ROWS
+    assert rejecting == EXPECTED_ROWS_WITH_REJECTED_DRIVERS, (
+        f"{rejecting} of {checked} rows select a gene the frames reject; expected "
+        f"{EXPECTED_ROWS_WITH_REJECTED_DRIVERS}. If the panel or detectability file "
+        "changed, that is a real interpretation change, not a number to retune here."
+    )
+
+
+@_needs_result
+def test_the_build_says_out_loud_how_many_drivers_the_frames_rejected(tmp_path, capsys):
+    """The rejected count exists in exactly one place, and the build prints it.
+
+    It cannot live on ``PathwayEvidence``: a record rebuilt from disk carries the
+    admitted genes only, so a field derived from the raw selection would come back
+    as zero and read as "nothing was rejected". The build still has the raw rows, so
+    this is where the number is said -- and silence here would mean "nobody looked",
+    which is the same failure the panel-hit line exists to prevent.
+    """
+    from panoscope.pipeline.stages.enrichment import run_enrichment
+
+    world = E._gene_world()
+    expected_genes = expected_rows = 0
+    for row in E._load_jazzpanda_rows():
+        selected = _split(row["genes_selected"])
+        rejected = sum(1 for g in selected if not _in_frame((g,), world))
+        expected_genes += rejected
+        expected_rows += bool(rejected)
+
+    run_enrichment(cfg.DATASET_ID, tmp_path)      # a throwaway tree, not the repo's
+    out = capsys.readouterr().out
+    assert (f"leading edge, capability frames: {expected_genes} of ") in out, out
+    assert f"rejected across {expected_rows} of " in out, out
+    assert expected_genes and expected_rows, "nothing rejected: the check is vacuous"

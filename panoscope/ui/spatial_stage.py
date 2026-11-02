@@ -390,6 +390,66 @@ def _cluster_celltype_map() -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Declared views — what this study's manifest says was never prepped
+# --------------------------------------------------------------------------- #
+# Every study's manifest carries ``views_available`` (pipeline/run.py derives it from
+# the files the viz stage actually wrote). Nothing in the UI read it, so a study built
+# without a viz precompute — the shape the kidney study arrives in — took the loader's
+# FileNotFoundError all the way to a Streamlit traceback, and the whole Markers page
+# with it. A traceback is not an interpretation.
+#
+# The guard is here rather than at the loader because the loader is right to fail
+# loudly: a *required* file that is missing is a broken study. What the manifest adds
+# is the one thing a missing file cannot say — that nobody ever promised this view.
+# Same principle as R4 ("a plot with no conditionality record refuses to draw"), one
+# step earlier: a view with nothing behind it refuses to draw and says what would have
+# produced it, naming the prep step exactly as the loader's own error does. An absent
+# view is not an empty one, so it is neither a blank panel nor a zeroed plot.
+#
+# It lives on these four renderers rather than on their callers because
+# ``enrichment_spatial.py`` imports every one of them; a guard per caller would have
+# left the pathways stage drawing the same traceback.
+_VIEW_SOURCE: dict[str, str] = {
+    "cell_map": "viz/cells.parquet · scripts/prep_data.R",
+    "umap": "viz/umap.parquet · scripts/prep_data.R",
+    "density": "viz/hexbin/ · scripts/precompute_density.py",
+    "expr": "viz/expr.parquet · scripts/prep_expr.py",
+}
+_VIEW_LABEL: dict[str, str] = {
+    "cell_map": "cell map",
+    "umap": "UMAP",
+    "density": "transcript density",
+    "expr": "per-cell expression",
+}
+
+
+def _unavailable(*views: str) -> Optional[str]:
+    """The first of ``views`` this study declares unavailable, or None to draw.
+
+    An unknown key, an absent ``views_available`` and an unreadable manifest all read
+    as *available*, matching ``PlatformAdapter.available_views``: a manifest may VETO
+    a view whose files exist, but it may never grant one whose files do not. So this
+    guard only ever subtracts, and the loader stays the backstop for a study whose
+    manifest claims a view it no longer has.
+    """
+    try:
+        declared = cfg.current_study().views_available
+    except Exception:  # noqa: BLE001 - no readable manifest is not a veto
+        return None
+    return next((v for v in views if not declared.get(v, True)), None)
+
+
+def _unavailable_panel(view: str, *, height: int = _PLOT_HEIGHT) -> None:
+    """State the absent view plainly: what is missing, and what would produce it."""
+    _empty_panel(
+        f"{_VIEW_LABEL.get(view, view)} not prepared for this study"
+        f'<br><span style="color:var(--muted,#606A73)">'
+        f"would come from {_VIEW_SOURCE.get(view, view)}</span>",
+        height=height,
+    )
+
+
+# --------------------------------------------------------------------------- #
 # View 1 — Cell map (tissue image; ratio-locked)
 # --------------------------------------------------------------------------- #
 def _render_cell_map(cluster: str) -> None:
@@ -401,6 +461,11 @@ def _render_cell_map(cluster: str) -> None:
     tissue aspect ratio is locked by ``_tissue_layout`` so the slide is never
     stretched.
     """
+    missing = _unavailable("cell_map")
+    if missing:
+        _unavailable_panel(missing, height=_TISSUE_HEIGHT)
+        return
+
     go = _go()
 
     cells = da.cells_df()
@@ -473,6 +538,11 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
     exported expression, fall back to the cluster-coloured UMAP with an honest
     note. ``gene`` is required when ``feature`` is True.
     """
+    missing = _unavailable("umap")
+    if missing:
+        _unavailable_panel(missing)
+        return
+
     go = _go()
 
     umap = da.umap_df()
@@ -642,6 +712,11 @@ def _render_density(gene: str) -> None:
     honest placeholder — never a synthesized field. The tissue aspect ratio is locked
     by ``_tissue_layout`` so a coarse bin never stretches the slide.
     """
+    missing = _unavailable("density")
+    if missing:
+        _unavailable_panel(missing, height=_TISSUE_HEIGHT)
+        return
+
     # Bin size is a single GLOBAL viewing control (``_render_density_controls``, drawn
     # once above the gene rows), so this panel just reads it — no per-panel control
     # to offset the density plot from its feature-UMAP neighbour.
@@ -758,6 +833,14 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
     cluster labels) — this derives nothing beyond a mean and a fraction of source
     values. x = clusters (c1..c9), y = the selected genes.
     """
+    # Two views, because ``expr_by_cluster`` joins the exported expression onto the
+    # authoritative cluster labels in the cell table: without either one there is no
+    # (gene, cluster) cell to draw.
+    missing = _unavailable("expr", "cell_map")
+    if missing:
+        _unavailable_panel(missing, height=_VIOLIN_HEIGHT)
+        return
+
     go = _go()
 
     # Only plot genes that actually have exported per-cell expression; the rest
@@ -896,6 +979,12 @@ def _render_density_controls() -> None:
     re-binning a value). Rendering it once here, with the legend, means the gene
     rows below carry no repeated control and no per-panel legend.
     """
+    # No density frames in this study -> no control. A viewing control whose only
+    # effect is to pick between pictures that do not exist is not an honest absence
+    # statement, it is a dead knob; the density panels below say what is missing.
+    if _unavailable("density"):
+        return
+
     st = _st()
     sizes = list(state.BIN_SIZES_UM)
     current = state.get_bin_um()

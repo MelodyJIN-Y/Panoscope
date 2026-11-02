@@ -311,3 +311,75 @@ def test_pending_signoff_card_renders_on_drilldown() -> None:
         pytest.skip("Streamlit too old for st.container(key=...)")
     assert not at.exception, [str(e.value) for e in at.exception]
     assert sum("Confirm sign-off" in b.label for b in at.button) == 1
+
+
+def _summary_edits_path():
+    """Where the Summary page's saved edits live for the active study."""
+    from panoscope.pipeline import paths as pipeline_paths
+
+    return pipeline_paths.summary_edits_json(cfg.current_study().id)
+
+
+def _render_summary_headless(seed_edit: str = ""):
+    """Run the real Summary page under AppTest, optionally with one region edited.
+
+    ``seed_edit`` goes into the caveats region's canonical session key, which is what
+    a keystroke in that editor would have set -- so the "an edit still saves" half
+    exercises the same autosave branch the biologist does.
+    """
+    import pytest
+
+    try:
+        from streamlit.testing.v1 import AppTest
+    except Exception:  # noqa: BLE001 - Streamlit testing API absent
+        pytest.skip("streamlit.testing.v1 unavailable")
+
+    # The body runs as its own script (no closure over this frame), so the edit is
+    # passed in through AppTest's kwargs rather than captured.
+    def _run(edit: str = "") -> None:
+        import streamlit as _st
+
+        from panoscope.ui import state as _state
+        from panoscope.ui import summary as _summary
+
+        _state.init_state()
+        if edit:
+            _st.session_state["wsval_caveats"] = edit
+        _summary.render_summary_page()
+
+    at = AppTest.from_function(_run, kwargs={"edit": seed_edit})
+    at.run(timeout=60)
+    if at.exception and "unexpected keyword argument 'key'" in str(at.exception[0].value):
+        pytest.skip("Streamlit too old for st.container(key=...)")
+    assert not at.exception, [str(e.value) for e in at.exception]
+    return at
+
+
+def test_opening_the_summary_page_does_not_write_the_study_tree() -> None:
+    """A read surface must not mutate the data tree. Opening the board used to write
+    ``interp/summary_edits.json`` holding ``{"edits": {}}`` -- an empty write that says
+    nothing and dirties every study a biologist merely looks at. The write now happens
+    only when there is something to write (an edit, or a disk copy to clear)."""
+    import json
+
+    import pytest
+
+    p = _summary_edits_path()
+    if p.exists():
+        on_disk = json.loads(p.read_text(encoding="utf-8")).get("edits") or {}
+        if on_disk:
+            pytest.skip("a real saved edit is on disk; not clobbering it")
+        p.unlink()
+
+    try:
+        _render_summary_headless()
+        assert not p.exists(), f"opening the Summary page wrote {p}"
+
+        # the other half: a region the biologist actually edited still autosaves
+        _render_summary_headless(seed_edit="EDITED BY THE TEST")
+        assert p.exists()
+        saved = json.loads(p.read_text(encoding="utf-8"))["edits"]
+        assert saved.get("caveats") == "EDITED BY THE TEST"
+    finally:
+        if p.exists():
+            p.unlink()

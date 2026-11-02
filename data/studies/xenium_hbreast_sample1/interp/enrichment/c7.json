@@ -16,7 +16,6 @@
       "leading_edge": [
         "BANK1",
         "CCL5",
-        "CD274",
         "CD69",
         "CD86",
         "FGL2",
@@ -25,7 +24,7 @@
         "PIM1",
         "SLAMF7"
       ],
-      "n_leading_edge": 10,
+      "n_leading_edge": 9,
       "gc_corr": 0.33638130266832,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 9 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -72,10 +71,9 @@
       "leading_edge": [
         "CAV1",
         "KIT",
-        "PDGFRB",
-        "PPARG"
+        "PDGFRB"
       ],
-      "n_leading_edge": 4,
+      "n_leading_edge": 3,
       "gc_corr": 0.407351366753255,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 5 of 144 genes in HALLMARK_UV_RESPONSE_DN were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -101,15 +99,13 @@
         "CCND1",
         "CD14",
         "CD69",
-        "CTH",
         "ERBB2",
         "LUM",
         "MMP2",
         "PDGFRB",
-        "PRF1",
         "TOP2A"
       ],
-      "n_leading_edge": 12,
+      "n_leading_edge": 10,
       "gc_corr": 0.294811323298233,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 10 of 161 genes in HALLMARK_APOPTOSIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -129,17 +125,16 @@
       "panel_hits": 3,
       "panel_coverage": 0.08333333333333333,
       "leading_edge": [
-        "LPL",
         "LUM",
         "POSTN",
-        "S100A4",
-        "STC1"
+        "S100A4"
       ],
-      "n_leading_edge": 5,
+      "n_leading_edge": 3,
       "gc_corr": 0.217732635830001,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 3 of 36 genes in HALLMARK_ANGIOGENESIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
+        "tiny leading edge",
         "low spatial specificity"
       ],
       "source": "jazzpanda:enrichment"
@@ -160,7 +155,6 @@
       "leading_edge": [
         "BANK1",
         "CCL5",
-        "CD274",
         "CD69",
         "CD86",
         "FGL2",
@@ -169,7 +163,7 @@
         "PIM1",
         "SLAMF7"
       ],
-      "n_leading_edge": 10,
+      "n_leading_edge": 9,
       "gc_corr": 0.33638130266832,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 9 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -240,10 +234,9 @@
       "leading_edge": [
         "CAV1",
         "KIT",
-        "PDGFRB",
-        "PPARG"
+        "PDGFRB"
       ],
-      "n_leading_edge": 4,
+      "n_leading_edge": 3,
       "gc_corr": 0.407351366753255,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 5 of 144 genes in HALLMARK_UV_RESPONSE_DN were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -269,15 +262,13 @@
         "CCND1",
         "CD14",
         "CD69",
-        "CTH",
         "ERBB2",
         "LUM",
         "MMP2",
         "PDGFRB",
-        "PRF1",
         "TOP2A"
       ],
-      "n_leading_edge": 12,
+      "n_leading_edge": 10,
       "gc_corr": 0.294811323298233,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 10 of 161 genes in HALLMARK_APOPTOSIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
@@ -297,17 +288,16 @@
       "panel_hits": 3,
       "panel_coverage": 0.08333333333333333,
       "leading_edge": [
-        "LPL",
         "LUM",
         "POSTN",
-        "S100A4",
-        "STC1"
+        "S100A4"
       ],
-      "n_leading_edge": 5,
+      "n_leading_edge": 3,
       "gc_corr": 0.217732635830001,
       "tier": "enriched",
       "panel_scope_caveat": "Panel-scoped: only 3 of 36 genes in HALLMARK_ANGIOGENESIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
+        "tiny leading edge",
         "low spatial specificity"
       ],
       "source": "jazzpanda:enrichment"
@@ -316,11 +306,11 @@
   "top_theme": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
   "verify": true,
   "source_trace": [
-    "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=8.01 q=2.05391259555654e-14 K=9/200 LE=10",
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=8.01 q=2.05391259555654e-14 K=9/200 LE=9",
     "HALLMARK_P53_PATHWAY: score=5.81 q=5.77178358440733e-08 K=4/200 LE=3",
     "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=5.19 q=1.30209965047238e-06 K=2/113 LE=2",
-    "HALLMARK_UV_RESPONSE_DN: score=3.96 q=0.000340300527346793 K=5/144 LE=4",
-    "HALLMARK_APOPTOSIS: score=2.87 q=0.0147292734543526 K=10/161 LE=12",
-    "HALLMARK_ANGIOGENESIS: score=2.82 q=0.0147292734543526 K=3/36 LE=5"
+    "HALLMARK_UV_RESPONSE_DN: score=3.96 q=0.000340300527346793 K=5/144 LE=3",
+    "HALLMARK_APOPTOSIS: score=2.87 q=0.0147292734543526 K=10/161 LE=10",
+    "HALLMARK_ANGIOGENESIS: score=2.82 q=0.0147292734543526 K=3/36 LE=3"
   ]
 }

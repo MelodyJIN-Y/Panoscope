@@ -41,18 +41,19 @@
     "c1": {
       "all_tested": [
         {
-          "caveats": [],
+          "caveats": [
+            "tiny leading edge"
+          ],
           "gc_corr": "0.728058",
           "gene_set": "HALLMARK_ANDROGEN_RESPONSE",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CCND1",
             "KRT8",
             "SCD",
             "SMS"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 4,
           "p_value": "0.000000",
           "panel_coverage": "0.050000",
           "panel_hits": 5,
@@ -120,18 +121,19 @@
       "cluster": "c1",
       "enriched": [
         {
-          "caveats": [],
+          "caveats": [
+            "tiny leading edge"
+          ],
           "gc_corr": "0.728058",
           "gene_set": "HALLMARK_ANDROGEN_RESPONSE",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CCND1",
             "KRT8",
             "SCD",
             "SMS"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 4,
           "p_value": "0.000000",
           "panel_coverage": "0.050000",
           "panel_hits": 5,
@@ -173,7 +175,7 @@
       ],
       "method": "jazzpanda_enrichment",
       "source_trace": [
-        "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=5/100 LE=5",
+        "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=5/100 LE=4",
         "HALLMARK_G2M_CHECKPOINT: score=6.43 q=1.14914355808793e-09 K=6/200 LE=6",
         "HALLMARK_FATTY_ACID_METABOLISM: score=5.06 q=2.60195926963617e-06 K=2/158 LE=2"
       ],
@@ -268,12 +270,10 @@
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 4,
+          "n_leading_edge": 2,
           "p_value": "0.000000",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -283,7 +283,7 @@
           "score_kind": "jazzpanda_enrichment",
           "set_size_full": 36,
           "source": "jazzpanda:enrichment",
-          "tier": "enriched"
+          "tier": "untestable"
         },
         {
           "caveats": [
@@ -295,7 +295,6 @@
           "leading_edge": [
             "BANK1",
             "CCL5",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -304,7 +303,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -376,31 +375,6 @@
         },
         {
           "caveats": [
-            "tiny leading edge"
-          ],
-          "gc_corr": "0.336279",
-          "gene_set": "HALLMARK_ANGIOGENESIS",
-          "gene_set_collection": "MSigDB_Hallmark",
-          "leading_edge": [
-            "LPL",
-            "LUM",
-            "S100A4",
-            "STC1"
-          ],
-          "n_leading_edge": 4,
-          "p_value": "0.000000",
-          "panel_coverage": "0.083333",
-          "panel_hits": 3,
-          "panel_scope_caveat": "Panel-scoped: only 3 of 36 genes in HALLMARK_ANGIOGENESIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
-          "q_value": "0.000000",
-          "score": "14.297585",
-          "score_kind": "jazzpanda_enrichment",
-          "set_size_full": 36,
-          "source": "jazzpanda:enrichment",
-          "tier": "enriched"
-        },
-        {
-          "caveats": [
             "very low panel coverage"
           ],
           "gc_corr": "0.502918",
@@ -409,7 +383,6 @@
           "leading_edge": [
             "BANK1",
             "CCL5",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -418,7 +391,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -461,8 +434,8 @@
         "HALLMARK_PI3K_AKT_MTOR_SIGNALING: score=21.13 q=0.0 K=3/105 LE=2",
         "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=19.65 q=0.0 K=2/200 LE=2",
         "HALLMARK_INFLAMMATORY_RESPONSE: score=14.87 q=0.0 K=8/200 LE=8",
-        "HALLMARK_ANGIOGENESIS: score=14.30 q=0.0 K=3/36 LE=4",
-        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=11.19 q=0.0 K=9/200 LE=10",
+        "HALLMARK_ANGIOGENESIS: score=14.30 q=0.0 K=3/36 LE=2",
+        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=11.19 q=0.0 K=9/200 LE=9",
         "HALLMARK_ESTROGEN_RESPONSE_LATE: score=5.54 q=9.18439427843865e-08 K=11/200 LE=4"
       ],
       "suggestive": [],
@@ -504,14 +477,13 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CCL5",
-            "CD274",
             "CD86",
             "FGL2",
             "GZMA",
             "PELI1",
             "PIM1"
           ],
-          "n_leading_edge": 7,
+          "n_leading_edge": 6,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -557,12 +529,11 @@
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
             "EGFR"
           ],
-          "n_leading_edge": 4,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -583,15 +554,13 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CD9",
-            "CTH",
             "CXCR4",
             "FGL2",
             "SCD",
             "SQLE",
-            "STC1",
             "TUBA4A"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 6,
           "p_value": "0.000001",
           "panel_coverage": "0.030000",
           "panel_hits": 6,
@@ -614,21 +583,18 @@
             "CD3G",
             "CD4",
             "CD79A",
-            "CD80",
             "CD86",
             "EGFR",
             "GZMA",
             "IGSF6",
-            "IL2RA",
             "IL2RG",
             "KLRD1",
             "LTB",
             "LY86",
-            "PRF1",
             "PTPRC",
             "TPD52"
           ],
-          "n_leading_edge": 18,
+          "n_leading_edge": 15,
           "p_value": "0.000002",
           "panel_coverage": "0.085000",
           "panel_hits": 17,
@@ -646,7 +612,6 @@
           "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CXCR4",
             "FCER1G",
             "IL2RG",
@@ -657,7 +622,7 @@
             "PIGR",
             "SERPINA3"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000028",
           "panel_coverage": "0.055000",
           "panel_hits": 11,
@@ -706,14 +671,13 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CCL5",
-            "CD274",
             "CD86",
             "FGL2",
             "GZMA",
             "PELI1",
             "PIM1"
           ],
-          "n_leading_edge": 7,
+          "n_leading_edge": 6,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -759,12 +723,11 @@
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
             "EGFR"
           ],
-          "n_leading_edge": 4,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -785,15 +748,13 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CD9",
-            "CTH",
             "CXCR4",
             "FGL2",
             "SCD",
             "SQLE",
-            "STC1",
             "TUBA4A"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 6,
           "p_value": "0.000001",
           "panel_coverage": "0.030000",
           "panel_hits": 6,
@@ -816,21 +777,18 @@
             "CD3G",
             "CD4",
             "CD79A",
-            "CD80",
             "CD86",
             "EGFR",
             "GZMA",
             "IGSF6",
-            "IL2RA",
             "IL2RG",
             "KLRD1",
             "LTB",
             "LY86",
-            "PRF1",
             "PTPRC",
             "TPD52"
           ],
-          "n_leading_edge": 18,
+          "n_leading_edge": 15,
           "p_value": "0.000002",
           "panel_coverage": "0.085000",
           "panel_hits": 17,
@@ -848,7 +806,6 @@
           "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CXCR4",
             "FCER1G",
             "IL2RG",
@@ -859,7 +816,7 @@
             "PIGR",
             "SERPINA3"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000028",
           "panel_coverage": "0.055000",
           "panel_hits": 11,
@@ -875,12 +832,12 @@
       "method": "jazzpanda_enrichment",
       "source_trace": [
         "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=9.52 q=0.0 K=2/113 LE=2",
-        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=6.46 q=9.65554580734107e-10 K=9/200 LE=7",
+        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=6.46 q=9.65554580734107e-10 K=9/200 LE=6",
         "HALLMARK_P53_PATHWAY: score=5.19 q=1.32217345431377e-06 K=4/200 LE=3",
-        "HALLMARK_GLYCOLYSIS: score=5.01 q=2.55733522688817e-06 K=3/200 LE=4",
-        "HALLMARK_MTORC1_SIGNALING: score=4.80 q=5.96543516182546e-06 K=6/200 LE=8",
-        "HALLMARK_ALLOGRAFT_REJECTION: score=4.65 q=1.0019025670512e-05 K=17/200 LE=18",
-        "HALLMARK_KRAS_SIGNALING_UP: score=4.03 q=0.000148560505044129 K=11/200 LE=10",
+        "HALLMARK_GLYCOLYSIS: score=5.01 q=2.55733522688817e-06 K=3/200 LE=3",
+        "HALLMARK_MTORC1_SIGNALING: score=4.80 q=5.96543516182546e-06 K=6/200 LE=6",
+        "HALLMARK_ALLOGRAFT_REJECTION: score=4.65 q=1.0019025670512e-05 K=17/200 LE=15",
+        "HALLMARK_KRAS_SIGNALING_UP: score=4.03 q=0.000148560505044129 K=11/200 LE=9",
         "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=3.16 q=0.00369945592725751 K=2/200 LE=2"
       ],
       "suggestive": [],
@@ -927,18 +884,15 @@
             "CD3G",
             "CD4",
             "CD79A",
-            "CD80",
             "CD86",
             "EGFR",
             "IGSF6",
-            "IL2RA",
             "IL2RG",
             "LTB",
             "LY86",
-            "PRF1",
             "TPD52"
           ],
-          "n_leading_edge": 15,
+          "n_leading_edge": 12,
           "p_value": "0.000000",
           "panel_coverage": "0.085000",
           "panel_hits": 17,
@@ -993,10 +947,9 @@
             "PIM1",
             "S100A4",
             "SDC4",
-            "STC1",
             "TPD52"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 7,
           "p_value": "0.000000",
           "panel_coverage": "0.035000",
           "panel_hits": 7,
@@ -1011,20 +964,18 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.167142",
           "gene_set": "HALLMARK_ADIPOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ADIPOQ",
             "CAVIN2",
-            "LPL",
             "MYLK",
-            "PPARG",
             "SLC5A6"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -1038,19 +989,18 @@
         },
         {
           "caveats": [
-            "very low panel coverage"
+            "very low panel coverage",
+            "tiny leading edge"
           ],
           "gc_corr": "0.364031",
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
-            "EGFR",
-            "STC1"
+            "EGFR"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -1065,20 +1015,19 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.252391",
           "gene_set": "HALLMARK_KRAS_SIGNALING_DN",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CD80",
             "KRT5",
             "LYPD3",
-            "PDCD1",
             "TCL1A",
             "TENT5C"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 4,
           "p_value": "0.000000",
           "panel_coverage": "0.020000",
           "panel_hits": 4,
@@ -1099,14 +1048,13 @@
           "gene_set": "HALLMARK_XENOBIOTIC_METABOLISM",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "AKR1C3",
             "ESR1",
             "IGF1",
             "JUP",
             "PDK4",
             "PTGDS"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 5,
           "p_value": "0.000000",
           "panel_coverage": "0.030000",
           "panel_hits": 6,
@@ -1152,7 +1100,6 @@
           "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CXCR4",
             "FCER1G",
             "IL2RG",
@@ -1165,7 +1112,7 @@
             "SERPINA3",
             "TRIB1"
           ],
-          "n_leading_edge": 12,
+          "n_leading_edge": 11,
           "p_value": "0.000000",
           "panel_coverage": "0.055000",
           "panel_hits": 11,
@@ -1219,18 +1166,15 @@
             "CD3G",
             "CD4",
             "CD79A",
-            "CD80",
             "CD86",
             "EGFR",
             "IGSF6",
-            "IL2RA",
             "IL2RG",
             "LTB",
             "LY86",
-            "PRF1",
             "TPD52"
           ],
-          "n_leading_edge": 15,
+          "n_leading_edge": 12,
           "p_value": "0.000000",
           "panel_coverage": "0.085000",
           "panel_hits": 17,
@@ -1285,10 +1229,9 @@
             "PIM1",
             "S100A4",
             "SDC4",
-            "STC1",
             "TPD52"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 7,
           "p_value": "0.000000",
           "panel_coverage": "0.035000",
           "panel_hits": 7,
@@ -1303,20 +1246,18 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.167142",
           "gene_set": "HALLMARK_ADIPOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ADIPOQ",
             "CAVIN2",
-            "LPL",
             "MYLK",
-            "PPARG",
             "SLC5A6"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -1330,19 +1271,18 @@
         },
         {
           "caveats": [
-            "very low panel coverage"
+            "very low panel coverage",
+            "tiny leading edge"
           ],
           "gc_corr": "0.364031",
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
-            "EGFR",
-            "STC1"
+            "EGFR"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -1357,20 +1297,19 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.252391",
           "gene_set": "HALLMARK_KRAS_SIGNALING_DN",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CD80",
             "KRT5",
             "LYPD3",
-            "PDCD1",
             "TCL1A",
             "TENT5C"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 4,
           "p_value": "0.000000",
           "panel_coverage": "0.020000",
           "panel_hits": 4,
@@ -1391,14 +1330,13 @@
           "gene_set": "HALLMARK_XENOBIOTIC_METABOLISM",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "AKR1C3",
             "ESR1",
             "IGF1",
             "JUP",
             "PDK4",
             "PTGDS"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 5,
           "p_value": "0.000000",
           "panel_coverage": "0.030000",
           "panel_hits": 6,
@@ -1444,7 +1382,6 @@
           "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CXCR4",
             "FCER1G",
             "IL2RG",
@@ -1457,7 +1394,7 @@
             "SERPINA3",
             "TRIB1"
           ],
-          "n_leading_edge": 12,
+          "n_leading_edge": 11,
           "p_value": "0.000000",
           "panel_coverage": "0.055000",
           "panel_hits": 11,
@@ -1473,15 +1410,15 @@
       "method": "jazzpanda_enrichment",
       "source_trace": [
         "HALLMARK_PROTEIN_SECRETION: score=29.85 q=0.0 K=3/96 LE=3",
-        "HALLMARK_ALLOGRAFT_REJECTION: score=16.00 q=0.0 K=17/200 LE=15",
+        "HALLMARK_ALLOGRAFT_REJECTION: score=16.00 q=0.0 K=17/200 LE=12",
         "HALLMARK_MITOTIC_SPINDLE: score=11.78 q=0.0 K=7/199 LE=7",
-        "HALLMARK_HYPOXIA: score=11.08 q=0.0 K=7/200 LE=8",
-        "HALLMARK_ADIPOGENESIS: score=10.29 q=0.0 K=3/200 LE=6",
-        "HALLMARK_GLYCOLYSIS: score=10.25 q=0.0 K=3/200 LE=5",
-        "HALLMARK_KRAS_SIGNALING_DN: score=9.50 q=0.0 K=4/200 LE=6",
-        "HALLMARK_XENOBIOTIC_METABOLISM: score=7.50 q=1.47368228731182e-13 K=6/200 LE=6",
+        "HALLMARK_HYPOXIA: score=11.08 q=0.0 K=7/200 LE=7",
+        "HALLMARK_ADIPOGENESIS: score=10.29 q=0.0 K=3/200 LE=3",
+        "HALLMARK_GLYCOLYSIS: score=10.25 q=0.0 K=3/200 LE=3",
+        "HALLMARK_KRAS_SIGNALING_DN: score=9.50 q=0.0 K=4/200 LE=4",
+        "HALLMARK_XENOBIOTIC_METABOLISM: score=7.50 q=1.47368228731182e-13 K=6/200 LE=5",
         "HALLMARK_HEME_METABOLISM: score=7.04 q=3.98367758533722e-12 K=3/200 LE=3",
-        "HALLMARK_KRAS_SIGNALING_UP: score=6.65 q=5.32571320377429e-11 K=11/200 LE=12"
+        "HALLMARK_KRAS_SIGNALING_UP: score=6.65 q=5.32571320377429e-11 K=11/200 LE=11"
       ],
       "suggestive": [],
       "top_theme": "HALLMARK_PROTEIN_SECRETION",
@@ -1591,19 +1528,18 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.228272",
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
-            "EGFR",
-            "STC1"
+            "EGFR"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -1625,15 +1561,13 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CD9",
-            "CTH",
             "CXCR4",
             "FGL2",
             "SCD",
             "SQLE",
-            "STC1",
             "TUBA4A"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 6,
           "p_value": "0.000000",
           "panel_coverage": "0.030000",
           "panel_hits": 6,
@@ -1659,10 +1593,9 @@
             "PIM1",
             "S100A4",
             "SDC4",
-            "STC1",
             "TPD52"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 7,
           "p_value": "0.000000",
           "panel_coverage": "0.035000",
           "panel_hits": 7,
@@ -1727,19 +1660,18 @@
         },
         {
           "caveats": [
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.174434",
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -1809,19 +1741,18 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.228272",
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
-            "EGFR",
-            "STC1"
+            "EGFR"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -1843,15 +1774,13 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CD9",
-            "CTH",
             "CXCR4",
             "FGL2",
             "SCD",
             "SQLE",
-            "STC1",
             "TUBA4A"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 6,
           "p_value": "0.000000",
           "panel_coverage": "0.030000",
           "panel_hits": 6,
@@ -1877,10 +1806,9 @@
             "PIM1",
             "S100A4",
             "SDC4",
-            "STC1",
             "TPD52"
           ],
-          "n_leading_edge": 8,
+          "n_leading_edge": 7,
           "p_value": "0.000000",
           "panel_coverage": "0.035000",
           "panel_hits": 7,
@@ -1945,19 +1873,18 @@
         },
         {
           "caveats": [
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.174434",
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -1976,12 +1903,12 @@
         "HALLMARK_APICAL_SURFACE: score=14.68 q=0.0 K=3/44 LE=3",
         "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=14.60 q=0.0 K=2/113 LE=2",
         "HALLMARK_P53_PATHWAY: score=10.18 q=0.0 K=4/200 LE=4",
-        "HALLMARK_GLYCOLYSIS: score=10.15 q=0.0 K=3/200 LE=5",
-        "HALLMARK_MTORC1_SIGNALING: score=8.87 q=0.0 K=6/200 LE=8",
-        "HALLMARK_HYPOXIA: score=8.77 q=0.0 K=7/200 LE=8",
+        "HALLMARK_GLYCOLYSIS: score=10.15 q=0.0 K=3/200 LE=3",
+        "HALLMARK_MTORC1_SIGNALING: score=8.87 q=0.0 K=6/200 LE=6",
+        "HALLMARK_HYPOXIA: score=8.77 q=0.0 K=7/200 LE=7",
         "HALLMARK_PI3K_AKT_MTOR_SIGNALING: score=8.72 q=0.0 K=3/105 LE=3",
         "HALLMARK_UV_RESPONSE_UP: score=8.66 q=0.0 K=3/158 LE=3",
-        "HALLMARK_ANGIOGENESIS: score=8.39 q=0.0 K=3/36 LE=5"
+        "HALLMARK_ANGIOGENESIS: score=8.39 q=0.0 K=3/36 LE=3"
       ],
       "suggestive": [],
       "top_theme": "HALLMARK_APICAL_SURFACE",
@@ -2022,7 +1949,6 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "BANK1",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -2031,7 +1957,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 9,
+          "n_leading_edge": 8,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -2105,10 +2031,9 @@
             "EGFR",
             "PIM1",
             "SDC4",
-            "STC1",
             "TPD52"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 5,
           "p_value": "0.000000",
           "panel_coverage": "0.035000",
           "panel_hits": 7,
@@ -2160,10 +2085,9 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "CXCR4",
-            "DSC2",
-            "STC1"
+            "DSC2"
           ],
-          "n_leading_edge": 3,
+          "n_leading_edge": 2,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -2173,7 +2097,7 @@
           "score_kind": "jazzpanda_enrichment",
           "set_size_full": 200,
           "source": "jazzpanda:enrichment",
-          "tier": "enriched"
+          "tier": "untestable"
         },
         {
           "caveats": [],
@@ -2181,7 +2105,6 @@
           "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CXCR4",
             "FCER1G",
             "IL2RG",
@@ -2194,7 +2117,7 @@
             "SERPINA3",
             "TRIB1"
           ],
-          "n_leading_edge": 12,
+          "n_leading_edge": 11,
           "p_value": "0.000000",
           "panel_coverage": "0.055000",
           "panel_hits": 11,
@@ -2234,19 +2157,18 @@
         },
         {
           "caveats": [
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.198159",
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -2271,7 +2193,6 @@
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
             "BANK1",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -2280,7 +2201,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 9,
+          "n_leading_edge": 8,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -2330,10 +2251,9 @@
             "EGFR",
             "PIM1",
             "SDC4",
-            "STC1",
             "TPD52"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 5,
           "p_value": "0.000000",
           "panel_coverage": "0.035000",
           "panel_hits": 7,
@@ -2375,38 +2295,11 @@
           "tier": "enriched"
         },
         {
-          "caveats": [
-            "very low panel coverage",
-            "tiny leading edge",
-            "low spatial specificity"
-          ],
-          "gc_corr": "0.229881",
-          "gene_set": "HALLMARK_GLYCOLYSIS",
-          "gene_set_collection": "MSigDB_Hallmark",
-          "leading_edge": [
-            "CXCR4",
-            "DSC2",
-            "STC1"
-          ],
-          "n_leading_edge": 3,
-          "p_value": "0.000000",
-          "panel_coverage": "0.015000",
-          "panel_hits": 3,
-          "panel_scope_caveat": "Panel-scoped: only 3 of 200 genes in HALLMARK_GLYCOLYSIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
-          "q_value": "0.000000",
-          "score": "7.050764",
-          "score_kind": "jazzpanda_enrichment",
-          "set_size_full": 200,
-          "source": "jazzpanda:enrichment",
-          "tier": "enriched"
-        },
-        {
           "caveats": [],
           "gc_corr": "0.372505",
           "gene_set": "HALLMARK_KRAS_SIGNALING_UP",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "ALDH1A3",
             "CXCR4",
             "FCER1G",
             "IL2RG",
@@ -2419,7 +2312,7 @@
             "SERPINA3",
             "TRIB1"
           ],
-          "n_leading_edge": 12,
+          "n_leading_edge": 11,
           "p_value": "0.000000",
           "panel_coverage": "0.055000",
           "panel_hits": 11,
@@ -2459,19 +2352,18 @@
         },
         {
           "caveats": [
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.198159",
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -2487,15 +2379,15 @@
       "method": "jazzpanda_enrichment",
       "source_trace": [
         "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=15.52 q=0.0 K=2/200 LE=2",
-        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=15.45 q=0.0 K=9/200 LE=9",
+        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=15.45 q=0.0 K=9/200 LE=8",
         "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=14.93 q=0.0 K=2/113 LE=2",
         "HALLMARK_PI3K_AKT_MTOR_SIGNALING: score=13.86 q=0.0 K=3/105 LE=3",
-        "HALLMARK_HYPOXIA: score=10.60 q=0.0 K=7/200 LE=6",
+        "HALLMARK_HYPOXIA: score=10.60 q=0.0 K=7/200 LE=5",
         "HALLMARK_INFLAMMATORY_RESPONSE: score=7.38 q=4.8061554736023e-13 K=8/200 LE=8",
-        "HALLMARK_GLYCOLYSIS: score=7.05 q=4.70287301165432e-12 K=3/200 LE=3",
-        "HALLMARK_KRAS_SIGNALING_UP: score=6.87 q=1.53124318780229e-11 K=11/200 LE=12",
+        "HALLMARK_GLYCOLYSIS: score=7.05 q=4.70287301165432e-12 K=3/200 LE=2",
+        "HALLMARK_KRAS_SIGNALING_UP: score=6.87 q=1.53124318780229e-11 K=11/200 LE=11",
         "HALLMARK_HEME_METABOLISM: score=6.49 q=1.7178240311703e-10 K=3/200 LE=3",
-        "HALLMARK_ANGIOGENESIS: score=5.52 q=6.18630200621695e-08 K=3/36 LE=5"
+        "HALLMARK_ANGIOGENESIS: score=5.52 q=6.18630200621695e-08 K=3/36 LE=3"
       ],
       "suggestive": [],
       "top_theme": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
@@ -2513,7 +2405,6 @@
           "leading_edge": [
             "BANK1",
             "CCL5",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -2522,7 +2413,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -2594,10 +2485,9 @@
           "leading_edge": [
             "CAV1",
             "KIT",
-            "PDGFRB",
-            "PPARG"
+            "PDGFRB"
           ],
-          "n_leading_edge": 4,
+          "n_leading_edge": 3,
           "p_value": "0.000037",
           "panel_coverage": "0.034722",
           "panel_hits": 5,
@@ -2622,15 +2512,13 @@
             "CCND1",
             "CD14",
             "CD69",
-            "CTH",
             "ERBB2",
             "LUM",
             "MMP2",
             "PDGFRB",
-            "PRF1",
             "TOP2A"
           ],
-          "n_leading_edge": 12,
+          "n_leading_edge": 10,
           "p_value": "0.002052",
           "panel_coverage": "0.062112",
           "panel_hits": 10,
@@ -2644,19 +2532,18 @@
         },
         {
           "caveats": [
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.217733",
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.002389",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -2682,7 +2569,6 @@
           "leading_edge": [
             "BANK1",
             "CCL5",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -2691,7 +2577,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -2739,10 +2625,9 @@
           "leading_edge": [
             "CAV1",
             "KIT",
-            "PDGFRB",
-            "PPARG"
+            "PDGFRB"
           ],
-          "n_leading_edge": 4,
+          "n_leading_edge": 3,
           "p_value": "0.000037",
           "panel_coverage": "0.034722",
           "panel_hits": 5,
@@ -2767,15 +2652,13 @@
             "CCND1",
             "CD14",
             "CD69",
-            "CTH",
             "ERBB2",
             "LUM",
             "MMP2",
             "PDGFRB",
-            "PRF1",
             "TOP2A"
           ],
-          "n_leading_edge": 12,
+          "n_leading_edge": 10,
           "p_value": "0.002052",
           "panel_coverage": "0.062112",
           "panel_hits": 10,
@@ -2789,19 +2672,18 @@
         },
         {
           "caveats": [
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.217733",
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "LUM",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.002389",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -2816,12 +2698,12 @@
       ],
       "method": "jazzpanda_enrichment",
       "source_trace": [
-        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=8.01 q=2.05391259555654e-14 K=9/200 LE=10",
+        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=8.01 q=2.05391259555654e-14 K=9/200 LE=9",
         "HALLMARK_P53_PATHWAY: score=5.81 q=5.77178358440733e-08 K=4/200 LE=3",
         "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=5.19 q=1.30209965047238e-06 K=2/113 LE=2",
-        "HALLMARK_UV_RESPONSE_DN: score=3.96 q=0.000340300527346793 K=5/144 LE=4",
-        "HALLMARK_APOPTOSIS: score=2.87 q=0.0147292734543526 K=10/161 LE=12",
-        "HALLMARK_ANGIOGENESIS: score=2.82 q=0.0147292734543526 K=3/36 LE=5"
+        "HALLMARK_UV_RESPONSE_DN: score=3.96 q=0.000340300527346793 K=5/144 LE=3",
+        "HALLMARK_APOPTOSIS: score=2.87 q=0.0147292734543526 K=10/161 LE=10",
+        "HALLMARK_ANGIOGENESIS: score=2.82 q=0.0147292734543526 K=3/36 LE=3"
       ],
       "suggestive": [],
       "top_theme": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
@@ -2958,19 +2840,18 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.151426",
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
-            "EGFR",
-            "STC1"
+            "EGFR"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -2992,7 +2873,6 @@
           "leading_edge": [
             "BANK1",
             "CCL5",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -3001,7 +2881,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -3023,13 +2903,12 @@
             "CD86",
             "CTLA4",
             "FGL2",
-            "IL2RA",
             "IL3RA",
             "PIM1",
             "RHOH",
             "SELL"
           ],
-          "n_leading_edge": 9,
+          "n_leading_edge": 8,
           "p_value": "0.000000",
           "panel_coverage": "0.050251",
           "panel_hits": 10,
@@ -3050,12 +2929,10 @@
           "gene_set": "HALLMARK_ANGIOGENESIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "LPL",
             "POSTN",
-            "S100A4",
-            "STC1"
+            "S100A4"
           ],
-          "n_leading_edge": 4,
+          "n_leading_edge": 2,
           "p_value": "0.000001",
           "panel_coverage": "0.083333",
           "panel_hits": 3,
@@ -3065,7 +2942,7 @@
           "score_kind": "jazzpanda_enrichment",
           "set_size_full": 36,
           "source": "jazzpanda:enrichment",
-          "tier": "enriched"
+          "tier": "untestable"
         },
         {
           "caveats": [
@@ -3154,19 +3031,18 @@
         {
           "caveats": [
             "very low panel coverage",
+            "tiny leading edge",
             "low spatial specificity"
           ],
           "gc_corr": "0.151426",
           "gene_set": "HALLMARK_GLYCOLYSIS",
           "gene_set_collection": "MSigDB_Hallmark",
           "leading_edge": [
-            "CTH",
             "CXCR4",
             "DSC2",
-            "EGFR",
-            "STC1"
+            "EGFR"
           ],
-          "n_leading_edge": 5,
+          "n_leading_edge": 3,
           "p_value": "0.000000",
           "panel_coverage": "0.015000",
           "panel_hits": 3,
@@ -3188,7 +3064,6 @@
           "leading_edge": [
             "BANK1",
             "CCL5",
-            "CD274",
             "CD69",
             "CD86",
             "FGL2",
@@ -3197,7 +3072,7 @@
             "PIM1",
             "SLAMF7"
           ],
-          "n_leading_edge": 10,
+          "n_leading_edge": 9,
           "p_value": "0.000000",
           "panel_coverage": "0.045000",
           "panel_hits": 9,
@@ -3219,13 +3094,12 @@
             "CD86",
             "CTLA4",
             "FGL2",
-            "IL2RA",
             "IL3RA",
             "PIM1",
             "RHOH",
             "SELL"
           ],
-          "n_leading_edge": 9,
+          "n_leading_edge": 8,
           "p_value": "0.000000",
           "panel_coverage": "0.050251",
           "panel_hits": 10,
@@ -3234,32 +3108,6 @@
           "score": "4.897136",
           "score_kind": "jazzpanda_enrichment",
           "set_size_full": 199,
-          "source": "jazzpanda:enrichment",
-          "tier": "enriched"
-        },
-        {
-          "caveats": [
-            "tiny leading edge",
-            "low spatial specificity"
-          ],
-          "gc_corr": "0.111761",
-          "gene_set": "HALLMARK_ANGIOGENESIS",
-          "gene_set_collection": "MSigDB_Hallmark",
-          "leading_edge": [
-            "LPL",
-            "POSTN",
-            "S100A4",
-            "STC1"
-          ],
-          "n_leading_edge": 4,
-          "p_value": "0.000001",
-          "panel_coverage": "0.083333",
-          "panel_hits": 3,
-          "panel_scope_caveat": "Panel-scoped: only 3 of 36 genes in HALLMARK_ANGIOGENESIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
-          "q_value": "0.000003",
-          "score": "4.852836",
-          "score_kind": "jazzpanda_enrichment",
-          "set_size_full": 36,
           "source": "jazzpanda:enrichment",
           "tier": "enriched"
         },
@@ -3298,10 +3146,10 @@
         "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=9.15 q=0.0 K=2/113 LE=2",
         "HALLMARK_APICAL_SURFACE: score=7.51 q=2.68035593720128e-13 K=3/44 LE=2",
         "HALLMARK_INFLAMMATORY_RESPONSE: score=6.12 q=3.37533341276952e-09 K=8/200 LE=7",
-        "HALLMARK_GLYCOLYSIS: score=6.00 q=6.11605808590691e-09 K=3/200 LE=5",
-        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=5.80 q=1.75464074698389e-08 K=9/200 LE=10",
-        "HALLMARK_IL2_STAT5_SIGNALING: score=4.90 q=2.24875387093426e-06 K=10/199 LE=9",
-        "HALLMARK_ANGIOGENESIS: score=4.85 q=2.50177661561176e-06 K=3/36 LE=4",
+        "HALLMARK_GLYCOLYSIS: score=6.00 q=6.11605808590691e-09 K=3/200 LE=3",
+        "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=5.80 q=1.75464074698389e-08 K=9/200 LE=9",
+        "HALLMARK_IL2_STAT5_SIGNALING: score=4.90 q=2.24875387093426e-06 K=10/199 LE=8",
+        "HALLMARK_ANGIOGENESIS: score=4.85 q=2.50177661561176e-06 K=3/36 LE=2",
         "HALLMARK_P53_PATHWAY: score=4.65 q=6.10596423337162e-06 K=4/200 LE=4"
       ],
       "suggestive": [],
@@ -3421,10 +3269,9 @@
             "CD79A",
             "CD86",
             "EGFR",
-            "GZMA",
-            "PRF1"
+            "GZMA"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 5,
           "p_value": "0.000040",
           "panel_coverage": "0.085000",
           "panel_hits": 17,
@@ -3529,10 +3376,9 @@
             "CD79A",
             "CD86",
             "EGFR",
-            "GZMA",
-            "PRF1"
+            "GZMA"
           ],
-          "n_leading_edge": 6,
+          "n_leading_edge": 5,
           "p_value": "0.000040",
           "panel_coverage": "0.085000",
           "panel_hits": 17,
@@ -3577,7 +3423,7 @@
         "HALLMARK_P53_PATHWAY: score=5.09 q=3.31327084934774e-06 K=4/200 LE=1",
         "HALLMARK_PI3K_AKT_MTOR_SIGNALING: score=4.31 q=9.9137584836965e-05 K=3/105 LE=2",
         "HALLMARK_UV_RESPONSE_DN: score=3.98 q=0.000294739450507597 K=5/144 LE=3",
-        "HALLMARK_ALLOGRAFT_REJECTION: score=3.95 q=0.000294739450507597 K=17/200 LE=6",
+        "HALLMARK_ALLOGRAFT_REJECTION: score=3.95 q=0.000294739450507597 K=17/200 LE=5",
         "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=2.65 q=0.0248365043103869 K=2/200 LE=2",
         "HALLMARK_HEME_METABOLISM: score=2.43 q=0.039959035641388 K=3/200 LE=3"
       ],
@@ -3588,58 +3434,55 @@
   },
   "enrichment_csv": [
     "cluster,cell_type,gene_set,tier,score,score_kind,q_value,panel_hits,set_size_full,panel_coverage,n_leading_edge,leading_edge,cluster_n_supported,cluster_n_suggestive,cluster_n_untestable,cluster_verify",
-    "c1,Tumor,HALLMARK_ANDROGEN_RESPONSE,enriched,9.4595,jazzpanda_enrichment,0.000e+00,5,100,0.0500,5,ALDH1A3;CCND1;KRT8;SCD;SMS,2,0,1,FALSE",
+    "c1,Tumor,HALLMARK_ANDROGEN_RESPONSE,enriched,9.4595,jazzpanda_enrichment,0.000e+00,5,100,0.0500,4,CCND1;KRT8;SCD;SMS,2,0,1,FALSE",
     "c1,Tumor,HALLMARK_G2M_CHECKPOINT,enriched,6.4341,jazzpanda_enrichment,1.149e-09,6,200,0.0300,6,CCND1;CENPF;HMGA1;MKI67;SQLE;TOP2A,2,0,1,FALSE",
-    "c2,Stromal,HALLMARK_INFLAMMATORY_RESPONSE,enriched,14.8698,jazzpanda_enrichment,0.000e+00,8,200,0.0400,8,CCL5;CCR7;CD14;CD69;GPR183;IL7R;SELL;SLAMF1,4,0,2,TRUE",
-    "c2,Stromal,HALLMARK_ANGIOGENESIS,enriched,14.2976,jazzpanda_enrichment,0.000e+00,3,36,0.0833,4,LPL;LUM;S100A4;STC1,4,0,2,TRUE",
-    "c2,Stromal,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,11.1868,jazzpanda_enrichment,0.000e+00,9,200,0.0450,10,BANK1;CCL5;CD274;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,4,0,2,TRUE",
-    "c2,Stromal,HALLMARK_ESTROGEN_RESPONSE_LATE,enriched,5.5427,jazzpanda_enrichment,9.184e-08,11,200,0.0550,4,CAV1;CXCL12;DUSP2;TPSAB1,4,0,2,TRUE",
-    "c3,Macrophages,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,6.4605,jazzpanda_enrichment,9.656e-10,9,200,0.0450,7,CCL5;CD274;CD86;FGL2;GZMA;PELI1;PIM1,6,0,2,TRUE",
+    "c2,Stromal,HALLMARK_INFLAMMATORY_RESPONSE,enriched,14.8698,jazzpanda_enrichment,0.000e+00,8,200,0.0400,8,CCL5;CCR7;CD14;CD69;GPR183;IL7R;SELL;SLAMF1,3,0,3,TRUE",
+    "c2,Stromal,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,11.1868,jazzpanda_enrichment,0.000e+00,9,200,0.0450,9,BANK1;CCL5;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,3,0,3,TRUE",
+    "c2,Stromal,HALLMARK_ESTROGEN_RESPONSE_LATE,enriched,5.5427,jazzpanda_enrichment,9.184e-08,11,200,0.0550,4,CAV1;CXCL12;DUSP2;TPSAB1,3,0,3,TRUE",
+    "c3,Macrophages,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,6.4605,jazzpanda_enrichment,9.656e-10,9,200,0.0450,6,CCL5;CD86;FGL2;GZMA;PELI1;PIM1,6,0,2,TRUE",
     "c3,Macrophages,HALLMARK_P53_PATHWAY,enriched,5.1864,jazzpanda_enrichment,1.322e-06,4,200,0.0200,3,LDHB;S100A4;TRAF4,6,0,2,TRUE",
-    "c3,Macrophages,HALLMARK_GLYCOLYSIS,enriched,5.0070,jazzpanda_enrichment,2.557e-06,3,200,0.0150,4,CTH;CXCR4;DSC2;EGFR,6,0,2,TRUE",
-    "c3,Macrophages,HALLMARK_MTORC1_SIGNALING,enriched,4.7968,jazzpanda_enrichment,5.965e-06,6,200,0.0300,8,CD9;CTH;CXCR4;FGL2;SCD;SQLE;STC1;TUBA4A,6,0,2,TRUE",
-    "c3,Macrophages,HALLMARK_ALLOGRAFT_REJECTION,enriched,4.6544,jazzpanda_enrichment,1.002e-05,17,200,0.0850,18,CCL5;CD247;CD3G;CD4;CD79A;CD80;CD86;EGFR;GZMA;IGSF6;IL2RA;IL2RG;KLRD1;LTB;LY86;PRF1;PTPRC;TPD52,6,0,2,TRUE",
-    "c3,Macrophages,HALLMARK_KRAS_SIGNALING_UP,enriched,4.0282,jazzpanda_enrichment,1.486e-04,11,200,0.0550,10,ALDH1A3;CXCR4;FCER1G;IL2RG;IL7R;JUP;PDCD1LG2;PECAM1;PIGR;SERPINA3,6,0,2,TRUE",
+    "c3,Macrophages,HALLMARK_GLYCOLYSIS,enriched,5.0070,jazzpanda_enrichment,2.557e-06,3,200,0.0150,3,CXCR4;DSC2;EGFR,6,0,2,TRUE",
+    "c3,Macrophages,HALLMARK_MTORC1_SIGNALING,enriched,4.7968,jazzpanda_enrichment,5.965e-06,6,200,0.0300,6,CD9;CXCR4;FGL2;SCD;SQLE;TUBA4A,6,0,2,TRUE",
+    "c3,Macrophages,HALLMARK_ALLOGRAFT_REJECTION,enriched,4.6544,jazzpanda_enrichment,1.002e-05,17,200,0.0850,15,CCL5;CD247;CD3G;CD4;CD79A;CD86;EGFR;GZMA;IGSF6;IL2RG;KLRD1;LTB;LY86;PTPRC;TPD52,6,0,2,TRUE",
+    "c3,Macrophages,HALLMARK_KRAS_SIGNALING_UP,enriched,4.0282,jazzpanda_enrichment,1.486e-04,11,200,0.0550,9,CXCR4;FCER1G;IL2RG;IL7R;JUP;PDCD1LG2;PECAM1;PIGR;SERPINA3,6,0,2,TRUE",
     "c4,Myoepithelial,HALLMARK_PROTEIN_SECRETION,enriched,29.8455,jazzpanda_enrichment,0.000e+00,3,96,0.0312,3,DST;EGFR;TPD52,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_ALLOGRAFT_REJECTION,enriched,16.0036,jazzpanda_enrichment,0.000e+00,17,200,0.0850,15,CCL5;CD247;CD3G;CD4;CD79A;CD80;CD86;EGFR;IGSF6;IL2RA;IL2RG;LTB;LY86;PRF1;TPD52,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_ALLOGRAFT_REJECTION,enriched,16.0036,jazzpanda_enrichment,0.000e+00,17,200,0.0850,12,CCL5;CD247;CD3G;CD4;CD79A;CD86;EGFR;IGSF6;IL2RG;LTB;LY86;TPD52,10,0,0,TRUE",
     "c4,Myoepithelial,HALLMARK_MITOTIC_SPINDLE,enriched,11.7833,jazzpanda_enrichment,0.000e+00,7,199,0.0352,7,CDC42EP1;CENPF;CTTN;DST;FLNB;TOP2A;TUBA4A,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_HYPOXIA,enriched,11.0795,jazzpanda_enrichment,0.000e+00,7,200,0.0350,8,CAV1;CXCR4;EGFR;PIM1;S100A4;SDC4;STC1;TPD52,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_ADIPOGENESIS,enriched,10.2899,jazzpanda_enrichment,0.000e+00,3,200,0.0150,6,ADIPOQ;CAVIN2;LPL;MYLK;PPARG;SLC5A6,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_GLYCOLYSIS,enriched,10.2518,jazzpanda_enrichment,0.000e+00,3,200,0.0150,5,CTH;CXCR4;DSC2;EGFR;STC1,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_KRAS_SIGNALING_DN,enriched,9.5041,jazzpanda_enrichment,0.000e+00,4,200,0.0200,6,CD80;KRT5;LYPD3;PDCD1;TCL1A;TENT5C,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_XENOBIOTIC_METABOLISM,enriched,7.5004,jazzpanda_enrichment,1.474e-13,6,200,0.0300,6,AKR1C3;ESR1;IGF1;JUP;PDK4;PTGDS,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_HYPOXIA,enriched,11.0795,jazzpanda_enrichment,0.000e+00,7,200,0.0350,7,CAV1;CXCR4;EGFR;PIM1;S100A4;SDC4;TPD52,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_ADIPOGENESIS,enriched,10.2899,jazzpanda_enrichment,0.000e+00,3,200,0.0150,3,CAVIN2;MYLK;SLC5A6,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_GLYCOLYSIS,enriched,10.2518,jazzpanda_enrichment,0.000e+00,3,200,0.0150,3,CXCR4;DSC2;EGFR,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_KRAS_SIGNALING_DN,enriched,9.5041,jazzpanda_enrichment,0.000e+00,4,200,0.0200,4,KRT5;LYPD3;TCL1A;TENT5C,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_XENOBIOTIC_METABOLISM,enriched,7.5004,jazzpanda_enrichment,1.474e-13,6,200,0.0300,5,ESR1;IGF1;JUP;PDK4;PTGDS,10,0,0,TRUE",
     "c4,Myoepithelial,HALLMARK_HEME_METABOLISM,enriched,7.0389,jazzpanda_enrichment,3.984e-12,3,200,0.0150,3,AQP3;SLC25A37;TENT5C,10,0,0,TRUE",
-    "c4,Myoepithelial,HALLMARK_KRAS_SIGNALING_UP,enriched,6.6526,jazzpanda_enrichment,5.326e-11,11,200,0.0550,12,ALDH1A3;CXCR4;FCER1G;IL2RG;IL7R;JUP;PDCD1LG2;PECAM1;PIGR;PRDM1;SERPINA3;TRIB1,10,0,0,TRUE",
+    "c4,Myoepithelial,HALLMARK_KRAS_SIGNALING_UP,enriched,6.6526,jazzpanda_enrichment,5.326e-11,11,200,0.0550,11,CXCR4;FCER1G;IL2RG;IL7R;JUP;PDCD1LG2;PECAM1;PIGR;PRDM1;SERPINA3;TRIB1,10,0,0,TRUE",
     "c5,T_Cells,HALLMARK_APICAL_SURFACE,enriched,14.6811,jazzpanda_enrichment,0.000e+00,3,44,0.0682,3,GATA3;IL2RG;LYPD3,8,0,2,FALSE",
     "c5,T_Cells,HALLMARK_P53_PATHWAY,enriched,10.1795,jazzpanda_enrichment,0.000e+00,4,200,0.0200,4,LDHB;MDM2;S100A4;TRAF4,8,0,2,FALSE",
-    "c5,T_Cells,HALLMARK_GLYCOLYSIS,enriched,10.1498,jazzpanda_enrichment,0.000e+00,3,200,0.0150,5,CTH;CXCR4;DSC2;EGFR;STC1,8,0,2,FALSE",
-    "c5,T_Cells,HALLMARK_MTORC1_SIGNALING,enriched,8.8727,jazzpanda_enrichment,0.000e+00,6,200,0.0300,8,CD9;CTH;CXCR4;FGL2;SCD;SQLE;STC1;TUBA4A,8,0,2,FALSE",
-    "c5,T_Cells,HALLMARK_HYPOXIA,enriched,8.7694,jazzpanda_enrichment,0.000e+00,7,200,0.0350,8,CAV1;CXCR4;EGFR;PIM1;S100A4;SDC4;STC1;TPD52,8,0,2,FALSE",
+    "c5,T_Cells,HALLMARK_GLYCOLYSIS,enriched,10.1498,jazzpanda_enrichment,0.000e+00,3,200,0.0150,3,CXCR4;DSC2;EGFR,8,0,2,FALSE",
+    "c5,T_Cells,HALLMARK_MTORC1_SIGNALING,enriched,8.8727,jazzpanda_enrichment,0.000e+00,6,200,0.0300,6,CD9;CXCR4;FGL2;SCD;SQLE;TUBA4A,8,0,2,FALSE",
+    "c5,T_Cells,HALLMARK_HYPOXIA,enriched,8.7694,jazzpanda_enrichment,0.000e+00,7,200,0.0350,7,CAV1;CXCR4;EGFR;PIM1;S100A4;SDC4;TPD52,8,0,2,FALSE",
     "c5,T_Cells,HALLMARK_PI3K_AKT_MTOR_SIGNALING,enriched,8.7191,jazzpanda_enrichment,0.000e+00,3,105,0.0286,3,CXCR4;EGFR;IL2RG,8,0,2,FALSE",
     "c5,T_Cells,HALLMARK_UV_RESPONSE_UP,enriched,8.6556,jazzpanda_enrichment,0.000e+00,3,158,0.0190,3,AQP3;EPCAM;TUBA4A,8,0,2,FALSE",
-    "c5,T_Cells,HALLMARK_ANGIOGENESIS,enriched,8.3896,jazzpanda_enrichment,0.000e+00,3,36,0.0833,5,LPL;LUM;POSTN;S100A4;STC1,8,0,2,FALSE",
-    "c6,B_Cells,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,15.4478,jazzpanda_enrichment,0.000e+00,9,200,0.0450,9,BANK1;CD274;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_PI3K_AKT_MTOR_SIGNALING,enriched,13.8631,jazzpanda_enrichment,0.000e+00,3,105,0.0286,3,CXCR4;EGFR;IL2RG,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_HYPOXIA,enriched,10.5982,jazzpanda_enrichment,0.000e+00,7,200,0.0350,6,CXCR4;EGFR;PIM1;SDC4;STC1;TPD52,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_INFLAMMATORY_RESPONSE,enriched,7.3820,jazzpanda_enrichment,4.806e-13,8,200,0.0400,8,CCL5;CCR7;CD14;CD69;GPR183;IL7R;SELL;SLAMF1,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_GLYCOLYSIS,enriched,7.0508,jazzpanda_enrichment,4.703e-12,3,200,0.0150,3,CXCR4;DSC2;STC1,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_KRAS_SIGNALING_UP,enriched,6.8656,jazzpanda_enrichment,1.531e-11,11,200,0.0550,12,ALDH1A3;CXCR4;FCER1G;IL2RG;IL7R;JUP;PDCD1LG2;PECAM1;PIGR;PRDM1;SERPINA3;TRIB1,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_HEME_METABOLISM,enriched,6.4940,jazzpanda_enrichment,1.718e-10,3,200,0.0150,3,AQP3;SLC25A37;TENT5C,8,0,2,TRUE",
-    "c6,B_Cells,HALLMARK_ANGIOGENESIS,enriched,5.5224,jazzpanda_enrichment,6.186e-08,3,36,0.0833,5,LPL;LUM;POSTN;S100A4;STC1,8,0,2,TRUE",
-    "c7,Endothelial,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,8.0113,jazzpanda_enrichment,2.054e-14,9,200,0.0450,10,BANK1;CCL5;CD274;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,5,0,1,TRUE",
+    "c5,T_Cells,HALLMARK_ANGIOGENESIS,enriched,8.3896,jazzpanda_enrichment,0.000e+00,3,36,0.0833,3,LUM;POSTN;S100A4,8,0,2,FALSE",
+    "c6,B_Cells,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,15.4478,jazzpanda_enrichment,0.000e+00,9,200,0.0450,8,BANK1;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,7,0,3,TRUE",
+    "c6,B_Cells,HALLMARK_PI3K_AKT_MTOR_SIGNALING,enriched,13.8631,jazzpanda_enrichment,0.000e+00,3,105,0.0286,3,CXCR4;EGFR;IL2RG,7,0,3,TRUE",
+    "c6,B_Cells,HALLMARK_HYPOXIA,enriched,10.5982,jazzpanda_enrichment,0.000e+00,7,200,0.0350,5,CXCR4;EGFR;PIM1;SDC4;TPD52,7,0,3,TRUE",
+    "c6,B_Cells,HALLMARK_INFLAMMATORY_RESPONSE,enriched,7.3820,jazzpanda_enrichment,4.806e-13,8,200,0.0400,8,CCL5;CCR7;CD14;CD69;GPR183;IL7R;SELL;SLAMF1,7,0,3,TRUE",
+    "c6,B_Cells,HALLMARK_KRAS_SIGNALING_UP,enriched,6.8656,jazzpanda_enrichment,1.531e-11,11,200,0.0550,11,CXCR4;FCER1G;IL2RG;IL7R;JUP;PDCD1LG2;PECAM1;PIGR;PRDM1;SERPINA3;TRIB1,7,0,3,TRUE",
+    "c6,B_Cells,HALLMARK_HEME_METABOLISM,enriched,6.4940,jazzpanda_enrichment,1.718e-10,3,200,0.0150,3,AQP3;SLC25A37;TENT5C,7,0,3,TRUE",
+    "c6,B_Cells,HALLMARK_ANGIOGENESIS,enriched,5.5224,jazzpanda_enrichment,6.186e-08,3,36,0.0833,3,LUM;POSTN;S100A4,7,0,3,TRUE",
+    "c7,Endothelial,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,8.0113,jazzpanda_enrichment,2.054e-14,9,200,0.0450,9,BANK1;CCL5;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,5,0,1,TRUE",
     "c7,Endothelial,HALLMARK_P53_PATHWAY,enriched,5.8102,jazzpanda_enrichment,5.772e-08,4,200,0.0200,3,LDHB;MDM2;S100A4,5,0,1,TRUE",
-    "c7,Endothelial,HALLMARK_UV_RESPONSE_DN,enriched,3.9644,jazzpanda_enrichment,3.403e-04,5,144,0.0347,4,CAV1;KIT;PDGFRB;PPARG,5,0,1,TRUE",
-    "c7,Endothelial,HALLMARK_APOPTOSIS,enriched,2.8700,jazzpanda_enrichment,1.473e-02,10,161,0.0621,12,AVPR1A;CAV1;CCND1;CD14;CD69;CTH;ERBB2;LUM;MMP2;PDGFRB;PRF1;TOP2A,5,0,1,TRUE",
-    "c7,Endothelial,HALLMARK_ANGIOGENESIS,enriched,2.8217,jazzpanda_enrichment,1.473e-02,3,36,0.0833,5,LPL;LUM;POSTN;S100A4;STC1,5,0,1,TRUE",
-    "c8,Dendritic,HALLMARK_PI3K_AKT_MTOR_SIGNALING,enriched,9.5374,jazzpanda_enrichment,0.000e+00,3,105,0.0286,3,CXCR4;EGFR;IL2RG,7,0,3,TRUE",
-    "c8,Dendritic,HALLMARK_INFLAMMATORY_RESPONSE,enriched,6.1241,jazzpanda_enrichment,3.375e-09,8,200,0.0400,7,CCL5;CCR7;CD14;CD69;GPR183;IL7R;SELL,7,0,3,TRUE",
-    "c8,Dendritic,HALLMARK_GLYCOLYSIS,enriched,5.9991,jazzpanda_enrichment,6.116e-09,3,200,0.0150,5,CTH;CXCR4;DSC2;EGFR;STC1,7,0,3,TRUE",
-    "c8,Dendritic,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,5.7998,jazzpanda_enrichment,1.755e-08,9,200,0.0450,10,BANK1;CCL5;CD274;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,7,0,3,TRUE",
-    "c8,Dendritic,HALLMARK_IL2_STAT5_SIGNALING,enriched,4.8971,jazzpanda_enrichment,2.249e-06,10,199,0.0503,9,CD83;CD86;CTLA4;FGL2;IL2RA;IL3RA;PIM1;RHOH;SELL,7,0,3,TRUE",
-    "c8,Dendritic,HALLMARK_ANGIOGENESIS,enriched,4.8528,jazzpanda_enrichment,2.502e-06,3,36,0.0833,4,LPL;POSTN;S100A4;STC1,7,0,3,TRUE",
-    "c8,Dendritic,HALLMARK_P53_PATHWAY,enriched,4.6512,jazzpanda_enrichment,6.106e-06,4,200,0.0200,4,LDHB;MDM2;S100A4;TRAF4,7,0,3,TRUE",
+    "c7,Endothelial,HALLMARK_UV_RESPONSE_DN,enriched,3.9644,jazzpanda_enrichment,3.403e-04,5,144,0.0347,3,CAV1;KIT;PDGFRB,5,0,1,TRUE",
+    "c7,Endothelial,HALLMARK_APOPTOSIS,enriched,2.8700,jazzpanda_enrichment,1.473e-02,10,161,0.0621,10,AVPR1A;CAV1;CCND1;CD14;CD69;ERBB2;LUM;MMP2;PDGFRB;TOP2A,5,0,1,TRUE",
+    "c7,Endothelial,HALLMARK_ANGIOGENESIS,enriched,2.8217,jazzpanda_enrichment,1.473e-02,3,36,0.0833,3,LUM;POSTN;S100A4,5,0,1,TRUE",
+    "c8,Dendritic,HALLMARK_PI3K_AKT_MTOR_SIGNALING,enriched,9.5374,jazzpanda_enrichment,0.000e+00,3,105,0.0286,3,CXCR4;EGFR;IL2RG,6,0,4,TRUE",
+    "c8,Dendritic,HALLMARK_INFLAMMATORY_RESPONSE,enriched,6.1241,jazzpanda_enrichment,3.375e-09,8,200,0.0400,7,CCL5;CCR7;CD14;CD69;GPR183;IL7R;SELL,6,0,4,TRUE",
+    "c8,Dendritic,HALLMARK_GLYCOLYSIS,enriched,5.9991,jazzpanda_enrichment,6.116e-09,3,200,0.0150,3,CXCR4;DSC2;EGFR,6,0,4,TRUE",
+    "c8,Dendritic,HALLMARK_INTERFERON_GAMMA_RESPONSE,enriched,5.7998,jazzpanda_enrichment,1.755e-08,9,200,0.0450,9,BANK1;CCL5;CD69;CD86;FGL2;GZMA;PELI1;PIM1;SLAMF7,6,0,4,TRUE",
+    "c8,Dendritic,HALLMARK_IL2_STAT5_SIGNALING,enriched,4.8971,jazzpanda_enrichment,2.249e-06,10,199,0.0503,8,CD83;CD86;CTLA4;FGL2;IL3RA;PIM1;RHOH;SELL,6,0,4,TRUE",
+    "c8,Dendritic,HALLMARK_P53_PATHWAY,enriched,4.6512,jazzpanda_enrichment,6.106e-06,4,200,0.0200,4,LDHB;MDM2;S100A4;TRAF4,6,0,4,TRUE",
     "c9,Mast_Cells,HALLMARK_UV_RESPONSE_DN,enriched,3.9783,jazzpanda_enrichment,2.947e-04,5,144,0.0347,3,CAV1;KIT;PDGFRB,3,0,4,TRUE",
-    "c9,Mast_Cells,HALLMARK_ALLOGRAFT_REJECTION,enriched,3.9454,jazzpanda_enrichment,2.947e-04,17,200,0.0850,6,CD4;CD79A;CD86;EGFR;GZMA;PRF1,3,0,4,TRUE",
+    "c9,Mast_Cells,HALLMARK_ALLOGRAFT_REJECTION,enriched,3.9454,jazzpanda_enrichment,2.947e-04,17,200,0.0850,5,CD4;CD79A;CD86;EGFR;GZMA,3,0,4,TRUE",
     "c9,Mast_Cells,HALLMARK_HEME_METABOLISM,enriched,2.4295,jazzpanda_enrichment,3.996e-02,3,200,0.0150,3,AQP3;SLC25A37;TENT5C,3,0,4,TRUE"
   ],
   "enrichment_csv_columns": [
@@ -3685,7 +3528,7 @@
   "pathway_themes": {
     "coherence_notes": [
       "9 of 9 clusters have at least one enriched pathway (q<0.05, >=3 driving genes on panel).",
-      "Programs shared across clusters: Interferon Gamma Response across c2, c3, c6, c7, c8 (Stromal, Macrophages, B_Cells, Endothelial, Dendritic); Angiogenesis across c2, c5, c6, c7, c8 (Stromal, T_Cells, B_Cells, Endothelial, Dendritic); Glycolysis across c3, c4, c5, c6, c8 (Macrophages, Myoepithelial, T_Cells, B_Cells, Dendritic).",
+      "Programs shared across clusters: Interferon Gamma Response across c2, c3, c6, c7, c8 (Stromal, Macrophages, B_Cells, Endothelial, Dendritic); Glycolysis across c3, c4, c5, c8 (Macrophages, Myoepithelial, T_Cells, Dendritic); P53 Pathway across c3, c5, c7, c8 (Macrophages, T_Cells, Endothelial, Dendritic).",
       "Enriched clusters by compartment: Epithelial (c1 Tumor, c4 Myoepithelial); Stromal (c2 Stromal); Immune (c3 Macrophages, c5 T_Cells, c6 B_Cells, c8 Dendritic, c9 Mast_Cells); Endothelial (c7 Endothelial)."
     ],
     "method": "jazzpanda_enrichment",
@@ -3705,12 +3548,12 @@
       {
         "category": "Stromal",
         "cell_type": "Stromal",
-        "census_line": "4 supported · 0 suggestive · 2 untestable",
+        "census_line": "3 supported · 0 suggestive · 3 untestable",
         "cluster": "c2",
         "top_themes": [
           "Inflammatory Response",
-          "Angiogenesis",
-          "Interferon Gamma Response"
+          "Interferon Gamma Response",
+          "Estrogen Response Late"
         ],
         "verify": true
       },
@@ -3753,7 +3596,7 @@
       {
         "category": "Immune",
         "cell_type": "B_Cells",
-        "census_line": "8 supported · 0 suggestive · 2 untestable",
+        "census_line": "7 supported · 0 suggestive · 3 untestable",
         "cluster": "c6",
         "top_themes": [
           "Interferon Gamma Response",
@@ -3777,7 +3620,7 @@
       {
         "category": "Immune",
         "cell_type": "Dendritic",
-        "census_line": "7 supported · 0 suggestive · 3 untestable",
+        "census_line": "6 supported · 0 suggestive · 4 untestable",
         "cluster": "c8",
         "top_themes": [
           "Pi3K Akt Mtor Signaling",
@@ -3821,41 +3664,20 @@
       },
       {
         "cell_types": [
-          "Stromal",
-          "T_Cells",
-          "B_Cells",
-          "Endothelial",
-          "Dendritic"
-        ],
-        "clusters": [
-          "c2",
-          "c5",
-          "c6",
-          "c7",
-          "c8"
-        ],
-        "gene_set": "HALLMARK_ANGIOGENESIS",
-        "max_score": "14.297585",
-        "n_clusters": 5
-      },
-      {
-        "cell_types": [
           "Macrophages",
           "Myoepithelial",
           "T_Cells",
-          "B_Cells",
           "Dendritic"
         ],
         "clusters": [
           "c3",
           "c4",
           "c5",
-          "c6",
           "c8"
         ],
         "gene_set": "HALLMARK_GLYCOLYSIS",
         "max_score": "10.251782",
-        "n_clusters": 5
+        "n_clusters": 4
       },
       {
         "cell_types": [
@@ -3932,6 +3754,21 @@
         ],
         "gene_set": "HALLMARK_HYPOXIA",
         "max_score": "11.079480",
+        "n_clusters": 3
+      },
+      {
+        "cell_types": [
+          "T_Cells",
+          "B_Cells",
+          "Endothelial"
+        ],
+        "clusters": [
+          "c5",
+          "c6",
+          "c7"
+        ],
+        "gene_set": "HALLMARK_ANGIOGENESIS",
+        "max_score": "8.389634",
         "n_clusters": 3
       },
       {

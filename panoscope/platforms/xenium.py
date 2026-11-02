@@ -68,7 +68,7 @@ store is where it appears, so the adapter owns it: the tidy reader takes it as
 sentinel, from one declaration.
 """
 
-_CONTROL_PREFIXES: Final[tuple[str, ...]] = (
+CONTROL_PREFIXES: Final[tuple[str, ...]] = (
     "NegControlProbe_", "NegControlCodeword_", "NegPrb", "BLANK_", "Blank-",
     "antisense_", "UnassignedCodeword_", "DeprecatedCodeword_",
 )
@@ -82,7 +82,25 @@ makes a control's absence read as a biological absence.
 Custom add-on panels are NOT filtered, because nothing in the tidy store marks them.
 A study that mixes a base panel with add-ons and needs them separated has to declare
 that separation; guessing it from a gene name is how a real gene gets dropped.
+
+Public, and imported by ``agent/data.py`` (as ``NO_SIGNAL`` already is by
+``agent/grounding_check.py``), because the frame and the tidy reader have to drop the
+same rows or they disagree about the size of the assay. They did disagree: the
+adapter filtered and ``load_panel`` did not, so the capability frame said 12 while
+``manifest.panel_gene_count``, every "...on this N-gene panel" caveat and every
+plot's conditionality line said 13. A second copy of this list is a second answer.
 """
+
+
+def is_control_probe(name: str) -> bool:
+    """True if ``name`` is a Xenium control probe rather than a panel gene.
+
+    The named half of "excluded, not invisible": controls are dropped from the panel
+    everywhere (see ``agent/data.load_panel``), and this is what lets a caller say
+    *why* a name is off-panel instead of reporting a probe the instrument really did
+    run as something that was never measured.
+    """
+    return name.startswith(CONTROL_PREFIXES)
 
 _VIEW_ELEMENTS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     ("cell_map", ("viz/cells.parquet", "viz/cells.csv")),
@@ -125,7 +143,7 @@ class XeniumAdapter:
         col = pd.read_parquet(p, columns=["gene"])["gene"]
         return frozenset(
             g for g in (str(v).strip() for v in col)
-            if g and not g.startswith(_CONTROL_PREFIXES)
+            if g and not is_control_probe(g)
         )
 
     def _detectable_genes(self, store: Study) -> frozenset[str] | None:

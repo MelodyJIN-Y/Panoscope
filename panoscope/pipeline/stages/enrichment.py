@@ -22,8 +22,17 @@ correct one -- crediting a set with genes the measurement never usably saw is th
 panel-absence rule broken in the arithmetic -- so ``agent/enrichment`` was moved onto
 it, which moved a committed CSV and the golden hash deliberately.
 
-:func:`_report_divergence` stays, and its expected reading is now zero: it is what
-keeps the two code paths from drifting apart again without anyone noticing.
+:func:`_report_divergence` stays, and its ``panel_hits`` reading is now zero: it is
+what keeps the two code paths from drifting apart again without anyone noticing.
+
+Its second reading, the leading edge, is **not** zero and is not meant to be. v1 now
+filters the lasso's ``genes_selected`` through the same frames
+(``agent/enrichment._pathway_from_jz_row``) so that no gene the measurement could not
+usably see is counted, named or plotted as a driver; v2's ``leading_edge`` coverage
+is still the raw selection. Until ``methods/jazzpanda_cgst`` does the same, the gap
+is the honest count of how much of this panel's selection the apparatus could not
+see -- and it is the ONLY place that count exists, because a record rebuilt from
+disk carries the admitted genes alone.
 
 The v1 half is still not *cut over* -- ``agent/enrichment.py`` still produces the v1
 view, because ``core/compat.py`` has no enrichment projection and writing one would
@@ -214,6 +223,22 @@ def _panel_hits(ev) -> dict[str, int]:
     return out
 
 
+def _leading_edge(ev) -> dict[str, int]:
+    """``gene_set -> the v2 method's leading-edge count``, read off the evidence.
+
+    Same discipline as :func:`_panel_hits`: the number is the ``Coverage`` the
+    method attached at load, never recomputed here. ``"leading_edge"`` is the name
+    ``methods/jazzpanda_cgst`` gives that coverage.
+    """
+    out: dict[str, int] = {}
+    for item in ev.items:
+        cov = next((c for c in item.measured.coverage
+                    if c.what == "leading_edge"), None)
+        if cov is not None:
+            out[item.subject.display()] = cov.k
+    return out
+
+
 def _report_divergence(
     enrichments: list[ClusterEnrichment],
     evidence: dict,
@@ -233,17 +258,28 @@ def _report_divergence(
     and never "nobody looked".
     """
     rows = differing = tier_edge = 0
+    le_rows = le_genes = le_selected = 0
     disagreements: list[str] = []
     for ce in enrichments:
         ev = evidence.get(ce.cluster)
         if ev is None:
             continue
         hits = _panel_hits(ev)
+        edges = _leading_edge(ev)
         for p in ce.all_tested:
             k = hits.get(p.gene_set)
             if k is None:
                 continue
             rows += 1
+            # How many genes the frames refused, counted the only place both numbers
+            # exist side by side: v2 still reports the raw lasso selection, v1 now
+            # reports the admitted subset, so the gap IS the rejection count.
+            selected = edges.get(p.gene_set)
+            if selected is not None and selected > p.n_leading_edge:
+                le_rows += 1
+                le_genes += selected - p.n_leading_edge
+            if selected is not None:
+                le_selected += selected
             if k == p.panel_hits:
                 continue
             differing += 1
@@ -265,6 +301,17 @@ def _report_divergence(
            + ")" if disagreements else "")
         + ". Zero is the expected reading: v1 stopped trusting the result's own "
         f"n_overlap. v2 records: {interp / 'records'}."
+    )
+    print(
+        f"[enrichment] leading edge, capability frames: {le_genes} of {le_selected} "
+        f"selected genes rejected across {le_rows} of {rows} (unit, set) rows; those "
+        "genes are not counted, named or plotted as drivers. This reading is NOT "
+        "expected to be zero -- it is how much of this panel's lasso selection the "
+        "measurement could not usably see, which is a fact about the panel against "
+        "this tissue. It is also the one place the count exists: a record rebuilt "
+        "from disk carries only the admitted genes. v2's leading_edge coverage is "
+        "the unfiltered selection (methods/jazzpanda_cgst), so the gap above is "
+        "read off it rather than recomputed here."
     )
     if only_v1 or only_v2:
         print(

@@ -28,9 +28,40 @@ import pytest
 
 from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as E
+from panoscope.types.subject import EntityKind
 
 # The method the synthetic rows claim to come from (jazzPanda enrichment).
 _METHOD = E._JZ_SCORE_KIND  # "jazzpanda_enrichment"
+
+
+def _frame_genes(n: int, *, admitted: bool = True) -> list[str]:
+    """``n`` real symbols every gene frame admits (or, with ``admitted=False``, rejects).
+
+    The leading edge is filtered through the study's capability frames, so a
+    synthetic row full of invented symbols like ``G0, G1, ...`` would have every
+    driver rejected and collapse to ``n_leading_edge == 0`` — the fixture would then
+    be exercising the rejection path in every test that meant to isolate something
+    else. Real symbols are read off the frames instead of hard-coded, because the
+    panel is per study and this file must not assert a gene list.
+
+    ``admitted=False`` returns panel genes the DETECTABILITY frame rejects — on the
+    demo, 49 of 280. That is the production shape of a rejected driver: a gene the
+    panel designed for and the measurement could not usably see, not a typo.
+
+    This still runs on a fresh clone. The artifact these tests avoid is the
+    gitignored jazzPanda RESULT; ``inputs/panel.parquet`` and
+    ``inputs/markers_top.csv``, which the frames are read from, are committed.
+    """
+    frames = E._gene_world().for_kind(EntityKind.GENE)
+    sets = [set(f.members) for f in frames]
+    pool = set.intersection(*sets) if admitted else (set.union(*sets) - set.intersection(*sets))
+    members = sorted(pool)
+    assert len(members) >= n, (
+        f"the open study declares only {len(members)} genes "
+        f"{'every' if admitted else 'not every'} gene frame admits; this fixture "
+        f"needs {n}"
+    )
+    return members[:n]
 
 
 def _row(*, geneset_size: int, panel_hits: int, n_leading_edge: int = 10,
@@ -43,9 +74,11 @@ def _row(*, geneset_size: int, panel_hits: int, n_leading_edge: int = 10,
     exists. Coverage = panel_hits / geneset_size.
 
     ``n_leading_edge`` is kept >= 5 by default so the low-coverage rule stays
-    isolated from the separate tiny-leading-edge one.
+    isolated from the separate tiny-leading-edge one, and the genes are real ones
+    the frames admit so that the leading-edge filter is a no-op here (see
+    :func:`_frame_genes`) — this fixture pins the GATES, not the filter.
     """
-    genes = ",".join(f"G{i}" for i in range(n_leading_edge))
+    genes = ",".join(_frame_genes(n_leading_edge))
     return {
         "gene_set": "HALLMARK_TEST",
         "geneset_size": geneset_size,
@@ -240,3 +273,57 @@ def test_untestable_sets_are_never_surfaced_and_force_verify():
     assert ce.top_theme is None
     assert ce.census_line == "0 supported · 0 suggestive · 2 untestable"
     assert ce.verify is True
+
+
+# --------------------------------------------------------------------------- #
+# The leading-edge filter — the same capability frames that recount ``panel_hits``,
+# applied to the genes the record NAMES and ``ui/enrichment_spatial`` PLOTS.
+#
+# ``tests/test_enrichment_frame_count.py`` pins this on the real result; these two
+# run everywhere, and they are where the floor interaction is isolated.
+# --------------------------------------------------------------------------- #
+def test_a_selected_gene_the_frames_reject_is_not_a_driver():
+    """Rejected drivers are not counted, not named — and not silently dropped.
+
+    The record used to say "only 3 of 36 genes were usably measured" and then print
+    four driving genes, two of which the detectability frame rejects: one record,
+    two disagreeing accounts of the same measurement. Both ways of being rejected
+    are covered here -- a panel gene with no usable signal (the production shape)
+    and a symbol no frame has ever heard of -- because "every frame admits it" is
+    the rule, not "the panel admits it".
+
+    The count of what was refused is NOT asserted on the row: it is a fact about the
+    raw result that a record rebuilt from disk cannot recover, so it is reported at
+    build time instead (``pipeline/stages/enrichment._report_divergence``).
+    """
+    rejected = _frame_genes(1, admitted=False)[0]
+    row = _row(geneset_size=200, panel_hits=50, n_leading_edge=4, q=0.0)
+    kept = row["genes_selected"].split(",")
+    row["genes_selected"] = ",".join([*kept, rejected, "NOT_A_GENE_ON_ANY_PANEL"])
+
+    pe = E._pathway_from_jz_row(row)
+    assert pe.leading_edge == tuple(kept)
+    assert rejected not in pe.leading_edge
+    assert pe.n_leading_edge == 4
+    assert pe.tier == "enriched"          # still over the floor; only the list shrank
+
+
+def test_frame_rejection_can_push_a_set_under_the_leading_edge_floor():
+    """The floor is hit more often now, and that is the floor working.
+
+    A set whose drivers are mostly undetectable was never testable to that depth,
+    so it is UNTESTABLE — the state that argues nothing — and not an enriched call
+    resting on genes that produced no usable signal. The caveat says why, so the
+    row cannot read as "this program is simply not running here".
+    """
+    row = _row(geneset_size=200, panel_hits=50,
+               n_leading_edge=cfg.MIN_LEADING_EDGE - 1, q=0.0)
+    kept = row["genes_selected"].split(",")
+    row["genes_selected"] = ",".join([*kept, *_frame_genes(3, admitted=False)])
+
+    pe = E._pathway_from_jz_row(row)
+    assert pe.n_leading_edge == cfg.MIN_LEADING_EDGE - 1 < cfg.MIN_LEADING_EDGE
+    assert pe.tier == "untestable"
+    # ...and nothing about it reads as a measured absence: the row the surface draws
+    # for this state is UNDERPOWERED, which argues nothing.
+    assert "tiny leading edge" in pe.caveats

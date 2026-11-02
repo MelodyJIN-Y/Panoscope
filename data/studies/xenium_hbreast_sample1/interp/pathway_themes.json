@@ -3,7 +3,7 @@
   "n_clusters_with_enrichment": 9,
   "coherence_notes": [
     "9 of 9 clusters have at least one enriched pathway (q<0.05, >=3 driving genes on panel).",
-    "Programs shared across clusters: Interferon Gamma Response across c2, c3, c6, c7, c8 (Stromal, Macrophages, B_Cells, Endothelial, Dendritic); Angiogenesis across c2, c5, c6, c7, c8 (Stromal, T_Cells, B_Cells, Endothelial, Dendritic); Glycolysis across c3, c4, c5, c6, c8 (Macrophages, Myoepithelial, T_Cells, B_Cells, Dendritic).",
+    "Programs shared across clusters: Interferon Gamma Response across c2, c3, c6, c7, c8 (Stromal, Macrophages, B_Cells, Endothelial, Dendritic); Glycolysis across c3, c4, c5, c8 (Macrophages, Myoepithelial, T_Cells, Dendritic); P53 Pathway across c3, c5, c7, c8 (Macrophages, T_Cells, Endothelial, Dendritic).",
     "Enriched clusters by compartment: Epithelial (c1 Tumor, c4 Myoepithelial); Stromal (c2 Stromal); Immune (c3 Macrophages, c5 T_Cells, c6 B_Cells, c8 Dendritic, c9 Mast_Cells); Endothelial (c7 Endothelial)."
   ],
   "recurring": [
@@ -27,41 +27,20 @@
       "max_score": 15.4477519590039
     },
     {
-      "gene_set": "HALLMARK_ANGIOGENESIS",
-      "clusters": [
-        "c2",
-        "c5",
-        "c6",
-        "c7",
-        "c8"
-      ],
-      "cell_types": [
-        "Stromal",
-        "T_Cells",
-        "B_Cells",
-        "Endothelial",
-        "Dendritic"
-      ],
-      "n_clusters": 5,
-      "max_score": 14.2975851921485
-    },
-    {
       "gene_set": "HALLMARK_GLYCOLYSIS",
       "clusters": [
         "c3",
         "c4",
         "c5",
-        "c6",
         "c8"
       ],
       "cell_types": [
         "Macrophages",
         "Myoepithelial",
         "T_Cells",
-        "B_Cells",
         "Dendritic"
       ],
-      "n_clusters": 5,
+      "n_clusters": 4,
       "max_score": 10.2517824738361
     },
     {
@@ -142,6 +121,21 @@
       "max_score": 11.0794796550396
     },
     {
+      "gene_set": "HALLMARK_ANGIOGENESIS",
+      "clusters": [
+        "c5",
+        "c6",
+        "c7"
+      ],
+      "cell_types": [
+        "T_Cells",
+        "B_Cells",
+        "Endothelial"
+      ],
+      "n_clusters": 3,
+      "max_score": 8.38963421735739
+    },
+    {
       "gene_set": "HALLMARK_HEME_METABOLISM",
       "clusters": [
         "c4",
@@ -216,10 +210,10 @@
       "category": "Stromal",
       "top_themes": [
         "Inflammatory Response",
-        "Angiogenesis",
-        "Interferon Gamma Response"
+        "Interferon Gamma Response",
+        "Estrogen Response Late"
       ],
-      "census_line": "4 supported · 0 suggestive · 2 untestable",
+      "census_line": "3 supported · 0 suggestive · 3 untestable",
       "verify": true
     },
     {
@@ -267,7 +261,7 @@
         "Pi3K Akt Mtor Signaling",
         "Hypoxia"
       ],
-      "census_line": "8 supported · 0 suggestive · 2 untestable",
+      "census_line": "7 supported · 0 suggestive · 3 untestable",
       "verify": true
     },
     {
@@ -291,7 +285,7 @@
         "Inflammatory Response",
         "Glycolysis"
       ],
-      "census_line": "7 supported · 0 suggestive · 3 untestable",
+      "census_line": "6 supported · 0 suggestive · 4 untestable",
       "verify": true
     },
     {

@@ -52,10 +52,31 @@ zero canonical markers was handled honestly. The curated list still supplies no
 value; it selects which measurement is asked, and the one it selects is still the
 only thing that answers.
 
-**A note on NoSig.** ``MarkerEvidence.top_cluster == "NoSig"`` has no field here, and
-should not get one: NoSig means *in the panel, tested, not assigned to this unit*,
-which is precisely ``TESTED_ABSENT``. So the NoSig branch keys on the measurement
-status, which is the general form of the thing the old string encoded.
+**A note on NoSig, and why nothing printed here says it.**
+``MarkerEvidence.top_cluster == "NoSig"`` has no field here, and should not get one:
+NoSig means *in the panel, tested, not assigned to this unit*, which is precisely
+``TESTED_ABSENT``. So the NoSig branch keys on the measurement status, which is the
+general form of the thing the old string encoded.
+
+The sentinel answers two different questions and the two answers are not the same
+fact. ``platforms/xenium.py`` asks *did this gene produce a usable signal anywhere in
+this study?* and builds the detectability frame from the complement of the sentinel,
+so a gene whose only row is NoSig fails that frame and is ``NEVER_MEASURED`` -- its
+absence argues nothing. This module asks *was this gene tested and not assigned to
+THIS unit?*, and an item that reached ``TESTED_ABSENT`` has already passed every
+frame for its kind (``_state_for``: every frame must admit), detectability included.
+The two are consistent, not in tension: a gene that is NoSig everywhere never gets
+here, and a gene that gets here was measured well enough to be assigned somewhere
+else. Which is why ``basis`` says *canonical driver tested-absent* and not "NoSig".
+The v1 string it replaces -- "driving marker is NoSig" -- stated the opposite of the
+measurement on a joint-clustered study, where a canonical marker peaking in a
+different cluster is the ordinary case and not a failed assay.
+
+The rule id stays ``band:driver_nosig``. Ids are matched on -- by
+``core/failure_modes.py``, by the UI copy table, by the grounding tests -- and are
+never read by a biologist; renaming one to improve prose is how a badge stops
+rendering against a green test. The English is the part that was wrong, and the
+English is the part that moved.
 
 Thresholds are duplicated from ``agent/config`` rather than imported -- ``core/`` does
 not import ``agent/`` -- and ``test_thresholds_match_the_live_config`` fails the moment
@@ -335,7 +356,7 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
             None,
         )
         if nosig is not None:
-            rule, basis = "band:driver_nosig", "driver NoSig"
+            rule, basis = "band:driver_nosig", "canonical driver tested-absent"
             because = (f"the leading canonical marker is tested-absent in "
                        f"{nosig.measured.frame}",)
             refs = (ref(nosig.subject),)

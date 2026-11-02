@@ -104,12 +104,6 @@ def _panel_scope_caveat(gene_set: str, panel_hits: int, set_size_full: int) -> s
 # --------------------------------------------------------------------------- #
 # jazzPanda enrichment result adapter (the FIRST method).
 # --------------------------------------------------------------------------- #
-def _split_genes(cell: str) -> tuple[str, ...]:
-    if not cell:
-        return ()
-    return tuple(g.strip() for g in str(cell).split(",") if g.strip())
-
-
 #: The key :func:`_load_jazzpanda_rows` installs on every row, and the ONLY panel-hit
 #: count anything downstream is allowed to read. Deliberately not ``n_overlap``: a
 #: distinct name means the result's own count can never be mistaken for the
@@ -199,7 +193,45 @@ def _to_float(v) -> float | None:
 
 
 def _pathway_from_jz_row(row: dict) -> PathwayEvidence:
-    """Build a grounded PathwayEvidence from one jazzPanda result row."""
+    """Build a grounded PathwayEvidence from one jazzPanda result row.
+
+    **The leading edge goes through the same frames ``panel_hits`` does.** The
+    result's ``genes_selected`` is the lasso's pick out of the whole panel, taken
+    before anything asked whether those genes produced usable spatial signal. Left
+    unfiltered, one record said both "only 3 of 36 genes in HALLMARK_ANGIOGENESIS
+    were usably measured" and "LPL, LUM, S100A4, STC1 are driving it", with LPL and
+    STC1 rejected by the detectability frame -- a count and a gene list disagreeing
+    about the same measurement, on 33 of 70 demo rows. A gene the frames reject is
+    not a driver: it is not counted, not named, and (``ui/enrichment_spatial``
+    reads :attr:`PathwayEvidence.leading_edge` directly) not plotted as one.
+
+    Filtered HERE rather than in :func:`_load_jazzpanda_rows`, where the panel-hit
+    recount lives, for one reason: this is the derivation, and the filter is
+    idempotent. ``genes_tested`` is a raw column that had to be recounted before a
+    stale ``n_overlap`` could be read by mistake, so the frame check is installed on
+    the row. The leading edge survives into the record as a field, which means
+    ``tests/golden_projection`` reconstructs raw rows out of committed records and
+    feeds them straight back through this function; filtering an already-filtered
+    list changes nothing, so the projection keeps round-tripping without a seam in
+    product code. ``_in_frame`` is still the only frame rule anyone runs -- asked
+    one gene at a time, so "every gene frame admits it" cannot drift from the rule
+    that produced ``panel_hits``.
+
+    The rejected genes are not dropped silently, but the count does NOT live on
+    this object, and that is forced rather than chosen. How many genes the frames
+    refused is a fact about the RAW result, and a ``PathwayEvidence`` rebuilt from a
+    committed record cannot recover it -- the record carries the admitted genes, so
+    recomputing any caveat about the refused ones yields zero. A number that only
+    the first build can produce has no business in a field the golden reconstructs
+    and re-derives; it would read as "nothing was rejected" on every record that
+    came back off disk. It is reported where the raw rows still exist, out loud on
+    every build, by ``pipeline/stages/enrichment._report_divergence``. Putting it on
+    the record properly needs a persisted ``n_leading_edge_rejected`` field; see the
+    report accompanying this change.
+
+    Dropping the rejected genes also pushes rows under ``cfg.MIN_LEADING_EDGE``,
+    which is the floor doing its job rather than a regression.
+    """
     gene_set = str(row["gene_set"]).strip()
     set_size_full = int(float(row["geneset_size"]))
     if PANEL_HITS_IN_FRAME not in row:
@@ -211,7 +243,10 @@ def _pathway_from_jz_row(row: dict) -> PathwayEvidence:
             "silently restore the count this change exists to replace."
         )
     panel_hits = int(row[PANEL_HITS_IN_FRAME])   # set genes EVERY gene frame admits
-    leading_edge = _split_genes(row.get("genes_selected", ""))
+    leading_edge = tuple(
+        g for g in _split(row.get("genes_selected", ""))
+        if _in_frame((g,), _gene_world())
+    )
     n_leading_edge = len(leading_edge)
     score = _to_float(row.get("test_statistic")) or 0.0
     p_value = _to_float(row.get("p_value"))

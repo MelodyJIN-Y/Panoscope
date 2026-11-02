@@ -384,6 +384,29 @@ def test_the_caveat_table_is_the_inverse_of_the_agent_rule():
         assert tuple(p for f, p in compat.CAVEAT_FOR if f in flags) == expected
 
 
+def test_the_tested_absent_driver_sentence_does_not_claim_a_failed_measurement():
+    """The one v1 sentence ``compat`` deliberately does not transcribe.
+
+    ``band:driver_nosig`` fires on a canonical marker that is ``TESTED_ABSENT`` --
+    in frame, tested, not assigned to this unit. v1 rendered that as "driving marker
+    is NoSig", which reads as *the assay produced nothing for this gene*, the one
+    reading TESTED_ABSENT has already excluded: an item reaches that state only after
+    every frame for its kind admitted it, detectability included. This sentence lands
+    in ``interp/verdicts.csv``'s ``notes`` column and in the Summary table, and on a
+    joint-clustered study it lands on most units, so it is checked for what it must
+    not say as well as for what it says.
+
+    The renderer takes ``driver=None`` because that is what the branch produces: the
+    verdict has no driver, which is why the band is at the floor.
+    """
+    sentence = compat._demotion_sentence("band:driver_nosig", None)
+    assert "nosig" not in sentence.lower()
+    assert "measured" in sentence
+    # and it survives into the prose the CSV carries, in the Adjustments clause
+    notes = compat._notes("T_Cells", "Low", (), (sentence,), fragile=False, verify=True)
+    assert sentence in notes
+
+
 def test_an_unknown_band_rule_raises_rather_than_rendering_nothing():
     """A band rule with no v1 sentence would silently shorten ``demotions`` and the
     ``notes`` prose built from it -- the record would read as a call that took one

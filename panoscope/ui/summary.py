@@ -1320,9 +1320,17 @@ def render_summary_page() -> None:
 
     # Autosave: persist only regions the biologist changed from the auto-draft
     # (self-cleaning). Idempotent — writes only when the edit set actually changed.
+    #
+    # ``edits or saved`` is what keeps this page a READ surface until the biologist
+    # actually edits something. On a first open there are no edits and no snapshot,
+    # so the inequality alone fired and wrote ``{"edits": {}}`` into the study tree:
+    # merely LOOKING at a study dirtied it, with a file that says nothing. The second
+    # arm keeps the one empty write that does mean something — the biologist reverting
+    # every region, where ``{}`` has to be written to clear what is on disk.
     edits = {n: _val(n) for n in ws_defaults if _val(n) != ws_defaults[n]}
     save_error = ""
-    if store is not None and edits != st.session_state.get("_sum_saved_snapshot"):
+    if (store is not None and (edits or saved)
+            and edits != st.session_state.get("_sum_saved_snapshot")):
         try:
             now = datetime.datetime.now()
             store.save_summary_edits(edits, rep.dataset,
