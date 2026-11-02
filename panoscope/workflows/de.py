@@ -470,8 +470,9 @@ def cross_method_coherence(ev: NormalisedEvidence,
     r = CheckResult(
         COHERENCE, CheckState.OK,
         headline=f"{ev.unit}: coherent with {audit.spatial.module} ({counts}). "
-                 "Coherent, never corroborated: the two answer different questions, "
-                 "so neither is a second witness to the other.",
+                 "Coherent, never agreed: the two answer different questions, and "
+                 "coherence raises no confidence here -- there is no band on either "
+                 "side of this join.",
         because=tuple(b for p in coherent for b in p.because),
         missing=unblockable,
     )
@@ -710,7 +711,8 @@ def _summary(ev: NormalisedEvidence, items: tuple[FindingItem, ...],
         head += ". Cannot be settled: " + "; ".join(
             f"{r.check_id} -- {r.headline}" for r in unsettled)
         head += ". Missing: " + "; ".join(m for r in unsettled for m in r.missing)
-    return head + "."
+    # A headline may already end in a full stop; one sentence terminator, not two.
+    return head.rstrip(".") + "."
 
 
 #: The registered instance. See the module docstring for why no ``register`` call

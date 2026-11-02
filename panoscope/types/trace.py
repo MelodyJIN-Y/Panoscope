@@ -265,8 +265,9 @@ RULES: dict[str, Rule] = _rules(
          "subject. Different questions, so never a disagreement about one fact "
          "(9.11) -- two measurements that do not sit together"),
     Rule("de:coherence_coherent", "de",
-         "the two results sit together. Coherent, NEVER corroborated: they answer "
-         "different questions, so neither is a second witness to the other"),
+         "the two results sit together. Coherent, never AGREED: they answer "
+         "different questions (9.11), and coherence raises no confidence -- there "
+         "is no band on either side of this join"),
     Rule("de:coherence_not_comparable", "de",
          "no second method's result was supplied, or one side never measured the "
          "subjects the other raised; silence that is not a negative observation "
