@@ -13,6 +13,16 @@ What it covers (IMPLEMENTATION.md §7 Phase A.4):
   * the holistic review             ``agent.holistic.holistic_review()``
   * the calibration table           ``pipeline.calibration.calibration_markdown``
 
+...and the second workflow, which the hash was blind to until SCHEMA_VERSION 2
+(mutating ``MIN_PANEL_HITS`` or ``ENRICHMENT_BANDS`` left the hash byte-identical):
+
+  * the 9 per-cluster enrichments   ``agent.enrichment`` (tiers, bands, caveats)
+  * the enrichment CSV              ``agent.enrichment.to_csv`` (14 columns)
+  * the cross-cluster themes        ``agent.enrichment_themes.pathway_themes()``
+
+See :func:`pinned_enrichment` for why the enrichment half reads its raw rows from
+the committed ``interp/enrichment/`` records rather than the gitignored source CSV.
+
 **Why not ``pipeline.run.run()``.** ``pipeline/stages/viz.py`` collects the viz
 frames with ``shutil.move`` — running the full pipeline from a test would MOVE
 real files out of the repo working tree, and ``run()`` additionally reaches for
@@ -44,11 +54,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+from contextlib import contextmanager
+
 from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as E
+from panoscope.agent import enrichment_themes as agent_themes
 from panoscope.agent import holistic as agent_holistic
 from panoscope.agent import verdict as V
 from panoscope.pipeline import calibration as calibration_mod
-from panoscope.pipeline import serialize
+from panoscope.pipeline import serialize, store
 
 # --------------------------------------------------------------------------- #
 # Fixture location + the documented regeneration path
@@ -63,7 +77,7 @@ DEMO_ID: str = "xenium_hbreast_sample1"
 
 #: Bump when the SHAPE of the projection changes (a new artifact, a renamed key),
 #: so a reviewer can tell a projection-format change from a behaviour change.
-SCHEMA_VERSION: int = 1
+SCHEMA_VERSION: int = 2
 
 #: Fixed float precision. Same format string as ``agent.verdict._source_trace``.
 FLOAT_FORMAT: str = "{:.6f}"
@@ -102,6 +116,91 @@ def normalise(value: Any) -> Any:
 
 
 # --------------------------------------------------------------------------- #
+# The enrichment half — recomputed from a COMMITTED input snapshot
+# --------------------------------------------------------------------------- #
+# ``agent.enrichment`` reads the raw jazzPanda result CSV, and for the demo study
+# that file resolves to ``data/jazzpanda/hbc_sp1_top10_hallmark_test_statistic.csv``
+# — gitignored, so it does not exist on a fresh clone or in CI. Projecting
+# straight off it would make the golden hash machine-dependent, which is worse
+# than the blindness it is meant to fix.
+#
+# The raw numbers ARE committed though: ``interp/enrichment/c*.json`` persists
+# every ``PathwayEvidence`` in ``all_tested``, including the untestable ones, and
+# carries each row's untouched source fields (score, p, q, panel_hits,
+# set_size_full, leading_edge, gc_corr). Those fields are copied verbatim from the
+# CSV and never derived, so reversing them back into raw-row shape yields exactly
+# the rows the adapter would have read.
+#
+# Everything DERIVED is then recomputed live: tier, caveats, panel_coverage, the
+# panel-scoped caveat, the band, demotions, verify, the source trace and the
+# cross-cluster themes. That is what makes the hash sensitive to MIN_PANEL_HITS,
+# MIN_LEADING_EDGE, ENRICH_Q_MAX, SUGGESTIVE_Q_MAX and ENRICHMENT_BANDS.
+#
+# Known ceiling: a change to the RAW numbers in those committed JSONs would be
+# absorbed rather than flagged, because they are the input here. Committing
+# ``data/datasets/<id>/inputs/enrichment.csv`` would remove that ceiling and let
+# this read the real input directly — see the report accompanying this change.
+def _raw_rows_from_committed() -> dict[str, list[dict[str, Any]]]:
+    """Committed per-cluster enrichment records -> raw jazzPanda rows, by cluster.
+
+    Only the columns ``_pathway_from_jz_row`` consumes are reconstructed; the
+    others (AIC, variance_*, status, ...) are not read by any interpretation code.
+    """
+    persisted = store.load_all_enrichments()
+    if persisted is None:
+        raise FileNotFoundError(
+            "[golden] the committed enrichment records "
+            "(data/datasets/<id>/interp/enrichment/c*.json) are missing or "
+            "incomplete; the enrichment half of the projection cannot be built."
+        )
+    rows: dict[str, list[dict[str, Any]]] = {}
+    for ce in persisted:
+        rows[ce.cluster] = [
+            {
+                "gene_set": p.gene_set,
+                "geneset_size": p.set_size_full,
+                "n_overlap": p.panel_hits,
+                "genes_selected": ",".join(p.leading_edge),
+                "test_statistic": p.score,
+                "p_value": p.p_value,
+                "p_adj_bh": p.q_value,
+                "gc_corr": p.gc_corr,
+            }
+            for p in ce.all_tested
+        ]
+    return rows
+
+
+@contextmanager
+def pinned_enrichment():
+    """Point ``agent.enrichment.all_enrichments`` at the committed rows.
+
+    A module-attribute swap rather than a new seam in the product code:
+    ``agent.enrichment_themes`` resolves ``all_enrichments`` at call time, so one
+    swap covers both the per-cluster records and the cross-cluster themes, and
+    nothing outside ``tests/`` changes. Restored in ``finally``.
+    """
+    rows = _raw_rows_from_committed()
+    original = E.all_enrichments
+
+    def _from_committed() -> list:
+        return [
+            E._cluster_enrichment(
+                cluster,
+                tuple(E._pathway_from_jz_row(r) for r in rows.get(cluster, ())),
+                E._JZ_SCORE_KIND,
+            )
+            for cluster in cfg.CLUSTER_ORDER
+        ]
+
+    E.all_enrichments = _from_committed
+    try:
+        yield _from_committed()
+    finally:
+        E.all_enrichments = original
+
+
+# --------------------------------------------------------------------------- #
 # Projection
 # --------------------------------------------------------------------------- #
 def build_projection() -> dict[str, Any]:
@@ -112,6 +211,9 @@ def build_projection() -> dict[str, Any]:
     """
     verdicts = V.all_verdicts()
     review = agent_holistic.holistic_review()
+    with pinned_enrichment() as enrichments:
+        themes = agent_themes.pathway_themes()
+        enrichment_csv = E.to_csv(enrichments).splitlines()
     return {
         "schema_version": SCHEMA_VERSION,
         "dataset_id": cfg.DATASET_ID,
@@ -124,6 +226,13 @@ def build_projection() -> dict[str, Any]:
         "verdicts_csv": V.to_csv(verdicts).splitlines(),
         "holistic": normalise(serialize.holistic_to_dict(review)),
         "calibration_table": calibration_mod.calibration_markdown(verdicts).splitlines(),
+        # --- the enrichment workflow (CHARACTERISATION) ------------------- #
+        "enrichment_csv_columns": list(E.ENRICHMENT_CSV_COLUMNS),
+        "enrichment": normalise(
+            {e.cluster: serialize.enrichment_to_dict(e) for e in enrichments}
+        ),
+        "enrichment_csv": enrichment_csv,
+        "pathway_themes": normalise(serialize.pathway_themes_to_dict(themes)),
     }
 
 

@@ -7,7 +7,7 @@ ask box) and reuses its chrome, but:
 
 * the thread is namespaced ``pw::{cluster}`` so it never mixes with the marker
   chat for the same cluster;
-* the agent runs under the ``geneset-enrichment`` skill with the cluster's
+* the agent runs under the ``enrichment-interpretation`` skill with the cluster's
   enrichment records injected (``agent.loop._enrichment_context``), so answers are
   grounded in the real programs + scores + leading-edge genes;
 * the opening is a deterministic, cited summary built from the enrichment records
@@ -27,7 +27,7 @@ from panoscope.ui import conversation as convo
 from panoscope.ui import data_access as da
 from panoscope.ui import state
 
-_SKILL = "geneset-enrichment"
+_SKILL = "enrichment-interpretation"
 _K_ASK = "pwconv_ask_input"
 
 

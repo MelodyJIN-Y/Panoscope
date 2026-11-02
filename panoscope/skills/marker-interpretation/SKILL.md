@@ -1,5 +1,5 @@
 ---
-name: jazzpanda-markers
+name: marker-interpretation
 description: Interpret jazzPanda spatial marker output to annotate cell clusters with a cell-type call, a confidence level, and the evidence behind it, for imaging-based spatial transcriptomics (Xenium, CosMx, MERSCOPE). Use whenever a user has jazzPanda marker results (a `glm_mg_result` / a `top_result` or `full_result` table with columns like gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr, p_value) plus a panel gene list and wants cluster interpretation, cell-type annotation, lineage assignment, or a confidence/verify verdict. Also trigger on "annotate these clusters", "what cell type is cluster X", "jazzPanda markers", "spatial markers", "top_cluster", "glm_coef". Tissue- and species-agnostic; adapts naming and expected markers to the tissue context. Enforces the panel-absence rule, a confidence rubric grounded on jazzPanda's spatial signal (not mean-expression DE), a holistic cross-cluster review, and a no-fabrication / real-citation discipline.
 ---
 

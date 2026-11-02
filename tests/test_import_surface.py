@@ -181,7 +181,7 @@ _NO_IO_CHILD = (
     "print('PANOSCOPE_DATASET_READS ' + json.dumps(sorted(set(reads))))\n"
 )
 
-# A dataset id with no tree under data/datasets/. It is the only lever available:
+# A dataset id with no tree under data/studies/. It is the only lever available:
 # agent/config.py derives PROJECT_ROOT from __file__ and reads PANOSCOPE_DATASET,
 # PANOSCOPE_MODEL and (in tools.py) PANOSCOPE_CONTEXT_DIR — there is no
 # PANOSCOPE_DATA_ROOT to point at a tmp dir, which is itself part of what Phase C

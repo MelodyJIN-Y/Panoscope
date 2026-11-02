@@ -1,6 +1,6 @@
 """Stage 0-prep: raw inputs -> tidy per-dataset inputs (the .Rds boundary).
 
-Panoscope's Python pipeline consumes TIDY files under ``data/datasets/<id>/inputs/``;
+Panoscope's Python pipeline consumes TIDY files under ``data/studies/<id>/inputs/``;
 it never reads a Seurat/jazzPanda ``.Rds`` at runtime. This stage is the documented
 seam that produces those tidy files from the raw objects, by shelling out to the R
 prep (``scripts/prep_data.R``). It is **read-if-present**: when the required tidy

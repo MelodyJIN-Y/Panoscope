@@ -60,15 +60,15 @@ data/jazzpanda/*
 
 # Summary working-space edits — runtime user state (the biologist's report prose),
 # written by the UI as they edit; not a build artifact to commit.
-data/datasets/*/interp/summary_edits.json
+data/studies/*/interp/summary_edits.json
 
 # Sign-off / review state — runtime user state (which calls the biologist reviewed
 # and accepted on the Summary board); a sibling of summary_edits, not a build artifact.
-data/datasets/*/interp/review_state.json
+data/studies/*/interp/review_state.json
 
 # Chat transcripts — runtime conversation state, persisted so a refresh keeps the
 # chat; the durable knowledge is the notes under context/, not this.
-data/datasets/*/interp/chat_threads.json
+data/studies/*/interp/chat_threads.json
 
 # Research profile — the biologist's local research interest, captured at
 # onboarding to personalize literature search. Local-only, never committed (privacy).

@@ -3,7 +3,7 @@
 The round-trip equality is the correctness gate for reading verdicts off disk
 instead of recomputing them: a persisted verdict must reload to an object EQUAL
 to the freshly computed one. The smoke test runs the whole pipeline into a tmp
-dir (never the real data/datasets tree) and checks the artifacts + faithful read.
+dir (never the real data/studies tree) and checks the artifacts + faithful read.
 """
 
 from __future__ import annotations

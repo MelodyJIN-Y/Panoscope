@@ -90,6 +90,19 @@ RULES: dict[str, Rule] = _rules(
          "fragile cluster (<=2 markers) cannot read above Medium-High"),
     Rule("band:fragile_floor", "confidence",
          "fragile cluster with a canonical driver stays at or above Medium"),
+    # -- step: rival (panoscope.core.rival.rival_test) --
+    # Three ids rather than one with three outcomes, for the reason measure's four
+    # states have four: the UI and the grounding tests match on the id, and a single
+    # "rival:verdict" would make "the markers rule it out" indistinguishable from
+    # "the markers cannot speak to it" to everything downstream.
+    Rule("rival:argued_against", "rival",
+         "the rival's canonical markers were in frame, tested, and not reported here "
+         "-- a measured absence, which is the half of the lattice that argues"),
+    Rule("rival:ambiguous", "rival",
+         "the rival's canonical markers were also observed here; genuine rival signal"),
+    Rule("rival:undecidable", "rival",
+         "too few of the rival's canonical markers were in frame; the measurement "
+         "cannot separate the two accounts"),
 )
 
 

@@ -34,22 +34,6 @@ NoteType = Literal[
 
 
 # --------------------------------------------------------------------------- #
-# Raw jazzPanda row (from data/jazzpanda/markers_top.csv)
-# --------------------------------------------------------------------------- #
-@dataclass(frozen=True)
-class MarkerRow:
-    gene: str
-    top_cluster: str                       # c1..c9 | NoSig
-    glm_coef: float
-    pearson: float
-    max_gg_corr: float
-    max_gc_corr: float
-    cell_type: Optional[str]               # joined from cluster_key; None for NoSig
-    coef_pctl_in_cluster: Optional[float]  # 0..100, PRECOMPUTED in R prep; None for NoSig
-    n_markers_in_cluster: Optional[int]    # PRECOMPUTED; drives small-n branch
-
-
-# --------------------------------------------------------------------------- #
 # Evidence row the verdict/UI use (role column = panel-absence rule made visible)
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)

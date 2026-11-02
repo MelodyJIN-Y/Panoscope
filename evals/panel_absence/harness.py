@@ -65,7 +65,7 @@ class Item:
 
 
 def build_items() -> list[Item]:
-    key = json.loads((REPO / "data/datasets/xenium_hbreast_sample1/inputs/cluster_key.json").read_text())
+    key = json.loads((REPO / "data/studies/xenium_hbreast_sample1/inputs/cluster_key.json").read_text())
     items: list[Item] = []
     for cluster, meta in key.items():
         ct = meta["cell_type"]

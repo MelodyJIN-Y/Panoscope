@@ -46,7 +46,7 @@ This is also the better *paper*. "We built a React app" is not a contribution. "
 - **Panel/HoloViz** — best plotting story in the group (Datashader makes 158K points a non-question), but a four-layer abstraction tower is the opposite of what an agent-executed one-month build wants, and a Panel app is as pinned to its framework's serialization protocol as a Streamlit app is to its DOM.
 - **Reflex** — downloads a Node/Bun toolchain on first run. Violates the packaging criterion outright.
 - **Shiny for Python** — genuinely the runner-up: `ui.tags.div(class_="conv-title")` emits *your* HTML with *your* class names, so the ~110 `unsafe_allow_html=True` sites and `ui/theme.py`'s token block port with the least rework; `@reactive.calc` maps onto the cached readers almost one-to-one; `iSEE` is the exact domain precedent. If the React renderer slips twice, switch the second renderer to Shiny rather than abandoning the two-renderer claim. It loses the 158K-point rendering upgrade and leaves you inside a frontend you don't own.
-- **Marimo** — wrong shape as the app, but **do ship a marimo notebook** that reproduces `data/datasets/<id>/` and the paper's figures. One day's work, strong reproducibility appendix.
+- **Marimo** — wrong shape as the app, but **do ship a marimo notebook** that reproduces `data/studies/<id>/` and the paper's figures. One day's work, strong reproducibility appendix.
 
 ### 1.2 The API boundary, named
 
@@ -929,7 +929,7 @@ Two consequences: **(1)** fix `ui/state.py:53` `DEFAULT_BIN_UM` from 25 to 50 (t
 
 ### 4.5 The concordance flag — one-directional, by construction
 
-Computed deterministically (Tier A, alongside `agent/verdict.py`), written into `data/datasets/<id>/interp/clusters/c{n}.json`, hashed in `manifest.json`. No LLM, reproducible.
+Computed deterministically (Tier A, alongside `agent/verdict.py`), written into `data/studies/<id>/interp/clusters/c{n}.json`, hashed in `manifest.json`. No LLM, reproducible.
 
 ```python
 @dataclass(frozen=True)
@@ -994,7 +994,7 @@ Split it: **the shell owns scope, the review surface owns focus.**
 
 | Layer | Object | Mutability | Where it lives |
 |---|---|---|---|
-| **Claim** | `ClusterVerdict` (Tier A) + `OpeningInterpretation` (Tier B) | immutable; rebuilt only by `python -m pipeline.run` | `data/datasets/<id>/interp/clusters/c{n}.json`, hashed in `manifest.json` |
+| **Claim** | `ClusterVerdict` (Tier A) + `OpeningInterpretation` (Tier B) | immutable; rebuilt only by `python -m pipeline.run` | `data/studies/<id>/interp/clusters/c{n}.json`, hashed in `manifest.json` |
 | **Argument** | chat thread, pinned views, skeptic pass, holistic refinements | mutable, disposable | `ui/chat_store.py`, session state |
 | **Decision** | the biologist's committed call | **append-only, versioned** | `context/decisions/decision_log.jsonl`; `interp/review_state.json` becomes a projection |
 
@@ -1201,4 +1201,4 @@ Ranked *cut-first to cut-last*. Cut from the top.
 | `ClusterEnrichment.confidence` field | Keep in the artifact, **structurally undrawable** via `CensusHeader` having no band slot; deprecate at the next `pipeline_version` | Tests and artifacts read it; the fix is to make the category error impossible to render, not to break the schema |
 | Difference maps for paired contrasts | **Refused by default**; two panels on a locked shared scale | A difference is a derived quantity (R5); it renders only when the pipeline emits a difference artifact with its own conditionality |
 
-**Key files this document touches:** `app.py:286` · `ui/data_access.py` (→ `panoscope/core/read.py`) · `ui/spatial_stage.py:74,101,626,647,835` · `ui/evidence_table.py` · `ui/enrichment_table.py:171-186` · `ui/verdict_header.py` · `ui/state.py:47-56` · `ui/summary.py:1142,1328` · `ui/report.py` · `agent/types.py` · `agent/config.py:132-195` · `agent/discriminate.py` · `pipeline/store.py:209-251` · `pipeline/paths.py:107` · `data/datasets/xenium_hbreast_sample1/manifest.json` · `requirements.txt`
+**Key files this document touches:** `app.py:286` · `ui/data_access.py` (→ `panoscope/core/read.py`) · `ui/spatial_stage.py:74,101,626,647,835` · `ui/evidence_table.py` · `ui/enrichment_table.py:171-186` · `ui/verdict_header.py` · `ui/state.py:47-56` · `ui/summary.py:1142,1328` · `ui/report.py` · `agent/types.py` · `agent/config.py:132-195` · `agent/discriminate.py` · `pipeline/store.py:209-251` · `pipeline/paths.py:107` · `data/studies/xenium_hbreast_sample1/manifest.json` · `requirements.txt`

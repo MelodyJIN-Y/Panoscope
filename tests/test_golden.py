@@ -8,6 +8,8 @@ artifacts for the demo study and fails if any byte of that projection moves:
   * the verdict CSV                 ``agent.verdict.to_csv`` (11 frozen columns)
   * the holistic review             ``agent.holistic.holistic_review()``
   * the calibration table           ``pipeline.calibration.calibration_markdown``
+  * the 9 per-cluster enrichments   ``agent.enrichment`` + its 14-column CSV
+  * the cross-cluster themes        ``agent.enrichment_themes.pathway_themes()``
 
 It is two guarantees at once. For the refactor: 23k lines can be moved, renamed
 and de-singleton-ed, and if a single confidence band, driving marker, CSV cell
@@ -40,7 +42,9 @@ import json
 import pytest
 
 from panoscope.agent import config as cfg
+from panoscope.agent import enrichment as EN
 from panoscope.agent import verdict as V
+from panoscope.pipeline import serialize, store
 from tests import golden_projection as G
 
 
@@ -139,8 +143,8 @@ def test_projection_is_deterministic_within_a_process(projection) -> None:
     )
 
 
-def test_projection_covers_all_four_artifacts(projection) -> None:
-    """All four artifacts are actually present, so the hash cannot pass vacuously."""
+def test_projection_covers_all_artifacts(projection) -> None:
+    """Every artifact is actually present, so the hash cannot pass vacuously."""
     assert projection["dataset_id"] == G.DEMO_ID
     assert projection["cluster_order"] == list(cfg.CLUSTER_ORDER)
 
@@ -161,6 +165,62 @@ def test_projection_covers_all_four_artifacts(projection) -> None:
     holistic = projection["holistic"]
     assert holistic["coherence_notes"], "holistic review carries no coherence notes"
     assert "refinements" in holistic and "set_is_coherent" in holistic
+
+
+def test_projection_covers_the_enrichment_workflow(projection) -> None:
+    """The second workflow is in the hash — the blindness this schema version fixed.
+
+    Until SCHEMA_VERSION 2 the projection never touched ``agent.enrichment``, so
+    gutting the panel-coverage rule (``MIN_PANEL_HITS`` 3 -> 1) or flattening
+    ``ENRICHMENT_BANDS`` left the golden hash byte-identical. These assertions are
+    what stops that regressing: the enrichment half must be present, non-empty,
+    and must carry the panel-coverage fields the gate reads.
+    """
+    enrichment = projection["enrichment"]
+    assert sorted(enrichment) == sorted(cfg.CLUSTER_ORDER)
+    assert projection["enrichment_csv_columns"] == list(EN.ENRICHMENT_CSV_COLUMNS)
+
+    surfaced = 0
+    for cluster, e in enrichment.items():
+        assert e["cluster"] == cluster
+        assert e["method"] == "jazzpanda_enrichment"
+        assert e["all_tested"], f"{cluster} carries no tested gene sets"
+        assert e["source_trace"], f"{cluster} carries no source trace"
+        assert e["confidence"] in set(V.BANDS)
+        surfaced += len(e["enriched"]) + len(e["suggestive"])
+        for p in e["all_tested"]:
+            # The gate's inputs must be in the hash, or a threshold change is invisible.
+            assert p["tier"] in {"enriched", "suggestive", "untestable"}
+            assert "panel_hits" in p and "n_leading_edge" in p and "q_value" in p
+            assert p["panel_scope_caveat"].startswith("Panel-scoped:")
+
+    assert surfaced, "no gene set is surfaced anywhere — the hash would be vacuous"
+    # CSV: header + one row per surfaced (enriched|suggestive) pathway.
+    assert len(projection["enrichment_csv"]) == surfaced + 1
+
+    themes = projection["pathway_themes"]
+    assert themes["per_cluster"], "pathway themes carry no per-cluster lines"
+    assert "recurring" in themes and "coherence_notes" in themes
+
+
+def test_enrichment_half_reproduces_the_committed_records(projection) -> None:
+    """The recomputed enrichment equals the records the pipeline shipped.
+
+    ``pinned_enrichment()`` feeds the adapter raw rows reversed out of
+    ``interp/enrichment/c*.json`` and recomputes every DERIVED field. If that
+    recomputation agrees with the committed records, the reversal is faithful and
+    the golden's enrichment half is the demo study's real output — not an
+    artifact of the reconstruction.
+    """
+    committed = store.load_all_enrichments()
+    assert committed is not None, "the committed enrichment records are missing"
+    expected = G.normalise({e.cluster: serialize.enrichment_to_dict(e) for e in committed})
+    assert projection["enrichment"] == expected, (
+        "the recomputed enrichment no longer matches data/datasets/<id>/interp/"
+        "enrichment/*.json. Either interpretation behaviour changed (regenerate the "
+        "study tree AND the golden), or the raw-row reversal in pinned_enrichment() "
+        "lost a field."
+    )
 
 
 def test_csv_column_contract_is_frozen(projection) -> None:

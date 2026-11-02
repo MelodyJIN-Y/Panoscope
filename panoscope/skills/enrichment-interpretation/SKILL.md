@@ -1,5 +1,5 @@
 ---
-name: geneset-enrichment
+name: enrichment-interpretation
 description: Interpret per-cluster gene-set enrichment results (MSigDB Hallmark) for spatial transcriptomics clusters that have already been cell-typed. Use when a user has an enrichment result — a per-cluster, per-gene-set table with a score/statistic, a p/q value, the set size, and the overlapping/leading-edge genes — from the jazzPanda competitive gene-set test on a targeted panel, and wants a grounded per-cluster interpretation of which biological PROGRAMS are active, a confidence, and a cited biological read. Enforces a panel-coverage rule (the enrichment analog of the panel-absence rule), a two-tier confidence report grounded on the method's score, a cross-cluster themes review, and a no-fabrication / real-citation discipline. Complements — never replaces — the cell-type call from the marker workflow.
 ---
 

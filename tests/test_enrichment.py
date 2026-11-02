@@ -3,6 +3,22 @@
 These pin the confident floor for the second workflow: the panel-coverage caveat
 is on every pathway, the leading-edge gate refuses to surface 1-gene artifacts,
 every enriched set clears the full gate, and confidence bands are per-method.
+
+**This module is SKIPPED on a fresh clone / CI** — it drives the real jazzPanda
+result, which is gitignored (``data/jazzpanda/*``). That is not a coverage gap any
+more; the same guarantees run everywhere from two ungated siblings:
+
+  * ``tests/test_panel_coverage.py`` — the panel-coverage penalty, the panel-hits
+    and leading-edge gates, both q-value tier boundaries, the missing-q rule, the
+    untestable-cluster verify rule, and per-method bands, all on synthetic rows
+  * ``tests/test_golden.py`` — the demo study's real per-cluster enrichment, its
+    CSV and the cross-cluster themes, recomputed from the COMMITTED
+    ``interp/enrichment/`` records and pinned byte-for-byte
+
+What stays local-only is this module's agreement with the raw CSV itself (that the
+adapter reads the real file correctly, and that c9's MTORC1 row really is the
+single-gene artifact the gate must kill). Committing
+``data/datasets/<id>/inputs/enrichment.csv`` would un-gate that too.
 """
 
 from __future__ import annotations
@@ -14,10 +30,17 @@ from panoscope.agent import enrichment as E
 from panoscope.agent.types import ClusterEnrichment
 
 # The jazzPanda enrichment result is unpublished + gitignored, so it may be absent
-# on a fresh clone / CI. Skip the whole module then rather than fail.
+# on a fresh clone / CI. Skip the whole module then rather than fail — but name the
+# ungated siblings in the reason, so `pytest -rs` never reads as "this guarantee is
+# untested here" when it is tested, just elsewhere.
 pytestmark = pytest.mark.skipif(
     not E._jz_enrichment_csv().exists(),
-    reason="jazzPanda enrichment result not present (gitignored)",
+    reason=(
+        f"jazzPanda enrichment result not present (gitignored): "
+        f"{E._jz_enrichment_csv()}. The band/tier/coverage guarantees still run in "
+        f"tests/test_panel_coverage.py (synthetic) and tests/test_golden.py (the "
+        f"committed demo records)."
+    ),
 )
 
 

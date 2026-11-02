@@ -1,6 +1,6 @@
 """Stage: annotate — derive the cell type per cluster with the marker-gene skill (LIVE).
 
-For a dataset WITHOUT ``interp/annotation.json``, this runs the jazzpanda-markers
+For a dataset WITHOUT ``interp/annotation.json``, this runs the marker-interpretation
 skill per cluster: given the cluster's top jazzPanda markers, the skill assigns the
 cell type, lineage/category, a short name, and the canonical lineage markers -- the
 skill's Output 2 (the per-cluster interpretation Panoscope shows). The off-panel

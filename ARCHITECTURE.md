@@ -39,7 +39,7 @@ not change. This replaces v4's fixed `methods/` list and its two-source referenc
 **Workflow and method separate** (§4.1). The *interpretation workflow* — marker interpretation, DE
 interpretation, enrichment interpretation — owns the interpretive question and the review surface. A
 *method* registers into a workflow and owns its own assumptions, statistic semantics and caveats. One
-workflow, many methods. v4 conflated the two, which is why `skills/jazzpanda-markers/` is named after a
+workflow, many methods. v4 conflated the two, which is why `skills/jazzpanda-markers/` was named after a
 method rather than a question.
 
 **Study intake is a first-class stage** (§6). v4 stipulated `Conditions` in the type system and never

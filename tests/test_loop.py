@@ -25,7 +25,7 @@ import os
 
 import pytest
 
-from panoscope.agent import config as cfg  # noqa: F401 - imported for parity / future use
+from panoscope.agent import config as cfg
 from panoscope.agent import data as _data
 from panoscope.agent import loop as agent_loop
 from panoscope.agent.grounding_check import GroundingChecker
@@ -263,25 +263,97 @@ def _has_anthropic_key() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
+def _preflight_or_skip() -> None:
+    """Prove the connector really answers BEFORE the live assertions run.
+
+    The old gate was ``ANTHROPIC_API_KEY`` being *present*. With a present-but-
+    invalid key the loop swallows the 401 and returns the deterministic fallback,
+    which satisfies every assertion below — so the test reported PASS while the
+    model was never reached. That is strictly worse than the SKIP-shaped bug this
+    repo already fixed in ``test_mcp_client.py``.
+
+    So: one real 1-token call, and classify the outcome.
+
+      * SDK missing / no key                 -> skip (nothing to test)
+      * connection refused, DNS, timeout     -> skip (genuinely offline)
+      * 429 / 5xx                            -> skip (service unavailable right now)
+      * 401 / 403 / any other 4xx            -> FAIL (a broken key is a broken test,
+                                                not an excuse to pass)
+    """
+    try:
+        import anthropic
+    except ImportError:  # pragma: no cover - SDK is an optional extra
+        pytest.skip("anthropic SDK not installed")
+
+    if not _has_anthropic_key():  # also loads .env, which the agent does lazily
+        pytest.skip("no ANTHROPIC_API_KEY / offline")
+    key = os.environ["ANTHROPIC_API_KEY"]
+
+    try:
+        anthropic.Anthropic(api_key=key).messages.create(
+            model=cfg.PRIMARY_MODEL,
+            max_tokens=1,
+            messages=[{"role": "user", "content": "ping"}],
+        )
+    except anthropic.APIConnectionError as exc:  # incl. APITimeoutError
+        pytest.skip(f"Anthropic connector unreachable (offline?): {exc!r}")
+    except anthropic.APIStatusError as exc:
+        status = getattr(exc, "status_code", None)
+        if status == 429 or (isinstance(status, int) and status >= 500):
+            pytest.skip(f"Anthropic unavailable right now (HTTP {status}): {exc!r}")
+        pytest.fail(
+            f"the live path is NOT usable (HTTP {status}): {exc!r}\n"
+            f"This test must not pass on the deterministic fallback — fix the "
+            f"credential or deselect the `live` marker."
+        )
+
+
 @pytest.mark.live
-@pytest.mark.skipif(not _has_anthropic_key(), reason="no ANTHROPIC_API_KEY / offline")
 def test_live_chat_passes_grounding_floor():
     """One real chat('what defines cluster 2?') whose answer clears the floor.
 
     Uses the loop's OWN grounding gate (live MCP-backed literature verifier), so
-    a fabricated PMID or number in the real answer would fail it. If the model or
-    network is unavailable, the loop returns a grounded fallback instead — either
-    way the answer must pass the floor and mention LUM (c2's driving marker).
+    a fabricated PMID or number in the real answer would fail it.
+
+    The fallback is tested OFFLINE above (``test_chat_falls_back_*``). Here a
+    fallback is a FAILURE, not an acceptable outcome: the whole point of this test
+    is that the agent's own output is grounding-checked, and a fallback answer
+    proves nothing about the model. ``used_fallback`` is the discriminator —
+    ``agent/fallback.py`` sets it True on every path it owns, and only the live
+    ``_assemble`` leaves it False.
     """
+    _preflight_or_skip()
+
     agent = PanoscopeAgent(cluster="c2")  # real key from .env, live verifier
     resp = agent.chat("what defines cluster 2?")
 
     assert isinstance(resp, AgentResponse)
-    # The answer clears the confident floor using the agent's own checker.
+
+    # (1) It is a REAL model answer, not the deterministic fallback wearing its
+    # clothes. Without this the test passes with an invalid key.
+    assert resp.used_fallback is False, (
+        "chat() returned the deterministic fallback on the LIVE path — the model "
+        "was never reached (or its answer failed the floor and degraded). This "
+        "test asserts the AGENT'S OWN output is grounded; the fallback is covered "
+        "offline by test_chat_falls_back_when_anthropic_fails.\n\n" + resp.text
+    )
+
+    # (2) The answer was grounded through the tool loop. A fallback carries no
+    # tools_used; an answer that quotes c2's numbers without marker_lookup could
+    # not have cleared the floor in the first place.
+    assert resp.tools_used, (
+        "the live answer ran no tools — nothing grounded it. tools_used is empty, "
+        "which the deterministic fallback also is; a live grounded answer about c2 "
+        "must have pulled its numbers from marker_lookup."
+    )
+
+    # (3) The answer clears the confident floor using the agent's own checker.
     checker = GroundingChecker(literature_verifier=agent._verifier)
     result = checker.check(resp.text, resp.grounding, "c2")
     assert result.ok is True, f"live answer failed the floor: {result.summary()}\n\n{resp.text}"
 
-    # c2's headline driver is LUM; a grounded answer about c2 should mention it
-    # (true for both a real tool-grounded answer and the deterministic fallback).
+    # (4) c2's headline driver is LUM; a grounded answer about c2 names it.
     assert "LUM" in resp.text.upper()
+
+    # Proof in the log that the live path really ran.
+    print(f"\n[live] tools_used={resp.tools_used} len(text)={len(resp.text)}")

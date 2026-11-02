@@ -30,7 +30,7 @@ ENV_DATA_ROOT = "PANOSCOPE_DATA_ROOT"
 ENV_STUDY = "PANOSCOPE_DATASET"  # historical name; a study id
 
 _DATA_DIRNAME = "data"
-_STUDIES_DIRNAME = "datasets"  # historical; the store is data/datasets/<id>
+_STUDIES_DIRNAME = "studies"  # the store is data/studies/<id>
 
 
 def _package_repo_root() -> Path:

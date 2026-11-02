@@ -43,7 +43,7 @@ OFF_PANEL_CANONICAL_FALLBACK: dict[str, tuple[str, ...]] = {
 
 def _annotation_path(dataset_id: Optional[str] = None) -> Path:
     return (
-        cfg.DATA_DIR_PATH / "datasets" / (dataset_id or cfg.DATASET_ID)
+        cfg.DATA_DIR_PATH / "studies" / (dataset_id or cfg.DATASET_ID)
         / "interp" / "annotation.json"
     )
 

@@ -160,7 +160,7 @@ def _derive_cluster_order() -> tuple[str, ...]:
 # inputs/cluster_key.json (the dataset's OWN annotation: jazzPanda / Seurat `anno`),
 # never a hardcoded literal. Every label traces to that provenance-hashed input file;
 # Panoscope assesses confidence FOR these labels, it does not invent them.
-# Prefix convention (jazzpanda-markers SKILL naming): Tum_ tumor, Str_ stroma,
+# Prefix convention (marker-interpretation SKILL naming): Tum_ tumor, Str_ stroma,
 # Imm_Mac/Imm_T/Imm_B/Imm_DC/Imm_Mast immune subsets, Myoepi_ myoepithelial, Endo_ endothelial.
 # --------------------------------------------------------------------------- #
 def _active_cluster_key_json() -> Path:

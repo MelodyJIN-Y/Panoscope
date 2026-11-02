@@ -1,6 +1,6 @@
 """On-disk layout for a per-dataset pipeline output tree.
 
-    data/datasets/<id>/
+    data/studies/<id>/
     ├── manifest.json          # dataset index + provenance + artifact hashes
     ├── inputs/                # raw provenance, copied + hashed
     ├── viz/                   # per-cell viz tables (later slices)
@@ -9,7 +9,7 @@
         └── clusters/c{n}.json # full per-cluster verdict (+ evidence + opening)
 
 All helpers take an optional ``root`` so tests can point the tree at a tmp dir;
-default is ``data/datasets`` under the repo. Pure path math — no filesystem I/O.
+default is ``data/studies`` under the repo. Pure path math — no filesystem I/O.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Optional
 
 from panoscope.agent import config as cfg
 
-DEFAULT_DATASETS_ROOT: Path = cfg.DATA_DIR_PATH / "datasets"
+DEFAULT_DATASETS_ROOT: Path = cfg.DATA_DIR_PATH / "studies"
 
 
 def datasets_root(root: Optional[Path] = None) -> Path:

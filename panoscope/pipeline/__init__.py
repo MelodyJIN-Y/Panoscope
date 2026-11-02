@@ -2,7 +2,7 @@
 
 One command per dataset (`python -m pipeline.run --dataset <id>`) that turns a
 dataset's raw inputs (jazzPanda markers, panel list, cluster key, + viz sources)
-into a self-contained ``data/datasets/<id>/`` tree the UI reads with no live
+into a self-contained ``data/studies/<id>/`` tree the UI reads with no live
 recomputation. Deterministic where it can be, live-cited only where it must be;
 jazzPanda is never run — its output is a consumed input.
 

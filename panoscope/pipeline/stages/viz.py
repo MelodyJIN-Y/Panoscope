@@ -2,7 +2,7 @@
 
 Until the from-source reshape + density stages exist, this MOVES the already
 precomputed viz frames out of the legacy flat ``data/`` layout into
-``data/datasets/<id>/viz/`` so the tree is self-contained and the path-shim in
+``data/studies/<id>/viz/`` so the tree is self-contained and the path-shim in
 ``agent.data`` / ``ui.data_access`` reads them from there:
 
     data/cells/cells.parquet         -> viz/cells.parquet

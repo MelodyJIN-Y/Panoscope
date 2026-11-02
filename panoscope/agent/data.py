@@ -28,7 +28,7 @@ from panoscope.agent import config as cfg
 # --------------------------------------------------------------------------- #
 # Tidy file locations (all under data/)
 # --------------------------------------------------------------------------- #
-# Per-dataset pipeline tree (data/datasets/<id>/). Each artifact is resolved
+# Per-dataset pipeline tree (data/studies/<id>/). Each artifact is resolved
 # tree-first with a fall back to the legacy flat path, so the app reads the
 # pipeline output where it exists and keeps working mid-migration. Resolved at
 # import: the tree either exists (pipeline has run) or it does not.

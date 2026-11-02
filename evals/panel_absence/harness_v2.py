@@ -96,7 +96,7 @@ class Item:
 
 
 def build_items() -> list[Item]:
-    key = json.loads((REPO / "data/datasets/xenium_hbreast_sample1/inputs/cluster_key.json").read_text())
+    key = json.loads((REPO / "data/studies/xenium_hbreast_sample1/inputs/cluster_key.json").read_text())
     out = []
     for cluster, meta in key.items():
         df = D.get_cluster_markers(cluster).head(TOP_MARKERS)

@@ -106,6 +106,6 @@ def test_manifest_cell_count_reads_the_built_tree():
     from panoscope.agent import config as cfg, data
 
     manifest = json.loads(
-        (cfg.DATA_DIR_PATH / "datasets" / cfg.BUNDLED_DEMO_ID / "manifest.json").read_text()
+        (cfg.DATA_DIR_PATH / "studies" / cfg.BUNDLED_DEMO_ID / "manifest.json").read_text()
     )
     assert manifest["n_cells"] == len(data.load_cells())

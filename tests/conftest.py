@@ -25,7 +25,7 @@ import pytest
 _OWNED_PREFIXES = ("agent", "ui", "pipeline", "panoscope", "app")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATASETS_ROOT = PROJECT_ROOT / "data" / "datasets"
+DATASETS_ROOT = PROJECT_ROOT / "data" / "studies"
 
 DEMO_ID = "xenium_hbreast_sample1"
 MINI_ID = "demo_mini"

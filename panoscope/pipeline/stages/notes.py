@@ -319,7 +319,7 @@ def run_gene_notes(
 
 
 # --------------------------------------------------------------------------- #
-# Per-pathway biology notes (enrichment Output 1) — the geneset-enrichment skill
+# Per-pathway biology notes (enrichment Output 1) — the enrichment-interpretation skill
 # reading each enriched program's evidence. LIVE, one real PMID or none.
 # --------------------------------------------------------------------------- #
 def _short_set(gene_set: str) -> str:
@@ -355,7 +355,7 @@ def run_pathway_notes(
     """Generate (resumable) a skill-grounded biology note for EVERY surfaced program.
 
     Iterates each cluster's enriched + suggestive pathways; for each asks the agent
-    (carrying the geneset-enrichment SKILL) for the Output-1 note grounded in that
+    (carrying the enrichment-interpretation SKILL) for the Output-1 note grounded in that
     program's leading-edge genes, then records the evaluation fields alongside it.
     Confident floor: one real live PMID or none; deterministic fallback when unusable.
     """
@@ -374,7 +374,7 @@ def run_pathway_notes(
                 resp = agent_loop.chat(
                     _pathway_query(p.gene_set, ce.cell_type, le),
                     cluster=cluster,
-                    skill="geneset-enrichment",
+                    skill="enrichment-interpretation",
                 )
             except Exception as exc:  # noqa: BLE001 - keep going; save what we have
                 print(f"  ERROR {cluster}/{p.gene_set}: {exc}", flush=True)

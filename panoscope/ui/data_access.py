@@ -33,7 +33,7 @@ from panoscope.agent.types import ClusterVerdict, Note
 # --------------------------------------------------------------------------- #
 # File paths this module reads directly (marker_expr + density index; everything
 # else goes through agent.data). Both resolve to the per-dataset pipeline tree
-# (data/datasets/<id>/viz/) when present, falling back to the legacy flat path.
+# (data/studies/<id>/viz/) when present, falling back to the legacy flat path.
 #   expr.parquet : cell_id (int) + one float column per panel marker
 # --------------------------------------------------------------------------- #
 def _resolved(tree_rel: str, legacy_rel: str) -> Path:
@@ -326,7 +326,7 @@ def verdict_for(cluster: str) -> ClusterVerdict:
     """Verdict for one cluster (cached once per session).
 
     Prefers the verdict PERSISTED by the per-dataset pipeline
-    (``data/datasets/<id>/interp/clusters/c{n}.json``); falls back to computing it
+    (``data/studies/<id>/interp/clusters/c{n}.json``); falls back to computing it
     live when the pipeline tree is absent. The persisted object is byte-faithful
     to the computed one (``tests/test_pipeline.py`` round-trip gate), so the call
     is identical either way — reading it just avoids recomputation and makes the
