@@ -155,11 +155,18 @@ def test_a_draft_holds_what_a_conditions_refuses_to(tmp_path: Path) -> None:
     with pytest.raises(Blocked):
         draft.resolve()
 
-    # The degradation, asserted rather than hidden: a store that cannot be read as a
-    # whole loses the fields it DID declare, and the checklist says so instead of
-    # implying the files are silent. See derive()'s docstring and the handover.
-    assert draft.unread_because
-    assert "could not be read as a whole" in draft.checklist().render()
+    # The partial read, asserted: the blocking unknown costs intake the tissue and
+    # NOTHING else. Before `PlatformAdapter.reads` existed this store yielded six
+    # unknowns and a banner, including the assay the manifest plainly declares.
+    assert draft.assay.known and draft.assay.value == "Xenium"
+    assert draft.assay.provenance is Provenance.READ
+    assert not draft.tissue.known
+    assert not draft.unread_because, (
+        "the adapter reported on every field; the could-not-read banner is for an "
+        "adapter that refuses the store or reports fewer fields, not for a study "
+        "that is merely incomplete"
+    )
+    assert "did not report on every field" not in draft.checklist().render()
     supplied = draft.stated("tissue", "UBERON:0002113").stated("assay", "Xenium")
     assert supplied.resolve().tissue.known
 

@@ -34,6 +34,7 @@ from panoscope.core.measure import Reading, measure_unit
 from panoscope.core.verdict import assess
 from panoscope.methods import jazzpanda
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
+from panoscope.types.contracts import CheckState
 from panoscope.types.evidence import FLAGS, NormalisedEvidence
 from panoscope.types.measured import (
     Coverage, Frame, Measured, MeasuredState, MeasuredWorld,
@@ -489,9 +490,11 @@ def conditions(world: MeasuredWorld) -> Conditions:
 def test_a_declared_unknown_cannot_be_settled_and_names_itself(conditions):
     """CLAUDE.md's rule, as one call. The demo study genuinely does not know its
     segmentation version, so this is the real case and not a constructed one."""
-    out = propagate.requires(conditions, "segmentation")
+    out = propagate.requires(conditions, "composition_vs_expression", "segmentation")
     assert not out.value.settled
-    assert out.value.reading == ("segmentation",)
+    assert out.value.state is CheckState.CANNOT_BE_SETTLED
+    assert out.value.check_id == "composition_vs_expression"
+    assert out.value.because == ("conditions read: segmentation",)
     assert len(out.value.missing) == 1
     assert out.value.missing[0].startswith("segmentation:")
     assert [d.rule for d in out.decisions] == ["propagate:cannot_be_settled"]
@@ -499,10 +502,14 @@ def test_a_declared_unknown_cannot_be_settled_and_names_itself(conditions):
 
 def test_a_known_condition_settles_and_still_says_what_it_read(conditions):
     """A check that names its inputs only when they are absent cannot be audited
-    when it passes."""
-    out = propagate.requires(conditions, "assay", "modality")
+    when it passes -- so ``because`` carries them on the OK branch too.
+
+    ``OK`` here says the question could be asked, never that the result is fine: the
+    caller keeps going and overwrites this with its own answer."""
+    out = propagate.requires(conditions, "panel_scoping", "assay", "modality")
     assert out.value.settled
-    assert out.value.reading == ("assay", "modality")
+    assert out.value.state is CheckState.OK
+    assert out.value.because == ("conditions read: assay, modality",)
     assert out.value.missing == ()
     assert [d.rule for d in out.decisions] == ["propagate:conditions_known"]
 
@@ -510,23 +517,24 @@ def test_a_known_condition_settles_and_still_says_what_it_read(conditions):
 def test_one_known_condition_never_settles_an_unknown_one(conditions):
     """The meet, not a majority. An unknown never silently applies because another
     field beside it happened to be known."""
-    out = propagate.requires(conditions, "tissue", "fixation")
+    out = propagate.requires(conditions, "panel_scoping", "tissue", "fixation")
     assert not out.value.settled
-    assert out.value.reading == ("tissue", "fixation")
+    assert out.value.because == ("conditions read: tissue, fixation",)
     assert [m.split(":")[0] for m in out.value.missing] == ["fixation"]
 
 
 def test_a_blocking_field_is_settled_by_construction(conditions):
     """§6.3's line, one layer down: ``Conditions`` cannot be built with an unknown
     ``assay`` or ``tissue``, so a check declaring them can never be blocked on them."""
-    assert propagate.requires(conditions, "assay", "tissue").value.settled
+    assert propagate.requires(conditions, "panel_scoping",
+                              "assay", "tissue").value.settled
 
 
 def test_order_is_conditions_order_and_not_the_callers(conditions):
     """``missing`` is hashed into whatever record it is spliced into. Two checks
     reading the same two fields must not write two different records of one gap."""
-    a = propagate.requires(conditions, "fixation", "segmentation")
-    b = propagate.requires(conditions, "segmentation", "fixation")
+    a = propagate.requires(conditions, "panel_scoping", "fixation", "segmentation")
+    b = propagate.requires(conditions, "panel_scoping", "segmentation", "fixation")
     assert a.value == b.value
     assert a.decisions == b.decisions
     assert [m.split(":")[0] for m in a.value.missing] == ["segmentation", "fixation"]
@@ -537,7 +545,7 @@ def test_a_field_that_is_not_a_condition_raises(conditions):
     than it claims, and settle on an unknown it never looked at."""
     with pytest.raises(propagate.UnknownConditionField,
                        match="not a Conditions field"):
-        propagate.requires(conditions, "segmentaton")
+        propagate.requires(conditions, "panel_scoping", "segmentaton")
 
 
 def test_the_field_list_is_derived_from_the_section_63_table():
@@ -550,8 +558,9 @@ def test_the_field_list_is_derived_from_the_section_63_table():
 def test_declaring_nothing_is_settled_and_says_so(conditions):
     """A degenerate but reachable call: a check with no condition dependencies is
     settled, and the record says it declared none rather than going silent."""
-    out = propagate.requires(conditions)
-    assert out.value.settled and out.value.reading == ()
+    out = propagate.requires(conditions, "panel_scoping")
+    assert out.value.settled and out.value.because == (
+        "conditions read: the check declared none",)
     assert "declared none" in out.decisions[0].because[0]
 
 

@@ -33,13 +33,16 @@ four functions below:
    compared". Reimplementing that lattice gate here would be a second copy of the
    project's whole thesis, and the copy nobody updates is always the one that governs.
 
-**Three states, not two.** :class:`CheckState` has ``CANNOT_BE_SETTLED`` beside
+**Three states, not two**, and they are not this module's.
+``types/contracts.CheckState`` has ``CANNOT_BE_SETTLED`` beside
 ``OK`` and ``FLAGGED`` for the same reason ``measured.py`` has four states and not
 two: "we checked and it is fine" and "we could not check" are opposite readings that
 a boolean renders identically, and the second is the one the biologist must act on.
 Every unsettled result carries ``missing`` -- the named things that would settle it --
 because "insufficient information" is not actionable and "a second biological
-replicate" is.
+replicate" is. The vocabulary lives in ``types/`` because every workflow's checks
+need it and ``core/propagate.py`` emits it; owning it here made the next workflow's
+three-valued check an import from a sibling workflow, or a third copy.
 
 **What this module does NOT own.** Not the lattice (``types/measured.py``), not the
 join (``core/reconcile.py``), not the effect-size ladder
@@ -61,12 +64,13 @@ declared" supplied with ``de-interpretation`` as its unregistered example.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any
 
 from panoscope.core.reconcile import Agreement, Relationship, Side, reconcile
 from panoscope.types.claim import Authority
-from panoscope.types.contracts import Check, RivalResult
+from panoscope.types.contracts import (
+    Check, CheckResult, CheckState, RivalResult,
+)
 from panoscope.types.evidence import EvidenceItem, NormalisedEvidence
 from panoscope.types.measured import Coverage, MeasuredState, MeasuredWorld
 from panoscope.types.outputs import Finding, FindingItem, TaskKind, Tier
@@ -120,42 +124,6 @@ CHECKS: tuple[Check, ...] = (
           "Does this result say the same thing as the spatial result about the same "
           "subject?"),
 )
-
-
-class CheckState(StrEnum):
-    """Three states, and the third is the point.
-
-    ``CANNOT_BE_SETTLED`` is not a soft ``FLAGGED``. A flagged check has been asked
-    and answered against the result; an unsettled one could not be asked at all, and
-    the honest output names what is missing rather than letting the reader infer that
-    nothing was wrong.
-    """
-
-    OK = "ok"
-    FLAGGED = "flagged"
-    CANNOT_BE_SETTLED = "cannot_be_settled"
-
-
-@dataclass(frozen=True, slots=True)
-class CheckResult:
-    """One check's answer, with what it read and what it still needs.
-
-    ``missing`` is the actionable half and is never prose about the tool: each entry
-    names a thing that would settle the check -- "a second biological replicate",
-    "cluster abundances per condition" -- so a biologist can go and get it.
-    ``because`` is what the check actually read.
-    """
-
-    check_id: str
-    state: CheckState
-    headline: str
-    because: tuple[str, ...] = ()
-    missing: tuple[str, ...] = ()
-    coverage: tuple[Coverage, ...] = ()
-
-    @property
-    def settled(self) -> bool:
-        return self.state is not CheckState.CANNOT_BE_SETTLED
 
 
 @dataclass(frozen=True, slots=True)

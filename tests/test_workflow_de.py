@@ -47,6 +47,7 @@ from typing import Any
 import pytest
 
 from panoscope import methods, workflows
+from panoscope.core.interpret import interpret
 from panoscope.core.reconcile import Agreement, Relationship, Side, reconcile
 from panoscope.methods import jazzpanda, seurat_de
 from panoscope.types.claim import Authority
@@ -320,7 +321,7 @@ def test_the_de_ladder_is_an_effect_size_and_never_reaches_a_unit():
     it -- but a COMPARISON has no label space, so nothing may put it on a unit."""
     ev = _evidence(_item("ERBB2", 3.0, MeasuredState.OBSERVED))
     assert seurat_de.MODULE.rubric(ev).value == "Very High"
-    out = de.WORKFLOW.interpret(ev, de.DEAudit(world=WORLD))
+    out = interpret(ev, de.WORKFLOW, de.DEAudit(world=WORLD))
     assert "Very High" not in out.value.summary
     assert not any(d.rule.startswith("band:") for d in out.decisions)
 
@@ -338,9 +339,9 @@ def test_no_band_on_a_comparison():
     fields = {f.name for f in dataclasses.fields(Finding)}
     assert "band" not in fields and "confidence" not in fields
 
-    out = de.WORKFLOW.interpret(
+    out = interpret(
         _evidence(_item("ERBB2", 3.0, MeasuredState.OBSERVED)),
-        de.DEAudit(world=WORLD),
+        de.WORKFLOW, de.DEAudit(world=WORLD),
     ).value
     assert isinstance(out, Finding)
     assert out.task_kind is TaskKind.COMPARISON
@@ -520,7 +521,7 @@ def test_reference_authority_can_never_make_a_de_result_coherent(loaded):
 def test_interpret_tiers_by_the_measurement_and_flags_verify_deterministically(
         loaded):
     ev = loaded.value["c1"]
-    out = de.WORKFLOW.interpret(ev, de.DEAudit(
+    out = interpret(ev, de.WORKFLOW, de.DEAudit(
         world=WORLD, process="T-cell infiltration", canonical=("CD3E",),
         spatial=_spatial_side(),
     ))
@@ -547,7 +548,7 @@ def test_a_tested_absence_is_answered_and_not_flagged_for_recheck():
     the panel, was tested and was not reported, which is an answer the biologist
     already has."""
     ev = _evidence(_item("MKI67", None, MeasuredState.TESTED_ABSENT))
-    item = de.WORKFLOW.interpret(ev, de.DEAudit(world=WORLD)).value.items[0]
+    item = interpret(ev, de.WORKFLOW, de.DEAudit(world=WORLD)).value.items[0]
     assert item.tier is Tier.NOT_SUPPORTED
     assert item.verify is False
 
@@ -580,7 +581,7 @@ def test_the_rival_space_is_the_data_and_an_unknown_confound_is_reported_unasked
 # Every decision this workflow emits is a registered rule
 # --------------------------------------------------------------------------- #
 def test_every_de_decision_is_registered(loaded):
-    traced = de.WORKFLOW.interpret(loaded.value["c1"], de.DEAudit(
+    traced = interpret(loaded.value["c1"], de.WORKFLOW, de.DEAudit(
         world=WORLD, process="T-cell infiltration", canonical=("CD3E",),
         spatial=_spatial_side(), relationship=Relationship.PARTLY_INDEPENDENT,
     ))
@@ -615,7 +616,7 @@ def test_refusal_demonstration(loaded, capsys):
         lines += [f"  [{r.state.value.upper()}] {r.check_id}", f"      {r.headline}"]
         lines += [f"      missing: {m}" for m in r.missing]
         lines.append("")
-    lines += ["SUMMARY", "  " + de.WORKFLOW.interpret(ev, audit).value.summary]
+    lines += ["SUMMARY", "  " + interpret(ev, de.WORKFLOW, audit).value.summary]
     print("\n".join(lines))
 
     out = capsys.readouterr().out

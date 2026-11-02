@@ -14,26 +14,35 @@ missing."* Then nothing reads it. ``grep`` finds ``declared_unknown`` in three t
 files and in one docstring, and in no check anywhere -- so the propagation is a rule
 the type is shaped for and no caller performs.
 
-``workflows/de.py`` holds up the other end, by hand, four times over. Its
-``CheckState`` is three-valued, its ``CheckResult.missing`` is actionable prose, and
-its four checks each hand-roll the same two steps: notice an input is absent, refuse,
-name what would settle it. Not one of them refuses on a ``Condition`` -- they refuse
-on a frame, a replicate count, an abundance table, a second method's result. The
-condition fields the study genuinely does not know (segmentation and fixation on the
-demo study; modality and method too, on the kidney one) propagate into nothing.
+``workflows/de.py`` holds up the other end, by hand, four times over. Its checks are
+three-valued, their ``missing`` is actionable prose, and each one hand-rolls the same
+two steps: notice an input is absent, refuse, name what would settle it. Not one of
+them refuses on a ``Condition`` -- they refuse on a frame, a replicate count, an
+abundance table, a second method's result. The condition fields the study genuinely
+does not know (segmentation and fixation on the demo study; modality and method too,
+on the kidney one) propagate into nothing.
 
 This module is that missing edge, and it is one function.
 
-**Why the return type is not ``CheckResult``.** It would be the obvious shape and it
-is unavailable: ``CheckState`` and ``CheckResult`` live in ``workflows/de.py``, and
-``core/`` cannot import ``workflows/`` -- the dependency runs the other way, and
-inverting it would make a broken workflow able to break the core. :class:`Unsettled`
-is therefore the primitive, carrying exactly the two tuples a ``CheckResult`` needs
-spliced into it, and nothing else. **That the three-valued check state lives in a
-workflow rather than in ``types/`` is a real defect** -- it is the vocabulary every
-workflow's checks need, and the second workflow that wants it will either import from
-``de.py`` or write a third copy -- but ``types/`` is frozen, so it is reported rather
-than moved.
+**The return type is a ``CheckResult``**, the same object a workflow's own checks
+return, so a check that cannot be asked composes into the checklist rather than
+needing a second shape spliced into it::
+
+    r = propagate.requires(conditions, COMPOSITION, "segmentation")
+    if not r.value.settled:
+        return r
+
+``CheckState`` and ``CheckResult`` live in ``types/contracts.py``, beside the
+``Check`` they answer. They were in ``workflows/de.py`` and this module carried its
+own two-tuple primitive instead, because ``core/`` cannot import ``workflows/`` --
+the dependency runs the other way, and inverting it would let a broken workflow break
+the core. Moving the vocabulary to ``types/`` was the reviewed contract change that
+removed the primitive; a type nobody emits is dead vocabulary.
+
+**``OK`` here is not a verdict on the result.** It says only that every condition the
+check declared is known -- that the question could be asked. The caller keeps going
+and overwrites it with its own answer. Only ``CANNOT_BE_SETTLED`` is returned as-is,
+because that *is* the answer: there is nothing left to ask.
 
 **``missing`` is sentences, not field names.** It is built to drop straight into
 ``CheckResult.missing``, whose contract is that each entry names a thing that would
@@ -52,12 +61,12 @@ block the study, the rest propagate.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Final
 
 from panoscope.types.conditions import (
     BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, Conditions,
 )
+from panoscope.types.contracts import CheckResult, CheckState
 from panoscope.types.trace import Trace, Traced
 
 #: Every ``Condition`` field, read off the §6.3 table rather than re-listed. A
@@ -76,35 +85,8 @@ class UnknownConditionField(ValueError):
     """
 
 
-@dataclass(frozen=True, slots=True)
-class Unsettled:
-    """What a check declared it reads, and which of those the study does not know.
-
-    Two tuples rather than a boolean, for the reason ``CheckState`` has three states
-    and ``MeasuredState`` has four: "we read every condition this needs" and "we
-    could not read one" are opposite readings that a flag renders identically, and
-    only the second is actionable. ``reading`` is kept beside ``missing`` so a
-    settled result still says what it checked -- a check that names its inputs only
-    when they are absent cannot be audited when it passes.
-    """
-
-    reading: tuple[str, ...]   # the condition fields the check declared it reads
-    missing: tuple[str, ...]   # actionable sentences, one per unknown field
-
-    @property
-    def settled(self) -> bool:
-        """True when every declared condition is known. Never a judgement about the
-        study -- only about whether the question could be asked of it."""
-        return not self.missing
-
-    def __str__(self) -> str:
-        if self.settled:
-            return f"every condition read is known: {', '.join(self.reading) or '-'}"
-        return (f"cannot be settled: {len(self.missing)} of "
-                f"{len(self.reading)} condition(s) declared unknown")
-
-
-def requires(conditions: Conditions, *fields: str) -> Traced[Unsettled]:
+def requires(conditions: Conditions, check_id: str,
+             *fields: str) -> Traced[CheckResult]:
     """The conditions a check depends on, and the unknowns that stop it settling.
 
     ``fields`` is the check's own declaration of what it reads. Declaring it is the
@@ -112,10 +94,15 @@ def requires(conditions: Conditions, *fields: str) -> Traced[Unsettled]:
     carry on, and nothing downstream can tell that it did -- the answer it returns is
     shaped exactly like one it reached honestly.
 
+    ``check_id`` is the registered id of the check this answers for, not prose. It is
+    required rather than defaulted because a ``CheckResult`` with no ``check_id``
+    cannot be put on the review surface next to the checks that did fire, which is
+    the one thing an unsettled check exists to be.
+
     Order is ``Conditions``' declaration order, never the caller's. ``missing`` is
-    hashed into a record through whatever ``CheckResult`` it is spliced into, and
-    two checks reading the same two fields in different orders must not produce two
-    different records of the same gap.
+    hashed into a record through the ``CheckResult`` it travels in, and two checks
+    reading the same two fields in different orders must not produce two different
+    records of the same gap.
 
     ``UNKNOWN`` is not reported as a caveat on the answer. It *is* the answer: the
     check could not be asked. That distinction is why this returns a tuple of things
@@ -139,14 +126,24 @@ def requires(conditions: Conditions, *fields: str) -> Traced[Unsettled]:
         "state it, or record why it cannot be known"
         for f in unknown
     )
-    out = Unsettled(reading=declared, missing=missing)
+    read = ", ".join(declared) or "the check declared none"
 
     if unknown:
+        out = CheckResult(
+            check_id, CheckState.CANNOT_BE_SETTLED,
+            headline=(f"CANNOT BE SETTLED -- {', '.join(unknown)} unknown of "
+                      f"{read} read"),
+            because=(f"conditions read: {read}",),
+            missing=missing,
+        )
         t.note("propagate:cannot_be_settled", ", ".join(unknown),
-               (f"{', '.join(unknown)} unknown of "
-                f"{', '.join(declared) or 'no fields'} read",) + missing)
+               (out.headline,) + missing)
     else:
+        out = CheckResult(
+            check_id, CheckState.OK,
+            headline=f"every condition read is known: {read}",
+            because=(f"conditions read: {read}",),
+        )
         t.note("propagate:conditions_known", ", ".join(declared) or "none",
-               (f"every condition read is known: "
-                f"{', '.join(declared) or 'the check declared none'}",))
+               (out.headline,))
     return t.done(out)

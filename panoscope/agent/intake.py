@@ -179,7 +179,7 @@ class Checklist:
         out = [f"Study intake -- {self.study}", ""]
         if self.unread_because:
             out += [
-                "  ! the store could not be read as a whole, so a field below shown "
+                "  ! the adapter did not report on every field, so one shown below "
                 "as unknown",
                 "    may still be declared in the files. Reason: "
                 + self.unread_because,
@@ -228,14 +228,14 @@ class Draft:
     frames: tuple[FrameRef, ...]
     clustering: Condition
     unread_because: str = ""
-    """Why the store's standing conditions could not be read **as a whole**, or ``""``.
+    """Which fields the adapter did not report on, and why, or ``""``.
 
-    ``PlatformAdapter.standing_conditions`` returns a ``Conditions``, so it raises on
-    a store that is missing a blocker rather than reporting the fields it did read --
-    and the contract offers no partial read. The honest response is to say so: every
-    field below is then shown as unknown *because intake could not read it*, which is
-    a different statement from the files being silent, and the checklist must not
-    collapse the two."""
+    ``PlatformAdapter.reads`` is a partial read, so a blocking unknown no longer
+    costs the fields that *were* readable. What is left is the adapter refusing the
+    store outright, or reporting fewer fields than the contract names: those fields
+    are shown as unknown *because intake could not read them*, which is a different
+    statement from the files being silent, and the checklist must not collapse the
+    two."""
     clustering_blocked_because: str = ""
     """The ``UndeclaredClustering`` message, verbatim, or ``""`` when the adapter
     returned a mode. Says why *and* which manifest to open -- the half a bare flag
@@ -408,24 +408,30 @@ class Draft:
 def derive(adapter: PlatformAdapter, store: Any) -> Draft:
     """§6.4 step 1: everything the files already say. **Asks nothing.**
 
-    **The one place this falls short of "ask nothing a file answers", and why.**
-    ``standing_conditions`` is all-or-nothing -- it returns a ``Conditions``, which
-    cannot hold a blocking unknown, so a store missing its tissue raises instead of
-    reporting the assay it *did* read. ``PlatformAdapter`` offers no partial read, and
-    intake does not open the manifest behind the adapter's back: which key carries the
-    assay is adapter knowledge, and a second reader of it is a second thing to keep
-    right and a guaranteed liar for the next platform. So a store that is already
-    blocked degrades to all-unknown, and :attr:`Draft.unread_because` makes the
-    checklist say *could not read* rather than imply *the files are silent*. The fix
-    is a partial read on the adapter contract, which is frozen -- see the handover.
+    Through ``PlatformAdapter.reads``, the partial read: a store that declares its
+    assay and not its tissue hands over the assay, and the missing tissue is one
+    blocking row on the checklist rather than six unknown ones. Intake never opens the
+    manifest behind the adapter's back -- which key carries the assay is adapter
+    knowledge, and a second reader of it is a second thing to keep right and a
+    guaranteed liar for the next platform.
+
+    :attr:`Draft.unread_because` survives for the two cases that still degrade: an
+    adapter that refuses the store outright, and one that reports fewer fields than
+    the contract names. Both show every unreported field as unknown, and *could not
+    read* is a different statement from *the files are silent*.
     """
     frames = tuple(f.ref() for f in adapter.frames(store))
     unread = ""
     try:
-        standing = adapter.standing_conditions(store)
-        read = {f: getattr(standing, f) for f in FIELDS}
+        got = dict(adapter.reads(store))
     except Blocked as exc:
-        read, unread = {f: UNKNOWN for f in FIELDS}, str(exc)
+        got, unread = {}, str(exc)
+    silent = tuple(f for f in FIELDS if f not in got)
+    if silent and not unread:
+        unread = (f"the platform adapter reported no read for {', '.join(silent)}; "
+                  "shown as unknown because intake could not read it, which is not "
+                  "the same as the files being silent")
+    read = {f: got.get(f, UNKNOWN) for f in FIELDS}
 
     try:
         clustering = Condition(str(adapter.clustering_mode(store)), Provenance.READ)

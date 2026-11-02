@@ -234,7 +234,13 @@ class CensusHeader:
 class ConfoundCheck:
     key: str                         # "composition"
     label: str                       # "composition"
-    state_field: str                 # -> "ok" | "flagged" | "not_assessable"
+    # -> a CheckState value: "ok" | "flagged" | "cannot_be_settled". The third is
+    # spelled as types/contracts.CheckState spells it, not as prose: this comment
+    # said "not_assessable" while every check emitted "cannot_be_settled", so a
+    # renderer written against the comment matched nothing and fell through to the
+    # one reading a biologist must not be given -- a check that could not be asked,
+    # rendered as one that passed.
+    state_field: str
     detail_field: str
     claim_id_field: str = ""         # opens this claim card
 

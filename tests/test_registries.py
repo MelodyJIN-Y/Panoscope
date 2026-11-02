@@ -38,6 +38,7 @@ from typing import Any, Literal
 import pytest
 
 from panoscope import methods, workflows
+from panoscope.core.interpret import interpret
 from panoscope.methods import jazzpanda
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import (
@@ -408,7 +409,7 @@ def test_interpret_partitions_by_whether_a_number_exists():
         _item("CD3E", None, MeasuredState.NEVER_MEASURED),
     )
     ref = marker.MarkerReference(label="Tumor", canonical=("ERBB2",), world=WORLD)
-    out = marker.WORKFLOW.interpret(ev, ref)
+    out = interpret(ev, marker.WORKFLOW, ref)
 
     assert isinstance(out.value, Assignment)
     # Three markers carry a number, so the fragile cap does not apply and the band

@@ -234,18 +234,17 @@ class XeniumAdapter:
         """
         return ("xenium_microns", 1.0)
 
-    def standing_conditions(self, store: Study) -> Conditions:
-        """What the store states about the experiment, with provenance.
+    def reads(self, store: Study) -> dict[str, Condition]:
+        """What the store states about the experiment, with provenance. Asserts
+        nothing about whether it is enough.
 
         ``READ`` for everything parsed out of a file and ``UNKNOWN`` for everything
         else. The adapter never writes ``INFERRED`` -- that provenance means a model
         proposed it and the biologist confirmed, and neither has happened here.
 
-        Raises ``Blocked`` (from ``Conditions``) when the store declares no frames, no
-        tissue or no assay. That is the right layer to fail at: a study with no
-        capability frame makes every absence ``NEVER_MEASURED`` and the panel-absence
-        rule a machine that says nothing. ``validate`` reports the same gaps as
-        strings, for the intake checklist.
+        Never raises on a missing field: a store with a readable assay and no tissue
+        still yields the assay. Deciding that the missing tissue blocks the study is
+        :class:`Conditions`' job, through :meth:`standing_conditions`.
         """
         def read(key: str) -> Condition:
             v = store.manifest.get(key)
@@ -261,15 +260,27 @@ class XeniumAdapter:
         if modality is UNKNOWN and (store.manifest.get("platform") or "").strip().lower() == "xenium":
             modality = Condition("imaging_spatial_transcriptomics", Provenance.READ)
 
-        return Conditions(
-            assay=read("platform"),
-            modality=modality,
-            tissue=read("tissue"),
-            method=read("method"),
-            segmentation=read("segmentation"),
-            fixation=read("fixation"),
-            frames=tuple(f.ref() for f in self.frames(store)),
-        )
+        return {
+            "assay": read("platform"),
+            "modality": modality,
+            "tissue": read("tissue"),
+            "method": read("method"),
+            "segmentation": read("segmentation"),
+            "fixation": read("fixation"),
+        }
+
+    def standing_conditions(self, store: Study) -> Conditions:
+        """:meth:`reads`, finished with the frames into a ``Conditions``.
+
+        Raises ``Blocked`` (from ``Conditions``) when the store declares no frames,
+        no tissue or no assay. That is the right layer to fail at: a study with no
+        capability frame makes every absence ``NEVER_MEASURED`` and the panel-absence
+        rule a machine that says nothing. ``validate`` reports the same gaps as
+        strings, for the intake checklist, and ``reads`` hands over the fields that
+        *were* readable without asserting the study is complete.
+        """
+        return Conditions(frames=tuple(f.ref() for f in self.frames(store)),
+                          **self.reads(store))
 
     # ---- validation -------------------------------------------------------- #
     def validate(self, store: Study) -> list[str]:

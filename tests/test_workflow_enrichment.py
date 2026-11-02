@@ -37,6 +37,7 @@ from typing import Any
 import pytest
 
 from panoscope import methods, workflows
+from panoscope.core.interpret import interpret
 from panoscope.methods import jazzpanda, jazzpanda_cgst
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import MethodModule, UnrecognisedResult, Workflow
@@ -183,7 +184,7 @@ def test_asking_a_characterisation_method_for_a_band_raises(c1):
 
 
 def test_interpret_returns_a_finding_whose_header_is_per_item_counts(c1):
-    out = enrichment.WORKFLOW.interpret(c1, enrichment.EnrichmentReference(
+    out = interpret(c1, enrichment.WORKFLOW, enrichment.EnrichmentReference(
         cell_type="Tumor", world=MeasuredWorld((PANEL, CLUSTERS))))
     f = out.value
     assert isinstance(f, Finding) and not isinstance(f, Assignment)
@@ -228,7 +229,7 @@ def test_a_below_floor_set_is_underpowered_and_therefore_non_arguing(c1, loaded)
     withheld = [d for d in loaded.decisions if "withheld" in d.outcome]
     assert any("5.0000" in b for d in withheld for b in d.because)
 
-    out = enrichment.WORKFLOW.interpret(c1, enrichment.EnrichmentReference())
+    out = interpret(c1, enrichment.WORKFLOW, enrichment.EnrichmentReference())
     item = next(i for i in out.value.items
                 if i.subject.display() == "HALLMARK_FATTY_ACID_METABOLISM")
     assert item.tier is Tier.UNTESTABLE
@@ -245,7 +246,7 @@ def test_measured_absence_and_untestable_stay_apart(c1):
     assert apop.measured.state is MeasuredState.TESTED_ABSENT
     assert apop.statistic is None and apop.measured.absence_is_evidence
 
-    out = enrichment.WORKFLOW.interpret(c1, enrichment.EnrichmentReference())
+    out = interpret(c1, enrichment.WORKFLOW, enrichment.EnrichmentReference())
     tiers = {i.subject.display(): i.tier for i in out.value.items}
     assert tiers["HALLMARK_APOPTOSIS"] is Tier.NOT_SUPPORTED
     assert tiers["HALLMARK_FATTY_ACID_METABOLISM"] is Tier.UNTESTABLE
@@ -257,7 +258,7 @@ def test_verify_comes_from_the_rubric_and_flags_the_weak_call(c1):
     """``verify`` is deterministic and is never offered to a caller as an argument.
     A suggestive program carries it; an untestable one does not -- it is not a call
     a second look could settle."""
-    out = enrichment.WORKFLOW.interpret(c1, enrichment.EnrichmentReference())
+    out = interpret(c1, enrichment.WORKFLOW, enrichment.EnrichmentReference())
     verify = {i.subject.display(): i.verify for i in out.value.items}
     assert verify["HALLMARK_EMT"] is True
     assert verify["HALLMARK_FATTY_ACID_METABOLISM"] is False
@@ -394,7 +395,7 @@ def test_the_pair_demonstration(c1, capsys):
             f"methods   {[m.name for m in methods.for_workflow(w.name)]}",
             "",
         ]
-    out = enrichment.WORKFLOW.interpret(c1, enrichment.EnrichmentReference(
+    out = interpret(c1, enrichment.WORKFLOW, enrichment.EnrichmentReference(
         cell_type="Tumor", world=MeasuredWorld((PANEL, CLUSTERS))))
     lines += ["header (per-item counts, no band):", "  " + out.value.summary, ""]
     for i in out.value.items:

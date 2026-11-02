@@ -56,11 +56,14 @@ stream later needs more, widening a frozen carrier is a reviewed contract change
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Literal, Protocol, runtime_checkable
+from enum import StrEnum
+from typing import (
+    TYPE_CHECKING, Any, Iterator, Literal, Mapping, Protocol, runtime_checkable,
+)
 
-from panoscope.types.conditions import Conditions
+from panoscope.types.conditions import Condition, Conditions
 from panoscope.types.evidence import EvidenceItem, NormalisedEvidence
-from panoscope.types.measured import Frame, Measured
+from panoscope.types.measured import Coverage, Frame, Measured
 from panoscope.types.outputs import Assignment, Finding, TaskKind
 from panoscope.types.subject import Subject
 from panoscope.types.trace import Traced
@@ -121,6 +124,49 @@ class Check:
 
     id: str          # REGISTERED id, never prose -- the UI and tests match on this
     question: str    # biologist-facing, one sentence
+
+
+class CheckState(StrEnum):
+    """Three states, and the third is the point.
+
+    ``CANNOT_BE_SETTLED`` is not a soft ``FLAGGED``. A flagged check has been asked
+    and answered against the result; an unsettled one could not be asked at all, and
+    the honest output names what is missing rather than letting the reader infer that
+    nothing was wrong.
+
+    Here rather than in a workflow because it is the vocabulary **every** workflow's
+    checks need, and ``core/`` needs it too: ``core/propagate.py`` turns a declared
+    unknown into one of these, and a core module importing a workflow would let a
+    broken workflow break the core. A second workflow wanting a three-valued check
+    imports it from here; before this moved it would have imported ``workflows/de``,
+    which is a workflow depending on another workflow.
+    """
+
+    OK = "ok"
+    FLAGGED = "flagged"
+    CANNOT_BE_SETTLED = "cannot_be_settled"
+
+
+@dataclass(frozen=True, slots=True)
+class CheckResult:
+    """One :class:`Check`'s answer, with what it read and what it still needs.
+
+    ``missing`` is the actionable half and is never prose about the tool: each entry
+    names a thing that would settle the check -- "a second biological replicate",
+    "cluster abundances per condition" -- so a biologist can go and get it.
+    ``because`` is what the check actually read.
+    """
+
+    check_id: str
+    state: CheckState
+    headline: str
+    because: tuple[str, ...] = ()
+    missing: tuple[str, ...] = ()
+    coverage: tuple[Coverage, ...] = ()
+
+    @property
+    def settled(self) -> bool:
+        return self.state is not CheckState.CANNOT_BE_SETTLED
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,11 +234,31 @@ class PlatformAdapter(Protocol):
         can see in the figure.
         """
 
-    def standing_conditions(self, store: Any) -> Conditions:
-        """What the store itself states about the experiment, with provenance.
+    def reads(self, store: Any) -> Mapping[str, Condition]:
+        """The partial read: ``Conditions`` field name -> what the files say.
 
-        ``Provenance.READ`` for anything parsed out of the files. Intake fills the
-        rest; the adapter never writes ``INFERRED``.
+        ``Provenance.READ`` for anything parsed out of the files, ``UNKNOWN`` where
+        they are silent. The adapter never writes ``INFERRED``, and it never decides
+        whether what it read is *enough* -- that is intake's job, and the adapter's
+        is to report what the store declares.
+
+        This exists because :meth:`standing_conditions` cannot do it.
+        ``Conditions`` is the **finished** object and raises on a blocking unknown,
+        so a store declaring ``platform: Xenium`` and no tissue gave intake nothing
+        at all -- including the assay the file plainly states. A mapping asserts no
+        completeness, so the partial read survives the gap that blocks the study.
+
+        ``frames`` is not here: it is not a ``Condition``, it has no provenance, and
+        :meth:`frames` already returns it first-hand.
+        """
+
+    def standing_conditions(self, store: Any) -> Conditions:
+        """:meth:`reads`, finished into a ``Conditions``. Raises when it cannot be.
+
+        The same values, assembled with ``frames`` into the object every
+        applicability check consumes. Raises ``Blocked`` on a blocking unknown,
+        which is what a *finished* object is for -- a caller that wants what the
+        files said without that assertion calls :meth:`reads`.
         """
 
     def validate(self, store: Any) -> list[str]:

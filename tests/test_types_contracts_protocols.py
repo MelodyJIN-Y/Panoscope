@@ -84,6 +84,10 @@ class StubAdapter:
     def coordinate_system(self, store: Any) -> tuple[str, float]:
         return ("micron", 1.0)
 
+    def reads(self, store: Any) -> dict[str, Condition]:
+        return {f.name: getattr(CONDITIONS, f.name)
+                for f in dataclasses.fields(Conditions) if f.name != "frames"}
+
     def standing_conditions(self, store: Any) -> Conditions:
         return CONDITIONS
 
