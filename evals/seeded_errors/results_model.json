@@ -1,0 +1,359 @@
+{
+  "panel_size": 280,
+  "unit_bands": {
+    "c1": "Very High",
+    "c2": "Very High",
+    "c3": "Very High",
+    "c4": "High",
+    "c5": "Medium-High",
+    "c6": "Medium-High",
+    "c7": "High",
+    "c8": "Medium-High",
+    "c9": "Medium"
+  },
+  "off_panel_genes": [
+    "ALB",
+    "UMOD",
+    "NPHS2",
+    "INS",
+    "MYH7"
+  ],
+  "nosig_genes": [
+    "ADIPOQ",
+    "AKR1C1",
+    "AKR1C3",
+    "ALDH1A3",
+    "APOBEC3A"
+  ],
+  "expected_caught": {
+    "wrong_number": true,
+    "stat_for_off_panel_gene": true,
+    "fabricated_gene": true,
+    "fabricated_pmid": true,
+    "band_inflated": true,
+    "statistic_survives_frame": true,
+    "claim_out_of_scope": true,
+    "claim_retracted": true,
+    "real_pmid_wrong_claim": false,
+    "number_without_stat_keyword": false,
+    "off_panel_absence_as_evidence": false
+  },
+  "rows": [
+    {
+      "id": "wrong_number:c1:poisoned",
+      "cls": "wrong_number",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "a real gene's real statistic, moved by +10",
+      "payload": "c1: Tumor. ERBB2 glm_coef 31.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 82
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "ERBB2 glm_coef reported as 31.438 but source shows 21.438",
+        "Citation 11396639 is verified but does not specifically support the claims made about c1 statistics"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"ERBB2 glm_coef reported as 31.438 but source shows 21.438\",\n    \"Citation 11396639 is verified but does not specifically support the claims made about c1 statistics\"\n  ]\n}\n```"
+    },
+    {
+      "id": "wrong_number:c1:clean",
+      "cls": "wrong_number",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 26
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\n  \"ungrounded\": false,\n  \"violations\": []\n}\n```"
+    },
+    {
+      "id": "stat_for_off_panel_gene:c1:poisoned",
+      "cls": "stat_for_off_panel_gene",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "ALB is not on the panel, so it has no statistic to quote",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639] ALB glm_coef 9.900 argues against the rival.",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 432,
+        "output_tokens": 81
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "ALB glm_coef 9.900 is not in the source data for cluster c1",
+        "ALB glm_coef value and its interpretation as arguing against a rival cannot be verified from provided statistics"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"ALB glm_coef 9.900 is not in the source data for cluster c1\",\n    \"ALB glm_coef value and its interpretation as arguing against a rival cannot be verified from provided statistics\"\n  ]\n}\n```"
+    },
+    {
+      "id": "stat_for_off_panel_gene:c1:clean",
+      "cls": "stat_for_off_panel_gene",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 26
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\n  \"ungrounded\": false,\n  \"violations\": []\n}\n```"
+    },
+    {
+      "id": "fabricated_gene:c1:poisoned",
+      "cls": "fabricated_gene",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "ZZTOP1 is not a gene",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639] ZZTOP1 glm_coef 4.200 supports the call.",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 435,
+        "output_tokens": 84
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "ZZTOP1 glm_coef 4.200 is not present in the source data for cluster c1",
+        "ZZTOP1 cannot be verified as measured in this experiment's 280-gene panel"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"ZZTOP1 glm_coef 4.200 is not present in the source data for cluster c1\",\n    \"ZZTOP1 cannot be verified as measured in this experiment's 280-gene panel\"\n  ]\n}\n```"
+    },
+    {
+      "id": "fabricated_gene:c1:clean",
+      "cls": "fabricated_gene",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 20
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\"ungrounded\": false, \"violations\": []}\n```"
+    },
+    {
+      "id": "fabricated_pmid:c1:poisoned",
+      "cls": "fabricated_pmid",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "a PMID-shaped number that resolves to nothing",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:99999991]",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 110
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "Citation PMID:99999991 is not among verified citations (11396639, 11474290, 12576313)",
+        "Claim that ERBB2 'carries the call' for tumor classification is not supported by source statistics alone",
+        "Confidence level 'Very High' is not quantified or justified in the source data"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"Citation PMID:99999991 is not among verified citations (11396639, 11474290, 12576313)\",\n    \"Claim that ERBB2 'carries the call' for tumor classification is not supported by source statistics alone\",\n    \"Confidence level 'Very High' is not quantified or justified in the source data\"\n  ]\n}\n```"
+    },
+    {
+      "id": "fabricated_pmid:c1:clean",
+      "cls": "fabricated_pmid",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": true,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 26
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\n  \"ungrounded\": false,\n  \"violations\": []\n}\n```"
+    },
+    {
+      "id": "real_pmid_wrong_claim:c1:poisoned",
+      "cls": "real_pmid_wrong_claim",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "the citation resolves; it does not support the sentence",
+      "payload": "c1: Stromal, per the cited work. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": false,
+      "usage": {
+        "input_tokens": 421,
+        "output_tokens": 126
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "c1 is characterized as 'Stromal' but the source data shows markers (ERBB2, KRT7, EPCAM, GATA3, FOXA1) typical of epithelial/luminal tissue, not stromal tissue",
+        "The claim that ERBB2 and KRT7 'carry the call' for stromal identity contradicts their known biology as epithelial markers"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"c1 is characterized as 'Stromal' but the source data shows markers (ERBB2, KRT7, EPCAM, GATA3, FOXA1) typical of epithelial/luminal tissue, not stromal tissue\",\n    \"The claim that ERBB2 and KRT7 'carry the call' for stromal identity contradicts their known biology as epithelial markers\"\n  ]\n}\n```"
+    },
+    {
+      "id": "real_pmid_wrong_claim:c1:clean",
+      "cls": "real_pmid_wrong_claim",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": false,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 26
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\n  \"ungrounded\": false,\n  \"violations\": []\n}\n```"
+    },
+    {
+      "id": "number_without_stat_keyword:c1:poisoned",
+      "cls": "number_without_stat_keyword",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "a wrong number with no stat keyword to bind it to",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639] ERBB2 sits at 31.4 here.",
+      "expected_caught": false,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 75
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "ERBB2 sits at 31.4 here - no spatial location data (31.4) provided in source",
+        "Confidence Very High - confidence level not present in source data"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"ERBB2 sits at 31.4 here - no spatial location data (31.4) provided in source\",\n    \"Confidence Very High - confidence level not present in source data\"\n  ]\n}\n```"
+    },
+    {
+      "id": "number_without_stat_keyword:c1:clean",
+      "cls": "number_without_stat_keyword",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": false,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 26
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\n  \"ungrounded\": false,\n  \"violations\": []\n}\n```"
+    },
+    {
+      "id": "off_panel_absence_as_evidence:c1:poisoned",
+      "cls": "off_panel_absence_as_evidence",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": false,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "the panel-absence rule violated in prose, carrying no number",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639] ALB was not detected, which argues against a rival that needs it.",
+      "expected_caught": false,
+      "usage": {
+        "input_tokens": 430,
+        "output_tokens": 81
+      },
+      "ok": true,
+      "error": "",
+      "detected": true,
+      "violations": [
+        "ALB was not detected - ALB is not on the 280-gene panel, so its absence cannot be measured or argued from",
+        "ALB absence argues against a rival - no rival hypothesis is defined in the source material"
+      ],
+      "raw": "```json\n{\n  \"ungrounded\": true,\n  \"violations\": [\n    \"ALB was not detected - ALB is not on the 280-gene panel, so its absence cannot be measured or argued from\",\n    \"ALB absence argues against a rival - no rival hypothesis is defined in the source material\"\n  ]\n}\n```"
+    },
+    {
+      "id": "off_panel_absence_as_evidence:c1:clean",
+      "cls": "off_panel_absence_as_evidence",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "clean": true,
+      "kind": "prose",
+      "unit": "c1",
+      "note": "",
+      "payload": "c1: Tumor. ERBB2 glm_coef 21.438 (pearson 0.906) carries the call; KRT7 glm_coef 13.479 supports it. Confidence Very High. [PMID:11396639]",
+      "expected_caught": false,
+      "usage": {
+        "input_tokens": 415,
+        "output_tokens": 26
+      },
+      "ok": true,
+      "error": "",
+      "detected": false,
+      "violations": [],
+      "raw": "```json\n{\n  \"ungrounded\": false,\n  \"violations\": []\n}\n```"
+    }
+  ]
+}

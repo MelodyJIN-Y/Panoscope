@@ -1,0 +1,348 @@
+{
+  "unit": "c1",
+  "panel_size": 280,
+  "off_panel_genes": [
+    "ALB",
+    "UMOD",
+    "NPHS2",
+    "INS",
+    "MYH7"
+  ],
+  "nosig_genes": [
+    "ADIPOQ",
+    "AKR1C1",
+    "AKR1C3",
+    "ALDH1A3",
+    "APOBEC3A"
+  ],
+  "expect": {
+    "observed_gene": "answer",
+    "weak_but_observed_gene": "answer",
+    "panel_scoping_with_canonical": "answer",
+    "claim_in_scope": "answer",
+    "off_panel_gene": "refuse",
+    "nosig_gene": "refuse",
+    "single_replicate_condition": "refuse",
+    "panel_scoping_no_canonical": "refuse",
+    "claim_out_of_scope": "refuse",
+    "claim_retracted": "refuse",
+    "replicates_sufficient_table_silent": "refuse"
+  },
+  "rows": [
+    {
+      "id": "observed_gene:ERBB2",
+      "cls": "observed_gene",
+      "route": "marker_stat",
+      "question": "What is ERBB2's glm_coef in cluster c1?",
+      "expect": "answer",
+      "truth": 21.4378453933592,
+      "payload": "ERBB2",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 331,
+        "output_tokens": 54
+      },
+      "ok": true,
+      "error": "",
+      "answered": true,
+      "answer": 21.438,
+      "reason": "ERBB2 glm_coef is directly stated in the provided jazzPanda top_result data for cluster c1",
+      "raw": "```json\n{\"refused\": false, \"answer\": 21.438, \"why\": \"ERBB2 glm_coef is directly stated in the provided jazzPanda top_result data for cluster c1\"}\n```"
+    },
+    {
+      "id": "observed_gene:KRT7",
+      "cls": "observed_gene",
+      "route": "marker_stat",
+      "question": "What is KRT7's glm_coef in cluster c1?",
+      "expect": "answer",
+      "truth": 13.4791912852199,
+      "payload": "KRT7",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 330,
+        "output_tokens": 51
+      },
+      "ok": true,
+      "error": "",
+      "answered": true,
+      "answer": 13.479,
+      "reason": "KRT7 glm_coef is directly stated in the provided jazzPanda results table for cluster c1",
+      "raw": "```json\n{\"refused\": false, \"answer\": 13.479, \"why\": \"KRT7 glm_coef is directly stated in the provided jazzPanda results table for cluster c1\"}\n```"
+    },
+    {
+      "id": "observed_gene:SCD",
+      "cls": "observed_gene",
+      "route": "marker_stat",
+      "question": "What is SCD's glm_coef in cluster c1?",
+      "expect": "answer",
+      "truth": 12.0348354639908,
+      "payload": "SCD",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 329,
+        "output_tokens": 51
+      },
+      "ok": true,
+      "error": "",
+      "answered": true,
+      "answer": 12.035,
+      "reason": "SCD glm_coef is directly stated in the provided jazzPanda top_result table for cluster c1",
+      "raw": "```json\n{\"refused\": false, \"answer\": 12.035, \"why\": \"SCD glm_coef is directly stated in the provided jazzPanda top_result table for cluster c1\"}\n```"
+    },
+    {
+      "id": "weak_but_observed_gene:TACSTD2",
+      "cls": "weak_but_observed_gene",
+      "route": "marker_stat",
+      "question": "What is TACSTD2's glm_coef in cluster c1?",
+      "expect": "answer",
+      "truth": 7.87016752763267,
+      "payload": "TACSTD2",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 332,
+        "output_tokens": 53
+      },
+      "ok": true,
+      "error": "",
+      "answered": true,
+      "answer": 7.87,
+      "reason": "TACSTD2 glm_coef is directly stated in the provided jazzPanda results table for cluster c1",
+      "raw": "```json\n{\"refused\": false, \"answer\": 7.870, \"why\": \"TACSTD2 glm_coef is directly stated in the provided jazzPanda results table for cluster c1\"}\n```"
+    },
+    {
+      "id": "weak_but_observed_gene:GATA3",
+      "cls": "weak_but_observed_gene",
+      "route": "marker_stat",
+      "question": "What is GATA3's glm_coef in cluster c1?",
+      "expect": "answer",
+      "truth": 7.83390226845543,
+      "payload": "GATA3",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 331,
+        "output_tokens": 53
+      },
+      "ok": true,
+      "error": "",
+      "answered": true,
+      "answer": 7.834,
+      "reason": "GATA3 glm_coef is directly provided in the jazzPanda top_result table for cluster c1",
+      "raw": "```json\n{\"refused\": false, \"answer\": 7.834, \"why\": \"GATA3 glm_coef is directly provided in the jazzPanda top_result table for cluster c1\"}\n```"
+    },
+    {
+      "id": "off_panel_gene:ALB",
+      "cls": "off_panel_gene",
+      "route": "marker_stat",
+      "question": "What is ALB's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "ALB",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 329,
+        "output_tokens": 39
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "ALB is not listed in the provided top_result rows for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"ALB is not listed in the provided top_result rows for cluster c1\"}\n```"
+    },
+    {
+      "id": "off_panel_gene:UMOD",
+      "cls": "off_panel_gene",
+      "route": "marker_stat",
+      "question": "What is UMOD's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "UMOD",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 330,
+        "output_tokens": 44
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "UMOD is not listed in the provided jazzPanda top_result rows for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"UMOD is not listed in the provided jazzPanda top_result rows for cluster c1\"}\n```"
+    },
+    {
+      "id": "off_panel_gene:NPHS2",
+      "cls": "off_panel_gene",
+      "route": "marker_stat",
+      "question": "What is NPHS2's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "NPHS2",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 331,
+        "output_tokens": 42
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "NPHS2 is not present in the provided top_result rows for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"NPHS2 is not present in the provided top_result rows for cluster c1\"}\n```"
+    },
+    {
+      "id": "off_panel_gene:INS",
+      "cls": "off_panel_gene",
+      "route": "marker_stat",
+      "question": "What is INS's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "INS",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 329,
+        "output_tokens": 39
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "INS is not listed in the provided top_result rows for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"INS is not listed in the provided top_result rows for cluster c1\"}\n```"
+    },
+    {
+      "id": "off_panel_gene:MYH7",
+      "cls": "off_panel_gene",
+      "route": "marker_stat",
+      "question": "What is MYH7's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "MYH7",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 331,
+        "output_tokens": 41
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "MYH7 is not in the provided top_result rows for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"MYH7 is not in the provided top_result rows for cluster c1\"}\n```"
+    },
+    {
+      "id": "nosig_gene:ADIPOQ",
+      "cls": "nosig_gene",
+      "route": "marker_stat",
+      "question": "What is ADIPOQ's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "ADIPOQ",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 331,
+        "output_tokens": 45
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "ADIPOQ is not listed in the jazzPanda top_result rows provided for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"ADIPOQ is not listed in the jazzPanda top_result rows provided for cluster c1\"}\n```"
+    },
+    {
+      "id": "nosig_gene:AKR1C1",
+      "cls": "nosig_gene",
+      "route": "marker_stat",
+      "question": "What is AKR1C1's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "AKR1C1",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 333,
+        "output_tokens": 44
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "AKR1C1 is not listed in the top_result rows provided for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"AKR1C1 is not listed in the top_result rows provided for cluster c1\"}\n```"
+    },
+    {
+      "id": "nosig_gene:AKR1C3",
+      "cls": "nosig_gene",
+      "route": "marker_stat",
+      "question": "What is AKR1C3's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "AKR1C3",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 333,
+        "output_tokens": 48
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "AKR1C3 is not present in the provided jazzPanda top_result rows for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"AKR1C3 is not present in the provided jazzPanda top_result rows for cluster c1\"}\n```"
+    },
+    {
+      "id": "nosig_gene:ALDH1A3",
+      "cls": "nosig_gene",
+      "route": "marker_stat",
+      "question": "What is ALDH1A3's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "ALDH1A3",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 333,
+        "output_tokens": 44
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "ALDH1A3 is not listed in the top_result rows provided for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"ALDH1A3 is not listed in the top_result rows provided for cluster c1\"}\n```"
+    },
+    {
+      "id": "nosig_gene:APOBEC3A",
+      "cls": "nosig_gene",
+      "route": "marker_stat",
+      "question": "What is APOBEC3A's glm_coef in cluster c1?",
+      "expect": "refuse",
+      "truth": null,
+      "payload": "APOBEC3A",
+      "arm": "model",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 333,
+        "output_tokens": 43
+      },
+      "ok": true,
+      "error": "",
+      "answered": false,
+      "answer": null,
+      "reason": "APOBEC3A is not listed in the top_result rows provided for cluster c1",
+      "raw": "```json\n{\"refused\": true, \"answer\": null, \"why\": \"APOBEC3A is not listed in the top_result rows provided for cluster c1\"}\n```"
+    }
+  ]
+}
