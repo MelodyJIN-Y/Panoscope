@@ -103,6 +103,97 @@ RULES: dict[str, Rule] = _rules(
     Rule("rival:undecidable", "rival",
          "too few of the rival's canonical markers were in frame; the measurement "
          "cannot separate the two accounts"),
+    # -- step: claims (panoscope.claims.evaluability, panoscope.claims.store) --
+    # The capability half of ARCHITECTURE §7.5's split. These say what the
+    # INSTRUMENT could do about a claim; they are never a judgement of the claim.
+    Rule("claims:out_of_scope", "claims",
+         "the claim does not provably apply in this context; the scope gate is "
+         "fail-closed, so it is withheld WITH this reason rather than dropped"),
+    Rule("claims:evaluable", "claims",
+         "every entity the claim rests on is admitted by every frame for its kind"),
+    Rule("claims:never_measured", "claims",
+         "an entity the claim rests on lies outside a capability frame -- the "
+         "panel-absence rule; this is a fact about the instrument, not the claim"),
+    Rule("claims:undetectable", "claims",
+         "an entity the claim rests on is in frame but yields no usable signal; "
+         "the detectability frame refused it (§7.5, the one gate that varies)"),
+    Rule("claims:no_frame", "claims",
+         "no capability frame was declared for an entity kind the claim rests on"),
+    # -- step: transfer (panoscope.claims.transfer) --
+    Rule("transfer:no_verdict", "transfer",
+         "database-curated and literature claims get a PROVENANCE STAMP, never a "
+         "verdict: §7.4 measured that verdict at 0.000 bits over 280 edges"),
+    Rule("transfer:transferable", "transfer",
+         "every condition the claim was formed under matches this context"),
+    Rule("transfer:delta", "transfer",
+         "a named condition differs between formation and use -- reported as the "
+         "delta itself, never as a verdict distribution"),
+    Rule("transfer:cannot_be_settled", "transfer",
+         "a condition is UNKNOWN on one side, so it can neither match nor differ; "
+         "an unknown never silently applies"),
+    # -- step: reference (panoscope.reference.graph.lookup / .sources.build) --
+    # Three lookup ids rather than one, for the reason measure has four: "read it and
+    # it is not there" and "could not read it at all" render as the same sentence to
+    # a reviewer unless the id keeps them apart, and the second is a failed download
+    # reported as knowledge. None of the three ever argues -- reference silence is
+    # coverage, not a negative result (Lookup.absence_argues is constantly False).
+    Rule("reference:in_reference", "reference",
+         "the consulted sources hold a node for this entity"),
+    Rule("reference:not_in_reference", "reference",
+         "every source was read and none mentions it -- NOT in reference data, which "
+         "says nothing about whether it exists or occurs here"),
+    Rule("reference:no_source", "reference",
+         "no source could be read; reference data was not consulted, so its silence "
+         "carries no information at all"),
+    Rule("reference:source_read", "reference",
+         "a registered source was read, with its release and licence"),
+    Rule("reference:source_unavailable", "reference",
+         "a registered source could not be read -- never fetched, or offline; the "
+         "graph records it rather than returning an empty one that reads as "
+         "'nothing exists'"),
+    # -- step: reconcile (panoscope.core.reconcile.reconcile) --
+    # Five outcome ids rather than one "reconcile:verdict" with five outcomes, for
+    # the reason rival has three: the §9.11 table is the point, and a single id would
+    # make "two methods agree" indistinguishable from "they are coherent but are not
+    # answering the same question" to every consumer that branches on the record.
+    Rule("reconcile:agree", "reconcile",
+         "two methods asking the SAME question read one subject the same way"),
+    Rule("reconcile:disagree", "reconcile",
+         "same question, incompatible readings -- both sides were capable of seeing "
+         "it, so this is a real conflict and not a silence"),
+    Rule("reconcile:coherent", "reconcile",
+         "different questions whose answers sit together; never 'agree', because "
+         "neither is a second witness to the other's question (§9.11)"),
+    Rule("reconcile:tension", "reconcile",
+         "different questions whose answers pull against each other"),
+    Rule("reconcile:not_comparable", "reconcile",
+         "one side never measured the subject or was underpowered for it, so its "
+         "silence is not a negative observation -- the join reports WHICH side and "
+         "WHICH frame rather than calling it a disagreement"),
+    Rule("reconcile:reference_cannot_corroborate", "reconcile",
+         "a side carries reference authority, not MEASUREMENT; reference data may "
+         "select and order evidence but may never supply a value or count as "
+         "agreement, so every pair is refused before any number is read"),
+    Rule("reconcile:derived_is_not_corroboration", "reconcile",
+         "one result was computed from the other, so their agreeing is the same "
+         "result twice; the outcome stands but no pair counts as a second witness"),
+    # -- step: adjacency (panoscope.core.adjacency.adjacency_check) --
+    Rule("adjacency:bleed_candidate", "adjacency",
+         "the marker also localises in a unit interdigitated with this one -- a "
+         "segmentation-bleed candidate. Display flag, never a band input (§9.9)"),
+    Rule("adjacency:specificity", "adjacency",
+         "the marker also localises in a unit that sits elsewhere -- a genuine "
+         "specificity problem. Display flag, never a band input (§9.9)"),
+    # -- step: concordance (panoscope.core.concordance.concordance) --
+    Rule("concordance:consistent", "concordance",
+         "the replicates read this subject the same way. Agreement NEVER raises "
+         "confidence: replicates are not independent witnesses (§9.10)"),
+    Rule("concordance:divergent", "concordance",
+         "the replicates read this subject differently -- batch effect, section "
+         "quality or real biology, and the check does not claim which"),
+    Rule("concordance:not_comparable", "concordance",
+         "a sample never measured the subject, was underpowered for it, or emitted "
+         "no item at all; replicates cannot diverge about something one could not see"),
 )
 
 
