@@ -92,15 +92,32 @@ plot's conditionality line said 13. A second copy of this list is a second answe
 """
 
 
+_CONTROL_PREFIXES_UPPER: Final[tuple[str, ...]] = tuple(
+    p.upper() for p in CONTROL_PREFIXES
+)
+"""The list above, upper-cased once. Not a second list -- a second comparison."""
+
+
 def is_control_probe(name: str) -> bool:
-    """True if ``name`` is a Xenium control probe rather than a panel gene.
+    """True if ``name`` is a Xenium control probe rather than a panel gene, in ANY case.
 
     The named half of "excluded, not invisible": controls are dropped from the panel
     everywhere (see ``agent/data.load_panel``), and this is what lets a caller say
     *why* a name is off-panel instead of reporting a probe the instrument really did
     run as something that was never measured.
+
+    **Case-insensitive, because every other gene-identity comparison here is.**
+    ``panel_contains`` and ``panel_annotation`` upper-case both sides -- a vendor who
+    writes ``erbb2`` means ERBB2, and a vendor who writes ``NEGCONTROLPROBE_00001``
+    means the same probe. This was the one case-SENSITIVE comparison left, and it was
+    the one the capability frame used: on a ``panel.parquet`` whose controls arrive in
+    any other case it put every control back into ``panel:<id>``, so the frame said 13
+    where the tidy reader said 12 and the two layers that must agree about the size of
+    the assay disagreed. ``agent.data.is_control`` delegates here rather than carrying
+    its own upper-cased copy, so the frame and the readers share one rule and one
+    comparison -- they agree by construction, not because two filters happen to match.
     """
-    return name.startswith(CONTROL_PREFIXES)
+    return str(name).strip().upper().startswith(_CONTROL_PREFIXES_UPPER)
 
 _VIEW_ELEMENTS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     ("cell_map", ("viz/cells.parquet", "viz/cells.csv")),
@@ -127,12 +144,36 @@ def _present(store: Study, rel: str) -> bool:
 class XeniumAdapter:
     """``PlatformAdapter`` for a 10x Xenium store in the tidy layout.
 
-    Structural conformance only -- no base class, per ``types/contracts.py``. Holds
-    no state and reads at call time, so one instance is safe to share and a study
-    opened later is never served an earlier study's frames.
+    Structural conformance only -- no base class, per ``types/contracts.py``. Reads
+    at call time and holds no path, no table and no study, so one instance is safe
+    to share and a study opened later is never served an earlier study's frames.
+
+    ``sample`` is the one thing an instance carries, and it is a *sample id*, not a
+    resolved file: :meth:`for_sample` binds which section's reading this adapter
+    speaks for, and the path is still resolved against whichever store a call is
+    given. Detectability is the only frame that moves -- see
+    :meth:`_detectable_genes` for why it must.
     """
 
     name = "xenium"
+
+    def __init__(self, sample: str | None = None) -> None:
+        self.sample = sample
+
+    def for_sample(self, sample: str) -> "XeniumAdapter":
+        """This adapter, reading ``sample``'s own tables rather than the pooled ones.
+
+        A new instance rather than a mutation, because the pooled adapter is shared
+        and a replicate loop that re-pointed it would change what every other caller
+        in the process means by "detectable".
+
+        Not on the ``PlatformAdapter`` Protocol yet (``types/contracts.py``), which
+        is a gap and not a decision: a second platform with per-sample tables needs
+        the same method under the same name, and today's one caller --
+        ``pipeline/records.py::_concordance`` -- would meet it as an ``AttributeError``
+        rather than as a missing declaration.
+        """
+        return XeniumAdapter(sample)
 
     # ---- frames ----------------------------------------------------------- #
     def _panel_genes(self, store: Study) -> frozenset[str]:
@@ -152,14 +193,61 @@ class XeniumAdapter:
         ``None`` rather than an empty frozenset: "no detectability file" and "no gene
         was detectable" are different statements, and an empty frame would make every
         gene in the study ``NEVER_MEASURED``.
+
+        **Detectability is per sample, and this is the frame that proves it.** It is
+        never *declared* anywhere; it is read off a markers table, as the genes that
+        table did not mark ``NoSig``. So a pooled table answers the pooled question,
+        and handing its answer to one section says that section tested a gene its own
+        file says produced no usable signal -- a fabricated measurement status, and
+        the one the four-state lattice exists to make unrepresentable. It fabricates
+        in both directions: the section is then credited with a *measured* absence
+        that argues against the other section, and with an agreement when both
+        sections were silent about a gene only the pooled read could see. Gene
+        dropout between sections is the normal case (the demo runs 17.5% no usable
+        signal on a panel designed for its tissue), not an edge.
+
+        The panel frame deliberately does NOT move: one instrument panel was run
+        across the sections, so what the apparatus was *capable* of is the store's,
+        and only what each section actually got signal from is the sample's.
+
+        A bound sample with no table on disk raises rather than returning ``None``:
+        ``None`` here means "nothing declares detectability", which turns every
+        ``NoSig`` gene into a tested absence that argues -- exactly the fabrication
+        above, arriving as a silent fallback instead of a leak.
+
+        **Controls are dropped here too, and this frame is the half that mattered.**
+        A method writes its own output over whatever probes the instrument ran, so a
+        negative control reaches ``markers_top.csv`` with a real unit and a real
+        number on it. ``_panel_genes`` filtered and this did not, so the control sat
+        in ``detect:<id>`` and the panel frame was the only thing keeping it out of
+        the lattice -- and on a mixed-case panel file that frame let it in too. Both
+        gene frames now refuse it, and because ``_state_for`` requires *every* frame
+        of a kind to admit an entity, that refusal is what makes a control
+        unadmittable rather than merely unlikely: it can never be ``OBSERVED``, so
+        its count can never be promoted to a spatial marker carrying a number, and
+        never ``TESTED_ABSENT``, so its absence can never argue against a cell type.
+        See ``agent.data.is_control`` for where a control sits in the four states and
+        what the lattice still cannot say about one.
         """
-        p = store.inputs / "markers_top.csv"
+        if self.sample is not None:
+            p = self.sample_inputs(store).get(self.sample)
+            if p is None:
+                raise KeyError(
+                    f"study {store.id!r} has no per-sample marker table for "
+                    f"{self.sample!r} ({store.inputs / 'samples' / self.sample / 'markers_top.csv'}), "
+                    "so this sample's detectability cannot be read. Falling back to "
+                    "the pooled table would hand this section another section's "
+                    "detectability and report its NoSig genes as tested absences"
+                )
+        else:
+            p = store.inputs / "markers_top.csv"
         if not p.is_file():
             return None
         df = pd.read_csv(p, usecols=["gene", "top_cluster"])
         return frozenset(
             str(g).strip() for g, u in zip(df["gene"], df["top_cluster"])
             if str(g).strip() and str(u).strip() != NO_SIGNAL
+            and not is_control_probe(g)
         )
 
     def frames(self, store: Study) -> tuple[Frame, ...]:
@@ -177,7 +265,12 @@ class XeniumAdapter:
             out.append(Frame(EntityKind.GENE, f"panel:{store.id}", panel))
         detect = self._detectable_genes(store)
         if detect:
-            out.append(Frame(EntityKind.GENE, f"detect:{store.id}", detect))
+            # The sample is in the NAME, not only in the members, because the frame
+            # name is what ``reconcile._compare`` quotes back at the biologist ("had
+            # it in frame panel:X+detect:X"). Two sections whose detectability
+            # genuinely differs must not cite one name for two frames.
+            suffix = f":{self.sample}" if self.sample else ""
+            out.append(Frame(EntityKind.GENE, f"detect:{store.id}{suffix}", detect))
         labels = frozenset(
             str(meta["cell_type"]).strip()
             for meta in store.unit_labels.values()

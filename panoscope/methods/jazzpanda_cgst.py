@@ -69,9 +69,42 @@ CORROBORATING_COLUMNS: tuple[str, ...] = ("gc_corr",)
 UNIT_KIND: str = "cluster"
 UNIT_COLUMN: str = "cluster"
 
-#: The collection the sets are drawn from. Carried so the frame says WHICH universe
-#: a set was scored in; it is not a count and nothing is derived from it.
-COLLECTION: str = "MSigDB_Hallmark"
+#: How a collection names its sets -> the collection. The frame name says WHICH
+#: universe a set was scored in, and that is provenance, so it is DERIVED from the
+#: result's own set names: MSigDB's hallmark release names every one of its sets
+#: ``HALLMARK_<program>``, so a table whose sets carry that prefix was scored
+#: against it. Was ``COLLECTION = "MSigDB_Hallmark"``, asserted over every study --
+#: true on the demo, and on the synthetic fixture it named a real,
+#: restrictively-licensed collection as the source of four invented sets
+#: (SYNSET_ALPHA/BETA/GAMMA/DELTA), in the study whose reason for existing is that
+#: nothing licensed is bundled. ``agent/enrichment.py`` derives the same thing for
+#: the record; the table is deliberately a second copy rather than an import,
+#: for the reason :func:`_columns` gives -- a method module is an independent
+#: declaration, and ``methods/`` does not import from ``agent/`` at all.
+COLLECTION_BY_SET_PREFIX: tuple[tuple[str, str], ...] = (
+    ("HALLMARK_", "MSigDB_Hallmark"),
+)
+
+#: What a result whose sets match no entry above was scored against. ``unknown`` is
+#: first-class here and propagates; a wrong provenance does not. Add a prefix entry,
+#: never a default.
+UNKNOWN_COLLECTION: str = "unknown"
+
+
+def _collection(sets: frozenset[str]) -> str:
+    """The one collection this result was scored against, or ``unknown``.
+
+    One frame covers the whole table, so it can only carry one name honestly. A
+    table whose sets do not all derive the same collection -- a mixed run, or one
+    the prefix table has no entry for -- gets ``unknown`` rather than the name of
+    whichever half happened to match: the frame is what tells a reader which
+    universe a TESTED_ABSENT set was asked in, and half an answer there reads as a
+    whole one.
+    """
+    derived = {next((c for p, c in COLLECTION_BY_SET_PREFIX
+                     if s.strip().upper().startswith(p)), UNKNOWN_COLLECTION)
+               for s in sets}
+    return derived.pop() if len(derived) == 1 else UNKNOWN_COLLECTION
 
 # --------------------------------------------------------------------------- #
 # The method's own bars. Each is a statement about THIS statistic, which is the
@@ -312,10 +345,9 @@ class JazzPandaCGST:
         states exist to stop, and it would happen in the rival test, where it matters
         most. ``load`` uses this, so there is one spelling of the frame name.
         """
-        return Frame(
-            EntityKind.GENE_SET, f"collection:{COLLECTION}",
-            frozenset(str(r["gene_set"]).strip() for r in _rows(table)),
-        )
+        scored = frozenset(str(r["gene_set"]).strip() for r in _rows(table))
+        return Frame(EntityKind.GENE_SET,
+                     f"collection:{_collection(scored)}", scored)
 
     def _reading(self, row: dict[str, Any], world: MeasuredWorld) -> Reading:
         """One result row, as the method claims it -- before the frame rules.

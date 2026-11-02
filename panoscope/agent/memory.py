@@ -134,8 +134,17 @@ def _note_to_dict(note: Note) -> dict:
 def _note_from_dict(d: dict) -> Note:
     """Rebuild a frozen Note (and its nested frozen objects) from a JSON dict."""
     scope_ref_d = d.get("scope_ref") or {}
+    # A note that names no dataset belongs to NO study, not to whichever one happens
+    # to be open. Defaulting to ``cfg.DATASET_ID`` here read the current study at LOAD
+    # time and stamped it onto the note, so one file carried a different scope
+    # depending on what the biologist had open -- and every downstream gate,
+    # ``note_in_scope`` included, then agreed it belonged here. Cluster ids are c1..cN
+    # in every study, so that is a collision by default rather than an edge case. "" is
+    # the honest spelling of "unscoped": it matches no study, so the note fails closed,
+    # and ``data_access.withheld_notes`` is what says so out loud rather than letting
+    # the biologist's stored judgement disappear with no sentence.
     scope_ref = ScopeRef(
-        dataset=str(scope_ref_d.get("dataset", cfg.DATASET_ID)),
+        dataset=str(scope_ref_d.get("dataset", "")),
         cluster=scope_ref_d.get("cluster"),
     )
     return Note(
@@ -558,6 +567,35 @@ def get_note(note_id: str, base_dir: Path | str | None = None) -> Note | None:
 # --------------------------------------------------------------------------- #
 # Scope enforcement — THE choke point
 # --------------------------------------------------------------------------- #
+def note_in_study(note: Note, dataset: str | None = None) -> bool:
+    """True iff ``note`` may fire ANYWHERE in ``dataset``. The study rung, on its own.
+
+    Split out of :func:`note_in_scope` because the cluster rung and the study rung are
+    asked separately: a reader that walks the clusters itself (``data_access``'s
+    override and exclude overlays) has no single cluster to pass, so it used to pass
+    none -- and ended up reading the whole store with no study gate at all, which is
+    how one study's override landed on another study's c2 under the biologist's own
+    authority. One spelling of the rule, so there is one place to be right:
+
+    * ``lab`` scope is deliberately cross-study -- that is what the lab rung means.
+    * every other scope fires only inside the dataset it names, and a note naming no
+      dataset (``""``) therefore fires in no study at all.
+    """
+    return note.scope == "lab" or note.scope_ref.dataset == (dataset or cfg.DATASET_ID)
+
+
+def notes_in_study(dataset: str | None = None,
+                   base_dir: Path | str | None = None) -> list[Note]:
+    """Every note that may fire somewhere in ``dataset``, in ``read_notes`` order.
+
+    The study-level counterpart of :func:`apply_notes`, for readers that do their own
+    per-cluster dispatch. Unlike :func:`list_notes` -- which filters on the dataset
+    string alone and so drops the lab rung -- this keeps lab-scoped notes, which hold
+    across studies by design.
+    """
+    return [n for n in read_notes(base_dir) if note_in_study(n, dataset)]
+
+
 def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str | None = None) -> bool:
     """True iff ``note`` is allowed to fire in the given (cluster, dataset) context.
 
@@ -574,8 +612,9 @@ def note_in_scope(note: Note, *, cluster: Optional[str], dataset: str | None = N
     if note.scope == "lab":
         return True
 
-    # dataset and cluster scopes are pinned to a dataset.
-    if note.scope_ref.dataset != dataset:
+    # dataset and cluster scopes are pinned to a dataset (the study rung, shared with
+    # notes_in_study so there is only one spelling of it).
+    if not note_in_study(note, dataset):
         return False
 
     # An anchored note (cross_cluster) belongs to a SET of clusters and fires on each

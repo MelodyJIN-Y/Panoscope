@@ -27,12 +27,17 @@ What these pin, in descending order of what they buy:
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
+import panoscope
 from panoscope.agent import config as cfg
+from panoscope.agent import data as agent_data
 from panoscope.data.study import Study
+from panoscope.ui import data_access as da
 from panoscope.ui import spatial_stage as stage
 
 ALL_FALSE = {"cell_map": False, "umap": False, "density": False, "expr": False}
@@ -125,3 +130,189 @@ def test_the_stage_states_every_absent_view_instead_of_raising(tmp_path):
         assert producer in md, producer
     # A viewing control for pictures that do not exist is a dead knob.
     assert not [r for r in at.radio if r.key == "bin_um_global"]
+
+
+# --------------------------------------------------------------------------- #
+# 4. The half-prepped study: every view true except the one Panoscope adds
+# --------------------------------------------------------------------------- #
+# The shape above -- nothing prepared at all -- is the easy half. The likely arrival
+# is the HALF-prepped one: ``prep_data.R`` ran (cells + UMAP exist) and
+# ``prep_expr.py`` did not, because the expression matrix is Panoscope's own extra
+# step rather than something a collaborator hands over. That manifest reads
+# ``{cell_map: true, umap: true, expr: false}``, and a guard that asked only about
+# ``umap`` let the feature-UMAP branch past it and into the loader -- the same
+# full-page traceback, on the study most likely to turn up.
+#
+# Driven through ``panoscope/app.py`` rather than ``render_spatial_stage``, because
+# the crash entered through ``app.py``'s ``_examine_body``: the renderer is reached
+# only after the evidence table has drawn, and a traceback there takes the evidence
+# table with it. Testing the renderer alone would report the page as covered while
+# the page is what breaks.
+def _half_prepped(root: Path) -> Path:
+    """A study with cells + UMAP on disk and no exported expression.
+
+    Its inputs (markers, panel) are copied from the bundled ``demo_mini`` so the
+    Markers page has a result to draw and actually reaches the spatial stage; the
+    ``viz/`` frames are written here, tiny and synthetic, because what is being
+    pinned is which views exist, not what is in them. Nothing under
+    ``data/studies/`` is touched -- the copy is one-way, into ``tmp_path``.
+    """
+    from panoscope.data import layout
+
+    src = layout.studies_root() / "demo_mini"
+    d = root / "studies" / "half_prepped"
+    shutil.copytree(src, d)
+    manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    manifest["dataset_id"] = "half_prepped"
+    manifest["views_available"] = {
+        "cell_map": True, "umap": True, "density": False, "expr": False,
+    }
+    (d / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    viz = d / "viz"
+    viz.mkdir()
+    cluster = ["c1", "c2", "c3"] * 4
+    xy = [float(i) for i in range(12)]
+    pd.DataFrame(
+        {"cell_id": range(12), "cluster": cluster, "x": xy, "y": xy}
+    ).to_parquet(viz / "cells.parquet")
+    pd.DataFrame(
+        {"cell_id": range(12), "umap_1": xy, "umap_2": xy, "cluster": cluster}
+    ).to_parquet(viz / "umap.parquet")
+    return d
+
+
+def test_a_prepared_umap_with_no_exported_expression_does_not_kill_the_markers_page(
+    tmp_path, monkeypatch
+):
+    try:
+        from streamlit.testing.v1 import AppTest
+    except Exception:  # noqa: BLE001 - Streamlit testing API absent
+        pytest.skip("streamlit.testing.v1 unavailable")
+
+    _half_prepped(tmp_path)
+    # Through the environment, not ``set_study``: ``AppTest.from_file`` runs the real
+    # app script in its own thread, where the study ContextVar is back at its default
+    # and the study is resolved from the environment exactly as in production.
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(tmp_path))
+    monkeypatch.setenv("PANOSCOPE_DATASET", "half_prepped")
+    # ``layout.resolve_data_root`` is an lru_cache, so setting the variable is not
+    # enough: without this the app thread resolves the REAL data root and writes
+    # ``data/studies/half_prepped/interp/chat_threads.json`` into the repository --
+    # gitignored, so ``git status`` stays silent about a study id that does not
+    # exist, holding the demo's interpretation. conftest's autouse clear runs before
+    # the setenv, not after it, which is why this one is local.
+    from panoscope.data import layout as _layout
+    _layout.clear_cache()
+
+    app = str(Path(panoscope.__file__).parent / "app.py")
+    at = AppTest.from_file(app, default_timeout=120)
+    at.session_state["active_page"] = "markers"
+    at.session_state["selected_cluster"] = "c1"
+    # A marker selected, so the gene rows (density | feature UMAP) and the dotplot
+    # draw: the feature UMAP is the panel that reads the expression matrix.
+    at.session_state["selected_markers"] = {"c1": ["ERBB2"]}
+    at.run()
+    if at.exception and "unexpected keyword argument 'key'" in str(at.exception[0].value):
+        pytest.skip("Streamlit too old for st.container(key=...)")
+    assert not at.exception, [str(e.value) for e in at.exception]
+
+    md = "\n".join(m.value for m in at.markdown)
+    # The absent view states itself, in the feature UMAP and in the dotplot.
+    assert md.count("per-cell expression not prepared for this study") == 2
+    assert "scripts/prep_expr.py" in md
+    # ... and the two views this study DOES have still draw. A guard that subtracted
+    # the embedding as well would be just as wrong as one that let the page crash.
+    assert "UMAP not prepared for this study" not in md
+    assert "cell map not prepared for this study" not in md
+    assert len(at.get("plotly_chart")) == 2
+    # The evidence table survived the stage below it -- the thing the traceback took
+    # with it. ERBB2 is demo_mini's own top marker, carried in by the copied inputs.
+    assert "ERBB2" in md
+
+
+# --------------------------------------------------------------------------- #
+# 5. The Pathways stage owns two panels of its own, and they need the same guards
+# --------------------------------------------------------------------------- #
+def test_the_pathways_stage_states_every_absent_view_instead_of_raising(tmp_path):
+    """``render_pathways_spatial`` reuses the marker renderers (guarded) but draws the
+    leading-edge density and the leading-edge activity UMAP itself. Both read a view
+    before the first guarded call, so on an unprepped study the Pathways page kept
+    the original traceback after the Markers page had stopped taking it."""
+    try:
+        from streamlit.testing.v1 import AppTest
+    except Exception:  # noqa: BLE001 - Streamlit testing API absent
+        pytest.skip("streamlit.testing.v1 unavailable")
+
+    _unprepped(tmp_path, ALL_FALSE)
+
+    def _run(root: str) -> None:
+        import pathlib
+        import types
+
+        from panoscope.agent import config as _cfg
+        from panoscope.data.study import Study as _Study
+        from panoscope.ui import enrichment_spatial as _es
+
+        _cfg.set_study(_Study(id="unprepped", data_root=pathlib.Path(root)))
+        # A stand-in for one enriched pathway: the stage reads only these two fields,
+        # and a study with no viz has no enrichment result to pin a real one to.
+        pathway = types.SimpleNamespace(
+            gene_set="HALLMARK_SYNTHETIC", leading_edge=["GENE_A", "GENE_B"]
+        )
+        _es.render_pathways_spatial("c1", [pathway])
+
+    at = AppTest.from_function(_run, default_timeout=120, args=(str(tmp_path),))
+    at.run()
+    if at.exception and "unexpected keyword argument 'key'" in str(at.exception[0].value):
+        pytest.skip("Streamlit too old for st.container(key=...)")
+    assert not at.exception, [str(e.value) for e in at.exception]
+
+    md = "\n".join(m.value for m in at.markdown)
+    for label in ("cell map", "UMAP", "transcript density", "per-cell expression"):
+        assert f"{label} not prepared for this study" in md, label
+    # The density panel names the study's absent view, not the genes: "no precomputed
+    # density for the leading-edge genes" would blame the program for the prep step.
+    assert "no precomputed density for the leading-edge genes" not in md
+
+
+# --------------------------------------------------------------------------- #
+# 6. The panel names the path the loader will actually look for
+# --------------------------------------------------------------------------- #
+def test_every_named_producer_path_is_the_one_its_loader_resolves(tmp_path):
+    """``_VIEW_SOURCE`` is a hand-written string per view, and nothing read it back.
+    A moved artifact would leave the panel telling a biologist to look somewhere the
+    pipeline no longer writes -- an honest absence with a wrong address. Pinned
+    against the resolvers themselves, on a non-demo study so no legacy flat path can
+    stand in for a tree path."""
+    resolvers = {
+        "cell_map": agent_data._cells_parquet,
+        "umap": agent_data._umap_parquet,
+        "density": agent_data._density_dir,
+        "expr": da._marker_expr_parquet,
+    }
+    assert set(resolvers) == set(stage._VIEW_SOURCE)
+    study = _unprepped(tmp_path, ALL_FALSE)
+    with cfg.use_study(study):
+        for view, resolve in resolvers.items():
+            named = stage._VIEW_SOURCE[view].split(" · ")[0].rstrip("/")
+            assert str(resolve().relative_to(study.dir)) == named, view
+
+
+# --------------------------------------------------------------------------- #
+# 7. The loader is the backstop, and it has to say where and who
+# --------------------------------------------------------------------------- #
+def test_the_expression_matrix_fails_with_the_study_tree_and_its_producer(tmp_path):
+    """A manifest may veto a view, never grant one, so a study that declares ``expr``
+    and has no file still reaches the loader -- and that is the message a biologist
+    sees. It used to be a bare ``pd.read_csv`` failure: an errno, a filename, no
+    producer, and for the demo a path under the legacy flat root instead of the
+    study's own tree. Every other tidy table already failed with both."""
+    study = _unprepped(tmp_path, {"expr": True})
+    with cfg.use_study(study):
+        assert stage._unavailable("expr") is None  # declared available: no veto
+        with pytest.raises(FileNotFoundError) as excinfo:
+            da.marker_expr_df()
+    message = str(excinfo.value)
+    assert str(study.dir / "viz" / "expr.parquet") in message
+    assert "scripts/prep_expr.py" in message

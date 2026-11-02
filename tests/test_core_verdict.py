@@ -29,6 +29,7 @@ import pytest
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import verdict as A
+from panoscope.core import compat as COMPAT
 from panoscope.core import verdict as C
 from panoscope.types.evidence import EvidenceItem
 from panoscope.types.measured import Coverage, Measured, MeasuredState
@@ -600,3 +601,133 @@ def test_the_promote_needs_the_number_and_the_demotes_need_only_the_flag():
     canonical = frozenset({"ERBB2"})
     filler = tuple(_item(f"G{i}", 1.0) for i in range(4))
     assert C.assess((_item("ERBB2", 6.0), *filler), canonical).value.demotions == ()
+
+
+def test_the_canonical_census_and_the_coverage_it_describes_count_one_set_of_numbers():
+    """``_canonical_coverage``'s docstring says ``core.compat`` counts it the same
+    way. Verified here instead of repeated: if the two disagree, the band and the
+    sentence printed beside the band are computed from different numbers, which is a
+    fabricated measurement status wearing a denominator.
+
+    The invariant is exact, not approximate. Every canonical NAME falls in exactly
+    one clause, so the clauses sum to ``cov.n``; the two TESTABLE clauses (OBSERVED
+    and TESTED_ABSENT -- the lattice's definition of "a positive was possible", and
+    what ``_canonical_coverage`` builds ``in_frame`` from) sum to ``cov.k``.
+
+    The grid is the shapes that used to break it: a gene read twice, a composite
+    subject carrying two canonical names, UNDERPOWERED (in frame, not testable) and
+    a canonical name with no item at all.
+    """
+    canon = frozenset({"C1", "C2", "C3", "C4", "C5"})
+    items = (
+        _item("C1", 2.0, 0.5),                                   # OBSERVED
+        _item("C1", None, state=MeasuredState.NEVER_MEASURED),   # same gene, again
+        _item("C2", None, state=MeasuredState.TESTED_ABSENT),
+        _item("C3", None, state=MeasuredState.UNDERPOWERED),
+        EvidenceItem(                                            # composite subject
+            subject=subject("gene_pair", a=gene("C4"), b=gene("NOTCANON")),
+            statistic=None, statistic_name="glm_coef",
+            measured=Measured(MeasuredState.NEVER_MEASURED, _FRAME)),
+        # C5 has no item at all -- the panel refusing it before the method ran.
+    )
+    cov = C._canonical_coverage(items, canon)
+    counts = _clause_counts(COMPAT._no_canonical_reason(items, canon))
+
+    assert sum(counts.values()) == cov.n == 5
+    assert counts["tested and not assigned to this unit (tested-absent)"] \
+        + counts["measured, but too unspecific to carry the call"] == cov.k == 2
+
+
+def _clause_counts(sentence: str) -> dict[str, int]:
+    """``"of the N ...: 2 off-panel ...; 1 ..."`` -> ``{clause: count}``."""
+    body = sentence.split(": ", 1)[1].replace(COMPAT._NOTHING_COULD_SUPPORT, "")
+    return {c.split(" ", 1)[1]: int(c.split(" ", 1)[0]) for c in body.split("; ")}
+
+
+# --------------------------------------------------------------------------- #
+# Replicate coverage: the second rung that reads the apparatus, not the driver
+# --------------------------------------------------------------------------- #
+#: A clean call: one strong canonical driver and enough company not to be fragile.
+#: Deliberately NOT one of the demo clusters -- the point is a band that nothing
+#: else touches, so anything that moves below is this rung and only this rung.
+def _clean() -> tuple[EvidenceItem, ...]:
+    return (_item("ERBB2", 21.0, 0.5), _item("G2", 9.0, 0.5),
+            _item("G3", 8.0, 0.5), _item("G4", 7.0, 0.5))
+
+
+def _replicate(k: int, n: int) -> Coverage:
+    return Coverage(C.REPLICATE_COVERAGE_WHAT, k, n,
+                    C._coverage_floor(n, C.REPLICATE_COVERAGE_FLOOR))
+
+
+def test_replicate_coverage_only_ever_subtracts():
+    """§9.10: agreement never raises confidence, so there is no promote to match.
+
+    The grid walks a 12-subject comparison from nothing comparable to everything
+    comparable against a fixed items/canonical pair. The band may fall and must
+    never rise above the not-assessed baseline, and ``demotions`` must stay empty
+    of this rule wherever the floor is cleared -- a decision recorded for a rung
+    nobody lost reads in the audit as a check the call survived, which is the one
+    reassurance replicates are not allowed to supply.
+    """
+    items, canon = _clean(), frozenset({"ERBB2"})
+    base = C.assess(items, canon).value
+    assert base.band == "Very High" and base.verify is False
+    assert base.replicate_coverage is None
+
+    floor = C._coverage_floor(12, C.REPLICATE_COVERAGE_FLOOR)
+    for k in range(0, 13):
+        v = C.assess(items, canon, _replicate(k, 12)).value
+        assert C.BANDS.index(v.band) >= C.BANDS.index(base.band), k
+        fired = "band:demote_replicate_coverage" in v.demotions
+        assert fired is (k < floor), (k, v.demotions)
+        assert v.band == ("High" if fired else "Very High"), k
+        assert v.verify is fired, k
+
+
+def test_the_replicate_rung_is_one_step_however_thin_the_coverage():
+    """0 of 12 and 5 of 12 both cost exactly one rung.
+
+    Walking the band down by degrees would turn a coverage gap into a weak
+    measurement, and it is not one: the driver's statistic is unchanged and the
+    rung says only that the comparison was not about this unit.
+    """
+    items, canon = _clean(), frozenset({"ERBB2"})
+    bands = {C.assess(items, canon, _replicate(k, 12)).value.band for k in (0, 1, 5)}
+    assert bands == {"High"}
+
+
+def test_not_assessed_is_not_assessed_and_not_zero_coverage():
+    """``None`` and ``Coverage(k=0, n=0)`` are different answers and stay apart.
+
+    The demo is single-sample, so §9.10 resolves to not-assessed on every unit --
+    and a ``None`` that behaved like an empty comparison would demote all nine and
+    move the golden. An empty comparison (n == 0) is also not a demote: nothing was
+    compared because there was nothing to compare, which the record says in words.
+    """
+    items, canon = _clean(), frozenset({"ERBB2"})
+    for replicate in (None, Coverage(C.REPLICATE_COVERAGE_WHAT, 0, 0, 0)):
+        v = C.assess(items, canon, replicate).value
+        assert v.band == "Very High" and v.verify is False, replicate
+        assert "band:demote_replicate_coverage" not in v.demotions, replicate
+
+
+def test_the_replicate_floor_is_a_majority_and_an_exact_ratio():
+    """A majority, by integer arithmetic, with the declared ratio read not assumed.
+
+    The constant is structural rather than calibrated (there is one multi-sample
+    study on disk, at 9/12 on every unit), and this pins the two properties that
+    must survive the tuning pass that replaces it: K at the floor clears and one
+    below does not, at every subject count a unit plausibly has.
+    """
+    import math
+    from fractions import Fraction
+
+    num, den = C.REPLICATE_COVERAGE_FLOOR
+    for n in range(0, 200):
+        assert C._coverage_floor(n, C.REPLICATE_COVERAGE_FLOOR) == math.ceil(
+            Fraction(n * num, den)), n
+    for n in range(1, 40):
+        f = C._coverage_floor(n, C.REPLICATE_COVERAGE_FLOOR)
+        assert Coverage("x", f, n, f).ok
+        assert not Coverage("x", f - 1, n, f).ok

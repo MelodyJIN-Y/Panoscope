@@ -27,9 +27,11 @@ works with no server running.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import html
 import math
 
+from panoscope.agent import config as cfg
 from panoscope.agent.types import ClusterVerdict
 
 from panoscope.ui import data_access as da
@@ -1125,6 +1127,29 @@ def _enrichment_evidence_table_html(ce, notes: dict = None) -> str:
 # Editable working space — one section rendered at a time; edits held in plain
 # ``wsval_*`` keys so navigating away never drops them.
 # --------------------------------------------------------------------------- #
+def _skey(name: str) -> str:
+    """``name``, scoped to the CURRENT study's tree — every session key on this page.
+
+    The working-space keys used to be study-agnostic (``wsval_c1``, ``_sum_seeded``,
+    ``_sum_saved_snapshot``), which is a wrong-value bug the moment a study picker
+    lands: on a switch within one session the seeding block is skipped (``_sum_seeded``
+    is already set), the ``wsval_*`` keys still hold study A's prose, every region then
+    differs from study B's ``ws_defaults`` — and the autosave below writes A's text into
+    B's tree as biologist-authored edits. Not the wrong thing displayed: one study's
+    prose PERSISTED into another study's record as if a human wrote it.
+
+    This is ``agent.data._per_study``'s fix, applied to session state instead of an
+    ``lru_cache``: the study identity goes INTO the key, so a collision across studies
+    is unrepresentable rather than merely tested for. The identity is the study's tree
+    PATH, not its id, because two data roots may hold the same id (``ui.data_access``
+    keys on the same thing, for the same reason). It is hashed short because these
+    strings are also widget keys, and Streamlit echoes a widget key into a CSS class
+    (``st-key-<key>``) that this page's own selectors match on.
+    """
+    tag = hashlib.sha1(str(cfg.current_study().dir).encode("utf-8")).hexdigest()[:8]
+    return f"{name}__{tag}"
+
+
 def _reset_ws_all(defaults: dict, dataset: str) -> None:
     """on_click: re-draft EVERY region from its freshest auto-seed AND drop the saved
     edits on disk, so 're-draft from latest' is a true reset. Pops the mounted widget
@@ -1132,10 +1157,10 @@ def _reset_ws_all(defaults: dict, dataset: str) -> None:
     import streamlit as st
 
     for name, default in defaults.items():
-        st.session_state[f"wsval_{name}"] = default
-        st.session_state.pop(f"wsw_{name}", None)
-    st.session_state.pop("_sum_saved_snapshot", None)
-    st.session_state.pop("_sum_saved_at", None)
+        st.session_state[_skey(f"wsval_{name}")] = default
+        st.session_state.pop(_skey(f"wsw_{name}"), None)
+    st.session_state.pop(_skey("_sum_saved_snapshot"), None)
+    st.session_state.pop(_skey("_sum_saved_at"), None)
     try:
         from panoscope.pipeline import store
 
@@ -1164,7 +1189,7 @@ def _save_now() -> None:
     refresh the 'saved HH:MM' status, even if nothing changed since the last autosave."""
     import streamlit as st
 
-    st.session_state.pop("_sum_saved_snapshot", None)
+    st.session_state.pop(_skey("_sum_saved_snapshot"), None)
 
 
 def _draft_refinement(r) -> None:
@@ -1199,10 +1224,10 @@ def _editor(st, name: str, default: str, height: int) -> None:
     """Render one editable region. Canonical text lives in ``wsval_{name}`` (a plain
     key that survives when the widget is unmounted); the ``wsw_{name}`` widget seeds
     from it. The caller reconciles ``wsval`` from ``wsw`` before this runs."""
-    vkey = f"wsval_{name}"
+    vkey = _skey(f"wsval_{name}")
     if vkey not in st.session_state:
         st.session_state[vkey] = default
-    val = st.text_area("edit", value=st.session_state[vkey], key=f"wsw_{name}",
+    val = st.text_area("edit", value=st.session_state[vkey], key=_skey(f"wsw_{name}"),
                        height=height, label_visibility="collapsed")
     st.session_state[vkey] = val
 
@@ -1303,20 +1328,20 @@ def render_summary_page() -> None:
     def _seed(name: str) -> str:
         return saved.get(name) or ws_defaults[name]
 
-    if not st.session_state.get("_sum_seeded"):
-        st.session_state["_sum_seeded"] = True
+    if not st.session_state.get(_skey("_sum_seeded")):
+        st.session_state[_skey("_sum_seeded")] = True
         for name in ws_defaults:
-            st.session_state.setdefault(f"wsval_{name}", _seed(name))
+            st.session_state.setdefault(_skey(f"wsval_{name}"), _seed(name))
 
     # Reconcile canonical text from the (possibly just-edited) mounted widget BEFORE
     # exports/autosave, so both always reflect the latest keystrokes.
     for name in ws_defaults:
-        wkey = f"wsw_{name}"
+        wkey = _skey(f"wsw_{name}")
         if wkey in st.session_state:
-            st.session_state[f"wsval_{name}"] = st.session_state[wkey]
+            st.session_state[_skey(f"wsval_{name}")] = st.session_state[wkey]
 
     def _val(name: str) -> str:
-        return st.session_state.get(f"wsval_{name}", _seed(name))
+        return st.session_state.get(_skey(f"wsval_{name}"), _seed(name))
 
     # Autosave: persist only regions the biologist changed from the auto-draft
     # (self-cleaning). Idempotent — writes only when the edit set actually changed.
@@ -1330,13 +1355,13 @@ def render_summary_page() -> None:
     edits = {n: _val(n) for n in ws_defaults if _val(n) != ws_defaults[n]}
     save_error = ""
     if (store is not None and (edits or saved)
-            and edits != st.session_state.get("_sum_saved_snapshot")):
+            and edits != st.session_state.get(_skey("_sum_saved_snapshot"))):
         try:
             now = datetime.datetime.now()
             store.save_summary_edits(edits, rep.dataset,
                                      saved_at=now.isoformat(timespec="seconds"))
-            st.session_state["_sum_saved_snapshot"] = dict(edits)
-            st.session_state["_sum_saved_at"] = now.strftime("%H:%M")
+            st.session_state[_skey("_sum_saved_snapshot")] = dict(edits)
+            st.session_state[_skey("_sum_saved_at")] = now.strftime("%H:%M")
         except Exception as exc:  # noqa: BLE001 - surface, never crash the page
             save_error = str(exc)
 
@@ -1356,8 +1381,9 @@ def render_summary_page() -> None:
         status = f'<span class="err">save failed — {html.escape(save_error)}</span>'
     elif not edits:
         status = "no edits yet"
-    elif edits == st.session_state.get("_sum_saved_snapshot") and st.session_state.get("_sum_saved_at"):
-        status = f'saved {html.escape(st.session_state["_sum_saved_at"])}'
+    elif (edits == st.session_state.get(_skey("_sum_saved_snapshot"))
+            and st.session_state.get(_skey("_sum_saved_at"))):
+        status = f'saved {html.escape(st.session_state[_skey("_sum_saved_at")])}'
     else:
         status = "editing…"
 

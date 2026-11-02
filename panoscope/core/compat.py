@@ -63,7 +63,7 @@ from panoscope.core.verdict import (
     Verdict,
 )
 from panoscope.core.verdict import _drivers as _eligible_drivers
-from panoscope.core.verdict import _v1_coverage_sentence
+from panoscope.core.verdict import _is_canonical, _v1_coverage_sentence
 from panoscope.types.evidence import EvidenceItem, NormalisedEvidence
 from panoscope.types.measured import Coverage, MeasuredState
 from panoscope.types.outputs import TaskKind
@@ -128,6 +128,17 @@ two things: its message is literally "is off-panel (never measured)". A gene tha
 *on* the panel and produced no usable spatial signal is not off-panel, and writing it
 into that list would be the false sentence -- so the prefix is matched here, at the
 translation boundary, rather than a second status field being invented in ``types/``.
+"""
+
+DETECT_FRAME_PREFIX: str = "detect:"
+"""The other gene frame the same adapter declares -- *on* the panel, no usable signal.
+
+Named here beside :data:`PANEL_FRAME_PREFIX` because the two prefixes together are
+the ONLY frame names that say which of the two NEVER_MEASURED facts happened. A
+refusing frame matching neither (``annotation:<study>`` reached through a composite
+subject, or the literal ``"no frame declared for gene"``
+``types.measured._state_for`` returns when a kind has no frame at all) says neither,
+and must not be reported as either one.
 """
 
 V1_EVIDENCE: str = "evidence"
@@ -231,8 +242,135 @@ def _corroborator(item: EvidenceItem, name: str) -> float | None:
     return next((v for k, v in item.corroborating if k == name), None)
 
 
+#: Measurement state (plus the refusing frame, for NEVER_MEASURED) -> the clause that
+#: says what happened to that many canonical markers. Emitted in this fixed order, so
+#: the bytes do not depend on the order a method happened to emit its items in.
+#:
+#: The split inside NEVER_MEASURED is the one :data:`PANEL_FRAME_PREFIX` already makes
+#: for ``offpanel_notes``: "order a different panel" and "this section gave no signal"
+#: are different facts to a biologist.
+_NO_CANONICAL_CLAUSE: tuple[tuple[str, str], ...] = (
+    ("absent", "{n} not in the measured set at all (never measured)"),
+    ("offpanel", "{n} off-panel (never measured)"),
+    ("undetectable", "{n} on-panel with no usable signal (never measured)"),
+    ("unframed", "{n} refused by a frame that is neither the panel nor "
+                 "detectability (never measured)"),
+    ("underpowered", "{n} in frame but below the floor (underpowered)"),
+    ("tested_absent", "{n} tested and not assigned to this unit (tested-absent)"),
+    ("unspecific", "{n} measured, but too unspecific to carry the call"),
+)
+
+#: Appended when NOT ONE canonical marker was testable -- the panel-absence rule's
+#: own sentence. ``measured.testable`` (OBSERVED or TESTED_ABSENT) is the lattice's
+#: definition of "the measurement was capable of a positive", so this is read off the
+#: states rather than guessed at from a count.
+_NOTHING_COULD_SUPPORT: str = " -- nothing could have supported it"
+
+#: :data:`_NO_CANONICAL_CLAUSE`'s order is also an informativeness ladder: "no item
+#: at all" says least about the measurement and OBSERVED says most, with the two
+#: testable states at the top. :func:`_no_canonical_reason` files a canonical NAME
+#: read more than once under its HIGHEST-ranked reading, which is the same join
+#: ``core.verdict._canonical_coverage`` takes over its ``in_frame`` set.
+_CLASS_RANK: dict[str, int] = {k: i for i, (k, _) in enumerate(_NO_CANONICAL_CLAUSE)}
+
+
+def _no_canonical_class(item: EvidenceItem) -> str:
+    """Which :data:`_NO_CANONICAL_CLAUSE` key one canonical item falls in.
+
+    **The NEVER_MEASURED split is three-way, not two.** Only ``panel:`` and
+    ``detect:`` name which of the two facts happened; a refusing frame matching
+    neither says neither, and reporting it as "on-panel with no usable signal"
+    asserts BOTH halves of a sentence nothing measured -- that the gene was on the
+    panel, and that the section gave no signal. :func:`_v1_bucket` below calls its
+    own else-branch ``never_measured_outside_the_panel_frame`` precisely because it
+    cannot tell, and that honest string is what the build log already prints. A
+    specific falsehood is worse than the vague sentence this column replaced,
+    because the biologist can act on it.
+    """
+    state = item.measured.state
+    if state is MeasuredState.NEVER_MEASURED:
+        if item.measured.frame.startswith(PANEL_FRAME_PREFIX):
+            return "offpanel"
+        if item.measured.frame.startswith(DETECT_FRAME_PREFIX):
+            return "undetectable"
+        return "unframed"
+    if state is MeasuredState.UNDERPOWERED:
+        return "underpowered"
+    if state is MeasuredState.TESTED_ABSENT:
+        return "tested_absent"
+    return "unspecific"      # OBSERVED, carries a number, not an eligible driver
+
+
+def _no_canonical_reason(items: tuple[EvidenceItem, ...],
+                         canon: frozenset[str]) -> str:
+    """Why no canonical marker carried the call -- the reasons kept apart.
+
+    ``band:no_canonical_driver`` had one sentence, "no canonical marker supports the
+    call", and it served three different states at once: a canonical list whose
+    markers are all off-panel, canonical markers measured below the floor, and no
+    canonical list to check. On a study where the panel was designed for a different
+    question -- the kidney one, and the synthetic fixture's c2 -- it is the first of
+    those, and the two readings are opposite statements about the evidence. "No
+    canonical marker supports the call" invites the biologist to doubt the call;
+    "every canonical marker for it is off-panel, so nothing could have supported it"
+    tells them the panel cannot speak to it. That distinction IS the panel-absence
+    rule, in the one column most likely to be skimmed, and the band is identical
+    either way -- this changes the words and nothing else.
+
+    Built from the items' own measurement states rather than from the rule id, so it
+    is true whichever branch of ``core.verdict.assess`` sent us here.
+
+    **The denominator counts NAMES, and so does every numerator.** ``N`` is the
+    curated list's own size, so the clauses have to sum to it: a canonical marker
+    with no item at all is not "unknown", it is the panel refusing it before the
+    method ever ran. The census used to count the no-item class over names and every
+    other class over ITEMS, which prints "of the 4 canonical markers: ... 8" on the
+    two shapes where the two differ -- ``measure_unit`` does not dedupe, so joint
+    clustering with per-sample rows gives several readings of one canonical gene
+    (the kidney shape, over-counting), and a composite subject gives one item
+    carrying two canonical names (under-counting). Names it is: the sentence calls
+    itself a census of the list.
+
+    A name read more than once is filed under its highest-ranked reading
+    (:data:`_CLASS_RANK`) -- a gene OBSERVED in one sample WAS measured, whatever a
+    second row says. That is the same join ``core.verdict._canonical_coverage``
+    takes, which is what makes its docstring's claim to count this the same way
+    true: the two testable classes sum to exactly that function's ``k``, and every
+    class sums to its ``n``, so the band and the sentence describing the band are
+    computed from one set of numbers. ``tests/test_core_verdict.py`` pins it.
+
+    No number here comes from the curated list: it supplies the names to check and
+    nothing else, and every state counted was read off the measurement.
+    """
+    if not canon:
+        return "this call has no canonical marker list to check"
+    canonical_items = tuple(i for i in items if _is_canonical(i, canon))
+    best: dict[str, str] = {}
+    for item in canonical_items:
+        cls = _no_canonical_class(item)
+        for name in (e.id.upper() for e in item.subject.entities()):
+            prior = best.get(name)
+            if name in canon and (prior is None
+                                  or _CLASS_RANK[cls] > _CLASS_RANK[prior]):
+                best[name] = cls
+    counts = {k: 0 for k, _ in _NO_CANONICAL_CLAUSE}
+    counts["absent"] = len(canon) - len(best)
+    for cls in best.values():
+        counts[cls] += 1
+    clauses = [tmpl.format(n=counts[k]) for k, tmpl in _NO_CANONICAL_CLAUSE
+               if counts[k]]
+    n = len(canon)
+    head = (f"of the {n} canonical marker{'' if n == 1 else 's'} for this call: "
+            + "; ".join(clauses))
+    if counts["tested_absent"] or counts["unspecific"]:
+        return head
+    return head + _NOTHING_COULD_SUPPORT
+
+
 def _demotion_sentence(rule: str, driver: EvidenceItem | None,
-                       coverage: Coverage | None = None) -> str:
+                       coverage: Coverage | None = None,
+                       no_canonical: str | None = None,
+                       replicate: Coverage | None = None) -> str:
     """One registered band rule id, in the English ``agent/verdict.py`` wrote to disk.
 
     The two pearson rules interpolate the driver's own pearson, and the coverage rule
@@ -241,7 +379,14 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
     again here: a second copy would drift from v1 silently, and only on a study where
     the rule fires -- which is never the demo.
 
-    **One sentence is deliberately NOT v1's, and this is the only one.**
+    **Two sentences are deliberately NOT v1's, and these are the only two.**
+    The first is ``band:no_canonical_driver``, which is not in the table below at
+    all: it renders the canonical items' own measurement states through
+    :func:`_no_canonical_reason`, because v1's "no canonical marker supports the
+    call" served NEVER_MEASURED, UNDERPOWERED and no-canonical-list-at-all with one
+    sentence, and on a panel designed for another question those are opposite
+    statements about the evidence. The second is this one.
+
     ``band:driver_nosig`` fires when the leading canonical marker is ``TESTED_ABSENT``
     -- in frame, tested, and not assigned to this unit. v1 printed "driving marker is
     NoSig" for it, which a biologist reads as *the assay said nothing about this
@@ -252,12 +397,22 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
     the Summary table, and on a joint-clustered study -- where a canonical marker
     peaking in another cluster is the ordinary case -- it would be there on most
     units. The BAND is unchanged (still Low, still the same rung, still the same
-    ``verify``); only the words are. ``tests/test_core_verdict.py::_RULE_FOR`` still
-    maps v1's sentence to this id, because v1 is the reference implementation the
-    equivalence gate reads and it still says what it always said.
+    ``verify``); only the words are, and that is true of both divergences.
+    ``tests/test_core_verdict.py::_RULE_FOR`` still maps v1's sentences to these
+    ids, because v1 is the reference implementation the equivalence gate reads and
+    it still says what it always said.
     """
+    if rule == "band:no_canonical_driver":
+        if no_canonical is None:
+            raise NoV1Shape(
+                "band:no_canonical_driver renders the canonical items' measurement "
+                "states into its sentence, and none were passed. There is no safe "
+                "default: the collapsed wording this replaced read as 'the markers "
+                "were measured and did not support the call' on a unit whose "
+                "canonical markers were never measured at all."
+            )
+        return no_canonical
     plain = {
-        "band:no_canonical_driver": "no canonical marker supports the call",
         "band:driver_nosig":
             "leading canonical marker was measured and did not mark this unit",
         "band:demote_localises_elsewhere":
@@ -275,6 +430,27 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
                 "sentence, and the verdict carries no Coverage"
             )
         return _v1_coverage_sentence(coverage)
+    if rule == "band:demote_replicate_coverage":
+        # v1 never had this rule -- it predates replicate concordance entirely -- so
+        # unlike the canonical coverage sentence there is no original wording to
+        # reproduce. It still needs a v1 shape: ``pipeline/stages/verdicts.py``
+        # projects every unit in an unguarded loop, so a rule with no sentence here
+        # aborts the whole verdicts stage with a bare NoV1Shape and takes every
+        # OTHER unit's file with it. A multi-sample study with one thin unit could
+        # not be built at all.
+        #
+        # Deliberately NOT ``_v1_coverage_sentence``: that one says "canonical
+        # coverage", and these two K-of-Ns count different things -- canonical
+        # markers the panel could report, versus subjects a second section could be
+        # compared on. Both can fire on one unit, and two sentences reading
+        # "coverage K/N below floor F" with different numbers would be unreadable.
+        if replicate is None:
+            raise NoV1Shape(
+                "band:demote_replicate_coverage renders its own K of N into the v1 "
+                "sentence, and the verdict carries no replicate Coverage"
+            )
+        return (f"replicate coverage {replicate.k}/{replicate.n} below floor "
+                f"{replicate.floor} -> -1 band")
     if rule not in ("band:promote_pearson_high", "band:demote_pearson_low"):
         raise NoV1Shape(f"no v1 sentence for band rule {rule!r}")
     pearson = _corroborator(driver, _PEARSON) if driver is not None else None
@@ -422,14 +598,18 @@ def v1_omissions(evidence: NormalisedEvidence) -> Traced[tuple[tuple[str, int], 
     return Traced(tuple(sorted(counts.items())))
 
 
-def _headline(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...]) -> str:
+def _headline(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...],
+              no_canonical: str) -> str:
+    """The opening sentence. Its no-driver half collapsed the same three reasons
+    :func:`_no_canonical_reason` keeps apart, one function above where the demotion
+    sentence did -- and this is the sentence the biologist reads first."""
     if drivers:
         d = drivers[0]
         return (
             f"{cell_type}, {band} confidence, driven by {d['gene']} "
             f"(glm_coef {d['glm_coef']:.2f}, pearson {d['pearson']:.2f})."
         )
-    return f"{cell_type}, {band} confidence; no canonical marker drives the call."
+    return f"{cell_type}, {band} confidence; {no_canonical}."
 
 
 def _notes(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...],
@@ -495,7 +675,9 @@ def to_v1_assignment(evidence: NormalisedEvidence, verdict: Verdict,
     driver_genes = {_gene(i) for i in _eligible_drivers(observed, canon)}
     drivers = tuple(r for r in rows if r["gene"] in driver_genes)
 
-    demotions = [_demotion_sentence(r, verdict.driver, verdict.coverage)
+    no_canonical = _no_canonical_reason(evidence.items, canon)
+    demotions = [_demotion_sentence(r, verdict.driver, verdict.coverage, no_canonical,
+                                    verdict.replicate_coverage)
                  for r in verdict.demotions]
     hooks = [
         {
@@ -530,7 +712,8 @@ def to_v1_assignment(evidence: NormalisedEvidence, verdict: Verdict,
             "cluster": evidence.unit,
             "cell_type": label.cell_type,
             "confidence": verdict.band,
-            "headline": _headline(label.cell_type, verdict.band, drivers),
+            "headline": _headline(label.cell_type, verdict.band, drivers,
+                                  no_canonical),
             "driving_markers": list(drivers),
             "offpanel_notes": list(offpanel),
             "literature_hooks": hooks,

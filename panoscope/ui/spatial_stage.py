@@ -538,7 +538,15 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
     exported expression, fall back to the cluster-coloured UMAP with an honest
     note. ``gene`` is required when ``feature`` is True.
     """
-    missing = _unavailable("umap")
+    # Two views in the feature branch, not one: the recolour reads the exported
+    # expression matrix (``marker_expr_col``) as well as the embedding. A study that
+    # ran ``prep_data.R`` but not ``prep_expr.py`` declares ``{umap: true, expr:
+    # false}`` -- Panoscope's own extra step is the one most likely to be missing --
+    # and guarding on ``umap`` alone let exactly that study past the guard and into
+    # the loader's error, a traceback over the whole Markers page with the evidence
+    # table killed mid-draw. Row 1 (``feature=False``) needs the embedding only, so
+    # it still draws: an absent view subtracts its own panels, never the page.
+    missing = _unavailable("umap", "expr") if feature else _unavailable("umap")
     if missing:
         _unavailable_panel(missing)
         return

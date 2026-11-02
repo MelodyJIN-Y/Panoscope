@@ -94,6 +94,12 @@ RULES: dict[str, Rule] = _rules(
          "too few of the label's canonical markers were ever in frame for the "
          "measurement to speak to -- K of N below the declared floor; -1 band, and "
          "the rubric also sets verify. A fact about the panel, not about the unit"),
+    Rule("band:demote_replicate_coverage", "confidence",
+         "the second section could be compared on too few of this unit's subjects "
+         "for the comparison to be about the unit -- K of N below the declared "
+         "floor; -1 band, and the rubric also sets verify. SUBTRACTS only: "
+         "replicates are not independent witnesses, so clearing the floor records "
+         "nothing at all (9.10). A fact about the second reading, not the unit"),
     # -- step: rival (panoscope.core.rival.rival_test) --
     # Three ids rather than one with three outcomes, for the reason measure's four
     # states have four: the UI and the grounding tests match on the id, and a single

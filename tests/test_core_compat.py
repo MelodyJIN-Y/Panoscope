@@ -407,6 +407,224 @@ def test_the_tested_absent_driver_sentence_does_not_claim_a_failed_measurement()
     assert sentence in notes
 
 
+def _canon_item(name: str, state: MeasuredState, frame: str,
+                flags: tuple[str, ...] = ()) -> EvidenceItem:
+    """One canonical marker in a given measurement state. ``statistic is None`` iff
+    the state is not OBSERVED, which the EvidenceItem boundary enforces anyway."""
+    return EvidenceItem(
+        subject=subject("gene", g=gene(name)),
+        statistic=(1.0 if state is MeasuredState.OBSERVED else None),
+        statistic_name="glm_coef",
+        measured=Measured(state, frame),
+        corroborating=(("pearson", 0.1),) if state is MeasuredState.OBSERVED else (),
+        flags=flags,
+    )
+
+
+def test_the_no_canonical_sentence_tells_the_four_reasons_apart():
+    """``band:no_canonical_driver`` had ONE sentence for several different states.
+
+    "no canonical marker supports the call" reads as *the markers were measured and
+    they do not support it*; on a panel designed for a different question the truth
+    is *every canonical marker is off-panel, so nothing could have supported it*.
+    Those are opposite statements about the evidence, and this column lands in
+    ``interp/verdicts.csv``'s ``notes`` and the Summary table.
+
+    Every state is checked, not only the off-panel one: reporting an UNDERPOWERED
+    marker in the words of a NEVER_MEASURED one (or the reverse) is a fabricated
+    measurement status, and a test that pinned only the all-off-panel case would
+    report the rest as covered.
+    """
+    canon = frozenset({"CAN1", "CAN2", "CAN3", "CAN4"})
+    detect = "detect:synthetic"
+
+    # 1. all off-panel -- the kidney/fixture case. The panel cannot speak to it.
+    all_off = compat._no_canonical_reason(
+        tuple(_canon_item(g, MeasuredState.NEVER_MEASURED, PANEL_FRAME)
+              for g in sorted(canon)), canon)
+    assert all_off == ("of the 4 canonical markers for this call: 4 off-panel "
+                       "(never measured) -- nothing could have supported it")
+
+    # 2. the fixture's ACTUAL shape: off-panel AND on-panel-with-no-signal, which
+    #    are different facts ("order a different panel" vs "this section was flat").
+    mixed = compat._no_canonical_reason(
+        (_canon_item("CAN1", MeasuredState.NEVER_MEASURED, PANEL_FRAME),
+         _canon_item("CAN2", MeasuredState.NEVER_MEASURED, PANEL_FRAME),
+         _canon_item("CAN3", MeasuredState.NEVER_MEASURED, PANEL_FRAME),
+         _canon_item("CAN4", MeasuredState.NEVER_MEASURED, detect)), canon)
+    assert mixed == ("of the 4 canonical markers for this call: 3 off-panel (never "
+                     "measured); 1 on-panel with no usable signal (never measured) "
+                     "-- nothing could have supported it")
+
+    # 3. UNDERPOWERED is in frame and below the floor. It must not be dressed as
+    #    never-measured, and it must not be dressed as a tested absence either --
+    #    it argues nothing, so the incapability clause still applies.
+    under = compat._no_canonical_reason(
+        tuple(_canon_item(g, MeasuredState.UNDERPOWERED, PANEL_FRAME)
+              for g in sorted(canon)), canon)
+    assert under == ("of the 4 canonical markers for this call: 4 in frame but "
+                     "below the floor (underpowered) "
+                     "-- nothing could have supported it")
+    assert "never measured" not in under and "off-panel" not in under
+
+    # 4. OBSERVED but not eligible (low specificity): the measurement DID speak, so
+    #    the incapability clause must be absent -- it would be the false half.
+    unspecific = compat._no_canonical_reason(
+        (_canon_item("CAN1", MeasuredState.OBSERVED, PANEL_FRAME,
+                     (compat.FLAG_LOW_PEARSON,)),
+         _canon_item("CAN2", MeasuredState.NEVER_MEASURED, PANEL_FRAME)), canon)
+    assert unspecific == ("of the 4 canonical markers for this call: 2 not in the "
+                          "measured set at all (never measured); 1 off-panel (never "
+                          "measured); 1 measured, but too unspecific to carry the "
+                          "call")
+    assert compat._NOTHING_COULD_SUPPORT not in unspecific
+
+    # 5. No curated list at all -- thin reference data, not a failed measurement.
+    assert compat._no_canonical_reason((), frozenset()) == \
+        "this call has no canonical marker list to check"
+
+    # 6. A canonical marker nobody reported is the panel refusing it before the
+    #    method ran (core.verdict._canonical_coverage counts it the same way).
+    assert compat._no_canonical_reason((), canon) == (
+        "of the 4 canonical markers for this call: 4 not in the measured set at "
+        "all (never measured) -- nothing could have supported it")
+
+    # 7. None of these sentences may read as the collapsed one.
+    for sentence in (all_off, mixed, under, unspecific):
+        assert "no canonical marker supports the call" not in sentence
+
+
+def test_a_never_measured_canonical_marker_outside_BOTH_gene_frames_says_so():
+    """The NEVER_MEASURED branch the fixture does not reach, and the one that lied.
+
+    ``_no_canonical_class`` asserted "on-panel with no usable signal" for every
+    NEVER_MEASURED item whose frame did not start ``panel:``. Two of the frames that
+    reach it say no such thing: ``"no frame declared for gene"``, which
+    ``types.measured._state_for`` returns when a kind declares no frame at all, and
+    ``annotation:<study>``, which a composite subject reaches when the UNIT was the
+    role that blocked. For those BOTH halves of the clause were fabricated -- nothing
+    said the gene was on the panel, and nothing said the section gave no signal.
+    ``_v1_bucket`` names its own else-branch ``never_measured_outside_the_panel_frame``
+    precisely because it cannot tell.
+
+    The fixture's c2 is 5 ``panel:`` + 1 ``detect:``, both of which ARE knowable,
+    which is why the suite was green. This builds the branch the fixture misses, and
+    builds it beside a real ``detect:`` item so a clause that swallowed both would
+    print one count of 2 instead of two counts of 1.
+    """
+    canon = frozenset({"CAN1", "CAN2"})
+    for frame in ("no frame declared for gene", "annotation:synthetic"):
+        sentence = compat._no_canonical_reason(
+            (_canon_item("CAN1", MeasuredState.NEVER_MEASURED, frame),
+             _canon_item("CAN2", MeasuredState.NEVER_MEASURED, "detect:synthetic")),
+            canon)
+        assert sentence == (
+            "of the 2 canonical markers for this call: 1 on-panel with no usable "
+            "signal (never measured); 1 refused by a frame that is neither the "
+            "panel nor detectability (never measured)"
+            " -- nothing could have supported it"), frame
+
+
+def _census_counts(sentence: str) -> int:
+    """The clause numbers, summed. Every clause opens with its own count."""
+    body = sentence.split(": ", 1)[1]
+    return sum(int(c.split()[0]) for c in body.split("; "))
+
+
+def test_the_canonical_census_counts_NAMES_so_its_clauses_sum_to_its_denominator():
+    """"of the 4 canonical markers for this call: ... " and then eight of them.
+
+    The census counted its no-item class over NAMES (``len(canon - seen)``) and every
+    other class over ITEMS, and a sentence whose entire job is to be a census of a
+    curated list then disagreed with its own denominator on exactly the two subject
+    shapes this project has. Names won, because that is what the denominator counts.
+
+    Both shapes are built, because they break it in opposite directions.
+    """
+    canon = frozenset({"CAN1", "CAN2", "CAN3", "CAN4"})
+
+    # 1. Duplicate readings of one canonical gene. ``measure_unit`` does not dedupe,
+    #    so a joint-clustered study with per-sample rows hands over several readings
+    #    of CAN1 -- the kidney shape. Over-counted: 2 + 3 items = 5 of 4.
+    #    The name is filed under its HIGHEST reading: a gene OBSERVED in one sample
+    #    WAS measured, whatever the other row says, and that is the join
+    #    ``core.verdict._canonical_coverage`` already takes.
+    dup = compat._no_canonical_reason(
+        (_canon_item("CAN1", MeasuredState.OBSERVED, PANEL_FRAME,
+                     (compat.FLAG_LOW_PEARSON,)),
+         _canon_item("CAN1", MeasuredState.NEVER_MEASURED, PANEL_FRAME),
+         _canon_item("CAN2", MeasuredState.TESTED_ABSENT, PANEL_FRAME)), canon)
+    assert dup == ("of the 4 canonical markers for this call: 2 not in the measured "
+                   "set at all (never measured); 1 tested and not assigned to this "
+                   "unit (tested-absent); 1 measured, but too unspecific to carry "
+                   "the call")
+    assert _census_counts(dup) == 4
+    assert "off-panel" not in dup      # CAN1 was measured; the second row is a dupe
+
+    # 2. A composite subject carrying two canonical names in one item -- the shape
+    #    ``core.verdict._is_canonical`` exists for. Under-counted: 2 + 1 = 3 of 4.
+    pair = compat._no_canonical_reason(
+        (EvidenceItem(
+            subject=subject("gene_pair", a=gene("CAN1"), b=gene("CAN2")),
+            statistic=None, statistic_name="glm_coef",
+            measured=Measured(MeasuredState.NEVER_MEASURED, PANEL_FRAME)),), canon)
+    assert pair == ("of the 4 canonical markers for this call: 2 not in the measured "
+                    "set at all (never measured); 2 off-panel (never measured)"
+                    " -- nothing could have supported it")
+    assert _census_counts(pair) == 4
+
+
+def test_the_no_canonical_sentence_travels_to_both_prose_surfaces():
+    """It is rendered twice -- the demotion sentence and the opening headline -- and
+    the headline's old half ("no canonical marker drives the call") collapsed the
+    same reasons one function up. Both are checked, because the headline is the
+    sentence the biologist reads first and the notes are what the CSV carries."""
+    reason = "of the 2 canonical markers for this call: 2 off-panel (never measured)"
+    assert compat._demotion_sentence("band:no_canonical_driver", None,
+                                     no_canonical=reason) == reason
+    assert compat._headline("T_Cells", "Low", (), reason) == \
+        f"T_Cells, Low confidence; {reason}."
+    assert reason in compat._notes("T_Cells", "Low", (), (reason,),
+                                   fragile=False, verify=True)
+
+
+def test_the_no_canonical_rule_refuses_to_render_without_the_states():
+    """No safe default: the wording it replaced is the false one on exactly the
+    units this rule fires on, so a caller that forgot the states must fail rather
+    than quietly get it back."""
+    with pytest.raises(compat.NoV1Shape, match="no safe default"):
+        compat._demotion_sentence("band:no_canonical_driver", None)
+
+
+def test_the_fixtures_c2_states_why_nothing_supported_it_and_keeps_its_band():
+    """End to end on the production path, on the unit the sentence exists for.
+
+    ``synthetic_multisample_fixture`` c2 is the panel-absence rule at severity: its
+    canonical markers are all NEVER_MEASURED, five off the panel and one on it with
+    no usable signal. The band is loud and correct either way, so what is pinned
+    here is that the PROSE now names the reason -- and that fixing the prose moved
+    neither the band, the score, nor ``verify``.
+    """
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    fixture = "synthetic_multisample_fixture"
+    if not Study.open(fixture).exists:
+        pytest.skip(f"study {fixture!r} is not on disk")
+    with cfg.use_study(fixture):
+        d = records.to_v1_dict(records.build_all(Study.open(fixture))["c2"])
+
+    assert d["band_basis"] == "no canonical driver"
+    assert d["confidence"] == "Low" and d["confidence_score"] == 0.30
+    assert d["verify"] is True
+    (sentence,) = d["demotions"]
+    assert "off-panel (never measured)" in sentence
+    assert "on-panel with no usable signal (never measured)" in sentence
+    assert compat._NOTHING_COULD_SUPPORT in sentence
+    assert sentence in d["notes"] and sentence in d["opening"]["headline"]
+    assert "no canonical marker supports the call" not in d["notes"]
+
+
 def test_an_unknown_band_rule_raises_rather_than_rendering_nothing():
     """A band rule with no v1 sentence would silently shorten ``demotions`` and the
     ``notes`` prose built from it -- the record would read as a call that took one

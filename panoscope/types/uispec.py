@@ -59,7 +59,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Callable, Literal
+from typing import Callable, Container, Literal
 
 from panoscope.types.measured import Measured, MeasuredState
 from panoscope.types.outputs import TaskKind
@@ -423,6 +423,39 @@ class NothingToClick(ValueError):
     caught one medium's violation and not the other's. A second renderer is what
     made that visible.
     """
+
+
+def anchored(key: str, resolvable: Container[str] | None = None,
+             what: str = "sentence") -> str:
+    """``key``, checked -- or :class:`NothingToClick`. The whole rule, not half.
+
+    Both renderers enforced this guard by testing the key for the EMPTY STRING,
+    which is the half that fires when a caller forgot an anchor altogether -- a bug
+    that does not survive its first run. The half that reached a biologist was a
+    sentence anchored on a subject NO ROW ON THE PAGE carries: a gene only a
+    per-sample table reported, rendered into the replicate read with a
+    ``data-claim`` none of the anchors on that page resolves. A click-back that
+    lands nowhere is the same defect as no click-back, with a key in it to make it
+    look answered -- so it belongs in this guard rather than in a second one
+    nobody would wire into the second renderer either.
+
+    ``resolvable`` is the set of anchors the page actually carries. ``None`` means
+    the caller emits the anchor and its target together -- a table row resolves to
+    itself, by construction -- so there is nothing to check it against, and the
+    empty check is the whole rule there.
+    """
+    if not str(key).strip():
+        raise NothingToClick(
+            f"a {what} was rendered with no Subject.key to resolve to. A sentence "
+            "with nothing to click should not have been rendered."
+        )
+    if resolvable is not None and key not in resolvable:
+        raise NothingToClick(
+            f"a {what} was anchored on {key!r}, which nothing on this page "
+            "resolves. A sentence with nothing to click should not have been "
+            "rendered, and an anchor nobody can follow is nothing to click."
+        )
+    return key
 
 
 class SpecCarriesCode(ValueError):

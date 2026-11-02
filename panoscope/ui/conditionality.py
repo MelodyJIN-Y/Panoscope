@@ -28,10 +28,10 @@ from __future__ import annotations
 
 import html
 import json
-from functools import lru_cache
 from typing import Any, Optional
 
 from panoscope.agent import config as cfg
+from panoscope.agent.data import _per_study
 from panoscope.types.uispec import Conditionality, UndrawableFigure
 from panoscope.ui import data_access as da
 
@@ -89,24 +89,46 @@ def _full_record(cond: Conditionality) -> str:
 # --------------------------------------------------------------------------- #
 # Grounded fragments (read from files; never asserted)
 # --------------------------------------------------------------------------- #
-@lru_cache(maxsize=1)
 def _manifest() -> dict:
-    """The study manifest, for artifact sha256s. ``{}`` if unreadable."""
-    try:
-        from panoscope.pipeline import paths
+    """The ACTIVE study's manifest, for artifact sha256s. ``{}`` if unreadable.
 
-        p = paths.dataset_dir(cfg.DATASET_ID) / "manifest.json"
-        return json.loads(p.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001 - no manifest just means no sha fragment
-        return {}
+    ``Study.manifest`` rather than a reader of our own: it is already cached per
+    study (and forgotten by ``study.clear_cache()`` with every other per-study
+    derivation), and it reads the manifest under THAT study's data root instead of
+    re-resolving its id under the ambient one.
+
+    What was here was an ``lru_cache(maxsize=1)`` over a zero-argument read — one
+    slot shared by every study, so whichever study drew a figure first kept
+    supplying its digest under the SECOND study's plots, for an artifact the second
+    study does not have. ``_panel_scope()`` stayed correct per study, which is what
+    made it dangerous rather than obvious: the caption read as internally
+    consistent, so nothing in it invited doubt. R4 says a plot with no
+    conditionality record refuses to draw; this one drew with someone else's.
+    """
+    return cfg.current_study().manifest
 
 
-@lru_cache(maxsize=1)
+@_per_study
+def _read_density_index() -> dict:
+    """The density precompute index, parsed. RAISES if it cannot be read.
+
+    Keyed on the study by ``agent.data._per_study`` — the mechanism that already
+    solved this for the tidy readers — rather than on nothing at all.
+
+    It raises rather than returning ``{}`` because ``lru_cache`` does not memoise an
+    exception, and a cache that swallows a read error and then memoises the empty
+    result outlives the condition that produced it: a study whose density step
+    finishes while the app is open would have kept the "no exclusions" caption for
+    the rest of the session. ``_density_index`` below is the half that answers ``{}``.
+    """
+    return json.loads(da._density_index().read_text(encoding="utf-8"))
+
+
 def _density_index() -> dict:
-    """The density precompute index: qv floor, control prefixes, normalisation."""
+    """The parsed index, or ``{}`` — an absent index just means no exclusions line."""
     try:
-        return json.loads(da._density_index().read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001 - absent index just means no exclusions line
+        return _read_density_index()
+    except Exception:  # noqa: BLE001 - see _read_density_index: failures are not cached
         return {}
 
 

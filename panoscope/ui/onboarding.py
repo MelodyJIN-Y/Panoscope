@@ -34,12 +34,9 @@ def _detected_tissue() -> str:
     Empty string if unreadable. This is the grounded tissue the agent reasons within;
     it is derived from the data, not typed by the biologist."""
     try:
-        import json
-
         from panoscope.agent import config as cfg
-        from panoscope.pipeline import paths
 
-        m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
+        m = cfg.current_study().manifest
         parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]
         return " · ".join(p for p in parts if p)
     except Exception:  # noqa: BLE001 - no manifest just means no detected-tissue chip
@@ -321,6 +318,55 @@ def _upload_card(col, title: str, desc: str, key: str, types, required: bool):
         return st.file_uploader(title, type=types, key=key, label_visibility="collapsed")
 
 
+def _ready_line() -> str:
+    """The final progress line, with the study's OWN cluster count and panel size.
+
+    Both numbers are DERIVED, from the two readers every later number on the screen
+    comes from: ``cfg.CLUSTER_ORDER`` (the clusters present in this study's marker
+    table, which is what the plot captions count) and ``len(da.panel_names())`` (the
+    panel file, which is what ``conditionality._panel_scope`` puts under every plot).
+
+    It was the literal "Interpretation ready. 9 clusters, 280-gene panel." -- the
+    demo's two numbers on every study's loading screen. Replacing it with a read of
+    the manifest's ``clusters`` and ``panel_gene_count`` was better and still wrong:
+    a stored count is a CLAIM about the files, written once at build time, and a
+    manifest built before the control-probe filter says 13 while the panel file holds
+    12 and every caption under every plot says 12. CLAUDE.md: panel size is dynamic
+    across studies, derive it from the file, never assert a constant. This is the
+    first number the biologist ever sees, and it has to be the number the plots are
+    drawn over.
+
+    Each number is read on its own, so an unreadable panel file costs the panel half
+    of the sentence and not the cluster half. A number that cannot be derived is left
+    out rather than defaulted, so the line can shrink all the way back to
+    "Interpretation ready." and never asserts.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import data as agent_data
+    from panoscope.ui import data_access as da
+
+    bits: list[str] = []
+    try:
+        # Gated on the study's OWN marker table, through the resolver that lets only
+        # the bundled demo fall back to the legacy flat files: ``cfg.CLUSTER_ORDER``
+        # reads ``cfg.ACTIVE_MARKERS_CSV``, whose fallback carries no such gate, so a
+        # study with no marker table would be counted from the DEMO's and this line
+        # would open with another study's cluster count. (The root cause is
+        # ``agent/config._active_input``, which this change does not own.)
+        n_clusters = len(cfg.CLUSTER_ORDER) if agent_data._markers_top().exists() else 0
+        if n_clusters:
+            bits.append(f"{n_clusters} clusters")
+    except Exception:  # noqa: BLE001 - underivable is stated by omission, never faked
+        pass
+    try:
+        n_panel = len(da.panel_names())
+        if n_panel:
+            bits.append(f"{n_panel}-gene panel")
+    except Exception:  # noqa: BLE001 - same
+        pass
+    return "Interpretation ready." + (f" {', '.join(bits)}." if bits else "")
+
+
 def _run_progress(names: list[str]) -> None:
     """Short staged progress so the hand-off feels like real work (it reads the
     precomputed tree; see the module DEMO NOTE)."""
@@ -330,7 +376,7 @@ def _run_progress(names: list[str]) -> None:
         ("Applying the panel-absence rule to the gene panel…", 0.52),
         ("Scoring confidence from spatial glm_coef…", 0.72),
         ("Grounding cell-type notes with live citations…", 0.9),
-        ("Interpretation ready. 9 clusters, 280-gene panel.", 1.0),
+        (_ready_line(), 1.0),
     ]
     bar = st.progress(0.0, text="Starting…")
     for msg, frac in steps:

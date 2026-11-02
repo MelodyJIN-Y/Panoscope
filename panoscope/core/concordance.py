@@ -34,12 +34,23 @@ collapsed back into two.
 
 **What is deliberately left undefined.** A subject a sample emitted *no item at all*
 for is reported as not-comparable naming that sample, and no attempt is made to
-adjudicate it against that sample's frames the way ``reconcile`` does. Under joint
-clustering the replicates share one capability frame by construction, so there is no
-second world to resolve against, and the honest reading of a missing row is that this
-module cannot tell whether the reader dropped it or the method never emitted it.
-Guessing either way would invent a measurement status, which is the one thing the
-lattice exists to prevent.
+adjudicate it against that sample's frames the way ``reconcile`` does. The honest
+reading of a missing row is that this module cannot tell whether the reader dropped
+it or the method never emitted it, and guessing either way would invent a measurement
+status, which is the one thing the lattice exists to prevent.
+
+**The replicates do NOT share one capability frame, and the items are what say so.**
+Joint clustering joins the *units*; it says nothing about what each section was
+capable of observing. One panel was run across the sections, so the panel frame is
+shared -- but detectability is read off each section's own markers table, and a gene
+that produced no usable signal there was not tested there. Each :class:`Replicate`'s
+items therefore arrive already carrying that sample's own frames
+(``pipeline/records.py`` builds them through ``adapter.for_sample``), and ``_compare``
+reads each state off the item rather than off any frame this module holds -- which is
+why it holds none. When one pooled frame was handed to every replicate instead, a
+gene reported in one section and ``NoSig`` in the other came out of ``_compare`` as a
+measured absence and therefore a CONFLICT: a divergence manufactured out of a
+measurement that was never made.
 """
 
 from __future__ import annotations
@@ -47,6 +58,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from panoscope.core.reconcile import Comparison, _compare
+from panoscope.core.verdict import (
+    REPLICATE_COVERAGE_FLOOR, REPLICATE_COVERAGE_WHAT, _coverage_floor,
+)
 from panoscope.types.evidence import EvidenceItem
 from panoscope.types.measured import Coverage
 from panoscope.types.subject import Subject
@@ -118,8 +132,8 @@ class Concordance:
                      if s.outcome is Comparison.CONFLICT)
 
 
-def concordance(unit: str, replicates: tuple[Replicate, ...], joint: bool,
-                floor: int = 1) -> Traced[Concordance]:
+def concordance(unit: str, replicates: tuple[Replicate, ...],
+                joint: bool) -> Traced[Concordance]:
     """Compare a unit's profile across replicates. Raises under independent clustering.
 
     The first replicate is the reference and every other is compared against it,
@@ -131,6 +145,15 @@ def concordance(unit: str, replicates: tuple[Replicate, ...], joint: bool,
     Subject order is the reference sample's own item order, then any subject only a
     later sample reported, in that sample's order. Not sorted: this order is hashed
     into the record, and most of these rows have no number to sort by.
+
+    The ``floor`` the coverage is counted against is
+    :data:`~panoscope.core.verdict.REPLICATE_COVERAGE_FLOOR`, not a parameter. It was
+    one -- defaulting to ``1``, which ``Coverage.ok`` clears at every point of the
+    gradient -- and a threshold a caller supplies is a threshold a caller can choose,
+    which is the seam ``verify`` is not allowed to have: this K of N now demotes a
+    band and sets the rubric's flag. The constant lives beside the other tuned band
+    constants, with the honest note that it is structural rather than calibrated and
+    why.
 
     One subject is CONFLICT if it conflicts in **any** replicate, NOT_COMPARABLE if
     it could not be compared in any and never conflicted, and CONSISTENT only if at
@@ -213,5 +236,6 @@ def concordance(unit: str, replicates: tuple[Replicate, ...], joint: bool,
         samples=tuple(r.sample for r in replicates),
         reference=ref_rep.sample,
         per_subject=tuple(per),
-        coverage=Coverage("subjects_comparable", comparable, len(order), floor),
+        coverage=Coverage(REPLICATE_COVERAGE_WHAT, comparable, len(order),
+                          _coverage_floor(len(order), REPLICATE_COVERAGE_FLOOR)),
     ))

@@ -344,7 +344,10 @@ def _render_summary_headless(seed_edit: str = ""):
 
         _state.init_state()
         if edit:
-            _st.session_state["wsval_caveats"] = edit
+            # the canonical key is scoped to the active study (``_skey``), which is
+            # what a keystroke in that editor would set -- a bare ``wsval_caveats``
+            # would be ignored by the page and quietly stop exercising the autosave.
+            _st.session_state[_summary._skey("wsval_caveats")] = edit
         _summary.render_summary_page()
 
     at = AppTest.from_function(_run, kwargs={"edit": seed_edit})

@@ -240,3 +240,74 @@ def test_the_caption_is_rendered_under_the_panel():
     assert "NOT segmentation boundaries" in md
     assert "thinned to 45,000 of 153,567" in md
     assert "title=" in md  # the full record hover-expands
+
+
+def test_the_set_density_count_comes_from_the_frames_that_were_summed(tmp_path):
+    """The count in the caption is a DERIVED statistic, so it comes from what was drawn.
+
+    ``_n_with_density`` counted against ``available_density_markers()`` — the density
+    index's declaration of what was precomputed, and with no index at all the study's
+    demo marker set. That is a claim about the run, not a reading of what was read.
+    On a study declaring ``density: true`` with a PARTIAL precompute (exactly what a
+    part-prepped second study looks like) the caption said "the SUM of 3 of 3 driving
+    genes" over a figure summed from one frame: a number larger than the evidence
+    behind the picture, on the panel whose whole job is to admit what the sum hides.
+
+    Zero frames is the easy half — ``leading_edge_density`` returns None and the
+    empty state fires instead of a caption — so the case that bites is one frame of
+    three, with the figure really drawing.
+
+    The tree is built under ``tmp_path`` and opened by an explicit ``data_root``, so
+    no environment variable, no ``layout`` cache and nothing under ``data/studies/``
+    is involved.
+    """
+    import json
+    import shutil
+
+    import pandas as pd
+
+    from panoscope.agent import config as cfg
+    from panoscope.data.study import Study
+    from panoscope.ui import data_access as da
+    from panoscope.ui import enrichment_spatial as es
+
+    src = Study.open("synthetic_multisample_fixture")
+    if not src.exists:
+        pytest.skip("the fixture study is not on disk")
+
+    dst = tmp_path / "studies" / "partprepped"
+    shutil.copytree(src.dir, dst)
+    manifest = json.loads((dst / "manifest.json").read_text(encoding="utf-8"))
+    manifest["dataset_id"] = "partprepped"
+    manifest["views_available"] = {**manifest.get("views_available", {}), "density": True}
+    (dst / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    hexbin = dst / "viz" / "hexbin"
+    hexbin.mkdir(parents=True, exist_ok=True)
+    (hexbin / "_index.json").unlink(missing_ok=True)
+    # one driving gene of three has a frame; the other two were never precomputed
+    pd.DataFrame(
+        {"hx": [25.0, 75.0], "hy": [25.0, 75.0], "count": [3, 1],
+         "density": [0.0012, 0.0004]}
+    ).to_parquet(hexbin / "SYNG01_50um.parquet")
+
+    genes = ("SYNG01", "SYNG02", "SYNG03")
+    with cfg.use_study(Study(id="partprepped", data_root=tmp_path)):
+        # the declaration still names all three, which is what counted 3 of 3
+        assert set(genes) <= set(da.available_density_markers())
+        # ground truth: what the sum actually summed
+        hb = da.leading_edge_density(genes, 50)
+        assert hb is not None and not hb.empty  # the figure really draws
+        on_disk = [g for g in genes if (hexbin / f"{g}_50um.parquet").exists()]
+        assert len(on_disk) == 1
+
+        n_drawn = es._n_with_density(genes, 50)
+        assert n_drawn == len(on_disk)
+        rec = cnd.set_density_cond(
+            program="Emt", hb=hb, bin_um=50, n_genes=len(genes), n_drawn=n_drawn
+        )
+        assert "SUM of 1 of 3 driving genes" in rec.drawn
+
+        # a frame exists per (gene, bin), so the count is read at the bin that was
+        # drawn: at 100 µm nothing was precomputed and the two stay in step.
+        assert da.leading_edge_density(genes, 100) is None
+        assert es._n_with_density(genes, 100) == 0

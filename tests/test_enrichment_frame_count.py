@@ -266,3 +266,50 @@ def test_the_build_says_out_loud_how_many_drivers_the_frames_rejected(tmp_path, 
     assert (f"leading edge, capability frames: {expected_genes} of ") in out, out
     assert f"rejected across {expected_rows} of " in out, out
     assert expected_genes and expected_rows, "nothing rejected: the check is vacuous"
+
+
+# --------------------------------------------------------------------------- #
+# The collection a set came from is read off the set, never asserted.
+# --------------------------------------------------------------------------- #
+def test_the_collection_is_derived_from_the_set_and_unknown_when_it_cannot_be():
+    """``gene_set_collection`` was the constant ``"MSigDB_Hallmark"``, every study.
+
+    On the demo that constant is true. On ``synthetic_multisample_fixture`` it wrote
+    a real, restrictively-licensed collection's name as the provenance of four
+    invented sets -- false provenance under the confident floor, and the licensing
+    rule ("fetch restrictively-licensed data, never bundle it") broken in the one
+    study that exists because nothing licensed is bundled.
+
+    Both halves are pinned. Checking only that HALLMARK_ still resolves would pass
+    on the asserted constant; checking only that SYNSET_ does not would pass on a
+    function that returned ``unknown`` for everything.
+    """
+    assert E._collection_for("HALLMARK_G2M_CHECKPOINT") == "MSigDB_Hallmark"
+    assert E._collection_for("hallmark_g2m_checkpoint") == "MSigDB_Hallmark"
+    assert E._collection_for("SYNSET_ALPHA") == E.UNKNOWN_COLLECTION
+    assert E._collection_for("") == E.UNKNOWN_COLLECTION
+    assert E.UNKNOWN_COLLECTION == "unknown"
+    # and nothing anywhere still hands out the old constant
+    assert not hasattr(E, "_JZ_COLLECTION")
+
+
+def test_the_synthetic_fixtures_pathways_name_no_real_collection():
+    """End to end on the study the defect was committed in. Ungated: the fixture's
+    ``inputs/enrichment.csv`` is committed, unlike the demo's."""
+    from panoscope.data.study import Study
+
+    fixture = "synthetic_multisample_fixture"
+    if not Study.open(fixture).exists:
+        pytest.skip(f"study {fixture!r} is not on disk")
+    with cfg.use_study(fixture):
+        built = [E._pathway_from_jz_row(r) for r in E._load_jazzpanda_rows()]
+    assert built, "the fixture has enrichment rows; this must not pass vacuously"
+    assert {p.gene_set_collection for p in built} == {E.UNKNOWN_COLLECTION}
+    assert all(p.gene_set.startswith("SYNSET_") for p in built)
+
+
+@_needs_result
+def test_the_demos_pathways_still_name_the_collection_they_really_came_from():
+    """The other half: `unknown` must not become the answer for everything."""
+    built = [E._pathway_from_jz_row(r) for r in E._load_jazzpanda_rows()]
+    assert {p.gene_set_collection for p in built} == {"MSigDB_Hallmark"}

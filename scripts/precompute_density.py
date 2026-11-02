@@ -39,6 +39,8 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from panoscope.agent import config  # noqa: E402
+from panoscope.agent.data import is_control  # noqa: E402
+from panoscope.platforms.xenium import CONTROL_PREFIXES  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Constants
@@ -46,14 +48,6 @@ from panoscope.agent import config  # noqa: E402
 BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)
 QV_MIN: float = 20.0  # Xenium quality-value floor (10x default recommendation)
 CHUNK_ROWS: int = 2_000_000  # rows per streaming chunk (~caps peak memory)
-
-# Control / non-biological probe prefixes to drop (case-insensitive).
-CONTROL_PREFIXES: tuple[str, ...] = (
-    "negcontrolprobe",
-    "negcontrolcodeword",
-    "blank",
-    "antisense",
-)
 
 # Columns we actually parse from the gzip (skip transcript_id, cell_id,
 # overlaps_nucleus, z_location — not needed for a 2D density).
@@ -88,12 +82,6 @@ def _all_panel_genes() -> list[str]:
     from panoscope.agent import data as agent_data
 
     return sorted(agent_data.load_markers()["gene"].astype(str).unique())
-
-
-def _is_control(feature_name: str) -> bool:
-    """True if a feature name is a negative-control / blank / antisense probe."""
-    low = feature_name.lower()
-    return any(low.startswith(p) for p in CONTROL_PREFIXES)
 
 
 def _report_progress(n_chunks: int, total_rows: int, kept_rows: int, t0: float) -> None:
@@ -149,7 +137,13 @@ def _stream_demo_transcripts(demo_set: frozenset[str]) -> dict[str, pd.DataFrame
         sub = chunk.loc[mask, ["feature_name", "x_location", "y_location"]]
 
         # Defensive: never let a control probe through even if a name collides.
-        keep = ~sub["feature_name"].map(_is_control)
+        # This script used to carry its own lower-cased prefix list -- a shorter one
+        # (it knew nothing of NegPrb / UnassignedCodeword_ / DeprecatedCodeword_) and
+        # a second answer to a question that already had one. It now shares the panel
+        # layer's rule, which is the adapter's list compared case-insensitively, so
+        # the transcript filter and the panel reader cannot disagree about what a
+        # control is.
+        keep = ~sub["feature_name"].map(is_control)
         sub = sub.loc[keep]
         kept_rows += len(sub)
 

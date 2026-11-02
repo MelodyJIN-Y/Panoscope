@@ -60,6 +60,7 @@ from panoscope.types.uispec import (
     ProvenanceOnlyHeader,
     SpecCarriesCode,
     UISpec,
+    anchored,
 )
 # Imported, never re-listed. uispec.py derives both from `Measured.carries_number`,
 # and a second copy here would be the exact bug its own comment warns about: a
@@ -126,13 +127,15 @@ def _no_code(spec: UISpec) -> None:
 
 
 def _anchor(inner: str, key: str, cls: str) -> str:
-    """Wrap a rendered claim in its click-back anchor, or refuse to render it."""
-    if not str(key).strip():
-        raise NothingToClick(
-            f"a {cls} was rendered with no Subject.key to resolve to. A sentence "
-            "with nothing to click should not have been rendered."
-        )
-    return f'<span class="{cls}" data-claim="{_esc(key)}">{inner}</span>'
+    """Wrap a rendered claim in its click-back anchor, or refuse to render it.
+
+    The check is ``uispec.anchored`` rather than an ``if`` here: a row emits its
+    anchor and its target in one span, so it resolves to itself by construction and
+    has nothing to be checked against -- but a sentence ABOUT a subject does not,
+    and that half of the rule was missing from both renderers' private copies of it.
+    """
+    return (f'<span class="{cls}" data-claim="{_esc(anchored(key, what=cls))}">'
+            f'{inner}</span>')
 
 
 # --------------------------------------------------------------------------- #

@@ -39,12 +39,14 @@ Streamlit is imported lazily so ``import ui.evidence_table`` needs no server.
 
 from __future__ import annotations
 
+import html
 from functools import lru_cache
-from typing import Any
+from typing import Any, Container, NamedTuple, Sequence
 
 from panoscope.agent import config as cfg
 from panoscope.methods.jazzpanda import BAND_EDGES
 from panoscope.types.measured import MeasuredState
+from panoscope.types.subject import Entity, EntityKind, subject
 from panoscope.workflows import marker as marker_workflow
 
 from panoscope.ui import data_access as da
@@ -92,7 +94,15 @@ _GATES: tuple[str, ...] = tuple(
 # re-executes the script, not the module, on every rerun.
 # --------------------------------------------------------------------------- #
 @lru_cache(maxsize=4)
-def _builds(study_id: str) -> dict[str, Any]:
+def _builds(study_dir: str) -> dict[str, Any]:
+    """Every unit's build for ONE study tree, keyed on that tree's PATH.
+
+    The path, not the study id: two data roots may hold the same id (the pipeline's
+    copy-to-tmp tests and the scratch rehearsals open exactly that pair), so an
+    id-keyed entry merges them and serves one tree's measurement states — the state
+    a row's hatch and its "absence IS evidence here" reading come from — under the
+    other tree's rows. The same key ``ui.data_access`` uses, for the same reason.
+    """
     from panoscope.pipeline import records
 
     return records.build_all(cfg.current_study())
@@ -106,7 +116,7 @@ def unit_build(cluster: str) -> Any | None:
     guessed off some other artifact.
     """
     try:
-        return _builds(cfg.current_study().id).get(cluster)
+        return _builds(str(cfg.current_study().dir)).get(cluster)
     except Exception:  # noqa: BLE001 - a missing/broken input is a message, not a crash
         return None
 
@@ -268,6 +278,202 @@ def rows_for(cluster: str, built: Any) -> list[surface.SurfaceRow]:
 
 
 # --------------------------------------------------------------------------- #
+# The replicate read (ARCHITECTURE §9.10)
+#
+# The concordance wiring produces exactly one thing a biologist acts on — *sampleA
+# and sampleB read this gene differently* — and it rendered in ``panoscope explain``
+# and nowhere else (``cli.py``'s ``undecidable`` section). Searching the rendered
+# markdown of all three registered pages on a two-sample study with a genuine
+# divergence found no "read differently", no sample name and no "undecidable"
+# anywhere. The kidney study is multi-sample, so on the surface a biologist actually
+# uses, the main product of the multi-sample half was a pooled number with no caveat
+# on it — the confident wrong answer §9.10 exists to refuse, one layer up.
+#
+# **It renders here, under the evidence, not in the header.** A divergence is a
+# statement about the EVIDENCE — two readings of one subject disagree — not about
+# the call. It sits between the table it is about and the spatial stage below, which
+# is where its own sentence sends the reader ("compare the diverging subject across
+# sections before reading the pooled number"). Nothing in it is a number a band
+# could be read off and nothing here moves a value: a divergence is a flag, and
+# §9.10 does not claim whether it is batch effect, section quality or biology.
+#
+# **The outcomes stay apart on screen, and no further apart than the record keeps
+# them.** "they could not be compared" and "they genuinely disagree" are different
+# facts; rendering them the same way would be the four-states-into-two collapse
+# arriving in the renderer, after ``core/concordance.py`` went to the trouble of
+# keeping them apart. Each has its own glyph and its own sentence, and the
+# decision's own ``because`` — which names the state and the frame that produced it
+# — is the hover. But the record carries ONE id for not-comparable, covering a
+# frame that refused the subject, an underpowered sample AND a sample that emitted
+# no row at all, and this renderer has no honest way to split them: the only thing
+# that differs is the English in ``because``, and matching on that prose is the
+# exact mistake ``FLAG_COPY`` was rebuilt to stop. So the line states all three
+# causes rather than picking one, and splitting it properly is a change to the rule
+# ids in ``core/concordance.py``, not to the copy here.
+#
+# Nothing is computed here. Every line is read off the record's own decisions and
+# ``undecidable`` sentences, the same two fields the CLI prints, so the terminal and
+# the app say the same thing about the same object.
+# --------------------------------------------------------------------------- #
+class ConcLine(NamedTuple):
+    """One line of the replicate read, resolved.
+
+    ``claim`` is the click-back anchor and must resolve to something ON THE PAGE: a
+    subject line resolves to that subject's own row in the table above — the same
+    ``Subject.key`` reconciliation joins on — and a line about this unit as a whole,
+    or about a subject the table above has no row for, resolves to the unit subject.
+    :func:`concordance_html` raises on a line that resolves to nothing rather than
+    printing it, because a sentence with nothing to click should not have been
+    rendered, and an anchor nobody can follow is nothing to click.
+    """
+
+    cls: str
+    glyph: str
+    text: str
+    claim: str
+    why: str = ""
+
+
+#: ``concordance:*`` rule -> (css class, glyph, the English after the subject name).
+#: Keyed on the rule ids the record carries, not on matching their prose — the
+#: mistake ``FLAG_COPY`` above was rebuilt to stop. ``concordance:consistent`` is
+#: deliberately absent: it is summarised, never listed per subject, because a screen
+#: of green "agrees" lines is the reassurance §9.10 forbids.
+#:
+#: **No entry here may use a glyph from ``surface._GLYPH``.** Those four are the
+#: measurement lattice, registered, and the rows immediately above this block use
+#: them with exactly that meaning. ``&#8856;`` -- NEVER_MEASURED -- sat on
+#: ``concordance:not_comparable`` and said *off panel, nothing to see* about a gene
+#: that is on the panel and was run: a fabricated measurement status, in the one
+#: direction an off-target IO panel makes invisible, because "never measured" is
+#: the kidney study's background hypothesis for almost every marker. The rule id
+#: carries no such status. It says the comparison could not be made, and the three
+#: causes it covers -- a frame refused the subject in one sample, a sample was
+#: underpowered for it, or a sample emitted no row at all -- are not separated in
+#: the record (``core/concordance.py`` says in its own docstring that it cannot
+#: tell the last one from a reader that dropped the row). So the line says all
+#: three, in the VISIBLE sentence: the hedge was in a ``title=`` hover, and
+#: "measurement status is visible, not implied" is not satisfied by a tooltip.
+_CONC_COPY: dict[str, tuple[str, str, str]] = {
+    "concordance:divergent": (
+        "diverg", "&#9888;", "read differently across the samples",
+    ),
+    "concordance:not_comparable": (
+        "blocked", "&#63;", "could not be compared across the samples — a sample "
+        "never measured it, was underpowered for it, or reported no row at all, "
+        "and the record does not say which",
+    ),
+}
+
+
+def _unit_key(cluster: str) -> str:
+    """This unit's own ``Subject.key`` -- the anchor for a line about the whole unit."""
+    return subject("unit", u=Entity(EntityKind.UNIT, cluster)).key
+
+
+def _subject_name(key: str) -> str:
+    """A display name for a subject NO row on this page carries.
+
+    ``Decision.outcome`` is a ``Subject.key``, not a ``Subject``: the record stores
+    identity, and the only subjects that arrive with a display name are the ones
+    the evidence table above also carries. The previous fallback printed the key,
+    so ``gene|g=gene:SYNG13`` -- a join string, the same one reconciliation matches
+    on -- rendered where a gene name belongs. The entity ids inside it are the
+    name; everything around them is the join.
+    """
+    ids = [part.split("=", 1)[-1].split(":", 1)[-1]
+           for part in key.split("|")[1:]]
+    return ", ".join(i for i in ids if i) or key
+
+
+def concordance_lines(cluster: str, built: Any) -> list[ConcLine]:
+    """This unit's replicate read, as lines. Pure: no Streamlit, nothing derived.
+
+    Divergence first, then what was blocked, because the productive half is the one
+    a biologist acts on. The agreement count is one summarised line carrying the
+    asymmetry with it: without it, a check that compared one subject and a check
+    that compared forty both render as *no divergence*, which is the
+    denominator-thrown-away failure ``Concordance.coverage`` was added for.
+
+    The record's ``undecidable`` sentences come last and verbatim. They are the
+    whole content on a single-sample study, where there is no comparison to report
+    and the honest line is *why there is none* — a never-measured thing is not a
+    blank row here either.
+    """
+    rec = built.record
+    unit_key = _unit_key(cluster)
+    # Display names off the record's own evidence. A subject only the per-sample
+    # tables carried has no row above to name it -- and, critically, nothing above
+    # for its line to resolve to either.
+    display = {i.subject.key: i.subject.display() for i in built.evidence.items}
+
+    subjects: list[ConcLine] = []
+    consistent = 0
+    for d in rec.decisions:
+        if d.rule == "concordance:consistent":
+            consistent += 1
+        elif d.rule in _CONC_COPY:
+            cls, glyph, sentence = _CONC_COPY[d.rule]
+            # Two different facts, so two different anchors. A subject the table
+            # above carries resolves to its own row; a subject only a per-sample
+            # table reported has no row, and anchoring the line on it rendered a
+            # sentence whose click-back resolved to nothing at all. It resolves to
+            # the unit instead, and SAYS SO -- a line that quietly retargets is a
+            # click-back that lies about where it goes.
+            on_page = d.outcome in display
+            subjects.append(ConcLine(
+                cls, glyph,
+                f"{display.get(d.outcome) or _subject_name(d.outcome)} {sentence}"
+                + ("" if on_page else
+                   " — no row for it in the evidence above, so this line resolves "
+                   "to the unit"),
+                d.outcome if on_page else unit_key, "; ".join(d.because),
+            ))
+    subjects.sort(key=lambda ln: ln.cls != "diverg")   # stable: divergence first
+
+    if consistent:
+        subjects.append(ConcLine(
+            "same", "&middot;",
+            f"{consistent} subject(s) read the same way across the samples — "
+            "agreement NEVER raises confidence: replicates are not independent "
+            "witnesses (§9.10)",
+            unit_key,
+        ))
+    subjects.extend(ConcLine("undecidable", "&#8226;", u, unit_key)
+                    for u in rec.undecidable)
+    return subjects
+
+
+def concordance_html(lines: Sequence[ConcLine],
+                     resolvable: Container[str]) -> str:
+    """The lines as HTML, or ``""`` when the record carries no replicate read.
+
+    ``resolvable`` is every anchor THIS PAGE carries -- the table's row keys plus
+    the unit -- and it is required, not optional. The guard here checked the claim
+    for the empty string, which no line has ever had; what it let through was a
+    line anchored on a subject the page does not carry, whose ``data-claim``
+    resolved to none of the anchors on it. ``uispec.anchored`` is now the one home
+    for both halves of that rule, so a second renderer adopts the widened half by
+    calling it -- ``render/text.py`` still carries its own empty-string-only
+    ``_anchored`` and has not, which is a one-line change in a file this stream
+    does not own rather than a second copy of the rule to write here.
+    """
+    if not lines:
+        return ""
+    out = ['<div class="pano-sf-block">replicate read &middot; '
+           'ARCHITECTURE &sect;9.10</div>']
+    for ln in lines:
+        claim = surface.anchored(ln.claim, resolvable,
+                                 f"replicate-read line ({ln.text!r})")
+        title = html.escape(ln.why or ln.text, quote=True)
+        out.append(f'<div class="pano-ev-conc c-{ln.cls}" '
+                   f'data-claim="{html.escape(claim, quote=True)}" '
+                   f'title="{title}">{ln.glyph} '
+                   f'{html.escape(ln.text, quote=True)}</div>')
+    return "".join(out)
+
+
+# --------------------------------------------------------------------------- #
 # Public render
 # --------------------------------------------------------------------------- #
 _EVIDENCE_CSS = """
@@ -275,6 +481,10 @@ _EVIDENCE_CSS = """
 .pano-ev-empty {
   font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
 }
+.pano-ev-conc { font-size: 12px; line-height: 1.5; padding: 4px 0; cursor: help;
+  color: var(--faint); }
+.pano-ev-conc.c-diverg { color: var(--absent); }
+.pano-ev-conc.c-undecidable { color: var(--muted); }
 </style>
 """
 
@@ -306,5 +516,15 @@ def render_evidence_table(cluster: str) -> None:
         selected=lambda r: state.is_marker_selected(cluster, by_key[r.key]),
     )
 
+    # Under the evidence it is about, and directly above the spatial stage its own
+    # sentence sends the reader to.
+    # The anchors this page actually carries: one per rendered row, plus the unit
+    # itself, which is what a line about the whole unit resolves to.
+    conc = concordance_html(concordance_lines(cluster, built),
+                            {r.key for r in rows} | {_unit_key(cluster)})
+    if conc:
+        st.markdown(conc, unsafe_allow_html=True)
 
-__all__ = ["render_evidence_table", "rows_for", "unit_build", "FLAG_COPY"]
+
+__all__ = ["render_evidence_table", "rows_for", "unit_build", "FLAG_COPY",
+           "ConcLine", "concordance_lines", "concordance_html"]

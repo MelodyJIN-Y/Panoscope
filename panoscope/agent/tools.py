@@ -165,18 +165,42 @@ def panel_lookup(gene: str) -> Envelope:
     gene was never measured — its absence is NOT evidence against any cell type,
     and the caller must say so. No statistic is invented; only membership + the
     panel's own annotation string are returned.
+
+    **Three answers, not two.** A negative-control probe is off-panel and yet
+    measured: running it is its entire function and its count is the assay's noise
+    floor. Saying "never measured" about one is a fabricated measurement status with
+    click-back intact — a ``Source``-backed falsehood — and on an off-target panel
+    it withholds the exact fact a biologist needs, because checking the controls is
+    how you decide whether a flat signal is biology or floor. So ``control`` is
+    reported beside ``on_panel``: both False is the real never-measured case, while
+    ``control=True`` is "measured, but not a subject of interpretation" (where a
+    control sits in the four-state lattice is argued in ``agent.data.is_control``).
+    ``on_panel`` stays False either way, so no coverage denominator moves.
     """
     g = str(gene or "").strip()
     if not g:
         return _fail("panel_lookup requires a non-empty gene symbol")
     on_panel = data.panel_contains(g)
-    annotation = data.panel_annotation(g) if on_panel else None
-    payload = {"gene": g.upper(), "on_panel": on_panel, "annotation": annotation}
-    detail = (
-        f"on panel (annotation: {annotation})"
-        if on_panel
-        else "off-panel — never measured; absence is not evidence against a cell type"
-    )
+    control = (not on_panel) and data.is_control(g)
+    if on_panel:
+        annotation = data.panel_annotation(g)
+        detail = f"on panel (annotation: {annotation})"
+    elif control:
+        annotation = data.control_annotation(g)
+        named = f" (annotation: {annotation})" if annotation else ""
+        detail = (
+            f"control probe{named} — measured, but not a panel gene; its count is "
+            "the assay's noise floor, not evidence for or against any cell type"
+        )
+    else:
+        annotation = None
+        detail = "off-panel — never measured; absence is not evidence against a cell type"
+    payload = {
+        "gene": g.upper(),
+        "on_panel": on_panel,
+        "control": control,
+        "annotation": annotation,
+    }
     src = Source(kind="panel", ref=g.upper(), value=str(on_panel), detail=detail)
     return _ok(payload, (src,))
 
@@ -833,9 +857,12 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "panel_lookup",
         "description": (
             "Check whether a gene is on the analyzed spatial panel and return its "
-            "panel annotation. THE panel-absence primitive: if on_panel is false the "
-            "gene was NEVER measured, so its absence is not evidence against any cell "
-            "type — say 'not measured', never 'not expressed'. Use before down-weighting "
+            "panel annotation. THE panel-absence primitive: if on_panel is false AND "
+            "control is false the gene was NEVER measured, so its absence is not "
+            "evidence against any cell type — say 'not measured', never 'not "
+            "expressed'. If control is true the name is a negative-control probe: it "
+            "WAS measured (its count is the assay's noise floor) but it is not a "
+            "panel gene — never call it never-measured. Use before down-weighting "
             "any missing canonical marker."
         ),
         "input_schema": {

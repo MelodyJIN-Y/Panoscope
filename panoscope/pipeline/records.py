@@ -107,38 +107,64 @@ def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
     which reads as agreement. The dropped sample is named in the record instead.
 
     ``method.load`` is re-run per sample rather than the pooled read being reused:
-    the per-sample tables are different files with different rows, and the capability
-    frames come from ``adapter.frames(study)``, which under joint clustering the
-    replicates share by construction (``core/concordance.py``).
+    the per-sample tables are different files with different rows.
+
+    **And each run gets that sample's own frames, through
+    ``adapter.for_sample(s)``.** This function used to hand one
+    ``adapter.frames(study)`` to every replicate, on the reading that joint
+    clustering makes the replicates share one capability frame. Half of that is
+    true: they share the panel, because one panel was run across the sections. The
+    other half is false, and falsely in the direction that fabricates. Detectability
+    is not declared anywhere -- it is read off a markers table as the genes it did
+    not mark ``NoSig`` -- so the pooled frame says a section tested a gene whose own
+    file reports no usable signal. ``reconcile._compare`` then reads that section's
+    silence as a *measured* absence and returns CONFLICT, and the record told the
+    biologist the samples "genuinely conflict" about a gene one of them never
+    measured. The same leak ran the other way and was quieter: a gene silent in both
+    sections but visible in the pooled read came out as both having tested it and
+    neither reporting it, which is CONSISTENT and counts into ``coverage.k`` --
+    inflating the one denominator that protects the kidney case.
     """
     from panoscope.core.concordance import Replicate, concordance
 
     inputs = adapter.sample_inputs(study)
     declared = adapter.samples(study)
     readable = [s for s in declared if s in inputs]
+    # Declared but unreadable. Named in every comparison below, not only in the
+    # refusal when fewer than two survive: with three samples declared and two
+    # readable the check runs, reports "across sampleA, sampleB", and sampleC
+    # leaves no trace anywhere -- a comparison that looks complete because the
+    # thing missing from it is also missing from the sentence.
+    unreadable = [s for s in declared if s not in inputs]
 
     # Two reasons, not one, because they are different facts and only the second is
     # something a biologist can act on. A single-sample study has no replicate to be
     # concordant with; a multi-sample store whose per-sample tables are missing has
     # replicates that nothing here can read, and the fix is to put the files there.
     if len(declared) < 2:
+        # The empty case says "no samples at all", not "one sample (unnamed)". It is
+        # unreachable through ``XeniumAdapter.samples``, which raises
+        # ``UndeclaredSamples`` or returns ``[store.id]`` -- but the old sentence
+        # asserted a sample count of one for a store that declared none, which is a
+        # fact nobody supplied, and an adapter added later would inherit it silently.
+        held = f"one sample ({declared[0]})" if declared else "no samples at all"
         why = (
             f"replicate concordance (ARCHITECTURE 9.10) does not apply: the study "
-            f"holds one sample ({declared[0] if declared else 'unnamed'}), so there "
-            "is no second reading for this unit's profile to be compared against"
+            f"holds {held}, so there is no second reading for this unit's profile "
+            "to be compared against"
         )
-        return {}, {u: (why,) for u in units}
+        return {}, {u: (why,) for u in units}, set()
 
     if len(readable) < 2:
-        missing = [s for s in declared if s not in inputs]
         why = (
             f"replicate concordance (ARCHITECTURE 9.10) was not assessed: the study "
             f"declares {len(declared)} samples and {len(readable)} have a per-sample "
-            f"marker table (none for {', '.join(missing)}). Only the pooled table is "
-            "readable, so a divergence between samples was not looked for here and "
+            f"marker table (none for {', '.join(unreadable)}). Only the pooled "
+            "table is readable, so a divergence between samples was not looked for "
+            "here and "
             "has not been ruled out"
         )
-        return {}, {u: (why,) for u in units}
+        return {}, {u: (why,) for u in units}, set()
 
     if clustering_mode != "joint":
         why = (
@@ -147,24 +173,41 @@ def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
             f"{', '.join(readable)} names units that were never joined; comparing "
             "their profiles would be a join on a key that means nothing"
         )
-        return {}, {u: (why,) for u in units}
+        return {}, {u: (why,) for u in units}, set()
 
-    per_sample = {s: method.load(str(inputs[s]), adapter, study).value
+    per_sample = {s: method.load(str(inputs[s]), adapter.for_sample(s), study).value
                   for s in readable}
 
     traced: dict[str, Any] = {}
     because: dict[str, tuple[str, ...]] = {}
+    uncomparable: set[str] = set()
     for unit in units:
         speaking = [s for s in readable if unit in per_sample[s]]
         silent = [s for s in readable if s not in speaking]
         if len(speaking) < 2:
             because[unit] = (
-                f"replicate concordance (ARCHITECTURE 9.10) was not assessed for "
-                f"this unit: {', '.join(silent)} reported no row under it, leaving "
-                f"{len(speaking)} sample(s) to compare. Whether the method found "
-                "nothing there or the unit is absent from that section is not in "
-                "the table",
+                f"replicate concordance (ARCHITECTURE 9.10) could not be assessed "
+                f"for this unit: {', '.join(silent)} reported no row under it, "
+                f"leaving {len(speaking)} sample(s) to compare, so NONE of this "
+                "unit's profile has a second reading behind it. Whether the method "
+                "found nothing there or the unit is absent from that section is "
+                "not in the table. The band is demoted one rung and flagged for "
+                "re-check",
             )
+            # Not ``continue`` alone. This unit is the THINNEST possible replicate
+            # coverage -- zero subjects comparable -- and leaving it out of ``conc``
+            # made ``assess`` receive ``replicate=None``, which means *the question
+            # was never askable*. That is true of the single-sample demo and false
+            # here: the study is multi-sample and joint, two tables are readable,
+            # the question WAS asked, and the answer is "nothing could be compared".
+            #
+            # Reporting it as not-askable inverted the gradient one last time: a
+            # unit comparable on 1 of 12 subjects was demoted and flagged, while a
+            # unit comparable on 0 of 12 came back at full band with no demotion and
+            # shipped. In this project's own vocabulary that is UNDERPOWERED
+            # reported as NEVER_MEASURED -- and it went quiet exactly as the
+            # evidence thinned, on exactly the units an off-target panel is worst at.
+            uncomparable.add(unit)
             continue
 
         out = concordance(unit, tuple(Replicate(s, per_sample[s][unit].items)
@@ -181,20 +224,91 @@ def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
                 "subject across sections before reading the pooled number -- "
                 "agreement would not have raised confidence either"
             )
-        # K of N, and only when it fell short. A check that compared nothing and a
-        # check that compared everything both report "not divergent", and without
-        # the denominator the first reads as the second -- the same
-        # denominator-thrown-away failure ``Concordance.coverage`` was added for.
-        if not c.coverage.ok:
+        # K of N, unconditionally. How many subjects were comparable out of how many
+        # is a FACT about the comparison, not an exception to it: a check that
+        # compared one subject of forty and a check that compared all forty both
+        # report "not divergent", and only the denominator separates them. Writing
+        # it only when ``ok`` was false wrote it almost never -- ``floor`` is 1, so
+        # the line fired at k == 0 alone, and every point of the gradient from
+        # 1-of-200 to 200-of-200 printed no concordance line at all, byte-identical
+        # to a study where the check ran clean on everything. That inverted the
+        # loudness gradient: the single-sample demo says "there is no second
+        # reading" on all nine units while a multi-sample study at 8% coverage said
+        # nothing. The study that cannot support the check shouted; the study that
+        # silently under-supported it was quiet.
+        #
+        #
+        # The floor is no longer 1, so the second clause now fires across the thin
+        # half of the gradient instead of at k == 0 alone -- and it says the band
+        # moved, because a caveat that does not name its consequence is a caveat
+        # a reader skips. Thin must LOOK thin in the same neutral field.
+        notes.append(
+            f"replicate concordance compared {c.coverage.k} of {c.coverage.n} "
+            f"subject(s) across {', '.join(c.samples)}"
+            + ("" if c.coverage.ok else
+               f": fewer than the floor of {c.coverage.floor}, so most of this "
+               "unit's profile has no second reading behind it and the samples "
+               "not diverging is not a finding about this unit. The band is "
+               "demoted one rung and flagged for re-check")
+        )
+        # What was NOT compared, named -- in the same sentence block, because a
+        # dropped sample is invisible exactly where the comparison looks complete.
+        # "across sampleA, sampleB" reads as the whole study unless the study's
+        # third section says otherwise. Two different drops, kept apart: a sample
+        # with no per-sample table at all (fixable by putting the file there) and a
+        # sample whose table holds no row under this unit (a fact about the method's
+        # output, and the record must not guess which of the two it is).
+        if unreadable:
             notes.append(
-                f"replicate concordance compared {c.coverage.k} of "
-                f"{c.coverage.n} subject(s) across {', '.join(c.samples)}: below the "
-                f"floor of {c.coverage.floor}, so the samples not diverging is not a "
-                "finding about this unit"
+                f"not compared: {', '.join(unreadable)} -- declared by the study "
+                "but with no per-sample marker table, so "
+                f"{'it was' if len(unreadable) == 1 else 'they were'} left out of "
+                "every unit's comparison"
+            )
+        if silent:
+            notes.append(
+                f"not compared for this unit: {', '.join(silent)} -- readable, but "
+                "reported no row under it. Whether the method found nothing there "
+                "or the unit is absent from that section is not in the table"
             )
         if notes:
             because[unit] = tuple(notes)
-    return traced, because
+    return traced, because, uncomparable
+
+
+def _replicate_coverage(unit: str, n_subjects: int, conc: dict[str, Any],
+                        uncomparable: set[str]) -> Any:
+    """The §9.10 K of N this unit's band must see, or ``None`` if it was never askable.
+
+    Three outcomes, and the whole point is that they are three rather than two:
+
+    * the comparison ran -- its own ``Coverage`` travels, K of N as measured;
+    * it was ASKABLE and compared nothing -- ``K=0``, which is a real coverage and
+      demotes, because a multi-sample joint-clustered study whose second section
+      reported no row under this unit has a genuinely unsupported profile here;
+    * it was never askable -- ``None``, and the band is untouched. One sample, no
+      per-sample tables, or independent clustering: there is no second reading to
+      be thin, and demoting for the absence of a question would punish the
+      single-sample demo on all nine units.
+
+    ``N`` is the count of subjects the METHOD reported for this unit, which is the
+    same denominator :func:`concordance` uses, so one unit cannot read "0 of 17"
+    down one path and "9 of 12" down the other. ``K=0`` with ``N>0`` is what makes
+    :func:`core.verdict.assess` fire -- it guards on ``replicate.n``, so a zero
+    denominator would silently mean "not assessed" and reopen the hole this
+    function exists to close.
+    """
+    if unit in conc:
+        return conc[unit].value.coverage
+    if unit not in uncomparable:
+        return None
+    from panoscope.core.verdict import (
+        REPLICATE_COVERAGE_FLOOR, REPLICATE_COVERAGE_WHAT, _coverage_floor,
+    )
+    from panoscope.types.measured import Coverage
+
+    return Coverage(REPLICATE_COVERAGE_WHAT, 0, n_subjects,
+                    _coverage_floor(n_subjects, REPLICATE_COVERAGE_FLOOR))
 
 
 def build_all(study: Study) -> dict[str, UnitBuild]:
@@ -284,12 +398,19 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     ).value.record
 
     loaded = method.load(str(path), adapter, study)
-    conc, conc_because = _concordance(study, adapter, method, clustering_mode,
-                                      tuple(loaded.value))
+    conc, conc_because, conc_uncomparable = _concordance(
+        study, adapter, method, clustering_mode, tuple(loaded.value))
 
     out: dict[str, UnitBuild] = {}
     for unit, ev in loaded.value.items():
         meta = study.unit_labels.get(unit, {})
+        # Taken BEFORE the off-panel canonical absences are appended below. Those
+        # are reference-selected -- the annotation's canonical list, not anything
+        # the method reported -- so counting them would make the replicate
+        # denominator disagree with the one ``concordance`` uses for the same unit
+        # (the union of subjects across the speaking replicates' items), and the
+        # same unit would read "0 of 17" or "9 of 12" depending which path it took.
+        n_method_subjects = len({i.subject.key for i in ev.items})
 
         # Reference data, selecting which absences are worth reporting and nothing
         # else: the canonical markers this study's annotation lists for the label.
@@ -313,7 +434,16 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
 
         canonical = frozenset(str(g).upper()
                               for g in meta.get("canonical_markers", ()))
-        verdict = core_verdict.assess(ev.items, canonical)
+        # The §9.10 K of N goes INTO the band, not beside it. Splicing the
+        # concordance decisions into the record after assessing the pooled items
+        # is what let "comparable on 1 of 12 subjects" and "comparable on 9 of 12"
+        # come out byte-identical at Very High with verify false. ``None`` where
+        # the comparison was not askable at all, which ``conc_because`` explains
+        # in the same record.
+        verdict = core_verdict.assess(
+            ev.items, canonical,
+            _replicate_coverage(unit, n_method_subjects, conc, conc_uncomparable),
+        )
         record = core_record.build(
             ev, reading,
             core_record.unit_decisions(ev, loaded, *absences),

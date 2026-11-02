@@ -28,6 +28,7 @@ from panoscope.ui import data_access as da
 from panoscope.ui import state
 from panoscope.ui.spatial_stage import (
     _MAX_BG_POINTS,
+    _TISSUE_HEIGHT,
     _base_layout,
     _downsample_bg,
     _empty_panel,
@@ -43,6 +44,8 @@ from panoscope.ui.spatial_stage import (
     _render_umap,
     _st,
     _umap_feature,
+    _unavailable,
+    _unavailable_panel,
 )
 
 
@@ -50,15 +53,36 @@ def _short(gene_set: str) -> str:
     return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
-def _n_with_density(genes: tuple[str, ...]) -> int:
+def _n_with_density(genes: tuple[str, ...], bin_um: int) -> int:
     """How many driving genes actually contributed a frame to the sum.
 
-    ``leading_edge_density`` skips a gene with no precomputed frame, and the
-    summed picture cannot show which ones are missing — so the count goes in the
-    conditionality. Read from the density index (the same list the stage uses).
+    ``leading_edge_density`` skips a gene with no precomputed frame, and the summed
+    picture cannot show which ones are missing — so the count goes in the
+    conditionality. Counted HERE the way the sum sums: by asking for each gene's
+    frame at this bin size and counting the ones that come back non-empty.
+
+    It used to count against ``available_density_markers()``, which is the density
+    index's DECLARATION of what was precomputed (and, with no index at all, the
+    study's demo marker set). That is a claim about the run, not a reading of what
+    was read: on a study declaring ``density: true`` with a partial precompute it
+    counted three of three driving genes for a figure summed from one frame, so the
+    caption stated a count larger than the evidence behind the picture. R5 — plots
+    render, they do not derive — and a count in a caption is a derived statistic: it
+    has to come from what was drawn. The bin size is part of that, because a frame
+    exists per (gene, bin_um) and the viewing control picks which.
+
+    ``hexbins`` is cached per (gene, bin_um) and the sum has just asked for the same
+    frames, so this costs cache hits rather than a second read.
     """
-    have = set(da.available_density_markers())
-    return sum(1 for g in genes if g in have)
+    n = 0
+    for g in genes:
+        try:
+            hb = da.hexbins(g, bin_um)
+        except Exception:  # noqa: BLE001 - a missing frame is a skip, never a fake
+            continue
+        if hb is not None and not hb.empty:
+            n += 1
+    return n
 
 
 def _n_with_expr(genes: tuple[str, ...]) -> int:
@@ -70,6 +94,15 @@ def _n_with_expr(genes: tuple[str, ...]) -> int:
 def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
     """The leading-edge set's transcript density (sum of the driving genes'
     precomputed hex densities), drawn as a ratio-locked tissue image."""
+    # Guarded for the same reason as the panel below, though this one never raised
+    # (``leading_edge_density`` skips a gene with no frame and returns None): without
+    # the guard the empty state read "no precomputed density for the leading-edge
+    # genes", which blames the genes for an absence that belongs to the whole study.
+    missing = _unavailable("density")
+    if missing:
+        _unavailable_panel(missing, height=_TISSUE_HEIGHT)
+        return
+
     bin_um = state.get_bin_um()
     hb = da.leading_edge_density(tuple(genes), bin_um)
     _render_density_frame(
@@ -80,7 +113,7 @@ def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
             hb=hb,
             bin_um=bin_um,
             n_genes=len(genes),
-            n_drawn=_n_with_density(genes),
+            n_drawn=_n_with_density(genes, bin_um),
         ),
         empty="no precomputed density for the leading-edge genes",
     )
@@ -88,6 +121,17 @@ def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
 
 def _render_set_feature_umap(program: str, cluster: str, genes: tuple[str, ...]) -> None:
     """UMAP recoloured by the leading-edge set's mean per-cell expression."""
+    # This stage reuses the marker page's renderers, each of which carries its own
+    # view guard -- but the two panels it owns itself had none, so on a study whose
+    # viz stage never ran the Pathways page still took the loader's traceback here:
+    # ``leading_edge_expr`` and ``umap_df`` are both read before any guarded call.
+    # Two views, for the same reason the marker feature UMAP needs two -- the
+    # embedding is the layout, the exported expression is the colour.
+    missing = _unavailable("umap", "expr")
+    if missing:
+        _unavailable_panel(missing)
+        return
+
     go = _go()
     expr = da.leading_edge_expr(tuple(genes))
     umap = da.umap_df()

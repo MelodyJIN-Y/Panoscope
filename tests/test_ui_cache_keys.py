@@ -107,3 +107,167 @@ def test_each_cached_reader_keeps_its_own_cache_namespace() -> None:
 
     assert (one(), two()) == ("one", "two")
     assert one.__name__ == "one" and two.__name__ == "two"
+
+
+def test_unit_build_is_keyed_on_the_study_tree_not_its_id(tmp_path, monkeypatch) -> None:
+    """``evidence_table._builds`` held an ``lru_cache`` keyed on the study ID, so two
+    stores holding the same id under different data roots shared ONE entry: the second
+    tree's rows would render the first tree's builds, and a build is where every row's
+    MEASUREMENT STATE comes from -- the difference between "tested and not reported,
+    absence IS evidence here" and "below its floor, absence argues nothing". Keyed on
+    the tree path, the two stores are two entries."""
+    from panoscope.pipeline import records
+    from panoscope.ui import evidence_table as et
+
+    seen: list[str] = []
+
+    def _fake_build_all(study):
+        seen.append(str(study.dir))
+        return {"c1": f"build from {study.dir}"}
+
+    monkeypatch.setattr(records, "build_all", _fake_build_all)
+    one = Study(id="same_id", data_root=tmp_path / "root_one")
+    two = Study(id="same_id", data_root=tmp_path / "root_two")
+    et._builds.cache_clear()
+    try:
+        with cfg.use_study(one):
+            a = et.unit_build("c1")
+        with cfg.use_study(two):
+            b = et.unit_build("c1")
+        assert a and b and a != b
+        assert len(seen) == 2  # a real miss on the second store, not a shared hit
+        with cfg.use_study(one):
+            assert et.unit_build("c1") == a and len(seen) == 2  # still cached per store
+    finally:
+        et._builds.cache_clear()  # the cache is module-global; leave it as found
+
+
+def _summary_edits_path(study_id: str):
+    """Where the Summary page's saved edits live for ``study_id``."""
+    from panoscope.pipeline import paths as pipeline_paths
+
+    return pipeline_paths.summary_edits_json(study_id)
+
+
+def test_switching_studies_does_not_carry_summary_prose_into_the_next_tree() -> None:
+    """The worst shape in this area, pinned on the REAL switch path.
+
+    The Summary page's working-space keys (``_sum_seeded``, ``wsval_*``,
+    ``_sum_saved_snapshot``) were study-agnostic. Switch study inside one session and
+    the seeding block is skipped (``_sum_seeded`` is already set), so every region
+    still holds study A's prose; every region then differs from study B's defaults,
+    and the autosave persists **A's text into B's tree as biologist-authored edits**.
+    Not a display bug: one study's prose written into another study's record.
+
+    The switch is driven the way a picker would drive it -- a second script run of the
+    same session with a different active study -- because the keys only collide across
+    RERUNS, which is exactly what a hand-built session dict would fail to reproduce.
+
+    Both halves are asserted: B's region must hold B's own draft (the visible half),
+    and B's tree must still have no ``summary_edits.json`` (the half that persists).
+    """
+    import pytest
+
+    try:
+        from streamlit.testing.v1 import AppTest
+    except Exception:  # noqa: BLE001 - Streamlit testing API absent
+        pytest.skip("streamlit.testing.v1 unavailable")
+
+    from panoscope.ui import summary
+
+    b_edits = _summary_edits_path(FIXTURE)
+    if b_edits.exists():
+        pytest.skip("a real saved edit is on the second study; not clobbering it")
+
+    # The body runs as its own script (no closure over this frame): the active study
+    # comes from session state, which is how an in-app picker would set it.
+    def _run(first: str = "") -> None:
+        import streamlit as _st
+
+        from panoscope.agent import config as _cfg
+        from panoscope.ui import state as _state
+        from panoscope.ui import summary as _summary
+
+        _state.init_state()
+        with _cfg.use_study(_st.session_state.get("picked_study") or first):
+            _summary.render_summary_page()
+
+    at = AppTest.from_function(_run, kwargs={"first": DEMO})
+    at.run(timeout=180)
+    if at.exception and "unexpected keyword argument 'key'" in str(at.exception[0].value):
+        pytest.skip("Streamlit too old for st.container(key=...)")
+    assert not at.exception, [str(e.value) for e in at.exception]
+
+    with cfg.use_study(DEMO):
+        a_key = summary._skey("wsval_caveats")
+    with cfg.use_study(FIXTURE):
+        b_key = summary._skey("wsval_caveats")
+    planted = "STUDY A PROSE — MUST NOT REACH STUDY B"
+    at.session_state[a_key] = planted          # as a keystroke in A's editor would
+    at.session_state["picked_study"] = FIXTURE  # the switch
+
+    try:
+        at.run(timeout=180)
+        assert not at.exception, [str(e.value) for e in at.exception]
+        # the half that persists, asserted FIRST: nothing A's biologist typed may
+        # land in B's tree as B's edits.
+        assert not b_edits.exists(), f"the switch wrote {b_edits}"
+        b_text = at.session_state[b_key]
+        assert planted not in b_text
+        # and it is B's OWN draft, not merely "not A's": the ground truth is what a
+        # FRESH session opened straight on B seeds, read off the same page rather than
+        # re-derived here (a re-derivation would be this page's logic written twice).
+        fresh = AppTest.from_function(_run, kwargs={"first": FIXTURE})
+        fresh.run(timeout=180)
+        assert not fresh.exception, [str(e.value) for e in fresh.exception]
+        assert b_text == fresh.session_state[b_key]
+        assert at.session_state[a_key] == planted  # A's own edit is still A's
+    finally:
+        if b_edits.exists():
+            b_edits.unlink()
+
+
+def test_a_plot_caption_never_carries_another_studys_conditionality() -> None:
+    """The same bug one layer up, where it reaches pixels instead of a number.
+
+    ``conditionality._manifest`` and ``._density_index`` were zero-argument
+    ``lru_cache(maxsize=1)`` readers: one slot for every study. Draw a figure on the
+    demo, switch, and the fixture's plots carried the DEMO's artifact digest and the
+    demo's qv floor and control-probe exclusions -- for an artifact the fixture does
+    not have and a density index it never produced. ``_panel_scope()`` stayed correct
+    per study (12 vs 280), which made it worse rather than better: the caption read as
+    internally consistent, so nothing in it invited doubt. CLAUDE.md: a plot with no
+    conditionality record refuses to draw -- this one drew with someone else's.
+
+    The order is the one that breaks it (demo first, fixture second) and the switch is
+    the real one, with no cache cleared by hand: clearing by hand is precisely what
+    production does not do.
+    """
+    from panoscope.ui import conditionality as cnd
+
+    with cfg.use_study(DEMO):
+        demo_sha = cnd._sha("viz/cells.csv")
+        demo_excl = cnd._density_exclusions()
+        demo_scope = cnd._panel_scope()
+    # the demo really does carry both, or the switch below proves nothing
+    assert "sha256" in demo_sha and "qv >=" in demo_excl
+
+    with cfg.use_study(FIXTURE):
+        assert cnd._panel_scope() != demo_scope
+        # ground truth: the fixture's own manifest names no artifacts and its
+        # viz/hexbin holds no _index.json, so both fragments must be empty
+        assert cnd._sha("viz/cells.csv") == ""
+        assert cnd._density_exclusions() == ""
+        # and on the records the stages actually build, not just the fragments
+        cell_map = cnd.cell_map_cond(
+            cluster="c1", n_total=12, n_selected=4, n_bg_drawn=8, n_bg_total=8
+        )
+        density = cnd.gene_density_cond(gene="SYNG01", hb=None, bin_um=50)
+        assert cell_map.provenance == "" and density.exclusions == ""
+        assert demo_sha not in "\n".join(cell_map.caption())
+        assert demo_excl not in "\n".join(density.caption())
+
+    # and the switch back is the demo's own values, not the fixture's leftovers
+    with cfg.use_study(DEMO):
+        assert cnd._sha("viz/cells.csv") == demo_sha
+        assert cnd._density_exclusions() == demo_excl

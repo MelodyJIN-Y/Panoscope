@@ -212,10 +212,22 @@ def marker_expr_df() -> pd.DataFrame:
     """Per-cell expression for ALL panel genes (cell_id + one column per gene),
     on a cluster-stratified cell subsample. Read once and cached; parquet-first
     (the committed artifact), CSV fallback for a raw prep output.
+
+    Through ``agent.data``'s reader rather than a local parquet/CSV pair, for the
+    sake of the error: the hand-rolled version ended in a bare ``pd.read_csv`` and so
+    failed with ``[Errno 2] No such file or directory`` naming whichever CSV it tried
+    last -- no producer clause, and for the demo a path under the LEGACY flat root
+    rather than a study tree. Every other tidy table in the app names the study's own
+    path and the prep step that writes it, and this one -- the file a half-prepped
+    study is likeliest to be missing, because ``prep_expr.py`` is Panoscope's own
+    extra step -- had the least informative message of the lot. Same resolution and
+    same parquet-before-CSV preference; only the failure is now the common one.
     """
-    if _marker_expr_parquet().exists():
-        return pd.read_parquet(_marker_expr_parquet())
-    return pd.read_csv(_marker_expr_csv())
+    return agent_data._read_table(
+        _marker_expr_parquet(),
+        _marker_expr_csv(),
+        "scripts/prep_expr.py (expr.parquet/.csv)",
+    )
 
 
 @_cache_data(show_spinner=False)
@@ -377,13 +389,17 @@ def all_verdicts() -> list[ClusterVerdict]:
 
 def _excluded_clusters() -> set:
     """Clusters carrying a firing `exclude` note. Applied at COMPOSITION only — the
-    deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md)."""
+    deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md).
+
+    Reads through ``memory.notes_in_study`` rather than ``read_notes``: the note store
+    is ONE directory for every study, and cluster ids are c1..cN in all of them, so an
+    ungated read attributes one study's judgement to another study's cluster."""
     from panoscope.agent import memory
 
     try:
         return {
             n.scope_ref.cluster
-            for n in memory.read_notes()
+            for n in memory.notes_in_study()
             if getattr(n, "type", "") == "exclude" and n.scope == "cluster" and n.scope_ref.cluster
         }
     except Exception:  # noqa: BLE001 - a malformed note must never break the export
@@ -392,12 +408,17 @@ def _excluded_clusters() -> set:
 
 def _override_notes() -> dict:
     """The most-recent firing ``celltype_override`` note per cluster (one that carries a
-    new call). Applied at COMPOSITION only — the deterministic verdict is never mutated."""
+    new call). Applied at COMPOSITION only — the deterministic verdict is never mutated.
+
+    Study-gated for the reason in ``_excluded_clusters``, and this is the half that
+    reached the Summary board, the exports and the sign-off: an override is the
+    biologist's own call, so applying it to a study they never made it in attributes
+    their judgement somewhere they never gave it, with click-back intact."""
     from panoscope.agent import memory
 
     out: dict = {}
     try:
-        for n in memory.read_notes():  # sorted by created_at -> last write wins
+        for n in memory.notes_in_study():  # sorted by created_at -> last write wins
             if (
                 getattr(n, "type", "") == "celltype_override"
                 and n.scope == "cluster"
@@ -665,10 +686,37 @@ def get_agent() -> Any:
 # Notes — NOT cached (mutate on save). Always a fresh read.
 # --------------------------------------------------------------------------- #
 def read_notes() -> list[Note]:
-    """Read all notes fresh from disk (never cached — notes mutate on save)."""
+    """This study's notes, fresh from disk (never cached — notes mutate on save).
+
+    "All notes" is not what any caller wants: the note store is a single directory
+    shared by every study, so the lab-note board and the exported report both asked
+    for the current study's record and got the whole lab's. Study-gated here rather
+    than in each caller, because the gate has to hold for the ones nobody remembers to
+    change. Lab-scoped notes are kept — holding across studies is what that rung is.
+
+    Notes belonging to OTHER studies are not withheld knowledge: they are shown in
+    their own study. The ones that genuinely disappear are the unscoped ones, and
+    :func:`withheld_notes` is where those are said out loud."""
     from panoscope.agent import memory
 
-    return memory.read_notes()
+    return memory.notes_in_study()
+
+
+def withheld_notes() -> list[Note]:
+    """Stored notes this study must NOT apply because they name no study at all.
+
+    The fail-closed gate is right — a note with no ``scope_ref.dataset`` cannot be
+    assumed to belong to whichever study happens to be open — but a biologist's
+    committed judgement vanishing with no sentence is its own failure. These are the
+    notes to say that sentence about: each is a real :class:`~agent.types.Note`, so it
+    carries its id and ``memory.cite_note`` resolves it, and the sentence that names it
+    clicks back to the note like any other.
+
+    Empty in the normal case: every note written since ``scope_ref`` existed names its
+    dataset. Non-empty means a hand-edited or pre-schema file needs its study added."""
+    from panoscope.agent import memory
+
+    return [n for n in memory.read_notes() if not n.scope_ref.dataset and n.scope != "lab"]
 
 
 def notes_in_scope(cluster: Optional[str]) -> list[Note]:
@@ -773,6 +821,7 @@ __all__ = [
     "pathway_note",
     "get_agent",
     "read_notes",
+    "withheld_notes",
     "notes_in_scope",
     "save_note_draft",
     "composed_verdicts",

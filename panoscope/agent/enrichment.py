@@ -65,7 +65,40 @@ def _jz_enrichment_csv():
     )
     return cfg._active_input("enrichment.csv", legacy)
 _JZ_SCORE_KIND = "jazzpanda_enrichment"
-_JZ_COLLECTION = "MSigDB_Hallmark"
+
+#: How a collection names its sets -> the collection. Derivation, not assertion:
+#: MSigDB's hallmark release names every one of its sets ``HALLMARK_<program>``, so a
+#: result whose set carries that prefix was scored against it. Matched per ROW rather
+#: than once per study because the row IS the enrichment input -- which also means a
+#: ``PathwayEvidence`` rebuilt from a committed record by ``tests/golden_projection``
+#: re-derives the same name with no study loaded and no file read.
+_COLLECTION_BY_SET_PREFIX: tuple[tuple[str, str], ...] = (
+    ("HALLMARK_", "MSigDB_Hallmark"),
+)
+
+#: What a set whose naming matches no entry above is called. ``unknown`` is
+#: first-class here and propagates; a wrong collection name does not -- it states
+#: false provenance for the row (the confident floor forbids it on its own terms) and,
+#: where the sets are invented, it names a real restrictively-licensed collection as
+#: the source of rows nobody licensed. Add a prefix entry, never a default.
+UNKNOWN_COLLECTION: str = "unknown"
+
+
+def _collection_for(gene_set: str) -> str:
+    """The collection a set was drawn from, read off the set's own name.
+
+    Was ``_JZ_COLLECTION = "MSigDB_Hallmark"``, asserted over every study. On the
+    demo that constant happened to be true; on the synthetic fixture it wrote
+    "MSigDB_Hallmark" as the provenance of four invented sets (SYNSET_ALPHA/BETA/
+    GAMMA/DELTA) into a committed artifact -- naming a real, restrictively-licensed
+    collection as the source of rows that came from nowhere, in the study whose
+    reason for existing is that nothing licensed is bundled.
+    """
+    name = gene_set.strip().upper()
+    for prefix, collection in _COLLECTION_BY_SET_PREFIX:
+        if name.startswith(prefix):
+            return collection
+    return UNKNOWN_COLLECTION
 
 
 # --------------------------------------------------------------------------- #
@@ -274,7 +307,7 @@ def _pathway_from_jz_row(row: dict) -> PathwayEvidence:
 
     return PathwayEvidence(
         gene_set=gene_set,
-        gene_set_collection=_JZ_COLLECTION,
+        gene_set_collection=_collection_for(gene_set),
         score=score,
         score_kind=_JZ_SCORE_KIND,
         p_value=p_value,

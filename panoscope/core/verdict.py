@@ -52,6 +52,18 @@ zero canonical markers was handled honestly. The curated list still supplies no
 value; it selects which measurement is asked, and the one it selects is still the
 only thing that answers.
 
+**And ``band:demote_replicate_coverage`` is the second.** It reads §9.10's K of N
+-- how many of this unit's subjects a second section could be compared on at all.
+Before it, nothing in the confidence apparatus read concordance: ``assess`` was
+called on the POOLED items and the concordance decisions were spliced into the
+record afterwards, so a unit comparable on 1 of 12 subjects and one comparable on 9
+of 12 both came out Very High with ``verify`` false, byte-identical. The only trace
+was one sentence in ``undecidable`` carrying no flag, because the floor was a
+placeholder ``1`` that nothing could fall below. The rung only ever subtracts:
+replicates are not independent witnesses, so there is no promote to match it, and a
+replicate coverage that clears its floor records no decision at all rather than one
+the call is seen to have survived.
+
 **A note on NoSig, and why nothing printed here says it.**
 ``MarkerEvidence.top_cluster == "NoSig"`` has no field here, and should not get one:
 NoSig means *in the panel, tested, not assigned to this unit*, which is precisely
@@ -128,6 +140,36 @@ CANONICAL_COVERAGE_FLOOR: tuple[int, int] = (1, 3)
 #: interface clicks back to it.
 CANONICAL_COVERAGE_WHAT: str = "canonical markers in frame"
 
+#: How much of a unit's profile the *second reading* had to be able to speak to
+#: before "the sections did not diverge" is a statement about the unit. Same
+#: exact-integer ratio shape as :data:`CANONICAL_COVERAGE_FLOOR`, and read by
+#: ``core/concordance.py``, which is where that K of N is counted.
+#:
+#: **This one is NOT calibrated, and saying so is the honest part.** The value it
+#: replaces was ``1``, a placeholder that kept ``Coverage.ok`` true at every point
+#: of the gradient, so 1-of-12 and 9-of-12 reached the band engine identical.
+#: Calibrating a replacement needs multi-sample studies, and the repository holds
+#: exactly one: ``data/studies/synthetic_multisample_fixture``, whose three units
+#: all sit at 9/12 = 0.750, with 7/12 = 0.583 reachable by the dropout edit
+#: ``tests/test_concordance_wired.py`` already makes. Four points from one
+#: synthetic study, all on one side of any line anyone would draw, is not a
+#: distribution; a ratio fitted to it would be fitted to the fixture. The demo
+#: contributes nothing at all, being single-sample and therefore not-assessed.
+#:
+#: So the number is structural rather than tuned: a **majority**. Below half the
+#: comparison read a minority of the unit's subjects, and a negative result over a
+#: minority is not a negative result about the unit -- which is the one claim the
+#: demote exists to stop. It is deliberately placed where the only real data lies
+#: ABOVE it, so the rule cannot be firing merely because a fixture was built to
+#: trip it. Replace it with a measured value when a second multi-sample study
+#: lands; the K of N travels into ``undecidable`` unconditionally either way, so
+#: the floor decides only whether the band moves with it.
+REPLICATE_COVERAGE_FLOOR: tuple[int, int] = (1, 2)
+
+#: ``Coverage.what`` for the replicate-comparison count, for the same reason the
+#: canonical one is a constant: the interface clicks back to it.
+REPLICATE_COVERAGE_WHAT: str = "subjects_comparable"
+
 LOW_BAND: str = "Low"
 FRAGILE_CAP_BAND: str = "Medium-High"
 FRAGILE_FLOOR_BAND: str = "Medium"
@@ -163,6 +205,12 @@ class Verdict:
     driver: EvidenceItem | None
     fragile: bool
     coverage: Coverage | None = None
+    #: The §9.10 replicate comparison's K of N, or ``None`` for *not assessed* --
+    #: a single-sample study, independent clustering, or a unit only one section
+    #: reported. ``None`` and ``Coverage(k=0, n=0)`` are different answers and are
+    #: kept apart: the first says the question was never askable here, the second
+    #: that it was asked and nothing could be compared.
+    replicate_coverage: Coverage | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -192,14 +240,19 @@ def _promote(band: str) -> str:
     return BANDS[max(BANDS.index(band) - 1, 0)]
 
 
-def _coverage_floor(n: int) -> int:
-    """Smallest K that clears :data:`CANONICAL_COVERAGE_FLOOR` out of ``n``.
+def _coverage_floor(n: int, ratio: tuple[int, int] = CANONICAL_COVERAGE_FLOOR) -> int:
+    """Smallest K that clears ``ratio`` out of ``n``. Defaults to the canonical one.
 
     ``ceil(n * num / den)`` in integer arithmetic. Not ``math.ceil(n * 1 / 3)``:
     that is a float comparison deciding a band, and ``0.1 * 3 > 0.3`` is how a
     tuned threshold silently moves a study by one rung.
+
+    ``ratio`` is a parameter rather than a second copy of these three lines in
+    ``core/concordance.py``, which needs the same arithmetic for
+    :data:`REPLICATE_COVERAGE_FLOOR`. The default is the canonical floor because
+    every call that existed before this parameter did meant that one.
     """
-    num, den = CANONICAL_COVERAGE_FLOOR
+    num, den = ratio
     return -(-n * num // den)
 
 
@@ -291,28 +344,41 @@ def _drivers(items: tuple[EvidenceItem, ...],
 
 
 def _verify(band: str, driver: EvidenceItem | None, fragile: bool,
-            coverage: Coverage) -> bool:
-    """The rubric. Five conditions, no argument through which a caller states a wish.
+            coverage: Coverage, replicate: Coverage | None = None) -> bool:
+    """The rubric. Six conditions, no argument through which a caller states a wish.
 
     Private and computed, never passed in: ``verify`` is the flag that says a human
     must look again, so a layer that could set it could also clear it. The band being
-    Low is one condition of five -- a confident-looking band standing on two markers
+    Low is one condition of six -- a confident-looking band standing on two markers
     still asks for a second pair of eyes.
 
     Thin canonical coverage is the fifth, and it is the reason the demote alone was
     not enough. One rung off a Very High leaves High, which still reads as a settled
     call; "re-check this" is what the rubric owes a call the panel could barely ask
     for. ``coverage`` is a measured K-of-N, not a preference: no caller supplies it.
+
+    Thin REPLICATE coverage is the sixth, and it is the same argument about the
+    second reading rather than about the panel. Its input is the one that does
+    arrive from outside, because a second section cannot be derived from one unit's
+    items; ``None`` means the comparison was never askable (one sample, independent
+    clustering, one section silent about this unit) and is the only value that reads
+    as silence. A ``Coverage`` below its floor says the sections were compared on a
+    minority of this unit's subjects -- so the number on screen is the POOLED one
+    and most of the profile behind it has no second reading at all. It is still a
+    threshold on a measured K-of-N, not a judgement, and still nothing a caller can
+    express a preference through: the only thing passed in is the count.
     """
     nosig = driver is not None and not driver.measured.carries_number
     return (band == LOW_BAND or nosig or fragile or driver is None
-            or (bool(coverage.n) and not coverage.ok))
+            or (bool(coverage.n) and not coverage.ok)
+            or (replicate is not None and bool(replicate.n) and not replicate.ok))
 
 
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
-def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced[Verdict]:
+def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str],
+           replicate: Coverage | None = None) -> Traced[Verdict]:
     """Band and ``verify`` for one unit, with the decision behind every adjustment.
 
     ``canonical`` is the study's own canonical-marker set for the label under test,
@@ -327,6 +393,30 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
     Promote-before-demote is not arbitrary -- a driver that is both unusually
     specific and shares its pattern should land back where it started, not a rung
     lower.
+
+    ``replicate`` is ``core.concordance.Concordance.coverage`` -- K of N of this
+    unit's subjects that a second section could be compared on at all -- or ``None``
+    where §9.10 could not be asked. It is the one argument that is neither the
+    method's items nor reference data, and it is here because the defect it closes
+    was exactly that it was not: the band was computed from the POOLED items and the
+    concordance decisions were spliced into the record afterwards, so a unit
+    comparable on 1 of 12 subjects and one comparable on 9 of 12 came out
+    byte-identical at Very High with ``verify`` false.
+
+    It can only SUBTRACT. Concordance is a second reading of the same method on the
+    same panel, so §9.10 already forbids agreement from raising anything -- there is
+    no promote branch below, and a replicate Coverage that clears its floor records
+    no decision at all, because a rung nobody lost must not appear in the audit as
+    one the call survived. It also supplies no value: the band is still read off the
+    driver's own statistic, and this only moves it down a step.
+
+    It is optional because *not assessed* is the common case and a real one -- the
+    demo is single-sample. That is a softer seam than ``_canonical_coverage``, which
+    is derived precisely so no caller can forget it, and the difference is forced: a
+    second section is not recoverable from one unit's items. ``None`` therefore means
+    "never asked" and never "asked and fine"; the composition root in
+    ``pipeline/records.py`` writes the reason into ``undecidable`` in the same breath,
+    so a reader can always tell which.
     """
     t = Trace()
     canon = frozenset(g.upper() for g in canonical)
@@ -371,9 +461,9 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
         # "almost nothing canonical was measurABLE" are different answers and the
         # interface has to be able to say which.
         return t.done(Verdict(band=LOW_BAND, basis=basis,
-                              verify=_verify(LOW_BAND, None, fragile, cov),
+                              verify=_verify(LOW_BAND, None, fragile, cov, replicate),
                               demotions=(rule,), driver=None, fragile=fragile,
-                              coverage=cov))
+                              coverage=cov, replicate_coverage=replicate))
 
     band = _band_for_coef(driver.statistic)
     basis = "glm_coef direct"
@@ -422,6 +512,22 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
         t.note("band:demote_canonical_coverage", band, (str(cov),),
                (ref(driver.subject),))
 
+    # And the second condition about the apparatus rather than the driver: how much
+    # of this unit's profile the second section could be compared on. Placed after
+    # the canonical demote because they can both fire and the record should read in
+    # that order -- the panel could not ask much, AND the replicate could not check
+    # much -- and before the fragile cap/floor for the reason the canonical one is:
+    # ahead of the promote, a high-pearson driver would cancel out a statement about
+    # the apparatus. One rung, like every other demote, and never more than one
+    # however thin the coverage gets: the rung says "this is not settled", and
+    # walking the band down by degrees would turn a coverage gap into a weak
+    # measurement, which it is not.
+    if replicate is not None and replicate.n and not replicate.ok:
+        band = _demote(band)
+        demotions.append("band:demote_replicate_coverage")
+        t.note("band:demote_replicate_coverage", band, (str(replicate),),
+               (ref(driver.subject),))
+
     if fragile:
         basis = "glm_coef direct (fragile cap)"
         if BANDS.index(band) < BANDS.index(FRAGILE_CAP_BAND):
@@ -443,7 +549,7 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
 
     return t.done(Verdict(
         band=band, basis=basis,
-        verify=_verify(band, driver, fragile, cov),
+        verify=_verify(band, driver, fragile, cov, replicate),
         demotions=tuple(demotions), driver=driver, fragile=fragile,
-        coverage=cov,
+        coverage=cov, replicate_coverage=replicate,
     ))

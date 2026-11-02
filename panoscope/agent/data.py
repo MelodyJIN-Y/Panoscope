@@ -230,6 +230,59 @@ def cell_type_for(cluster: str) -> str:
 # --------------------------------------------------------------------------- #
 # Panel (the absence primitive)
 # --------------------------------------------------------------------------- #
+def is_control(gene: str) -> bool:
+    """True if ``gene`` names a control probe rather than a panel gene, in ANY case.
+
+    A delegation, not a rule. :func:`~panoscope.platforms.xenium.is_control_probe`
+    is the one place the question is answered, and it is the call the capability
+    frames use; this name stays because the readers in this module (and
+    ``scripts/precompute_density``) read better against it, but a second copy of the
+    comparison here is a second answer, and a second answer is how the frame came to
+    say 13 while this module said 12 for one 12-gene assay.
+
+    **Where a control probe sits in the four-state lattice: in none of the four, and
+    that is the point.** The states in ``types/measured.py`` are states of a *subject
+    of interpretation* resolved against a frame. A control probe IS measured --
+    being measured is its entire function, and its count is the assay's noise floor,
+    which on an off-target panel is how a biologist decides whether a flat signal is
+    biology or floor -- so ``NEVER_MEASURED`` is false about it. But it names no
+    biological entity, so there is nothing for ``OBSERVED`` or ``TESTED_ABSENT`` to
+    be about either. It is **excluded from every gene frame, not absent from one**:
+    it never enters ``panel:<id>`` or ``detect:<id>`` as a member, so it inflates no
+    coverage denominator, and since ``_state_for`` requires every frame of a kind to
+    admit an entity, no control can ever be admitted -- the two states that *do*
+    something, ``OBSERVED`` (carries a number) and ``TESTED_ABSENT`` (absence
+    argues), are unreachable for one.
+
+    **What is still wrong, and is not fixable from here.** Unadmittable is not the
+    same as not-a-subject. Ask the lattice about a control today and it answers
+    ``NEVER_MEASURED`` in ``panel:<id>`` -- byte-identical to a real gene the assay
+    never probed, and false about a probe whose count is on disk. ``MeasuredState``
+    has no fifth value and ``Frame`` has no way to say "excluded", so saying so
+    needs a change in ``types/measured.py``; until then the only truthful sentence
+    about a control comes from :func:`control_annotation` and
+    ``agent.tools.panel_lookup``, which branch on this function instead of asking
+    the lattice.
+    """
+    return is_control_probe(gene)
+
+
+@_per_study
+def _panel_table() -> pd.DataFrame:
+    """``panel.parquet`` exactly as the vendor wrote it: panel genes AND controls.
+
+    The single read of the file. :func:`load_panel` is this minus the control rows
+    and :func:`control_annotation` is the control rows' half, so neither re-reads
+    and they cannot drift apart about what the file said.
+    """
+    path = _require(_panel_parquet(), "scripts prep (panel.parquet)")
+    df = pd.read_parquet(path)
+    missing = set(_PANEL_COLS) - set(df.columns)
+    if missing:
+        raise ValueError(f"[data] panel.parquet missing columns {missing}")
+    return df[_PANEL_COLS]
+
+
 @_per_study
 def load_panel() -> pd.DataFrame:
     """Return the panel GENES: gene, ensembl_id, annotation. Controls excluded.
@@ -256,17 +309,16 @@ def load_panel() -> pd.DataFrame:
     instrument, so "never measured" is the wrong thing to say about one; it is simply
     not a panel gene. The rows leave the panel (and therefore
     :func:`panel_contains`, the coverage denominators and the autocomplete list) and
-    ``panel.parquet`` keeps them untouched, with
-    :func:`~panoscope.platforms.xenium.is_control_probe` available to tell a caller
-    which kind of off-panel a name is.
+    ``panel.parquet`` keeps them untouched, with :func:`is_control` available to tell
+    a caller which kind of off-panel a name is and :func:`control_annotation` to say
+    what the probe actually was. Dropping the row without keeping the annotation
+    reachable is what left ``agent.tools.panel_lookup`` with only "never measured"
+    to say about a probe the instrument really ran -- a counting error traded for a
+    fabricated measurement status, which is the worse of the two.
     """
-    path = _require(_panel_parquet(), "scripts prep (panel.parquet)")
-    df = pd.read_parquet(path)
-    missing = set(_PANEL_COLS) - set(df.columns)
-    if missing:
-        raise ValueError(f"[data] panel.parquet missing columns {missing}")
+    df = _panel_table()
     genes = df["gene"].astype(str)
-    return df.loc[~genes.map(is_control_probe), _PANEL_COLS].reset_index(drop=True)
+    return df.loc[~genes.map(is_control), _PANEL_COLS].reset_index(drop=True)
 
 
 @_per_study
@@ -289,6 +341,31 @@ def panel_annotation(gene: str) -> str | None:
     """Return the panel Annotation for ``gene`` (case-insensitive), or None off-panel."""
     df = load_panel()
     hit = df[df["gene"].astype(str).str.upper() == gene.upper()]
+    if hit.empty:
+        return None
+    return str(hit.iloc[0]["annotation"])
+
+
+def control_annotation(gene: str) -> str | None:
+    """The panel file's annotation for a CONTROL probe, or None if ``gene`` is not one.
+
+    Deliberately reachable. ``load_panel`` drops control rows so no coverage
+    denominator counts them, and :func:`panel_annotation` therefore answers None for
+    a control -- correct for a *panel* annotation, but it left the only remaining
+    sentence about a control probe being "off-panel, never measured", which is false
+    about a probe whose whole function is to be measured. This reads the untouched
+    rows of :func:`_panel_table`, so a caller can say what the thing actually is
+    while :func:`panel_contains` keeps answering False and the denominator stays
+    right.
+
+    None for a control-shaped name that is not in the file at all: callers branch on
+    :func:`is_control`, not on this, so an unannotated control is still named as a
+    control rather than reported as never measured.
+    """
+    if not is_control(gene):
+        return None
+    df = _panel_table()
+    hit = df[df["gene"].astype(str).str.upper() == str(gene).strip().upper()]
     if hit.empty:
         return None
     return str(hit.iloc[0]["annotation"])
