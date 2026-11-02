@@ -80,14 +80,16 @@ except Exception:  # pragma: no cover - environment without anthropic SDK
 MAX_TOOL_ROUNDS: int = getattr(cfg, "MAX_TOOL_ROUNDS", 6)
 AGENT_TIMEOUT_S: float = float(getattr(cfg, "AGENT_TIMEOUT_S", 25))
 _MAX_TOKENS: int = 2048
-_TEMPERATURE: float = 0.0
 # One extra model round is allowed to REPAIR an answer that failed the floor.
 _MAX_REPAIRS: int = 1
 # Cap the live-literature enrichment on an opening so it never blocks the demo.
 _OPENING_LIT_MAX: int = 3
 
-_SKILLS_DIR: Path = cfg.PROJECT_ROOT / "skills"
-_DEFAULT_SKILL: str = "jazzpanda-markers"
+# Package-relative: these moved under panoscope/ in the package move, and the
+# old PROJECT_ROOT/"skills" never resolved -- _skill_text() swallows the error,
+# so the SKILL contract was silently absent from every system prompt.
+_SKILLS_DIR: Path = Path(__file__).resolve().parents[1] / "skills"
+_DEFAULT_SKILL: str = "marker-interpretation"
 
 
 # --------------------------------------------------------------------------- #
@@ -230,8 +232,8 @@ cross-tissue reference is fine — ONE real PMID fetched live, or say "literatur
 def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
     """Load a skill's SKILL.md (cached per skill). Empty string if missing.
 
-    ``skill`` names a directory under ``skills/`` (e.g. "jazzpanda-markers" for the
-    marker workflow, "geneset-enrichment" for the pathway workflow), so the agent
+    ``skill`` names a directory under ``skills/`` (e.g. "marker-interpretation" for the
+    marker workflow, "enrichment-interpretation" for the pathway workflow), so the agent
     carries the right interpretation contract for each workflow.
     """
     try:
@@ -338,7 +340,7 @@ def _cluster_context(cluster: Optional[str]) -> str:
 
 
 def _enrichment_context(cluster: Optional[str]) -> str:
-    """Grounded per-cluster ENRICHMENT context injected for the geneset-enrichment
+    """Grounded per-cluster ENRICHMENT context injected for the enrichment-interpretation
     skill: the cluster's enriched (and suggestive) programs with their scores,
     panel coverage, and leading-edge genes — every number the source of truth. So
     a pathway chat is grounded in the real enrichment records, not fetched via a
@@ -424,7 +426,7 @@ def build_system_prompt(cluster: Optional[str], skill: str = _DEFAULT_SKILL) -> 
         ]
         return "\n\n---\n\n".join(p for p in parts if p)
 
-    context = _enrichment_context(cluster) if skill == "geneset-enrichment" else _cluster_context(cluster)
+    context = _enrichment_context(cluster) if skill == "enrichment-interpretation" else _cluster_context(cluster)
     parts = [
         _skill_text(skill),
         _GROUNDING_CONTRACT,
@@ -1265,7 +1267,6 @@ class PanoscopeAgent:
             return client.messages.create(
                 model=self._model,
                 max_tokens=_MAX_TOKENS,
-                temperature=_TEMPERATURE,
                 system=system,
                 tools=agent_tools.TOOL_SCHEMAS,
                 messages=messages,
@@ -1380,7 +1381,7 @@ def chat(
     """Answer ``user_msg`` about ``cluster`` via the default agent.
 
     ``skill`` selects the interpretation contract (marker vs enrichment) — the
-    pathway-notes stage passes ``skill="geneset-enrichment"``.
+    pathway-notes stage passes ``skill="enrichment-interpretation"``.
     """
     return _default_agent().chat(user_msg, cluster=cluster, history=history, skill=skill)
 
