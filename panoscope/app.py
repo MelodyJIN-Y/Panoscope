@@ -29,7 +29,6 @@ from panoscope.ui import (
     state,
     summary,
     theme,
-    verdict_header,
 )
 
 # Brand assets (the Panoscope logo mark + the with-text logo live in assets/).
@@ -288,7 +287,9 @@ def _examine_body() -> None:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
     with center_col:
-        verdict_header.render_verdict(cluster)
+        # The declared LabelBandHeader is part of the ASSIGNMENT surface and is drawn
+        # by ui/evidence_table.py. ui/verdict_header.py hand-built the same header
+        # above it and would now render it twice.
         evidence_table.render_evidence_table(cluster)
         spatial_stage.render_spatial_stage(cluster)
     with chat_col:

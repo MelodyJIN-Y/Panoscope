@@ -1,58 +1,63 @@
-"""Evidence table — the marker rows a cluster's call rests on.
+"""Marker genes — the ASSIGNMENT surface, rendered from its declaration.
 
-``render_evidence_table(cluster)`` draws one cluster's marker evidence. Each row is:
+**The center stage is no longer hand-built.** ``workflows/marker.py``'s ``UISpec``
+owns the header variant, every column, every absence block, the sort key and the
+coverage ribbon; ``ui/surface.py`` draws them. What is left here is the one thing a
+declaration cannot do: adapt this method's rows into resolved ``SurfaceRow``\\s with
+a measurement state on each. That is ARCHITECTURE §13's shape — *the review surface
+is part of the interpretation contract, declared by the workflow, not a UI concern* —
+and it is the same conversion ``ui/enrichment_table.py`` already did for Pathways.
 
-* a **gene button** — the gene name with a small select dot as its ``::before``
-  (a hollow ring when unselected, a filled teal disc when selected, exactly like
-  the cluster-rail dot). Clicking it toggles the gene in this cluster's
-  multi-select set (``ui.state.toggle_marker``) — a viewing control that drives
-  the linked spatial small-multiples, never a recompute.
-* its **jazzPanda numbers** (glm_coef + pearson) and a ``canonical`` tag when the
-  gene is a canonical marker for the cell type.
-* a **grounded biology note** — a short summary of the gene's role and its
-  relevance to this cluster's identity, WITH a real PubMed citation. This text is
-  read from the pipeline's Output-4 notes (``ui.data_access.gene_note`` /
-  ``pipeline/stages/notes.py``); this module never generates biology
-  (confident floor). Genes without a note show nothing.
+Two consequences are visible on screen:
 
-Every value comes straight off the cached ``ClusterVerdict`` / the precomputed
-notes — this module computes nothing. Streamlit is imported lazily so importing
-``ui.evidence_table`` needs no running server.
+* **Never-measured markers are rows now.** The page rendered ``ClusterVerdict.evidence``,
+  which is the v1 *compatibility view* and carries only the rows that were measured
+  (c2: 28 of 33). A canonical marker the panel never carried lived in a sibling field
+  (``offpanel_notes``) that this table never read, so it was indistinguishable from a
+  gene that was measured and found nothing — the exact failure ``CLAUDE.md`` names:
+  *"A never-measured item is not a blank row and not a zero."* The rows now come from
+  the v2 record's own evidence (``pipeline/records.build_all``, the composition root
+  ``panoscope build`` and ``panoscope explain`` share), which carries a
+  ``MeasuredState`` and the frame that settled it on every item. Each of the four
+  states has a declared block, and a block renders its header at zero.
+* **The band moved into the declared header.** ``ui/verdict_header.py`` hand-built the
+  id line, the call, the confidence chip and the driver line. ``LabelBandHeader`` is
+  the declaration of exactly that, and ASSIGNMENT is the one task kind allowed one —
+  ``surface.label_band_html`` refuses any other, which is the asymmetry with Pathways
+  made structural. The band, ``verify`` and the call are still read off the v1
+  ``ClusterVerdict`` (``display_verdict_for``, so a confirmed override still shows),
+  so no number on screen moved; only who draws it did.
+
+Selecting a gene is a viewing control (``ui.state.toggle_marker``, a per-cluster
+multi-select): it drives the spatial small-multiples and nothing else. The renderer
+offers a pin only on an OBSERVED row — a gene the panel never carried has no map to
+draw. This module computes nothing and never generates biology text: the per-gene
+note is the pipeline's, live-cited (``ui.data_access.gene_note``).
+
+Streamlit is imported lazily so ``import ui.evidence_table`` needs no server.
 """
 
 from __future__ import annotations
 
-import html
-from typing import Optional
+from functools import lru_cache
+from typing import Any
 
-from panoscope.agent.types import ClusterVerdict, MarkerEvidence
+from panoscope.agent import config as cfg
+from panoscope.methods.jazzpanda import BAND_EDGES
+from panoscope.types.measured import MeasuredState
+from panoscope.workflows import marker as marker_workflow
 
-from panoscope.ui import data_access, format as fmt, state
-
-# --------------------------------------------------------------------------- #
-# Pure HTML fragments (escape all source-derived text)
-# --------------------------------------------------------------------------- #
-def _num_html(ev: MarkerEvidence) -> str:
-    """The numbers cell: glm_coef and pearson. (The canonical tag now sits next to
-    the gene name in the gene column, via the button's ::after, not here.)"""
-    glm = fmt.num_fmt(ev.glm_coef, 2)
-    pear = fmt.num_fmt(ev.pearson, 2)
-    return (
-        f'<div class="pano-ev-num"><span class="num">{glm}</span>'
-        f'<span class="num dim pano-ev-sub">pearson {pear}</span></div>'
-    )
-
+from panoscope.ui import data_access as da
+from panoscope.ui import format as fmt
+from panoscope.ui import state
+from panoscope.ui import surface
 
 # --------------------------------------------------------------------------- #
 # Flag copy. The ONE home for the English of a registered evidence flag
 # (``types.evidence.FLAGS``). Copy belongs in the UI layer; ids belong everywhere
-# else. The badge below used to be decided by a literal English phrase that was
-# duplicated into its own test, so a copy edit in the analysis layer silently
-# stopped the badge rendering and the test stayed green.
-#
-# ``agent/verdict.py::_caveats_for`` still emits the prose itself — rewiring it to
-# emit ids is the method refactor, not this change. When it does, this table is
-# already the other half and only the lookup in ``_caveat_badge`` moves.
+# else. The specificity badge used to be decided by matching a literal English
+# phrase, so a copy edit in the analysis layer silently stopped it rendering and
+# its test stayed green. The chips below are keyed on the ids the record carries.
 # --------------------------------------------------------------------------- #
 FLAG_COPY: dict[str, str] = {
     "specificity:localises_elsewhere": "localizes better with another cluster",
@@ -60,254 +65,246 @@ FLAG_COPY: dict[str, str] = {
     "specificity:low": "low spatial specificity",
 }
 
-# The one jazzPanda-derived caveat we surface as a specificity badge: the gene's
-# transcripts correlate more with ANOTHER cluster's spatial pattern than with this
-# one (max_gc_corr > pearson). The skill treats this as a specificity caveat — the
-# marker also marks another lineage — so we flag it at a glance.
-_SPECIFICITY_FLAG = "specificity:localises_elsewhere"
-_SPECIFICITY_CAVEAT = FLAG_COPY[_SPECIFICITY_FLAG]
+#: How to READ each state — the second half of the hatch hover, after the frame.
+#: Four entries because there are four states; the two-entry version of this table
+#: is the collapse into "unknown" the whole lattice exists to stop.
+_READS: dict[MeasuredState, str] = {
+    MeasuredState.OBSERVED: "reported with a statistic",
+    MeasuredState.TESTED_ABSENT:
+        "on panel, tested and not reported for this unit — absence IS evidence here",
+    MeasuredState.UNDERPOWERED:
+        "in frame but below its floor, so its absence argues nothing",
+    MeasuredState.NEVER_MEASURED:
+        "absent from the capability frame, so its absence argues nothing",
+}
+
+#: The bars a band had to clear, read off the ref the declaration names
+#: (``LabelBandHeader.band_edges_ref``) rather than restated here.
+_GATES: tuple[str, ...] = tuple(
+    f"{band}: glm_coef >= {edge:g}" for band, edge in BAND_EDGES
+)
 
 
-def _caveat_badge(ev: MarkerEvidence) -> str:
-    """A small specificity badge when jazzPanda says this marker localizes better
-    with another cluster (Tier-A evidence, not the note). Empty otherwise."""
-    if _SPECIFICITY_CAVEAT in ev.caveats:
-        return (
-            ' <span class="pano-bio-caveat" '
-            'title="jazzPanda: transcripts localize better with another cluster '
-            '(max_gc_corr &gt; pearson) — also marks another lineage">'
-            "also marks another cluster</span>"
-        )
-    return ""
+# --------------------------------------------------------------------------- #
+# The record's own evidence. Built through the composition root, never re-derived:
+# ``panoscope build`` writes the record from these same functions, so the table and
+# the file on disk cannot disagree about a state. ``lru_cache`` because Streamlit
+# re-executes the script, not the module, on every rerun.
+# --------------------------------------------------------------------------- #
+@lru_cache(maxsize=4)
+def _builds(study_id: str) -> dict[str, Any]:
+    from panoscope.pipeline import records
+
+    return records.build_all(cfg.current_study())
 
 
-def _lab_note_html(notes: list) -> str:
-    """A caveat line for notes anchored to this gene (claim + [note:id] + tension),
-    shown in the biology cell so the biologist's correction sits with the marker."""
-    if not notes:
-        return ""
-    bits = []
-    for n in notes[:2]:
-        t = n.tension
-        if t.dissent:
-            tension = f' · {len(t.dissent)} lit. dissent'
-        elif t.agree:
-            tension = f' · {len(t.agree)} lit. agree'
-        else:
-            tension = ""
-        bits.append(
-            f'&#9873; note: {html.escape(n.claim)} '
-            f'<span class="pano-ev-notecite">[note:{html.escape(n.id[:6])}]</span>{tension}'
-        )
-    return '<div class="pano-ev-labnote">' + "<br>".join(bits) + "</div>"
+def unit_build(cluster: str) -> Any | None:
+    """This unit's ``UnitBuild``, or ``None`` if the study cannot produce one.
 
-
-def _bio_html(cluster: str, ev: MarkerEvidence, anchored: dict = None) -> str:
-    """The biology cell: the precomputed grounded note + its real citation + a
-    jazzPanda-derived specificity badge, plus any note the biologist anchored to
-    this gene.
-
-    Reads ``data_access.gene_note`` (precomputed, cited) for the prose; never
-    generates text. The specificity badge is driven off the verdict's own
-    ``ev.caveats`` (Tier A), so it shows even when a gene has no biology note. A
-    thin-literature note is labelled honestly; a verify-flagged note carries a
-    small check marker.
+    Returns rather than raises: a study with no method output on disk must render a
+    page that says so, not a traceback — and never a table of rows whose states were
+    guessed off some other artifact.
     """
-    caveat = _caveat_badge(ev)
-    lab = _lab_note_html((anchored or {}).get("gene", {}).get(ev.gene))
-    note = data_access.gene_note(cluster, ev.gene)
-    if not note or not note.get("summary"):
-        # No prose, but a grounded caveat / note still belongs here if present.
-        return f'<div class="pano-ev-bio empty">{caveat}{lab}</div>'
+    try:
+        return _builds(cfg.current_study().id).get(cluster)
+    except Exception:  # noqa: BLE001 - a missing/broken input is a message, not a crash
+        return None
 
-    summary = html.escape(str(note["summary"]))
+
+# --------------------------------------------------------------------------- #
+# The adapter: this method's items -> resolved SurfaceRows.
+#
+# The ONLY thing left that is specific to jazzPanda's marker output. Nothing here
+# computes a statistic or decides a state: both are read off the ``EvidenceItem``
+# the record was assembled from.
+# --------------------------------------------------------------------------- #
+def _reason(item: Any) -> str:
+    """Why this row is in this state — the hover on the hatch, naming the frame.
+
+    The frame is named rather than implied: "never measured" without *which frame
+    refused it* is the blank row with extra words.
+    """
+    m = item.measured
+    extra = [b for b in m.because if m.frame not in b]
+    return (f"{m.state.value} in frame {m.frame}: {_READS[m.state]}"
+            + (f" ({'; '.join(extra)})" if extra else ""))
+
+
+def _pair(item: Any) -> tuple[float, ...] | None:
+    """The SPECIFICITY_PAIR cell: pearson here / the best correlation elsewhere.
+
+    ``None`` on any row that carries no number — ``core/measure.py`` withholds the
+    corroborators with the statistic, so there is nothing to put here and
+    ``cell_html`` hatches the cell.
+    """
+    if item.statistic is None:
+        return None
+    corr = dict(item.corroborating)
+    vals = tuple(corr[k] for k in ("pearson", "max_gc_corr") if k in corr)
+    return vals or None
+
+
+def _chips(item: Any, canonical: frozenset[str]) -> tuple[str, ...]:
+    """The NOTE_CHIP cell: canonical membership, then every registered flag as prose.
+
+    ``canonical`` is reference data doing the one thing reference data may do — it
+    selects which rows matter. It supplies no value and corroborates nothing.
+    """
+    gene = item.subject.display()
+    canon = ("canonical",) if gene.upper() in canonical else ()
+    return canon + tuple(FLAG_COPY.get(f, f) for f in item.flags)
+
+
+def _cite_value(cluster: str, gene: str, anchored: dict) -> tuple[str, str] | str:
+    """The CITATION cell: ``(prose, url)``. The renderer escapes and links it.
+
+    Never generated here — the prose is the pipeline's precomputed, live-cited note,
+    and a gene with no note gets no sentence rather than an invented one. A note the
+    biologist anchored to this gene rides along with its literature tension, because
+    the biologist's correction belongs beside the marker it corrects.
+    """
+    note = da.gene_note(cluster, gene) or {}
+    summary = str(note.get("summary") or "").strip()
     pmid = note.get("pmid")
-    if pmid:
-        cite = (
-            f'<a class="pano-bio-cite" '
-            f'href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(pmid))}/" '
-            f'target="_blank">&#128196; PMID:{html.escape(str(pmid))}</a>'
-        )
-    else:
-        cite = '<span class="pano-bio-thin">literature thin</span>'
-    verify = (
-        ' <span class="pano-bio-verify" title="re-check this">&#9873; check</span>'
-        if note.get("verify")
-        else ""
+    bits: list[str] = []
+    if summary:
+        bits.append(summary + ("" if pmid else "  (literature thin)"))
+    for n in (anchored.get(gene) or [])[:2]:
+        t = n.tension
+        tension = (f" · {len(t.dissent)} lit. dissent" if t.dissent
+                   else f" · {len(t.agree)} lit. agree" if t.agree else "")
+        bits.append(f"⚑ note: {n.claim} [note:{n.id[:6]}]{tension}")
+    text = "  ".join(bits)
+    url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else ""
+    return (text, url) if text else ""
+
+
+def _row(cluster: str, item: Any, canonical: frozenset[str],
+         anchored: dict) -> surface.SurfaceRow:
+    """One ``EvidenceItem`` as a resolved row.
+
+    ``statistic`` and ``pearson`` are whatever the item carries, which is ``None`` on
+    every state that forbids a number. That is not politeness: ``cell_html`` refuses
+    a number on such a row outright, which is the structural form of *statistic is
+    None iff the state is TESTED_ABSENT or NEVER_MEASURED*.
+    """
+    gene = item.subject.display()
+    return surface.SurfaceRow(
+        key=item.subject.key,          # the click-back anchor reconciliation joins on
+        state=item.measured.state,
+        reason=_reason(item),
+        values={
+            "gene": gene,
+            "statistic": item.statistic,
+            "pearson": _pair(item),
+            "flags": _chips(item, canonical),
+            "citation": _cite_value(cluster, gene, anchored),
+        },
     )
-    return f'<div class="pano-ev-bio">{summary} {cite}{verify}{caveat}{lab}</div>'
 
 
 # --------------------------------------------------------------------------- #
-# One-time CSS. The gene button's dot is a ::before ring/disc (scoped to the
-# per-row keyed container st-key-generow_*), matching the cluster-rail dot.
+# The declared header's fields
 # --------------------------------------------------------------------------- #
-_EVIDENCE_CSS = """
-<style>
-.pano-ev-hlabel {
-  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-  letter-spacing: .05em; color: var(--faint); font-weight: 500;
-}
-.pano-ev-num { display: flex; flex-direction: column; line-height: 1.3; gap: 2px; }
-.pano-ev-sub { font-size: 10px; }
-.pano-canon {
-  font-family: var(--mono); font-size: 9px; color: var(--accent);
-  background: var(--accent-soft); padding: 1px 6px; border-radius: 4px;
-  align-self: flex-start; margin-bottom: 2px;
-}
-.pano-ev-bio {
-  font-size: 12px; color: var(--muted); line-height: 1.5;
-}
-.pano-ev-bio.empty { color: var(--faint); }
-.pano-bio-cite {
-  font-family: var(--mono); font-size: 10px; color: var(--accent);
-  white-space: nowrap; text-decoration: none;
-}
-.pano-bio-cite:hover { text-decoration: underline; }
-.pano-bio-thin { font-family: var(--mono); font-size: 10px; color: var(--faint); }
-.pano-bio-verify { font-family: var(--mono); font-size: 10px; color: var(--absent); }
-/* A biologist's note anchored to this gene, shown beneath the biology. */
-.pano-ev-labnote { font-size: 11px; line-height: 1.45; color: var(--absent);
-  background: var(--absent-bg); border-left: 2px solid var(--absent); border-radius: 0 5px 5px 0;
-  padding: 4px 8px; margin-top: 6px; }
-.pano-ev-notecite { font-family: var(--mono); font-size: 9.5px; color: var(--accent); }
-/* Specificity badge: this marker localizes better with another cluster
-   (jazzPanda max_gc_corr > pearson). A small outlined amber chip — cautionary,
-   not alarming, and visually distinct from the teal canonical tag. */
-.pano-bio-caveat {
-  display: inline-block; font-family: var(--mono); font-size: 9px;
-  letter-spacing: .02em; color: var(--absent); border: 1px solid var(--absent);
-  border-radius: 4px; padding: 0 5px; margin-left: 2px; white-space: nowrap;
-  vertical-align: baseline; opacity: .9;
-}
-.pano-ev-empty {
-  font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
-}
-/* Scrollable rows body: no boxed border (border=False on the container); just a
-   single top hairline so it reads as the table body under the header row. */
-div[class*="st-key-evrows"] {
-  border-top: 1px solid var(--hair) !important;
-  padding-top: 2px;
-}
-/* Per-row keyed container: tighten spacing + render the gene button as a
-   chromeless, left-aligned name with a ::before select dot (like the rail). */
-div[class*="st-key-evrows"] [data-testid="stHorizontalBlock"] { gap: 8px !important; }
-div[class*="st-key-generow_"] [data-testid="stColumn"] { padding: 0 !important; }
-div[class*="st-key-generow_"] div[data-testid="stButton"] > button {
-  background: transparent !important; border: 0 !important; box-shadow: none !important;
-  min-height: 0 !important; padding: 4px 4px !important; border-radius: 6px !important;
-  display: flex !important; align-items: center !important; justify-content: flex-start !important;
-  font-family: var(--mono) !important; font-weight: 600 !important; font-size: 14px !important;
-  color: var(--ink) !important;
-}
-div[class*="st-key-generow_"] div[data-testid="stButton"] > button > div {
-  flex: 0 1 auto !important; width: auto !important;
-}
-div[class*="st-key-generow_"] div[data-testid="stButton"] > button::before {
-  content: ''; width: 10px; height: 10px; border-radius: 50%; flex: none;
-  margin-right: 9px; box-sizing: border-box;
-  border: 1.5px solid var(--faint); background: transparent;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-div[class*="st-key-generow_"] button[kind="primary"]::before,
-div[class*="st-key-generow_"] button[data-testid="stBaseButton-primary"]::before {
-  background: var(--accent) !important; border-color: var(--accent) !important;
-}
-div[class*="st-key-generow_"] button[kind="primary"],
-div[class*="st-key-generow_"] button[data-testid="stBaseButton-primary"] {
-  color: var(--accent) !important; background: transparent !important;
-}
-div[class*="st-key-generow_"] div[data-testid="stButton"] > button:hover { background: var(--hair2) !important; }
-/* Canonical marker: a small tag right after the gene name (canonical rows only). */
-div[class*="st-key-generow_canon_"] div[data-testid="stButton"] > button::after {
-  content: 'canonical'; align-self: center; flex: none; margin-left: 8px;
-  font-family: var(--mono); font-size: 9px; font-weight: 500; line-height: 1.5;
-  color: var(--accent); background: var(--accent-soft);
-  padding: 1px 6px; border-radius: 4px;
-}
-</style>
-"""
+def _unit_scope(cluster: str) -> str:
+    """``CLUSTER 3 · 4,812 cells`` — provenance, read, never computed."""
+    label = f"CLUSTER {fmt.short_cluster_id(cluster)}"
+    try:
+        return f"{label} · {len(da.cluster_cells_df(cluster)):,} cells"
+    except Exception:  # noqa: BLE001 - an unknown cell count still has an id line
+        return label
 
-# Column proportions shared by the header and every row so they line up.
-_COLS = [0.24, 0.20, 0.56]
 
-# The marker rows live in one fixed-height, scrollable panel (all markers at once,
-# scroll for the long tail) rather than a top-N view plus a "show all" expander.
-_EV_SCROLL_HEIGHT = 360
+def _runner_up(cluster: str) -> str:
+    """The rejected alternative and what separates it (``require_runner_up``).
+
+    Read off ``agent.discriminate`` — the source the declaration names — and empty
+    when no competing hypothesis is evident in the measured markers, which is a
+    different statement from a rival nobody looked for.
+    """
+    try:
+        from panoscope.agent import discriminate
+
+        d = discriminate.discriminate(cluster)
+        if d.alt_B is None:
+            return ""
+        return f"{d.alt_B.replace('_', ' ')} —{discriminate.settle_line(d)}"
+    except Exception:  # noqa: BLE001 - no rival line is better than a broken page
+        return ""
+
+
+def _header_values(cluster: str) -> dict:
+    """The fields the declared ``LabelBandHeader`` names.
+
+    The band, ``verify`` and the call come off the v1 ``ClusterVerdict``
+    (``display_verdict_for``, so a confirmed override shows) — the same values this
+    page showed before the conversion, so nothing on screen moved. ``verify`` is the
+    deterministic rubric's and is read, never recomputed and never offered.
+    """
+    v = da.display_verdict_for(cluster)
+    return {
+        "unit_scope": _unit_scope(cluster),
+        "label": v.cell_type,
+        "confidence": v.confidence,
+        "verify": v.verify,
+        "band_basis": v.band_basis,
+        "demotions": v.demotions,
+        "key_markers": v.key_markers,
+        "runner_up": _runner_up(cluster),
+        "gates": _GATES,
+    }
+
+
+def rows_for(cluster: str, built: Any) -> list[surface.SurfaceRow]:
+    """Every item in this unit's record, adapted. Nothing is filtered out here.
+
+    Filtering would put the decision about which absences are visible in the
+    renderer, which is where it least belongs: the declared blocks decide where a
+    row goes, and ``never_truncate`` decides that it goes somewhere.
+    """
+    anchored = da.anchored_notes(cluster).get("gene", {})
+    return [_row(cluster, i, built.canonical, anchored)
+            for i in built.evidence.items]
 
 
 # --------------------------------------------------------------------------- #
 # Public render
 # --------------------------------------------------------------------------- #
+_EVIDENCE_CSS = """
+<style>
+.pano-ev-empty {
+  font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
+}
+</style>
+"""
+
+
 def render_evidence_table(cluster: str) -> None:
-    """Render the marker-evidence table for ``cluster`` into the current column."""
+    """Render ``cluster``'s declared ASSIGNMENT surface into the current column."""
     import streamlit as st
 
-    verdict: ClusterVerdict = data_access.verdict_for(cluster)
-
     st.markdown(_EVIDENCE_CSS, unsafe_allow_html=True)
-    st.markdown(
-        '<p class="pano-eyebrow">Assigned markers '
-        f"({len(verdict.evidence)} markers)</p>",
-        unsafe_allow_html=True,
-    )
 
-    with st.container(key="evhead"):
-        h_gene, h_num, h_bio = st.columns(_COLS)
-        h_gene.markdown('<span class="pano-ev-hlabel">Gene</span>', unsafe_allow_html=True)
-        h_num.markdown(
-            '<span class="pano-ev-hlabel">glm / pearson</span>', unsafe_allow_html=True
-        )
-        h_bio.markdown(
-            '<span class="pano-ev-hlabel">Biology · relevance (cited)</span>',
-            unsafe_allow_html=True,
-        )
-
-    all_rows = list(verdict.evidence)
-    if not all_rows:
+    built = unit_build(cluster)
+    if built is None:
         st.markdown(
-            '<div class="pano-ev-empty">No assigned markers for this cluster.</div>',
+            '<div class="pano-ev-empty">No interpretation record for this unit. '
+            "Run <code>panoscope build</code> for this study to produce one.</div>",
             unsafe_allow_html=True,
         )
         return
 
-    # Every assigned marker in one fixed-height, scrollable panel — scroll for the
-    # long tail rather than an expander that pushes the tissue down the page.
-    # border=False drops Streamlit's heavy default box; a single top hairline (CSS)
-    # ties the scrolling body to the header above it, table-style.
-    with st.container(height=_EV_SCROLL_HEIGHT, border=False, key="evrows"):
-        _render_marker_rows(st, all_rows, cluster)
+    spec = marker_workflow.WORKFLOW.uispec()
+    rows = rows_for(cluster, built)
+    by_key = {r.key: r.values["gene"] for r in rows}
+
+    surface.render_surface(
+        spec,
+        header=_header_values(cluster),
+        rows=rows,
+        on_select=lambda r: state.toggle_marker(cluster, by_key[r.key]),
+        selected=lambda r: state.is_marker_selected(cluster, by_key[r.key]),
+    )
 
 
-def _render_marker_rows(st, rows, cluster: str) -> None:
-    """Render each marker as ``[gene button | numbers | cited biology note]``.
-
-    Called inside the scrollable rows container. The gene button (dot ::before +
-    name) toggles this ``cluster``'s marker set (per-cluster selection) in-line; the
-    evidence table renders BEFORE the spatial stage in the same run, so the grid
-    sees the change immediately. No recompute.
-    """
-    anchored = data_access.anchored_notes(cluster)  # notes indexed by gene, read once
-    for ev in rows:
-        is_selected = state.is_marker_selected(cluster, ev.gene)
-        # Canonical markers get a `canonical` tag after the gene name via CSS
-        # (::after on the button), keyed by the container name below.
-        row_key = f"generow_canon_{ev.gene}" if ev.is_canonical else f"generow_{ev.gene}"
-        with st.container(key=row_key):
-            g_col, n_col, b_col = st.columns(_COLS, vertical_alignment="top")
-            with g_col:
-                if st.button(
-                    str(ev.gene),
-                    key=f"select_{ev.gene}",
-                    type="primary" if is_selected else "secondary",
-                    use_container_width=True,
-                ):
-                    state.toggle_marker(cluster, ev.gene)
-                    st.rerun()
-            with n_col:
-                st.markdown(_num_html(ev), unsafe_allow_html=True)
-            with b_col:
-                st.markdown(_bio_html(cluster, ev, anchored), unsafe_allow_html=True)
-
-
-__all__ = ["render_evidence_table"]
+__all__ = ["render_evidence_table", "rows_for", "unit_build", "FLAG_COPY"]

@@ -188,14 +188,21 @@ def test_every_caveat_the_analysis_layer_emits_has_registered_copy():
 
 
 def test_the_ui_badge_reads_its_english_from_the_copy_table():
-    """The wiring, end to end: the badge no longer owns a literal of its own.
+    """The wiring, end to end: the badge owns no literal of its own, in either
+    direction.
 
-    ``_caveat_badge`` still matches prose because ``verdict.py`` still emits prose;
-    what changed is that the English has ONE home. A copy edit now moves the badge
-    and the table together.
+    It used to match the prose ``verdict.py`` emits, with the English duplicated on
+    both sides. The markers surface now renders the registered **id** the record
+    carries and looks its copy up here, so there is one home for the sentence and a
+    copy edit cannot silently drop the chip.
     """
-    assert et._SPECIFICITY_CAVEAT == et.FLAG_COPY[et._SPECIFICITY_FLAG]
-    assert et._SPECIFICITY_FLAG in FLAGS
+    from types import SimpleNamespace
+
+    flag = "specificity:localises_elsewhere"
+    assert flag in FLAGS
+    item = SimpleNamespace(flags=(flag,),
+                           subject=SimpleNamespace(display=lambda: "XIST"))
+    assert et._chips(item, frozenset()) == (et.FLAG_COPY[flag],)
 
 
 # --------------------------------------------------------------------------- #
