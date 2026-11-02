@@ -1,0 +1,72 @@
+{
+  "dataset": "synthetic_multisample_fixture",
+  "method": "hand-written fixture; no annotation step was run",
+  "clusters": {
+    "c1": {
+      "cluster": "c1",
+      "cell_type": "Synthetic Type A",
+      "cell_type_short": "SynA",
+      "category": "Synthetic",
+      "lineage": "Synthetic",
+      "canonical_markers": [
+        "SYNG01",
+        "CANON_A1",
+        "CANON_A2",
+        "CANON_A3",
+        "CANON_A4",
+        "CANON_A5"
+      ],
+      "offpanel_canonical": [
+        "CANON_A1",
+        "CANON_A2",
+        "CANON_A3",
+        "CANON_A4",
+        "CANON_A5"
+      ]
+    },
+    "c2": {
+      "cluster": "c2",
+      "cell_type": "Synthetic Type B",
+      "cell_type_short": "SynB",
+      "category": "Synthetic",
+      "lineage": "Synthetic",
+      "canonical_markers": [
+        "SYNG10",
+        "CANON_B1",
+        "CANON_B2",
+        "CANON_B3",
+        "CANON_B4",
+        "CANON_B5"
+      ],
+      "offpanel_canonical": [
+        "CANON_B1",
+        "CANON_B2",
+        "CANON_B3",
+        "CANON_B4",
+        "CANON_B5"
+      ]
+    },
+    "c3": {
+      "cluster": "c3",
+      "cell_type": "Synthetic Type A",
+      "cell_type_short": "SynA",
+      "category": "Synthetic",
+      "lineage": "Synthetic",
+      "canonical_markers": [
+        "SYNG01",
+        "CANON_A1",
+        "CANON_A2",
+        "CANON_A3",
+        "CANON_A4",
+        "CANON_A5"
+      ],
+      "offpanel_canonical": [
+        "CANON_A1",
+        "CANON_A2",
+        "CANON_A3",
+        "CANON_A4",
+        "CANON_A5"
+      ]
+    }
+  }
+}

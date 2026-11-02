@@ -1,0 +1,41 @@
+{
+  "SYNTHETIC_FIXTURE": "NOT REAL DATA. Every gene name, cell-type label, sample id and number in this study is made up and means nothing biologically. Nothing here was measured, on any instrument, from any specimen. Do not cite it, do not read biology out of it, and do not use it as a template for a real study's content -- only for its shape.",
+  "synthetic": true,
+  "exercises": [
+    "multi-sample stores: PlatformAdapter.samples() returning more than one",
+    "clustering_mode() having something to decide, and UndeclaredClustering firing when the mode is removed from this manifest",
+    "panel-absence at severity: most canonical markers in interp/annotation.json are off this panel, and one on-panel canonical marker has no usable signal",
+    "two units (c1, c3) sharing one cell-type label, which must stay two subjects",
+    "core/concordance.py, which had no multi-sample data to run on"
+  ],
+  "dataset_id": "synthetic_multisample_fixture",
+  "pipeline_version": "0.1.0",
+  "tissue": "none -- synthetic fixture, not derived from any specimen",
+  "platform": "Xenium",
+  "samples": [
+    "sampleA",
+    "sampleB"
+  ],
+  "clustering_mode": "joint",
+  "panel_gene_count": 12,
+  "n_cells": null,
+  "clusters": [
+    "c1",
+    "c2",
+    "c3"
+  ],
+  "views_available": {
+    "cell_map": false,
+    "umap": false,
+    "density": false,
+    "expr": false
+  },
+  "inputs": {
+    "markers_top.csv": {
+      "file": "markers_top.csv"
+    },
+    "panel.parquet": {
+      "file": "panel.parquet"
+    }
+  }
+}

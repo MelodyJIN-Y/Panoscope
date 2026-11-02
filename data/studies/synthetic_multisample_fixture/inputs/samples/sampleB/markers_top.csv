@@ -1,0 +1,13 @@
+gene,top_cluster,glm_coef,pearson,max_gg_corr,max_gc_corr,cell_type
+SYNG01,c1,19.0,0.9,0.9,0.9,Synthetic Type A
+SYNG02,c1,18.0,0.9,0.9,0.9,Synthetic Type A
+SYNG03,c2,17.0,0.9,0.9,0.9,Synthetic Type B
+SYNG04,c2,16.0,0.9,0.9,0.9,Synthetic Type B
+SYNG05,c2,15.0,0.9,0.9,0.9,Synthetic Type B
+SYNG06,c2,14.0,0.9,0.9,0.9,Synthetic Type B
+SYNG07,c3,13.0,0.9,0.9,0.9,Synthetic Type A
+SYNG08,c3,12.0,0.9,0.9,0.9,Synthetic Type A
+SYNG09,c3,11.0,0.9,0.9,0.9,Synthetic Type A
+SYNG10,NoSig,0.0,0.0,0.0,0.0,
+SYNG11,NoSig,0.0,0.0,0.0,0.0,
+SYNG12,NoSig,0.0,0.0,0.0,0.0,

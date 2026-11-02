@@ -43,6 +43,7 @@ them in.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Final
 
 import pandas as pd
@@ -203,6 +204,31 @@ class XeniumAdapter:
             return sorted({str(v).strip() for v in col if str(v).strip()})
         return [store.id]
 
+    def sample_inputs(self, store: Study) -> dict[str, Path]:
+        """Per-sample marker tables, by sample id. Empty when the store has none.
+
+        ``samples`` says how many readings exist; this says where they are, and
+        until it did, nothing in the codebase could produce the
+        ``core.concordance.Replicate`` list §9.10 is defined over -- the function
+        had no caller that was not a test, because a caller would have had to guess
+        a path. Resolved from the filesystem under one convention,
+        ``inputs/samples/<sample>/markers_top.csv``, and NOT from a manifest key:
+        the same rule as ``available_views``, because a manifest may say a file is
+        there and only the file settles it.
+
+        A sample with no table is simply absent from the mapping rather than
+        mapped to the pooled table. Handing back the pooled numbers under two
+        sample names would make every replicate agree with itself, and §9.10's one
+        informative outcome -- divergence -- would become unreachable while the
+        check went on reporting that it had run.
+        """
+        out: dict[str, Path] = {}
+        for s in self.samples(store):
+            p = store.inputs / "samples" / s / "markers_top.csv"
+            if p.is_file():
+                out[s] = p
+        return out
+
     def clustering_mode(self, store: Study) -> ClusteringMode:
         """§6.3's fourth blocker. Raises ``UndeclaredClustering``; never guesses."""
         return declared_clustering(
@@ -326,6 +352,19 @@ class XeniumAdapter:
             if not str(store.manifest.get(field, "")).strip():
                 problems.append(
                     f"{field} is not declared, and it blocks the study (§6.3)"
+                )
+
+        samples = self.samples(store)
+        if len(samples) > 1:
+            missing = [s for s in samples if s not in self.sample_inputs(store)]
+            if missing:
+                problems.append(
+                    f"the store declares {len(samples)} samples and has no per-sample "
+                    f"marker table for {', '.join(missing)} "
+                    f"({store.inputs / 'samples' / '<sample>' / 'markers_top.csv'}). "
+                    "Only the pooled table is readable, so replicate concordance "
+                    "(ARCHITECTURE §9.10) has nothing to run on and a divergence "
+                    "between samples cannot be seen"
                 )
 
         try:
