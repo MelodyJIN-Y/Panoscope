@@ -18,8 +18,8 @@ Grounding discipline:
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache, wraps
+from pathlib import Path
 
 import pandas as pd
 
@@ -29,52 +29,60 @@ from panoscope.agent import config as cfg
 # Tidy file locations (all under data/)
 # --------------------------------------------------------------------------- #
 # Per-dataset pipeline tree (data/studies/<id>/). Each artifact is resolved
-# tree-first with a fall back to the legacy flat path, so the app reads the
-# pipeline output where it exists and keeps working mid-migration. Resolved at
-# import: the tree either exists (pipeline has run) or it does not.
-def _resolved(tree_rel: str, legacy_rel: str) -> Path:
-    """The current study's tree path if it exists, else the legacy flat path.
+# tree-first, at call time, with a fall back to the legacy flat path for the
+# bundled demo only -- those flat files are the demo's.
+def resolved(tree_rel: str, legacy_rel: str) -> Path:
+    """The current study's tree path, falling back to the legacy flat path.
 
     Resolved at CALL time against the current study. It used to be resolved at
     import, which froze every path to whichever study happened to be active when
     the module was first imported -- so opening a second study silently served the
     first study's frames to everything downstream.
+
+    The legacy flat files under ``data/`` belong to the BUNDLED DEMO and to nothing
+    else, so only the demo may fall back to them. For any other study the missing
+    tree path is returned unchanged, and ``_require``/``_read_table`` name that
+    study's OWN missing file. Without this gate a second study silently read the
+    demo's cluster key, cells, UMAP, expression matrix and hexbins -- a measured
+    value from the wrong study, reaching the band and the model.
     """
     study = cfg.current_study()
     cand = study.dir / tree_rel
-    return cand if cand.exists() else cfg.DATA_DIR_PATH / legacy_rel
+    if cand.exists() or study.id != cfg.BUNDLED_DEMO_ID:
+        return cand
+    return cfg.DATA_DIR_PATH / legacy_rel
 
 
 def _markers_top() -> Path:
-    return _resolved("inputs/markers_top.csv", "jazzpanda/markers_top.csv")
+    return resolved("inputs/markers_top.csv", "jazzpanda/markers_top.csv")
 
 
 def _panel_parquet() -> Path:
-    return _resolved("inputs/panel.parquet", "panels/panel.parquet")
+    return resolved("inputs/panel.parquet", "panels/panel.parquet")
 
 
 def _cluster_key_json() -> Path:
-    return _resolved("inputs/cluster_key.json", "cluster_key.json")
+    return resolved("inputs/cluster_key.json", "cluster_key.json")
 
 
 def _cells_parquet() -> Path:
-    return _resolved("viz/cells.parquet", "cells/cells.parquet")
+    return resolved("viz/cells.parquet", "cells/cells.parquet")
 
 
 def _cells_csv() -> Path:
-    return _resolved("viz/cells.csv", "cells/cells.csv")
+    return resolved("viz/cells.csv", "cells/cells.csv")
 
 
 def _umap_parquet() -> Path:
-    return _resolved("viz/umap.parquet", "embeddings/umap.parquet")
+    return resolved("viz/umap.parquet", "embeddings/umap.parquet")
 
 
 def _umap_csv() -> Path:
-    return _resolved("viz/umap.csv", "embeddings/umap.csv")
+    return resolved("viz/umap.csv", "embeddings/umap.csv")
 
 
 def _density_dir() -> Path:
-    return _resolved("viz/hexbin", "density")
+    return resolved("viz/hexbin", "density")
 
 _MARKERS_TOP_COLS = [
     "gene",
@@ -185,17 +193,28 @@ def get_marker(gene: str) -> pd.Series | None:
 def load_cluster_key() -> dict[str, dict]:
     """Return cluster -> {cell_type, cell_type_short, category, lineage}.
 
+    Delegates to ``Study.unit_labels`` -- the ONE resolver for this fact (the
+    pipeline's ``interp/annotation.json`` first, the legacy ``inputs/cluster_key.json``
+    second). It used to read ``inputs/cluster_key.json`` itself, which knew only the
+    second source, so a pipeline-built study found nothing there and fell through to
+    the BUNDLED DEMO's flat ``data/cluster_key.json``: ``cell_type_for`` then handed
+    another study's breast labels to ``discriminate.call_A`` (-> rivals -> the band)
+    and to the model. Two resolution paths for one fact, and the plurality gate
+    watched the good one.
+
     Deliberately asserts no entry count. It used to require exactly 9, which is the
     bundled demo's cluster count and nothing more general -- a hard blocker for any
     second study, and one that pipeline/stages/validate.py swallowed as a bare
     Exception so a 3-cluster study silently skipped key validation entirely. What
     matters is that the entries are well-formed, not how many there are.
     """
-    path = _require(_cluster_key_json(), "scripts prep (cluster_key.json)")
-    with open(path) as fh:
-        key = json.load(fh)
-    if not isinstance(key, dict) or not key:
-        raise ValueError(f"[data] cluster_key.json at {path} is empty or not an object")
+    key = cfg.current_study().unit_labels
+    if not key:
+        raise FileNotFoundError(
+            f"[data] study {cfg.current_study().id!r} has no unit labels: neither "
+            f"interp/annotation.json nor inputs/cluster_key.json under "
+            f"{cfg.current_study().dir}. Run the annotate stage before loading."
+        )
     return key
 
 

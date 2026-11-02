@@ -509,6 +509,10 @@ def _note_payload(note) -> dict[str, Any]:
             "agree": [c.pmid for c in tension.agree if c.pmid],
             "dissent": [c.pmid for c in tension.dissent if c.pmid],
             "query": tension.query,
+            # The discriminator between "searched, found nothing" and "never
+            # searched" (claims.notes.lookup_state). Dropping it collapses the
+            # two, and the empty case is the productive half.
+            "looked_up_at": tension.looked_up_at,
         },
     }
 
@@ -635,6 +639,10 @@ def _draft_payload(draft) -> dict[str, Any]:
             "query": t.query,
             "agree": _cites(t.agree),
             "dissent": _cites(t.dissent),
+            # Must survive the round-trip: the draft rebuilt from this payload is
+            # what gets PERSISTED, and without this the thin case saves as
+            # never-looked-up.
+            "looked_up_at": t.looked_up_at,
         },
     }
 

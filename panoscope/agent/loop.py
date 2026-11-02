@@ -43,6 +43,9 @@ from panoscope.agent import config as cfg
 from panoscope.agent import fallback as fb
 from panoscope.agent import profile as agent_profile
 from panoscope.agent import tools as agent_tools
+# Same-package cache helper: keys a zero-arg reader on the CURRENT study instead of
+# on the empty tuple. Imported rather than copied so there is one such decorator.
+from panoscope.agent.data import _per_study
 from panoscope.agent.grounding_check import GroundingChecker
 from panoscope.agent.types import (
     AgentResponse,
@@ -52,6 +55,8 @@ from panoscope.agent.types import (
     Source,
     Tension,
 )
+from panoscope.claims import notes as notes_claims
+from panoscope.corpus.store import Resolution
 
 # python-dotenv: load ANTHROPIC_API_KEY (+ NCBI creds for the MCP client) from
 # .env so the loop authenticates without the caller wiring env vars by hand.
@@ -236,13 +241,18 @@ def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
     marker workflow, "enrichment-interpretation" for the pathway workflow), so the agent
     carries the right interpretation contract for each workflow.
     """
+    path = _SKILLS_DIR / skill / "SKILL.md"
     try:
-        return (_SKILLS_DIR / skill / "SKILL.md").read_text(encoding="utf-8")
-    except Exception:  # pragma: no cover - skill file should exist
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        # Loud, not fatal: a missing SKILL.md means the interpretation contract is
+        # absent from every system prompt. A bare `except Exception` hid exactly
+        # that for weeks after the package move.
+        print(f"[loop] skill contract MISSING: {path} ({exc}) — prompts run without it")
         return ""
 
 
-@lru_cache(maxsize=1)
+@_per_study
 def _global_interpretation_lines() -> str:
     """One grounded line per cluster: cell type + confidence + verify + drivers.
 
@@ -251,7 +261,8 @@ def _global_interpretation_lines() -> str:
     agent stays aware of the full picture even though each conversation thread is
     scoped to a single cluster — the biologist can ask relational questions ("how
     does this sit next to c4?") and the agent keeps the annotation coherent.
-    Cached (verdicts are static within a run). Falls back to the key on any error.
+    Cached PER STUDY (verdicts are static within a study, but not across two).
+    Falls back to the key on any error.
     """
     from panoscope.agent import verdict as _verdict
 
@@ -295,10 +306,16 @@ def _inscope_notes_block(cluster: Optional[str]) -> str:
     lines: list[str] = []
     for n in notes:
         t = n.tension
-        if t.agree or t.dissent:
+        # Three states, never two: claims.notes.lookup_state derives them from
+        # looked_up_at precisely because the stored `thin` flag is not trustworthy.
+        # "searched and found nothing" is a finding; "never searched" says nothing.
+        state = notes_claims.lookup_state(t)
+        if state is Resolution.RESOLVED:
             tension = f"agree {len(t.agree)} / dissent {len(t.dissent)}"
+        elif state is Resolution.NOT_FOUND:
+            tension = "searched, literature thin"
         else:
-            tension = "literature thin" if t.thin else "no tension recorded"
+            tension = "no lookup completed — says nothing about the literature"
         scope_txt = (
             f"cluster {n.scope_ref.cluster}" if n.scope == "cluster" else n.scope
         )
@@ -449,7 +466,7 @@ def _prior_knowledge_context() -> str:
     return user_memory.as_prompt_context()
 
 
-@lru_cache(maxsize=4)
+@_per_study
 def _dataset_context() -> str:
     """The active dataset's tissue/assay, read from its manifest, injected into every
     prompt so interpretation and literature search are tissue-aware.
@@ -571,7 +588,9 @@ def _draft_from_payload(data: Any) -> Optional[NoteDraft]:
         dissent=tuple(_cite_from_dict(c) for c in t.get("dissent", ()) if isinstance(c, dict)),
         thin=bool(t.get("thin", True)),
         query=str(t.get("query", "")),
-        looked_up_at="",
+        # Carried across the tool envelope. Default "" so an envelope written
+        # before this field still means not-looked-up (fail-closed).
+        looked_up_at=str(t.get("looked_up_at", "")),
     )
     return NoteDraft(
         claim=str(data["claim"]),

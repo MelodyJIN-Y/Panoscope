@@ -82,6 +82,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     from panoscope.platforms.tidy import read_tidy
     from panoscope.platforms.xenium import XeniumAdapter
     from panoscope.types.measured import MeasuredWorld
+    from panoscope.types.outputs import TaskKind
     from panoscope.types.subject import EntityKind, gene, subject
 
     registered = methods.for_workflow(WORKFLOW_ID)
@@ -92,6 +93,27 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             "pick one for you. The record names its method."
         )
     method = registered[0]
+    # The shape guard, at the one place that holds the declaration and the band.
+    # This root is ASSIGNMENT-shaped by construction: it calls ``core.verdict.assess``
+    # unconditionally and projects a band into interp/clusters/<unit>.json and into
+    # verdicts.csv. ``core/interpret.py`` guards the same rule by comparing a
+    # RETURNED object against the declaration; there is no returned object here --
+    # the shape is this function's own code -- so the comparison is against the
+    # declaration alone. Without it, registering a CHARACTERISATION workflow under
+    # WORKFLOW_ID would write a unit-level band for a question with no label space,
+    # and nothing downstream would notice: ``core.record.build`` takes task_kind as a
+    # parameter and ``core.compat.to_v1_assignment`` is handed a Verdict and never
+    # asks what question it answers. Loud, at the composition root, before any IO.
+    wf = workflows.get(method.workflow)
+    if wf.task_kind is not TaskKind.ASSIGNMENT:
+        raise SystemExit(
+            f"{wf.name!r} declares {wf.task_kind.value}, but this root writes a "
+            f"unit-level band into interp/clusters and verdicts.csv. Without a "
+            f"label space a band is undefined, not merely unhelpful -- build a "
+            f"composition root for {wf.task_kind.value} rather than borrowing this "
+            f"one."
+        )
+    task_kind = wf.task_kind
     adapter = XeniumAdapter()          # no platform registry exists yet; see report
     path = study.inputs / "markers_top.csv"
     if not path.is_file():
@@ -120,7 +142,6 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     ).value.record
 
     loaded = method.load(str(path), adapter, study)
-    task_kind = workflows.get(method.workflow).task_kind
 
     out: dict[str, UnitBuild] = {}
     for unit, ev in loaded.value.items():

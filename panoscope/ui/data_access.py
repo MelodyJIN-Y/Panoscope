@@ -36,26 +36,18 @@ from panoscope.agent.types import ClusterVerdict, Note
 # (data/studies/<id>/viz/) when present, falling back to the legacy flat path.
 #   expr.parquet : cell_id (int) + one float column per panel marker
 # --------------------------------------------------------------------------- #
-def _resolved(tree_rel: str, legacy_rel: str) -> Path:
-    """The current study's tree path if it exists, else the legacy flat path.
-
-    Resolved at CALL time. The module-level version froze these to whichever study
-    was active at first import -- the same bug fixed in agent/data.py.
-    """
-    cand = cfg.current_study().dir / tree_rel
-    return cand if cand.exists() else cfg.DATA_DIR_PATH / legacy_rel
-
-
+# Resolution (tree-first, demo-only legacy fallback) is agent.data.resolved -- this
+# module is a thin wrapper over agent.data and must not own a second copy of it.
 def _marker_expr_parquet() -> Path:
-    return _resolved("viz/expr.parquet", "embeddings/marker_expr.parquet")
+    return agent_data.resolved("viz/expr.parquet", "embeddings/marker_expr.parquet")
 
 
 def _marker_expr_csv() -> Path:
-    return cfg.DATA_DIR_PATH / "embeddings" / "marker_expr.csv"
+    return agent_data.resolved("viz/expr.csv", "embeddings/marker_expr.csv")
 
 
 def _density_index() -> Path:
-    return _resolved("viz/hexbin/_index.json", "density/_index.json")
+    return agent_data.resolved("viz/hexbin/_index.json", "density/_index.json")
 
 
 # --------------------------------------------------------------------------- #

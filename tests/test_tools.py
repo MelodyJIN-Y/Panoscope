@@ -447,3 +447,99 @@ def test_literature_fetch_broken_connector_is_not_unresolved(monkeypatch):
     _assert_envelope(env)
     assert env["ok"] is False
     assert "timed out" in env["error"]
+
+
+# --------------------------------------------------------------------------- #
+# The tool envelope must carry looked_up_at.
+#
+# memory.reconcile stamps looked_up_at ONLY when a search completed, and
+# claims.notes.lookup_state reads it (never the `thin` flag) to tell
+# "searched, found nothing" from "never searched". The draft the UI PERSISTS is
+# the one loop._draft_from_payload rebuilds off this envelope, so a field dropped
+# here is a field lost to disk — and it is lost exactly in the thin case, which
+# is the half that carries a finding.
+# --------------------------------------------------------------------------- #
+def _empty_search(query: str):
+    """A lookup that COMPLETED and found nothing. Not a failed lookup."""
+    return []
+
+
+def _roundtrip_draft(env):
+    from panoscope.agent import loop as agent_loop
+
+    return agent_loop._draft_from_payload(env["data"])
+
+
+def test_empty_literature_survives_the_envelope_as_not_found(isolated_memory):
+    from panoscope.claims import notes as notes_claims
+    from panoscope.corpus.store import Resolution
+
+    tools.set_literature_search(_empty_search)
+    env = tools.dispatch(
+        "memory_draft",
+        {
+            "claim": "In our breast TME, LUM marks CAFs in this cluster",
+            "scope": "cluster",
+            "basis": "own_validation",
+            "cluster": "c2",
+            "subject_markers": ["LUM"],
+        },
+    )
+    assert env["ok"] is True
+    assert env["data"]["tension"]["looked_up_at"], "envelope dropped looked_up_at"
+
+    draft = _roundtrip_draft(env)
+    assert draft is not None
+    assert notes_claims.lookup_state(draft.tension) is Resolution.NOT_FOUND, (
+        "a completed-but-empty search rebuilt as NOT_LOOKED_UP — the three states "
+        "collapsed back to two across the tool envelope"
+    )
+
+
+def test_real_citations_still_round_trip_as_resolved(isolated_memory):
+    from panoscope.claims import notes as notes_claims
+    from panoscope.corpus.store import Resolution
+
+    tools.set_literature_search(_stub_search)
+    env = tools.dispatch(
+        "memory_draft",
+        {
+            "claim": "In our breast TME, LUM marks CAFs in this cluster",
+            "scope": "cluster",
+            "basis": "own_validation",
+            "cluster": "c2",
+            "subject_markers": ["LUM"],
+        },
+    )
+    draft = _roundtrip_draft(env)
+    assert notes_claims.lookup_state(draft.tension) is Resolution.RESOLVED
+
+
+def test_old_envelope_without_the_field_means_not_looked_up():
+    """Fail-closed: a payload written before the field still reads as no lookup."""
+    from panoscope.agent import loop as agent_loop
+    from panoscope.claims import notes as notes_claims
+    from panoscope.corpus.store import Resolution
+
+    draft = agent_loop._draft_from_payload(
+        {"claim": "x", "cluster": "c2", "tension": {"thin": True, "query": "q"}}
+    )
+    assert notes_claims.lookup_state(draft.tension) is Resolution.NOT_LOOKED_UP
+
+
+def test_note_payload_carries_looked_up_at(isolated_memory):
+    """memory_read's model-facing payload carries it too (same collapse, same field)."""
+    tools.set_literature_search(_empty_search)
+    tools.dispatch(
+        "memory_write",
+        {
+            "claim": "LUM marks CAFs here",
+            "scope": "cluster",
+            "basis": "own_validation",
+            "cluster": "c2",
+            "subject_markers": ["LUM"],
+        },
+    )
+    env = tools.dispatch("memory_read", {"cluster": "c2"})
+    assert env["data"]["notes"], "no note came back"
+    assert "looked_up_at" in env["data"]["notes"][0]["tension"]

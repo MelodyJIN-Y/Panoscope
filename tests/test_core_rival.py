@@ -2,22 +2,27 @@
 
 Two jobs, and the second is the point of the module.
 
-**Equivalence.** ``agent/discriminate.py`` is a working, shipped discriminator whose
-output is read by ``agent/skeptic.py`` and rendered in the review surface. Replacing
-its private status vocabulary with the four-state lattice must not quietly change what
-the demo study says, so the first test drives both implementations over the same
-clusters and the same reference lists and asserts the buckets agree **element for
-element, in order** -- not as sets, because decision and render order are hashed into
-the record.
+**Equivalence.** ``agent/discriminate.py`` is the shipped discriminator, read by
+``agent/skeptic.py`` and rendered in the review surface. Replacing its private status
+vocabulary with the four-state lattice must not quietly change what the demo study
+says, so the first test drives it and ``rival_test`` over the same clusters and the
+same reference lists and asserts the buckets agree **element for element, in order**
+-- not as sets, because decision and render order are hashed into the record.
 
-**Divergence.** It disagrees in exactly one place, and that disagreement is the
-reason for the task. v1 asked one capability question, ``panel_contains``, so every
+Since the cutover ``discriminate.py`` keeps its published surface and calls
+``rival_test`` as its engine, so that test now guards the ADAPTER rather than two
+engines. It is the honest reading of it and it is said in its own docstring: an
+equivalence test that compares an implementation to itself proves nothing it does not
+admit to.
+
+**Divergence.** The one place it disagrees with the retired bucketing, and the reason
+for the task. That engine asked one capability question, ``panel_contains``, so every
 on-panel gene that was not a top marker of this unit counted as evidence *against* the
 rival -- including the 49 of 280 demo panel genes that produce no usable spatial
-signal. ``test_an_undetectable_rival_no_longer_argues`` runs both over a rival whose
-canonical markers are all such genes and shows v1 ruling the rival out on five genes
-the measurement never usably saw, which is the panel-absence rule inverted into a
-confident false negative.
+signal. ``test_an_undetectable_rival_no_longer_argues`` drives a rival whose canonical
+markers are all such genes: it used to rule the rival out on five genes the
+measurement never usably saw, which is the panel-absence rule inverted into a
+confident false negative, and it now reports all five as undecidable and refuses.
 
 The reference lists (canonical markers) are inputs here, as they are to both
 implementations. The NK set is five real HGNC symbols that are genuinely on the demo
@@ -124,11 +129,17 @@ def _symbols(items) -> list[str]:
 def test_the_buckets_match_the_v1_discriminator(cluster: str, world) -> None:
     """The three demo clusters where a rival is defined at all, bucket for bucket.
 
-    v1 derives the rival from the unit's own off-type markers; ``core.rival`` does not
-    and takes it as an argument, so the derived rival is handed across -- that is the
-    one case where both are defined on the same question. The buckets must then agree
-    in content *and order*: the record hashes decision order, and the review surface
-    reads markers top-down.
+    This WAS a two-engine comparison. Since the cutover ``agent/discriminate.py`` is a
+    thin surface over ``rival_test``, so what it now proves is narrower and still
+    worth having: the adapter in ``discriminate.py`` maps every bucket across --
+    ``supports_call``/``supports_rival``/``against_rival``/``undecidable`` ->
+    ``supporting_A``/``b_here``/``b_elsewhere``/``offpanel_absent``, and ``settleable``
+    -> ``settleable_on_panel`` -- without dropping or reordering an item. Content *and*
+    order: the record hashes decision order and the review surface reads markers
+    top-down.
+
+    v1 derives the rival from the unit's own off-type markers and ``core.rival`` takes
+    it as an argument, which is why the derived rival is handed across here.
     """
     old = v1.discriminate(cluster)
     assert old.alt_B is not None, f"{cluster} has no derived rival to compare on"
@@ -252,12 +263,27 @@ def test_an_undetectable_rival_no_longer_argues(world, nk_is_a_known_type) -> No
     cannot settle it. This is a correction, not a regression: the old answer was
     confidently wrong, which is worse than a refusal.
     """
+    # The shipped discriminator now routes through ``rival_test``:
+    # ``agent/discriminate.py`` keeps its surface and ``core.rival`` is the engine, so
+    # the correction reaches the review surface rather than sitting beside it. The old
+    # answer is quoted above and recorded in the commit that performed the cutover; no
+    # shipped path produces it any more, which is the point.
     old = v1.discriminate("c3", "NK_Cells")
-    assert old.settleable_on_panel is True                     # v1: the panel decides
-    assert [m.gene for m in old.b_elsewhere] == list(NK)       # all five "argue"
-    assert all(m.top_cluster == "NoSig" for m in old.b_elsewhere)
-    assert old.offpanel_absent == ()
-    assert "argues against NK Cells" in v1.settle_summary(old)
+    assert old.settleable_on_panel is False                    # the panel cannot decide
+    assert old.b_elsewhere == (), "an undetectable marker argued against the rival"
+    assert [m.gene for m in old.offpanel_absent] == list(NK)
+    # on the panel, so this is NOT off-panel news -- the half ``off_panel: bool`` lost
+    assert all(m.on_panel is True for m in old.offpanel_absent)
+    summary = v1.settle_summary(old)
+    assert "argues against NK Cells" not in summary
+    assert "produced no usable spatial signal" in summary
+    assert "cannot settle" in summary
+    # and the trace says which frame refused them. "off_panel=True" here would be a
+    # fabricated fact about the panel, which carried all five.
+    assert not [s for s in old.source_trace if "off_panel=True" in s]
+    assert {s for s in old.source_trace if s.startswith("detect:")} == {
+        f"detect:{g}:no_usable_signal=True" for g in NK
+    }
 
     out = rival_test(_evidence("c3", world), "Macrophages", "NK_Cells",
                      annotation.canonical_markers("Macrophages"), NK, world)

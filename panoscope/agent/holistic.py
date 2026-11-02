@@ -15,8 +15,9 @@ Grounding discipline (Confident floor):
 - Every number in ``coherence_notes`` is COMPUTED AT RUNTIME from
   ``agent.data`` / ``agent.config`` (cell counts via ``data.get_cluster_cells``);
   no number is hard-coded prose.
-- The refinement's ``evidence_markers`` are READ from
-  ``data.get_cluster_markers("c8")`` (top 3 by glm_coef), never hard-coded.
+- The refinement's ``evidence_markers`` are READ from the unit's
+  ``NormalisedEvidence`` (``pipeline.records.build_all``), top 3 by the method's
+  statistic and filtered to OBSERVED items, never hard-coded.
 - The pDC label itself is an INTERPRETATION (a literature direction, cited live
   later via ``lit_query``), not a changed jazzPanda value. The biologist decides
   whether to accept it.
@@ -122,7 +123,12 @@ def _proportions_note() -> str:
     """
     try:
         counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
-    except Exception:  # noqa: BLE001 - no cell coordinates for this dataset
+    except FileNotFoundError:
+        # ONLY a missing file. The sentence below states "no per-cell coordinates
+        # provided", and that is a grounded claim for exactly this error and no
+        # other. The bare ``except Exception`` that was here turned a renamed
+        # column, an unknown cluster id or an unreadable path into the same
+        # sentence -- a false statement about the data, produced by a silent catch.
         return ("Cell-count proportions are unavailable for this dataset "
                 "(no per-cell coordinates provided).")
     largest = max(counts, key=counts.__getitem__)
@@ -169,14 +175,34 @@ def _coherence_notes() -> tuple[str, ...]:
 # The single grounded refinement (c8 Dendritic -> Plasmacytoid DC)
 # --------------------------------------------------------------------------- #
 def _c8_refinement() -> Refinement:
-    """Build the c8 -> pDC refinement, reading its evidence markers from data.
+    """Build the c8 -> pDC refinement, reading its evidence markers from evidence.
 
-    Evidence markers are the top-3 markers of c8 by glm_coef, pulled live from
-    ``data.get_cluster_markers`` (NOT hard-coded). The pDC label is a literature
-    direction (``lit_query``), not a changed jazzPanda number.
+    Evidence markers are c8's top markers by the method's statistic, read off
+    ``NormalisedEvidence`` (statistic-descending) and NOT hard-coded. The pDC
+    label is a literature direction (``lit_query``), not a changed jazzPanda
+    number.
+
+    Only OBSERVED items are citable. Reading the frame's first N rows would
+    happily print a TESTED_ABSENT or NEVER_MEASURED gene as the evidence for a
+    subtype call -- the four-state collapse the panel-absence rule exists to
+    forbid. Fewer than ``_REFINE_TOP_N`` OBSERVED items raises rather than
+    emitting a shorter, weaker refinement that still reads as grounded.
+
+    Imported locally, as ``pipeline.records`` imports its own heavy deps, so
+    importing this module performs no filesystem I/O.
     """
-    rows = data.get_cluster_markers(_REFINE_CLUSTER)  # glm_coef desc, NoSig excluded
-    evidence_markers = tuple(str(g) for g in rows["gene"].head(_REFINE_TOP_N).tolist())
+    from panoscope.pipeline import records
+    from panoscope.types.measured import MeasuredState
+
+    evidence = records.build_all(cfg.current_study())[_REFINE_CLUSTER].evidence
+    observed = [i for i in evidence.items if i.measured.state is MeasuredState.OBSERVED]
+    if len(observed) < _REFINE_TOP_N:
+        raise AssertionError(
+            f"[holistic] {_REFINE_CLUSTER} has {len(observed)} OBSERVED marker(s), "
+            f"fewer than the {_REFINE_TOP_N} the {_REFINE_TO} refinement cites; "
+            "refusing to emit a refinement evidenced by unmeasured markers"
+        )
+    evidence_markers = tuple(i.subject.one("g").id for i in observed[:_REFINE_TOP_N])
     return Refinement(
         cluster=_REFINE_CLUSTER,
         from_call=_REFINE_FROM,

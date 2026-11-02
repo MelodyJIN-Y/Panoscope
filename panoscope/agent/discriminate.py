@@ -13,23 +13,40 @@ to a gene that is a top marker of the cluster in question**; everything else is
 classified without a number. That keeps every quoted value groundable and lets
 the agent answer clear the confident floor.
 
-Buckets for B's canonical markers:
-- ``supporting_A``  - this cluster's own top markers canonical for A (with numbers).
-- ``b_here``        - canonical-B markers that ARE top markers of this cluster
-                      (genuine B signal here; with numbers).
-- ``b_elsewhere``   - canonical-B markers on the panel but localizing to another
-                      cluster (measured, but the B program lives there, not here;
-                      no number attached here).
-- ``offpanel_absent`` - canonical-B markers not on the panel: never measured, so
-                      only FLAGGED (panel-absence). We never recommend running an
-                      experiment.
+**The bucketing engine is ``core/rival.py``.** This module keeps the published
+surface its ten call sites read -- ``Discrimination``, ``DiscriminatorMarker``,
+``discriminate``, ``settle_summary``, ``settle_line``, ``_canon_key`` -- and does the
+four jobs ``core/rival.py:61-67`` explicitly disowns: deriving the rival from the
+unit's own off-type markers, resolving aliases and within-lineage refinements,
+re-attaching *where else* a marker went, and prose. The buckets themselves are filters
+on ``Measured.state``, computed once in core:
 
-``settleable_on_panel`` is True when at least one canonical-B marker was on the
-panel (so the measured data speaks to A-vs-B); False when B's markers are all
-off-panel (the panel cannot settle it).
+- ``supporting_A``    <- OBSERVED, canonical for A (with numbers).
+- ``b_here``          <- ``supports_rival``: OBSERVED, canonical for B. Genuine B
+                        signal here, which is ambiguity and not a refutation.
+- ``b_elsewhere``     <- ``against_rival``: TESTED_ABSENT -- in frame, measured, not
+                        reported here. The productive half; no number attached here.
+- ``offpanel_absent`` <- ``undecidable``: NEVER_MEASURED or UNDERPOWERED. **Not only
+                        off-panel.** A gene the panel carried and the measurement
+                        could not localize anywhere lands here too; the old engine
+                        asked only ``panel_contains`` and filed those under
+                        "argues against B", which is the panel-absence rule inverted
+                        into a confident false negative. The prose names WHICH frame
+                        refused each one. We never recommend running an experiment.
 
-Reuses the grounded primitives: ``verdict.CANONICAL_MARKERS`` / ``_is_canonical``,
-``data.get_cluster_markers`` / ``get_marker`` / ``panel_contains`` /
+The governing data fact behind the numbers: jazzPanda output is **one row per gene**
+-- each gene is assigned to a single winning cluster with a single glm_coef/pearson.
+There is no (cluster x gene) matrix, so a marker's number exists only for its own top
+cluster. The rule that **a number is only ever attached to a gene that is a top marker
+of the cluster in question** is no longer a convention held by three call sites:
+``EvidenceItem`` raises if a statistic and a measurement status disagree.
+
+``settleable_on_panel`` is ``Rivalry.settleable`` -- K of N of B's canonical set in
+frame, against a floor of 1, which is what the old ``bool(b_here or b_elsewhere)``
+meant with the denominator thrown away.
+
+Reuses the grounded primitives: ``core.rival.rival_test``, ``pipeline.records``,
+``annotation.canonical_markers``, ``data.get_cluster_markers`` / ``get_marker`` /
 ``cell_type_for``.
 """
 from __future__ import annotations
@@ -38,7 +55,71 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 from panoscope.agent import annotation
+from panoscope.agent import config as cfg
 from panoscope.agent import data
+from panoscope.types.measured import MeasuredState
+
+
+@data._per_study
+def _world_and_builds():
+    """The v2 evidence for every unit of the current study, plus its capability frames.
+
+    Cached per study by the same decorator every other zero-arg reader uses, so the
+    autouse fixture in ``tests/conftest.py`` clears it with the rest and a study
+    switch cannot serve stale evidence. ~0.1 s cold.
+
+    The imports are function-local because ``agent -> pipeline`` is a cycle risk --
+    the same reason ``loop.py`` takes its ``pipeline`` imports that way. There is
+    deliberately no ``try``/``except``: a discriminator that silently answers from no
+    evidence is the failure shape that cost three bugs tonight. Let it raise.
+    """
+    from panoscope.pipeline import records
+    from panoscope.platforms.xenium import XeniumAdapter
+    from panoscope.types.measured import MeasuredWorld
+
+    study = cfg.current_study()
+    return records.build_all(study), MeasuredWorld(XeniumAdapter().frames(study))
+
+
+def _off_panel(m) -> bool:
+    """True iff it was the PANEL frame that refused this subject.
+
+    ``Measured.frame`` names the ONE frame that refused a ``NEVER_MEASURED`` subject
+    (``types/measured._state_for``), so this separates *not on the panel* from *on
+    the panel but produced no usable spatial signal*. They are different facts to a
+    biologist -- the first is fixed by ordering a different panel, the second is not
+    -- and the ``off_panel: bool`` this replaces collapsed them.
+    """
+    return m.state is MeasuredState.NEVER_MEASURED and m.frame.startswith("panel:")
+
+
+def _corr(item, name: str) -> Optional[float]:
+    """A corroborating statistic off an evidence item. Read, never computed here."""
+    return dict(item.corroborating).get(name)
+
+
+def _marker(item, role: "Role", top_cluster: Optional[str]) -> "DiscriminatorMarker":
+    """One bucket entry, read off a v2 evidence item.
+
+    No number can be invented: ``EvidenceItem`` enforces ``statistic is None`` iff
+    the subject was not OBSERVED, and the corroborator is dropped on the same test
+    rather than on a separate list of states that could drift from it.
+    """
+    observed = item.measured.carries_number
+    return DiscriminatorMarker(
+        gene=item.subject.display(),
+        role=role,
+        on_panel=not _off_panel(item.measured),
+        top_cluster=top_cluster,
+        glm_coef=item.statistic,
+        pearson=_corr(item, "pearson") if observed else None,
+    )
+
+
+def _locates(gene: str) -> Optional[str]:
+    """Which unit this gene peaked in. A locating fact, never a number."""
+    row = data.get_marker(gene)
+    return str(row["top_cluster"]) if row is not None else None
 
 
 def _is_canonical(gene: str, cell_type: str) -> bool:
@@ -177,29 +258,20 @@ def _refinement_reason(alt_raw: str, call_A: str) -> str:
 # --------------------------------------------------------------------------- #
 # Core
 # --------------------------------------------------------------------------- #
-def _own_markers(cluster: str) -> dict[str, dict]:
-    """This cluster's own top markers keyed by UPPER gene -> {glm_coef, pearson, top_cluster}."""
-    df = data.get_cluster_markers(cluster)
-    out: dict[str, dict] = {}
-    for _, r in df.iterrows():
-        out[str(r["gene"]).upper()] = {
-            "gene": str(r["gene"]),
-            "glm_coef": float(r["glm_coef"]),
-            "pearson": float(r["pearson"]),
-            "top_cluster": str(r["top_cluster"]),
-        }
-    return out
-
-
-def _derive_alt(call_A: str, own: dict[str, dict]) -> Optional[str]:
+def _derive_alt(cluster: str, call_A: str) -> Optional[str]:
     """Strongest competing type evident in the cluster's OWN markers.
 
-    Walk the cluster's markers by glm_coef (``own`` preserves that order) and
-    return the first non-A canonical type any of them marks. None if the cluster's
-    markers all point at A (a clean call with no rival in the measured data).
+    Walk the cluster's markers by glm_coef and return the first non-A canonical type
+    any of them marks. None if the cluster's markers all point at A (a clean call with
+    no rival in the measured data).
+
+    Rival derivation is one of the four jobs ``core/rival.py`` disowns -- it needs the
+    whole canonical map rather than one rival's list -- so it still reads the marker
+    table, for gene NAMES in the method's own order. No number is taken from it: every
+    number in the result comes up through ``core.measure``.
     """
-    for info in own.values():  # insertion order = glm_coef desc from get_cluster_markers
-        for t in _canonical_types_for(info["gene"]):
+    for g in data.get_cluster_markers(cluster)["gene"]:  # glm_coef descending
+        for t in _canonical_types_for(str(g)):
             if t != call_A:
                 return t
     return None
@@ -211,21 +283,6 @@ def discriminate(cluster: str, alt_cell_type: Optional[str] = None) -> Discrimin
     Deterministic and network-free. ``KeyError`` if the cluster is unknown.
     """
     call_A = data.cell_type_for(cluster)  # raises KeyError on unknown cluster
-    own = _own_markers(cluster)
-
-    # supporting_A: the cluster's own top markers canonical for A (with numbers).
-    supporting_A = tuple(
-        DiscriminatorMarker(
-            gene=info["gene"],
-            role="supports_A",
-            on_panel=data.panel_contains(info["gene"]),
-            top_cluster=cluster,
-            glm_coef=info["glm_coef"],
-            pearson=info["pearson"],
-        )
-        for info in own.values()
-        if _is_canonical(info["gene"], call_A)
-    )
 
     # Resolve the competing hypothesis B.
     refinement = False
@@ -244,58 +301,52 @@ def discriminate(cluster: str, alt_cell_type: Optional[str] = None) -> Discrimin
         else:
             reason = ""
     else:
-        alt_B = _derive_alt(call_A, own)
+        alt_B = _derive_alt(cluster, call_A)
         reason = (
             "" if alt_B is not None
             else f"no competing cell-type hypothesis is evident in {cluster}'s measured markers; "
                  f"the call rests on its {call_A} markers."
         )
 
-    b_here: list[DiscriminatorMarker] = []
-    b_elsewhere: list[DiscriminatorMarker] = []
-    offpanel: list[DiscriminatorMarker] = []
+    # The buckets come from core.rival, against the four-state lattice. supporting_A
+    # is the same filter core.rival applies to ``supports_call``, applied here because
+    # it is wanted even when there is no rival to test.
+    builds, world = _world_and_builds()
+    ev = builds[cluster].evidence
+    canon_A = {g.upper() for g in annotation.canonical_markers(call_A)}
+    supporting_A = tuple(
+        _marker(i, "supports_A", cluster)
+        for i in ev.items  # statistic-descending: the strongest support leads
+        if i.measured.carries_number and i.subject.display().upper() in canon_A
+    )
+
+    b_here: tuple[DiscriminatorMarker, ...] = ()
+    b_elsewhere: tuple[DiscriminatorMarker, ...] = ()
+    offpanel: tuple[DiscriminatorMarker, ...] = ()
+    settleable = False
 
     if alt_B is not None:
-        for gene in annotation.canonical_markers(alt_B):
-            up = gene.upper()
-            if up in own:  # a top marker of THIS cluster -> genuine B signal, with number
-                info = own[up]
-                b_here.append(
-                    DiscriminatorMarker(
-                        gene=info["gene"],
-                        role="supports_B_here",
-                        on_panel=data.panel_contains(gene),
-                        top_cluster=cluster,
-                        glm_coef=info["glm_coef"],
-                        pearson=info["pearson"],
-                    )
-                )
-            elif data.panel_contains(gene):  # measured, localizes elsewhere -> no number here
-                row = data.get_marker(gene)
-                top = str(row["top_cluster"]) if row is not None else None
-                b_elsewhere.append(
-                    DiscriminatorMarker(
-                        gene=gene,
-                        role="b_localizes_elsewhere",
-                        on_panel=True,
-                        top_cluster=top,
-                        glm_coef=None,
-                        pearson=None,
-                    )
-                )
-            else:  # off-panel -> never measured, only flagged
-                offpanel.append(
-                    DiscriminatorMarker(
-                        gene=gene,
-                        role="offpanel_absent",
-                        on_panel=False,
-                        top_cluster=None,
-                        glm_coef=None,
-                        pearson=None,
-                    )
-                )
+        from panoscope.core.rival import rival_test
 
-    settleable = bool(b_here or b_elsewhere)
+        r = rival_test(
+            ev, call_A, alt_B,
+            tuple(annotation.canonical_markers(call_A)),
+            tuple(annotation.canonical_markers(alt_B)),
+            world,
+            floor=1,  # v1's settleable_on_panel was bool(b_here or b_elsewhere)
+        ).value
+        b_here = tuple(_marker(i, "supports_B_here", cluster) for i in r.supports_rival)
+        # top_cluster is re-attached here, not in core: an item carries one unit's
+        # evidence and has no idea where else the gene went. "localizes to c5, not c3"
+        # is a locating fact with no number, and the UI and prose both read it.
+        b_elsewhere = tuple(
+            _marker(i, "b_localizes_elsewhere", _locates(i.subject.display()))
+            for i in r.against_rival
+        )
+        # NOT only off-panel any more: a gene on the panel that produced no usable
+        # spatial signal lands here too, where v1 filed it under "argues against B".
+        offpanel = tuple(_marker(i, "offpanel_absent", None) for i in r.undecidable)
+        settleable = r.settleable
 
     return Discrimination(
         cluster=cluster,
@@ -326,7 +377,10 @@ def _trace(
     for m in b_elsewhere:  # a locating fact, not a number attributed here
         trace.append(f"jz:{m.gene}:top_cluster={m.top_cluster}")
     for m in offpanel:
-        trace.append(f"panel:{m.gene}:off_panel=True")
+        # WHICH frame refused it. "off_panel=True" for a gene the panel carried and
+        # the measurement could not localize would be a fabricated fact about the panel.
+        trace.append(f"panel:{m.gene}:off_panel=True" if not m.on_panel
+                     else f"detect:{m.gene}:no_usable_signal=True")
     return tuple(trace)
 
 
@@ -342,6 +396,30 @@ def _fmt(markers: tuple[DiscriminatorMarker, ...], n: int = 3) -> str:
 
 def _label(cell_type: str) -> str:
     return cell_type.replace("_", " ")
+
+
+def _undecidable_bits(d: Discrimination) -> list[tuple[list[str], str, str]]:
+    """``(genes, sentence phrase, compact phrase)`` per refusing frame.
+
+    Two different facts, never collapsed into one sentence: *off the panel* is fixed
+    by ordering a different panel, *on the panel but with no usable spatial signal*
+    is not. v1 said "off-panel" unconditionally because its only capability question
+    was ``panel_contains``; the bucket now also holds genes the detectability frame
+    refused (49 of 280 on the demo panel), and calling those off-panel would be a
+    fabricated fact about the panel.
+    """
+    off = [m.gene for m in d.offpanel_absent if not m.on_panel]
+    nosig = [m.gene for m in d.offpanel_absent if m.on_panel]
+    out: list[tuple[list[str], str, str]] = []
+    if off:
+        out.append((off, "is off-panel and was never measured" if len(off) == 1
+                    else "are off-panel and were never measured",
+                    "off-panel (never measured)"))
+    if nosig:
+        out.append((nosig, f"{'is' if len(nosig) == 1 else 'are'} on the panel but "
+                           "produced no usable spatial signal",
+                    "on the panel but with no usable spatial signal"))
+    return out
 
 
 def settle_summary(d: Discrimination) -> str:
@@ -382,23 +460,20 @@ def settle_summary(d: Discrimination) -> str:
             bits.append(f"{', '.join(genes)} ({where})")
         parts.append(f"{B} markers are on the panel but {'; '.join(bits)} — that argues against {B}.")
 
-    if d.offpanel_absent:
-        genes = ", ".join(m.gene for m in d.offpanel_absent)
-        if len(d.offpanel_absent) == 1:
-            parts.append(
-                f"{genes} — a canonical {B} marker — is off-panel and was never measured, so it cannot settle it."
-            )
-        else:
-            parts.append(
-                f"{genes} — canonical {B} markers — are off-panel and were never measured, so they cannot settle it."
-            )
+    for genes, why, _short in _undecidable_bits(d):
+        one = len(genes) == 1
+        noun = f"a canonical {B} marker" if one else f"canonical {B} markers"
+        tail = "it cannot settle it" if one else "they cannot settle it"
+        parts.append(f"{', '.join(genes)} — {noun} — {why}, so {tail}.")
 
     if d.b_here:
         parts.append("The panel shows mixed signal here; re-check this.")
     elif d.settleable_on_panel:
         parts.append(f"On the measured markers this leans {A}.")
     else:
-        parts.append(f"The markers that would decide it are off-panel, so the panel cannot settle {A} vs {B}.")
+        # "off-panel" would be a claim about the panel; the bucket now also holds genes
+        # the panel carried and the measurement could not localize. Frame-neutral.
+        parts.append(f"The markers that would decide it were never measured, so the panel cannot settle {A} vs {B}.")
 
     return " ".join(parts)
 
@@ -427,9 +502,8 @@ def settle_line(d: Discrimination) -> str:
         bits.append(f"{B} markers {_fmt(d.b_here)} also peak here")
     if d.b_elsewhere:
         bits.append(f"{B} markers {_elsewhere_bits(d)}")
-    if d.offpanel_absent:
-        genes = ", ".join(m.gene for m in d.offpanel_absent)
-        bits.append(f"{genes} off-panel (never measured)")
+    for genes, _why, short in _undecidable_bits(d):
+        bits.append(f"{', '.join(genes)} {short}")
     tail = (
         "mixed signal, re-check this"
         if d.b_here

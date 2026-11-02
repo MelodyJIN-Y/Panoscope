@@ -33,11 +33,36 @@ def test_every_number_in_the_report_is_grounded():
     # The skeptic's prose must clear the SAME grounding gate the agent loop uses:
     # every gene+stat+number it quotes has to resolve against jazzPanda output.
     checker = GroundingChecker(literature_verifier=lambda _ident: True)
-    for cluster in ("c1", "c2", "c9"):
+    for cluster in ("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"):
         report = skeptic.second_opinion(cluster)
         prose = skeptic.skeptic_summary(report)
         result = checker.check(prose)
         assert result.ok, f"{cluster} skeptic prose failed grounding: {result.summary()}"
+
+
+def test_every_bucket_is_reported_not_just_the_first():
+    """The three competing-hypothesis branches are independent, not an elif chain.
+
+    c3/c4/c7 are the only clusters that derive a rival, and on all three a rival
+    marker peaks here — so the old chain stopped at the first branch and the
+    biologist never heard that the rival's other panel markers localise elsewhere
+    (which argues FOR the call) or that one was never measured at all.
+    """
+    expected = {
+        "c3": ("CD4", "CD3E", "CD3D"),   # peaks here / localises to c5 / off-panel
+        "c4": ("KIT", "CPA3", "TPSB2"),
+        "c7": ("IL3RA", "LILRA4", "IRF7"),
+    }
+    for cluster, (here, elsewhere, never) in expected.items():
+        report = skeptic.second_opinion(cluster)
+        assert {c.kind for c in report.challenges} >= {"competing_signal", "checked"}, cluster
+        assert {c.effect for c in report.challenges} >= {"weakens", "supports", "neutral"}, cluster
+        prose = skeptic.skeptic_summary(report)
+        for gene in (here, elsewhere, never):
+            assert gene in prose, f"{cluster}: {gene} dropped from the second opinion"
+        # the added branches carry no "weakens", so the verdict itself is untouched
+        assert report.survives is False
+        assert "re-check" in report.verdict_line
 
 
 def test_unknown_cluster_raises():

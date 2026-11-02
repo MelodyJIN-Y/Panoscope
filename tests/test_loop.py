@@ -357,3 +357,100 @@ def test_live_chat_passes_grounding_floor():
 
     # Proof in the log that the live path really ran.
     print(f"\n[live] tools_used={resp.tools_used} len(text)={len(resp.text)}")
+
+
+# --------------------------------------------------------------------------- #
+# Prompt context is keyed on the STUDY, not on the empty tuple.
+#
+# ``_global_interpretation_lines`` and ``_dataset_context`` take no arguments, so
+# an lru_cache keys every study to one slot: the first study opened in the process
+# freezes into every later study's system prompt. Under Streamlit that is a
+# long-lived process serving both studies.
+# --------------------------------------------------------------------------- #
+def _units(study_id: str) -> tuple:
+    with cfg.use_study(study_id):
+        return tuple(cfg.CLUSTER_ORDER)
+
+
+def test_global_interpretation_lines_follow_the_active_study():
+    agent_loop._global_interpretation_lines.cache_clear()
+    with cfg.use_study("xenium_hbreast_sample1"):
+        breast = agent_loop._global_interpretation_lines()
+    with cfg.use_study("demo_mini"):
+        mini = agent_loop._global_interpretation_lines()
+    with cfg.use_study("xenium_hbreast_sample1"):
+        breast_again = agent_loop._global_interpretation_lines()
+
+    assert breast != mini, (
+        "the second study's cluster lines are the first study's — the prompt "
+        "cache is not keyed on the study"
+    )
+    assert breast_again == breast, "switching back did not restore the first study"
+    assert len(mini.splitlines()) == len(_units("demo_mini"))
+    assert len(breast.splitlines()) == len(_units("xenium_hbreast_sample1"))
+
+
+def test_dataset_context_is_keyed_per_study_too():
+    """The other study-dependent cache in the prompt path.
+
+    Both demo studies are breast/Xenium, so this one has no behavioural
+    distinguisher on the data we ship -- the check is structural instead: a
+    ``@lru_cache`` on a zero-arg reader exposes ``cache_info``; ``_per_study``
+    does not. It fails the moment the decorator is put back.
+    """
+    assert not hasattr(agent_loop._dataset_context, "cache_info"), (
+        "_dataset_context is back on a plain lru_cache -- it would freeze the "
+        "first study's tissue into every later study's prompt"
+    )
+    agent_loop._dataset_context.cache_clear()
+    with cfg.use_study("demo_mini"):
+        assert isinstance(agent_loop._dataset_context(), str)
+
+
+# --------------------------------------------------------------------------- #
+# The in-scope lab-notes block renders THREE lookup states, not two.
+#
+# It used to branch on the stored ``thin`` flag, which cannot tell "we searched
+# and the literature is thin" (a finding) from "no lookup completed" (which says
+# nothing at all). The rest of the codebase derives that from ``looked_up_at``
+# via claims.notes.lookup_state; the prompt now does too.
+# --------------------------------------------------------------------------- #
+def _note_block_for(tmp_path, literature_search):
+    from panoscope.agent import memory
+    from panoscope.agent import tools as agent_tools
+
+    base = tmp_path / "context"
+    draft = memory.draft_note(
+        claim="LUM marks CAFs in this cluster",
+        scope="cluster",
+        basis="own_validation",
+        cluster="c2",
+        subject_markers=["LUM"],
+        literature_search=literature_search,
+    )
+    memory.save_draft(draft, base_dir=base)
+    prev = agent_tools._MEMORY_BASE_DIR
+    agent_tools.set_memory_base_dir(str(base))
+    try:
+        return agent_loop._inscope_notes_block("c2")
+    finally:
+        agent_tools.set_memory_base_dir(prev)
+
+
+def test_notes_block_says_searched_when_the_search_came_back_empty(tmp_path):
+    block = _note_block_for(tmp_path, lambda q: [])
+    assert "searched, literature thin" in block, block
+    assert "no lookup completed" not in block
+
+
+def test_notes_block_says_no_lookup_when_none_ran(tmp_path):
+    block = _note_block_for(tmp_path, None)
+    assert "no lookup completed" in block, block
+    assert "searched, literature thin" not in block
+
+
+def test_default_skill_contract_resolves():
+    """Bug-shape #2: the SKILL.md path broke in the package move and the bare
+    except hid it, so the interpretation contract was absent from every prompt."""
+    text = agent_loop._skill_text()
+    assert text.strip(), f"no SKILL.md under {agent_loop._SKILLS_DIR}"

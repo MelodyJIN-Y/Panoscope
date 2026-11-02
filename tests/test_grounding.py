@@ -422,6 +422,33 @@ def test_naming_the_genuinely_off_panel_genes_answers_the_category(checker_real_
     assert checker_real_lit.check(answer, None, "c9").ok is True
 
 
+def test_naming_an_on_panel_gene_with_no_usable_signal_is_not_a_panel_claim(
+        checker_real_lit):
+    """The other half of the sentence above, and the one this dataset cannot reach.
+
+    ``discriminate.offpanel_absent`` holds two kinds of never-measured marker since
+    the cutover: off the panel, and on the panel with no usable spatial signal (49 of
+    280 demo genes). Calling the second off-panel would be a fabricated fact about the
+    panel, so the prose branches -- and the gate must accept the new clause, which on
+    the demo study nothing but this test exercises: no canonical marker of any of the
+    9 annotated types is NoSig here. The guard keeps the case from rotting into a
+    fiction if the committed table changes.
+    """
+    from panoscope.agent import data
+
+    src = SourceIndex()
+    for symbol in ("GNLY", "PRF1"):
+        assert src.is_on_panel(symbol), f"{symbol} left the panel; pick another case"
+        assert str(data.get_marker(symbol)["top_cluster"]) == "NoSig", (
+            f"{symbol} now carries spatial signal; pick another case"
+        )
+    answer = (
+        "GNLY, PRF1 -- canonical NK_Cells markers -- are on the panel but "
+        "produced no usable spatial signal, so they cannot settle it."
+    )
+    assert checker_real_lit.check(answer, None, "c3").ok is True
+
+
 def test_fabricated_absence_pass_declines_without_a_frame(monkeypatch,
                                                           checker_real_lit):
     """Same fail-open-on-a-missing-frame contract as the forward pass."""

@@ -147,3 +147,38 @@ def test_refinement_is_subtype_not_miscall(review: HolisticReview) -> None:
     ref = review.refinements[0]
     assert ref.from_call == cfg.CLUSTER_KEY["c8"]["cell_type"]
     assert cfg.CLUSTER_KEY["c8"]["category"] == "Immune"
+
+
+# --------------------------------------------------------------------------- #
+# The two guards added when the refinement moved onto NormalisedEvidence.
+# Both are sabotage checks: they break the thing the guard protects and assert
+# the guard fires, because an invariant never seen to fail is not evidence.
+# --------------------------------------------------------------------------- #
+def test_refinement_refuses_to_cite_unmeasured_markers(monkeypatch) -> None:
+    """Fewer OBSERVED markers than the refinement cites must RAISE.
+
+    c8 has exactly 4 OBSERVED items, so asking for 5 is the smallest sabotage
+    that makes the four-state rule bite. The failure mode this forbids is a
+    silently shorter ``evidence_markers`` tuple -- or, worse, a TESTED_ABSENT
+    gene printed as the evidence for a subtype call.
+    """
+    import panoscope.agent.holistic as holistic_mod
+
+    monkeypatch.setattr(holistic_mod, "_REFINE_TOP_N", 5)
+    with pytest.raises(AssertionError, match="OBSERVED"):
+        holistic_review()
+
+
+def test_proportions_note_does_not_swallow_a_real_failure(monkeypatch) -> None:
+    """Only a MISSING FILE may become "no per-cell coordinates provided".
+
+    A renamed column raises KeyError, which is not "no coordinates were
+    provided" -- emitting that sentence for it would be a false grounded claim
+    produced by a silent catch.
+    """
+    def boom(_cluster: str):
+        raise KeyError("renamed column 'cluster'")
+
+    monkeypatch.setattr(data, "get_cluster_cells", boom)
+    with pytest.raises(KeyError):
+        holistic_review()

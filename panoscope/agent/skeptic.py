@@ -129,6 +129,11 @@ def second_opinion(cluster: str) -> SkepticReport:
             )
 
     # 3) The strongest competing hypothesis --------------------------------- #
+    # Three INDEPENDENT ifs, not an elif chain. The chain stopped at the first
+    # non-empty bucket, so whenever a rival marker peaked here the biologist was
+    # never told which rival markers localised elsewhere (the half that argues FOR
+    # the call) nor which were never measured at all. All three are reported on
+    # every verdict; effects are unchanged, so ``survives`` is untouched.
     if d.alt_B is not None:
         B = _label(d.alt_B)
         if d.b_here:
@@ -144,7 +149,7 @@ def second_opinion(cluster: str) -> SkepticReport:
             )
             for m in d.b_here:
                 trace.append(f"jz:{m.gene}:glm_coef={m.glm_coef:.6f}")
-        elif d.b_elsewhere:
+        if d.b_elsewhere:
             by_cluster: dict[str, list[str]] = {}
             for m in d.b_elsewhere:
                 by_cluster.setdefault(m.top_cluster or "NoSig", []).append(m.gene)
@@ -161,7 +166,7 @@ def second_opinion(cluster: str) -> SkepticReport:
             )
             for m in d.b_elsewhere:
                 trace.append(f"jz:{m.gene}:top_cluster={m.top_cluster}")
-        elif d.offpanel_absent:
+        if d.offpanel_absent:
             genes = ", ".join(m.gene for m in d.offpanel_absent)
             challenges.append(
                 SkepticChallenge(
