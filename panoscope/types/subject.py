@@ -96,6 +96,12 @@ SHAPES: dict[str, Shape] = {
         display="{set}",
     ),
     "cell_type": Shape("cell_type", (Role("ct", EntityKind.CELL_TYPE),), display="{ct}"),
+    # A method-produced unit (a cluster, a region) as a subject in its own right.
+    # Added after the marker workflow had to borrow "niche" to key a cluster:
+    # structurally right, but a cluster is not a niche and the name misleads.
+    # Spelling a cluster as a cell_type is worse -- for an ASSIGNMENT the label is
+    # the thing being decided, so that subject would be circular.
+    "unit": Shape("unit", (Role("u", EntityKind.UNIT),), display="{u}"),
     # ---- declared, not built: each of these is one dict entry away ----
     "cell_type_pair": Shape(                       # co-localisation (unordered)
         "cell_type_pair",

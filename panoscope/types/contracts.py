@@ -230,11 +230,18 @@ class MethodModule(Protocol):
         """
 
     def load(self, path: str, adapter: PlatformAdapter,
-             store: Any) -> dict[str, NormalisedEvidence]:
+             store: Any) -> "Traced[dict[str, NormalisedEvidence]]":
         """Precomputed output in, normalised evidence out, keyed by unit.
 
         **Reads, never recomputes.** The method's output is a consumed input; the
         analysis is not run here, and that is the whole basis of the audit.
+
+        Returns ``Traced`` because loading DECIDES: it drops rows, applies frames
+        and withholds statistics the frame refuses. The spec originally returned a
+        bare dict, which destroyed exactly those decisions at the registry
+        boundary -- and a statistic silently dropped during load is
+        indistinguishable from a method that reported nothing, which is the
+        failure ``core/measure.py`` exists to prevent.
         """
 
     def absence_reads_as(self, subject: Subject, measured: Measured) -> str:
