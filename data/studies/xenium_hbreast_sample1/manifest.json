@@ -1,6 +1,6 @@
 {
   "dataset_id": "xenium_hbreast_sample1",
-  "generated_at": "2026-07-10T01:56:57Z",
+  "generated_at": "2026-11-02T08:12:04Z",
   "pipeline_version": "0.1.0",
   "tissue": "human breast cancer",
   "platform": "Xenium",
@@ -65,21 +65,111 @@
     "interp/clusters/c9.json": {
       "sha256": "0b156f5990bb81ffa8e1e13bd32c17c2c9d3e870e36897b33b97dacaa78e4384"
     },
+    "interp/records/assignment/c1.json": {
+      "sha256": "fce484451ae7dd3c33d9d65851d96e203180343dc896c6149efa45f37da47a47"
+    },
+    "interp/records/assignment/c2.json": {
+      "sha256": "ebc8abcc07ce20c895d9857881381035e08feb8bdfae402d355f063289cba257"
+    },
+    "interp/records/assignment/c3.json": {
+      "sha256": "f02d79889831a2514a598d840e0dd99db1e0dd414f97dd64964a32bc37f61ea8"
+    },
+    "interp/records/assignment/c4.json": {
+      "sha256": "9a62f557eaff0d5f3336607dab617b99fceba1d50e38871ec71fb3c0f6e8d0cb"
+    },
+    "interp/records/assignment/c5.json": {
+      "sha256": "a001833d37d610b84fd6c91a60304f2337781e5f66a382782d70ac215a99fe62"
+    },
+    "interp/records/assignment/c6.json": {
+      "sha256": "d72472ccff755b3a465382018901c65b249933c1bd5c0a4c3acfc834ca7787a0"
+    },
+    "interp/records/assignment/c7.json": {
+      "sha256": "552113ba7e9893d7d9dc011d993076feaa3618c1a3764c964d42d78bf6dd3427"
+    },
+    "interp/records/assignment/c8.json": {
+      "sha256": "32ad0e675c7ef098245966e7cc4370e1128cedd2481fec9ecbc39ad2f293d2da"
+    },
+    "interp/records/assignment/c9.json": {
+      "sha256": "f92f3dc01503c72c59d0d1022aca2c0afdadd99970192c72f30a43131ae06999"
+    },
+    "interp/records/characterisation/c1.json": {
+      "sha256": "696541e70c1ec4134960c99514759bcde574ea165e6c2b16e425ea9d7a885979"
+    },
+    "interp/records/characterisation/c2.json": {
+      "sha256": "e8d9b60a03a27ea517f8ae24da05a0efbe5be9a19e16c877e60f3b961954059c"
+    },
+    "interp/records/characterisation/c3.json": {
+      "sha256": "bd43022b42545747d0dc4eea0ea1448b4c27c7ad86c446bf7ace9ceedc023930"
+    },
+    "interp/records/characterisation/c4.json": {
+      "sha256": "969a61d3a80b73559e3b2dac885853bddf64cabb8ea084c15037539398cbf6f5"
+    },
+    "interp/records/characterisation/c5.json": {
+      "sha256": "120eccdb1b553d1245714cabd1b68a820b26c4fd5ae371599e1ba9359c7c82b7"
+    },
+    "interp/records/characterisation/c6.json": {
+      "sha256": "4fd6b13229b144eb11b264eb2b95d15647e5d9a6521b7113ad72ae9c68214863"
+    },
+    "interp/records/characterisation/c7.json": {
+      "sha256": "7a0c6a9838e03ceea8a7d42d48c37470e0b15d92c3a04a6581edc6fbb703a1a2"
+    },
+    "interp/records/characterisation/c8.json": {
+      "sha256": "20f3d1710f0733ea2a088f090b8938ee980e73e306dcf6a7cc6a170be99219ce"
+    },
+    "interp/records/characterisation/c9.json": {
+      "sha256": "8135fbe4d870024dfef2ea4a6bab954982282794bf733fd48ee43d334413f7b4"
+    },
     "interp/verdicts.csv": {
       "sha256": "054bd6c6c8b5f5e1b25da9dab04b8236a8bd33224354e472c4b6d38534fc32f3",
       "rows": 9
     },
     "interp/holistic.json": {
-      "sha256": "477b96a762148615143c160e69411873d56ee580aa51ce436b1822e55e5c7d43"
+      "sha256": "c3264abe34dae8bdeaca45b3a946191f5923293b24514cce9624156cddb7db3a"
     },
     "interp/calibration.md": {
       "sha256": "45d0375bd31ebce3d304a070de58c61374d723776159d64b3cf82bdfafde026e"
     },
     "interp/celltype_notes.json": {
-      "sha256": "2afe2662defdbfb14b86cefb1e4ec45d39b74b8fc226314259518c8ced510b4c"
+      "sha256": "adbb25d634acd885bcf17c0792815f909f05a3c2de739f33ee6000285bfc7c7f"
     },
     "interp/gene_notes.json": {
       "sha256": "34e43ea69d0c4087d7aad478c5b1835ef21a19e9bc4eb23c6e609ddb95b434f1"
+    },
+    "interp/enrichment.csv": {
+      "sha256": "1492f26da34ac1d74f6e0e0d37f1722d8ba2505c760d5af8b667e39ccc99457d"
+    },
+    "interp/pathway_themes.json": {
+      "sha256": "afb333b1dd6eb667de90299564592ddbed4abc368f99067c47743a111b7181b5"
+    },
+    "interp/pathway_notes.json": {
+      "sha256": "7a1eab33824cff8ed10b53a1a71a1cfb76875a062b1afa7d84b1be86e986832c"
+    },
+    "interp/enrichment/c1.json": {
+      "sha256": "1d06674e0a37c65118087247c4d8f9801a8148e0a1ba7ba5b478967976182917"
+    },
+    "interp/enrichment/c2.json": {
+      "sha256": "c9d1b7b7897a9809625449e9e5d6c6dd072e5bb8e1d52eaf678bc46e9a947eb0"
+    },
+    "interp/enrichment/c3.json": {
+      "sha256": "70df12db9fa535aee18dbc5b77c9b8dc79b11f11dc4e861065e9107fa45a3934"
+    },
+    "interp/enrichment/c4.json": {
+      "sha256": "b34096f1e8bbb43c216415630db525c42b3783f0a00392ae9b0678e67648bcc5"
+    },
+    "interp/enrichment/c5.json": {
+      "sha256": "69dd24f81c139a78056ff2c5757492a77dc5ffaef759ccfdfcecadb302daf32d"
+    },
+    "interp/enrichment/c6.json": {
+      "sha256": "ee45171eba7301d0bc034ee659fbdac486adc085a4b0bf3daae5dfd3c4236808"
+    },
+    "interp/enrichment/c7.json": {
+      "sha256": "72baad66678df54e02475036ff92f6c86fe6b9bc17b9872a4377b02114fe2ea7"
+    },
+    "interp/enrichment/c8.json": {
+      "sha256": "6d7e62ef1948452486b1001c4ee7970ef9c482e180e7e3f4f40961ba06f06deb"
+    },
+    "interp/enrichment/c9.json": {
+      "sha256": "64e7424ef0baf20d8aec1bd1b4645a9fef46ca53d999e362e74023807ed81a69"
     },
     "viz/cells.csv": {
       "sha256": "219a45887d37230eedd7f56c731293646fb6508c36afade78f8140131d2e5092"

@@ -57,6 +57,19 @@ different order is how two callers come to disagree about what was missing.
 ``tissue`` is unknown, so a check that declares it reads ``tissue`` is settled by
 construction. That is the §6.3 line doing its job one layer down: the blocking fields
 block the study, the rest propagate.
+
+**Why it still has no caller, and which caller it is waiting for.** The one layer
+that emits a ``CheckResult`` is ``workflows/de.py``, whose four checks hand-roll the
+two steps above; ``de-interpretation`` has no registered method
+(``methods.for_workflow`` returns nothing for it), so those checks never run outside
+their tests and there is nowhere for this edge to attach. The marker workflow is not
+the alternative: its four declared checks read the measurement, the panel frame and a
+curated marker list, and not one ``Condition`` field. Giving one of them a condition
+dependency so that this module would have a caller would be inventing a dependency
+the check does not have -- and on the demo, where ``segmentation`` and ``fixation``
+are declared unknown, it would turn a settled check into CANNOT BE SETTLED on a
+fabricated ground. ``tests/test_core_unwired.py`` pins the registry emptiness that
+makes this the right answer, so it fails the day a DE method registers.
 """
 
 from __future__ import annotations

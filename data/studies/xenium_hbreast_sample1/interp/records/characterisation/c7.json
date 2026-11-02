@@ -1,0 +1,204 @@
+{
+  "unit": "c7",
+  "task_kind": "characterisation",
+  "reading": {
+    "path": "../../jazzpanda/hbc_sp1_top10_hallmark_test_statistic.csv",
+    "sha256": "cd2bb8884bae68725d3ea2878b3f6dc702e3056dc830a7dd1047abc6b34813b0",
+    "statistic_column": "test_statistic",
+    "unit_column": "cluster",
+    "unit_kind": "cluster",
+    "unit_detection_because": [
+      "columns ['gene_set', 'cluster', 'test_statistic', 'p_adj_bh', 'geneset_size', 'genes_tested', 'genes_selected'] present; units read off 'cluster', one per cluster the collection was scored against"
+    ],
+    "rows_in": 70,
+    "rows_dropped": 0,
+    "drop_reasons": [],
+    "entities_outside_frame": [],
+    "entities_not_in_reference": [],
+    "frames": [
+      {
+        "kind": "gene",
+        "name": "panel:xenium_hbreast_sample1",
+        "digest": "935a48ab0c8a73d2601744be9f6ddfad45d1d7ef831d1609611c561c86974fb6",
+        "size": 280
+      },
+      {
+        "kind": "gene",
+        "name": "detect:xenium_hbreast_sample1",
+        "digest": "979cdc90a7cb53d8a53dc9ea135cb510646990c11373e9b240b056464655e699",
+        "size": 231
+      },
+      {
+        "kind": "cell_type",
+        "name": "annotation:xenium_hbreast_sample1",
+        "digest": "4d2e37ce68ec2492e21219b15846bb7c1348d35da19cd2f2892a4626e9ee85bc",
+        "size": 9
+      },
+      {
+        "kind": "unit",
+        "name": "clusters:xenium_hbreast_sample1",
+        "digest": "958f0dcdf4affffaa2de61aa8911fb089e03aecf8eea7287315fb02800d1159b",
+        "size": 9
+      },
+      {
+        "kind": "gene_set",
+        "name": "collection:MSigDB_Hallmark",
+        "digest": "4e7ea0954d3b7b9a35c7e644e45ebd2bad9db0338f321b666f3374c467852daf",
+        "size": 27
+      }
+    ],
+    "clustering_mode": "independent"
+  },
+  "decisions": [
+    {
+      "rule": "measure:tested_absent",
+      "outcome": "tested_absent",
+      "because": [
+        "unit:c7 tested_absent in clusters:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "unit|u=unit:c7"
+      ]
+    },
+    {
+      "rule": "measure:observed",
+      "outcome": "observed",
+      "because": [
+        "in frame collection:MSigDB_Hallmark and reported"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_INTERFERON_GAMMA_RESPONSE"
+      ]
+    },
+    {
+      "rule": "measure:observed",
+      "outcome": "observed",
+      "because": [
+        "in frame collection:MSigDB_Hallmark and reported"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_P53_PATHWAY"
+      ]
+    },
+    {
+      "rule": "measure:coverage_floor",
+      "outcome": "underpowered",
+      "because": [
+        "panel_hits 2/113 (floor 3); leading_edge 2/2 (floor 3)"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_UNFOLDED_PROTEIN_RESPONSE"
+      ]
+    },
+    {
+      "rule": "measure:coverage_floor",
+      "outcome": "statistic withheld",
+      "because": [
+        "cgst_z=5.1892 was reported but is withheld: the subject is underpowered in collection:MSigDB_Hallmark",
+        "corroborating gc_corr=0.3394, p_adj_bh=0.0000 withheld with it"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_UNFOLDED_PROTEIN_RESPONSE"
+      ]
+    },
+    {
+      "rule": "measure:observed",
+      "outcome": "observed",
+      "because": [
+        "in frame collection:MSigDB_Hallmark and reported"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_UV_RESPONSE_DN"
+      ]
+    },
+    {
+      "rule": "measure:observed",
+      "outcome": "observed",
+      "because": [
+        "in frame collection:MSigDB_Hallmark and reported"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_APOPTOSIS"
+      ]
+    },
+    {
+      "rule": "measure:observed",
+      "outcome": "observed",
+      "because": [
+        "in frame collection:MSigDB_Hallmark and reported"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_ANGIOGENESIS"
+      ]
+    },
+    {
+      "rule": "enrichment:enriched",
+      "outcome": "supported + verify",
+      "because": [
+        "q=0.0000 below 0.0500",
+        "panel_hits 9/200 (floor 3) is a thin footprint; re-check"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_INTERFERON_GAMMA_RESPONSE#cgst_z=8.0113"
+      ]
+    },
+    {
+      "rule": "enrichment:enriched",
+      "outcome": "supported + verify",
+      "because": [
+        "q=0.0000 below 0.0500",
+        "panel_hits 4/200 (floor 3) is a thin footprint; re-check"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_P53_PATHWAY#cgst_z=5.8102"
+      ]
+    },
+    {
+      "rule": "enrichment:untestable",
+      "outcome": "untestable",
+      "because": [
+        "panel_hits 2/113 (floor 3)",
+        "leading_edge 2/2 (floor 3)",
+        "absence argues nothing"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_UNFOLDED_PROTEIN_RESPONSE#cgst_z=na"
+      ]
+    },
+    {
+      "rule": "enrichment:enriched",
+      "outcome": "supported + verify",
+      "because": [
+        "q=0.0003 below 0.0500",
+        "panel_hits 5/144 (floor 3) is a thin footprint; re-check"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_UV_RESPONSE_DN#cgst_z=3.9644"
+      ]
+    },
+    {
+      "rule": "enrichment:enriched",
+      "outcome": "supported",
+      "because": [
+        "q=0.0147 below 0.0500"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_APOPTOSIS#cgst_z=2.8700"
+      ]
+    },
+    {
+      "rule": "enrichment:enriched",
+      "outcome": "supported",
+      "because": [
+        "q=0.0147 below 0.0500"
+      ],
+      "refs": [
+        "gene_set|set=gene_set:HALLMARK_ANGIOGENESIS#cgst_z=2.8217"
+      ]
+    }
+  ],
+  "claims_used": [],
+  "undecidable": [],
+  "spec_version": "0.1",
+  "prose": null
+}

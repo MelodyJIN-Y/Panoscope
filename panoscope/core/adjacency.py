@@ -35,6 +35,21 @@ reading: "the marker also marks something else" is true either way, and only the
 localisation to share, so ``shared_with`` on such an item is a contradiction in the
 reader rather than a finding; it produces no reading at all instead of a flag that
 would read as a measurement.
+
+**Why this has no caller yet, said here rather than left to be rediscovered.** Both
+of its inputs are missing, and only one of them is a gap in this module's layer.
+``interdigitated`` has no producer anywhere in the package -- nothing computes which
+units neighbour which, and §9.9 is explicit that only spatial data separates the two
+readings -- while ``EvidenceItem.shared_with``, the thing being read, is populated by
+no registered method: ``methods/jazzpanda.py::_reading`` does not set it, and on the
+demo it is empty on all 280 items of all nine units. Wiring this into the composition
+root today would therefore add a check that is structurally incapable of firing, and
+a check the biologist sees run and find nothing is worse than one they can see is not
+asked -- the same reason ``core/failure_modes.py`` names its two undetected modes
+instead of letting an empty result stand for them.
+``tests/test_core_unwired.py`` pins that emptiness, so the day a method starts
+reporting ``shared_with`` the justification fails rather than quietly outliving its
+reason.
 """
 
 from __future__ import annotations

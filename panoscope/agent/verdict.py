@@ -13,6 +13,10 @@ Confidence rubric (user override, supersedes the percentile talk in BLUEPRINT):
     - ``pearson`` corroborates: a high pearson on the driver can PROMOTE one band.
     - ``max_gc_corr > pearson`` (localizes better elsewhere), a low pearson, or
       ``max_gg_corr ~= 1`` (spatial pattern not unique) each DEMOTE one band.
+    - Canonical COVERAGE demotes once: K of N of the label's canonical markers
+      that a capability frame admitted (on panel AND detectable) against a
+      declared floor of one in three. This is the only modifier that is about the
+      APPARATUS rather than about the driver, and it also sets ``verify``.
     - ``NoSig`` / near-cutoff / no-canonical-support -> Low.
     - Fragile clusters (<= 2 assigned markers, e.g. c9 Mast) are capped and get
       ``verify = True``; a fragile cluster with a real canonical driver floors at
@@ -23,6 +27,19 @@ Panel-absence notes (the headline catch) are attached for context and NEVER
 change the band, the score, or the verify flag. The OFF_PANEL_CANONICAL map is
 asserted against ``data.panel_contains`` at import so a mislabelled "off-panel"
 gene fails loud instead of silently poisoning a note.
+
+**Notes are per-GENE; coverage is per-LABEL, and only the second reaches the band.**
+The notes above say "ERBB2 was never measured, so its absence argues nothing", which
+is a statement about one gene and must not move a number. Canonical coverage is a
+different quantity: how much of the label's curated support the measurement was
+capable of speaking to AT ALL. Without it the rubric had a cliff at one. A unit with
+one canonical marker on panel and five never measured read Very High with
+``verify=False``, and the off-panel notes sat beside that number saying exactly how
+little had been measurable while the number ignored them. On a panel designed for a
+different question than the tissue -- an immuno-oncology panel against kidney -- most
+resident types land on zero or one, and zero was already handled honestly. One was
+not. Coverage still supplies no value: the band is the driver's own ``glm_coef``, and
+coverage can only take a rung away and ask for a second look.
 """
 
 from __future__ import annotations
@@ -40,6 +57,7 @@ from panoscope.agent.types import (
     OffPanelNote,
     OpeningInterpretation,
 )
+from panoscope.types.measured import Coverage
 
 # --------------------------------------------------------------------------- #
 # Band ladder + demote/promote thresholds (grounded in SKILL rubric)
@@ -55,6 +73,19 @@ EPS: float = 1e-9
 # Fragile-cluster rule: a cluster with this many assigned markers or fewer is
 # capped and always carries verify=True (SKILL: "one or two assigned markers").
 FRAGILE_MARKER_COUNT: int = 2
+
+# Canonical-COVERAGE floor: K of N of the label's canonical markers that a
+# capability frame admitted (on panel AND detectable), as an exact integer ratio so
+# no float epsilon decides a band. Duplicated in core/verdict.py under the same
+# name; tests/test_core_verdict.py fails the moment the two diverge.
+#
+# One in three. Two thirds of a curated marker list may be off-panel or undetectable
+# and the call still stands on its own number; below that the panel was not asking
+# this question, and a band read off one surviving marker is a confident answer to
+# a question the measurement could not pose. The band is still the driver's number
+# -- coverage only subtracts.
+CANONICAL_COVERAGE_FLOOR: tuple[int, int] = (1, 3)
+CANONICAL_COVERAGE_WHAT: str = "canonical markers in frame"
 
 # NoSig / no-marker sentinel band.
 LOW_BAND: str = "Low"
@@ -80,6 +111,61 @@ def _is_canonical(gene: str, cell_type: str) -> bool:
     """True iff ``gene`` is a canonical marker for ``cell_type`` (case-insensitive)."""
     canon = annotation.canonical_markers(cell_type)
     return gene.upper() in {g.upper() for g in canon}
+
+
+def _detectable_genes() -> frozenset[str]:
+    """Panel genes that produced a usable spatial signal, upper-cased.
+
+    jazzPanda's ``NoSig`` sentinel is the detectability frame in v1 vocabulary: a
+    gene it names but assigns nowhere was looked at and yielded nothing usable, and
+    49 of the demo panel's 280 are in that state. Derived from the table every time,
+    never a constant -- the count is a property of the study.
+    """
+    m = data.load_markers()
+    return frozenset(
+        m.loc[m["top_cluster"] != "NoSig", "gene"].astype(str).str.upper()
+    )
+
+
+def coverage_floor(n: int) -> int:
+    """Smallest K that clears :data:`CANONICAL_COVERAGE_FLOOR` out of ``n``.
+
+    ``ceil(n * num / den)`` in integer arithmetic, so no float comparison decides a
+    band. Transcribed from ``core/verdict._coverage_floor``.
+    """
+    num, den = CANONICAL_COVERAGE_FLOOR
+    return -(-n * num // den)
+
+
+def canonical_coverage(cell_type: str) -> Coverage:
+    """K of N canonical markers for ``cell_type`` that were CAPABLE of being seen.
+
+    N is the label's whole curated list; K is the subset a capability frame admits
+    -- on the panel AND detectable. Both frames must admit it: an off-panel gene was
+    never measured, and an on-panel gene with no usable signal was equally never
+    measured, and neither absence argues anything about this unit.
+
+    This is reference data selecting which question the measurement is asked, which
+    it may do. It supplies no value: the band is still read off the driver's own
+    ``glm_coef``, and coverage can only take a rung away.
+    """
+    canon = annotation.canonical_markers(cell_type)
+    detectable = _detectable_genes()
+    k = sum(1 for g in canon
+            if data.panel_contains(g) and g.upper() in detectable)
+    n = len(canon)
+    return Coverage(CANONICAL_COVERAGE_WHAT, k, n, coverage_floor(n))
+
+
+def _coverage_sentence(cov: Coverage) -> str:
+    """The v1 English for the coverage demote.
+
+    The other copy is ``core/verdict._v1_coverage_sentence``; ``core/`` may not be
+    imported from under ``agent/``, and the two are pinned equal by a test rather
+    than by hope.
+    """
+    return (f"canonical coverage {cov.k}/{cov.n} below floor {cov.floor} "
+            f"-> -1 band")
 
 
 def _caveats_for(pearson: float, max_gc_corr: float, max_gg_corr: float) -> tuple[str, ...]:
@@ -159,17 +245,26 @@ def _compute_band(
     driver: MarkerEvidence | None,
     *,
     fragile: bool,
+    coverage: Coverage,
 ) -> tuple[str, str, tuple[str, ...]]:
     """Return (band, basis, demotions) for the driving canonical marker.
 
     Base band = ``config.band_for_coef(driver.glm_coef)``. Then apply at most one
-    promote (high pearson) and one demote per failing specificity condition. For
+    promote (high pearson) and one demote per failing specificity condition, then
+    one demote if too little of the label's canonical list was ever in frame. For
     a fragile cluster that has a canonical driver, floor the band at Medium so a
     single specificity demote does not push a real call down to Low (the
     fragility is expressed through ``verify=True`` and the cap, not a hard Low).
+
+    ``coverage`` is a REQUIRED keyword and has no default. A default of ``None``
+    would mean every caller that forgot it silently got the uncapped band back --
+    which is the cliff this parameter exists to remove, reintroduced as a soft
+    default. A caller that cannot produce a Coverage should fail here, loudly.
     """
     if driver is None:
         # No canonical support -> Low regardless of any non-canonical strength.
+        # No coverage demote: the band is already at the floor, and a demote that
+        # moved nothing would read as a rung the call lost.
         return LOW_BAND, "no canonical driver", ("no canonical marker supports the call",)
 
     if driver.top_cluster == "NoSig":
@@ -196,6 +291,11 @@ def _compute_band(
     if driver.max_gg_corr >= GG_NOT_UNIQUE:
         band = _demote(band)
         changes.append("driver spatial pattern not unique -> -1 band")
+
+    # The condition that is about the APPARATUS rather than about the driver.
+    if coverage.n and not coverage.ok:
+        band = _demote(band)
+        changes.append(_coverage_sentence(coverage))
 
     if fragile:
         basis = "glm_coef direct (fragile cap)"
@@ -351,12 +451,19 @@ def verdict_for_cluster(cluster: str) -> ClusterVerdict:
     drivers = _driving_markers(evidence)
     driver = drivers[0] if drivers else None
 
-    band, basis, demotions = _compute_band(driver, fragile=fragile)
+    coverage = canonical_coverage(cell_type)
+    band, basis, demotions = _compute_band(driver, fragile=fragile,
+                                           coverage=coverage)
     score = cfg.SCORE_MAP[band]
 
-    # verify: Low band OR NoSig driver OR fragile (<=2 markers) OR no canonical support.
+    # verify: Low band OR NoSig driver OR fragile (<=2 markers) OR no canonical
+    # support OR too little of the label's canonical list ever in frame. The last
+    # is why the coverage demote is not the whole fix: one rung off Very High is
+    # still High, which reads as settled, and a call the panel could barely ask for
+    # has to say re-check this.
     driver_is_nosig = driver is not None and driver.top_cluster == "NoSig"
-    verify = (band == LOW_BAND) or driver_is_nosig or fragile or (driver is None)
+    verify = ((band == LOW_BAND) or driver_is_nosig or fragile or (driver is None)
+              or (bool(coverage.n) and not coverage.ok))
 
     offpanel = offpanel_notes(cell_type)
 

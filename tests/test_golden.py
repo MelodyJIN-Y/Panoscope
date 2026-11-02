@@ -186,7 +186,12 @@ def test_projection_covers_the_enrichment_workflow(projection) -> None:
         assert e["method"] == "jazzpanda_enrichment"
         assert e["all_tested"], f"{cluster} carries no tested gene sets"
         assert e["source_trace"], f"{cluster} carries no source trace"
-        assert e["confidence"] in set(V.BANDS)
+        # No band, and the hash is where that has to be pinned: a band reintroduced
+        # as a default-valued field would draw nothing on screen and still be written
+        # into every committed record, which is exactly how the deleted one survived
+        # being taken off the Pathways page.
+        assert "confidence" not in e and "confidence_score" not in e, cluster
+        assert "demotions" not in e, cluster
         surfaced += len(e["enriched"]) + len(e["suggestive"])
         for p in e["all_tested"]:
             # The gate's inputs must be in the hash, or a threshold change is invisible.
@@ -201,6 +206,11 @@ def test_projection_covers_the_enrichment_workflow(projection) -> None:
     themes = projection["pathway_themes"]
     assert themes["per_cluster"], "pathway themes carry no per-cluster lines"
     assert "recurring" in themes and "coherence_notes" in themes
+    # The census is what the band became, so the hash has to see it: a per-cluster
+    # line that lost its counts would otherwise regress silently to a bare name.
+    for line in themes["per_cluster"]:
+        assert "confidence" not in line, line["cluster"]
+        assert "untestable" in line["census_line"], line["cluster"]
 
 
 def test_enrichment_half_reproduces_the_committed_records(projection) -> None:

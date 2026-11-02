@@ -102,25 +102,147 @@ def test_spec_version_is_a_declared_constant_not_a_parameter() -> None:
     assert "spec_version" not in core_record.build.__annotations__
 
 
-def test_unit_decisions_narrows_a_multi_unit_trace_by_subject_key() -> None:
-    """A method loads a whole file in one trace; a record is one unit. Narrowed on
-    the ``Subject.key`` the interface clicks back on, never on position."""
-    ev = _evidence()
-    mine = Decision("measure:observed", "observed",
-                    refs=(ev.items[0].subject.key + "#stat=1.0000",))
-    theirs = Decision("measure:observed", "observed",
-                      refs=(subject("gene", g=gene("ZZZ")).key,))
-    unit_level = Decision("measure:tested_absent", "tested_absent",
-                          refs=(ev.unit_subject.key,))
-    refless = Decision("band:no_canonical_driver", "Low")
+def _other_unit(ev: NormalisedEvidence):
+    """A second unit of the same SHAPE as ``ev``'s -- i.e. a sibling record."""
+    sh = ev.unit_subject.shape
+    role, entity = ev.unit_subject.parts[0]
+    return subject(sh, **{role: dataclasses.replace(entity, id=entity.id + "_other")})
 
-    kept = core_record.unit_decisions(
-        ev, Traced(value=None, decisions=(mine, theirs, unit_level, refless)))
-    assert list(kept.value) == [mine, unit_level, refless], (
-        "a ref-less decision must survive: band:no_canonical_driver is the one "
-        "decision that explains a Low band and it has nothing to anchor on"
+
+def test_unit_decisions_cuts_a_multi_unit_trace_into_this_unit_s_segment() -> None:
+    """A method loads a whole file in one trace; a record is one unit.
+
+    The anchor join alone cannot do this and used alone it LEAKED: an item subject
+    is keyed on the entity, not on the unit it was read under, so ``AAA`` read under
+    the sibling unit anchors on exactly the key this unit's record joins on. The
+    decision below named ``sibling_aaa`` is that leak in its smallest form -- it is
+    indistinguishable from this unit's own by ref, and only the segment it sits in
+    tells them apart.
+    """
+    ev = _evidence()
+    other = _other_unit(ev)
+    assert other.key != ev.unit_subject.key
+
+    mine_opens = Decision("measure:tested_absent", "tested_absent",
+                          refs=(ev.unit_subject.key,))
+    mine_aaa = Decision("measure:observed", "observed",
+                        refs=(ev.items[0].subject.key + "#stat=1.0000",))
+    mine_refless = Decision("band:no_canonical_driver", "Low")
+    mine_foreign_anchor = Decision("measure:observed", "observed",
+                                   refs=(subject("gene", g=gene("ZZZ")).key,))
+    theirs_opens = Decision("measure:tested_absent", "tested_absent",
+                            refs=(other.key,))
+    sibling_aaa = Decision("measure:observed", "observed",
+                           refs=(ev.items[0].subject.key + "#stat=9.0000",))
+    sibling_refless = Decision("band:no_canonical_driver", "Low")
+
+    kept = core_record.unit_decisions(ev, Traced(value=None, decisions=(
+        mine_opens, mine_aaa, mine_refless, mine_foreign_anchor,
+        theirs_opens, sibling_aaa, sibling_refless,
+    )))
+
+    assert list(kept.value) == [mine_opens, mine_aaa, mine_refless], (
+        "the segment is everything from this unit's anchor up to the next unit's: "
+        "a ref-less decision inside it survives because band:no_canonical_driver is "
+        "the one decision that explains a Low band and has nothing to anchor on, "
+        "and the sibling's rows are dropped however their refs happen to read"
     )
     assert kept.decisions == kept.value, "build splices .decisions, not .value"
+
+
+def test_a_trace_holding_no_decision_of_this_unit_s_raises() -> None:
+    """Keeping nothing is the silent reading: an empty source trace renders as
+    "nothing was decided here", which is a sentence about the study rather than
+    about the call site that joined the wrong two things."""
+    ev = _evidence()
+    theirs = Traced(value=None, decisions=(
+        Decision("measure:tested_absent", "tested_absent",
+                 refs=(_other_unit(ev).key,)),
+        Decision("measure:observed", "observed",
+                 refs=(ev.items[0].subject.key,)),
+    ))
+    with pytest.raises(core_record.UnattributableTrace):
+        core_record.unit_decisions(ev, theirs)
+
+
+def test_a_decision_before_the_first_unit_anchor_raises() -> None:
+    """``core.measure.measure_unit`` resolves the unit BEFORE any item, so a
+    multi-unit trace opens on a unit anchor. A decision ahead of the first one
+    belongs to no unit; attributing it to the one that happens to follow is a guess,
+    and dropping it silently is how a decision leaves the record unnoticed."""
+    ev = _evidence()
+    preamble = Traced(value=None, decisions=(
+        Decision("measure:observed", "observed", refs=(ev.items[0].subject.key,)),
+        Decision("measure:tested_absent", "tested_absent",
+                 refs=(ev.unit_subject.key,)),
+    ))
+    with pytest.raises(core_record.UnattributableTrace):
+        core_record.unit_decisions(ev, preamble)
+
+
+def test_a_per_unit_trace_carrying_no_unit_anchor_is_left_alone() -> None:
+    """A verdict's trace names genes, never the unit. It must not be segmented into
+    nothing: ``core.verdict`` is where the band's reasoning comes from."""
+    ev = _evidence()
+    band = Traced(value=None, decisions=(
+        Decision("band:from_coef", "High",
+                 refs=(ev.items[0].subject.key + "#stat=1.0000",)),
+        Decision("band:fragile_cap", "Medium-High"),
+    ))
+    kept = core_record.unit_decisions(ev, band)
+    assert kept.value == band.decisions
+
+
+# --------------------------------------------------------------------------- #
+# On the studies themselves: the segments must PARTITION the method's trace
+# --------------------------------------------------------------------------- #
+def _studies_on_disk() -> list[str]:
+    from panoscope.data import layout
+
+    return sorted(layout.available_studies())
+
+
+@pytest.mark.parametrize("study_id", _studies_on_disk())
+def test_every_load_decision_lands_in_exactly_one_unit_s_record(study_id: str) -> None:
+    """Nine units, one trace: the per-unit shares must sum to the whole.
+
+    This is the measured form of the bug. A ``MethodModule.load`` traces one read of
+    the file, and before the segmentation every unit's record kept every
+    gene-anchored decision in it -- 2,522 of the demo's 2,529 on each of nine
+    records, where the unit's own share is 281. Summing is what makes that visible:
+    an over-count says decisions were copied between records, an under-count says
+    some decision left the record entirely, and only equality says each one is
+    filed once.
+
+    Every study on disk and every unit in it, never one. ``_drivers`` takes the
+    first eligible marker in caller order, so a one-unit version of a check like
+    this has passed in this repo while five of nine units were wrong.
+    """
+    from panoscope import methods
+    from panoscope.pipeline import records as pipeline_records
+    from panoscope.platforms.xenium import XeniumAdapter
+
+    study = Study.open(study_id)
+    path = study.inputs / "markers_top.csv"
+    if not path.is_file():
+        pytest.skip(f"{study_id} has no marker table")
+    method = methods.for_workflow(pipeline_records.WORKFLOW_ID)[0]
+    loaded = method.load(str(path), XeniumAdapter(), study)
+    assert len(loaded.value) > 1, "a one-unit study cannot show a cross-unit leak"
+
+    shares = {unit: core_record.unit_decisions(ev, loaded).value
+              for unit, ev in loaded.value.items()}
+    assert sum(len(s) for s in shares.values()) == len(loaded.decisions), (
+        f"{study_id}: the per-unit shares "
+        f"{ {u: len(s) for u, s in shares.items()} } do not sum to the "
+        f"{len(loaded.decisions)} decisions the method traced"
+    )
+    for unit, share in shares.items():
+        anchors = {loaded.value[unit].unit_subject.key}
+        foreign = {u.unit_subject.key for u in loaded.value.values()} - anchors
+        assert not [d for d in share for r in d.refs
+                    if r.split("#", 1)[0] in foreign], (
+            f"{study_id}/{unit}: its share anchors on another unit's subject")
 
 
 # --------------------------------------------------------------------------- #

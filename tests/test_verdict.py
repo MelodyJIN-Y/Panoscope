@@ -15,6 +15,12 @@ from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.agent import verdict as V
 from panoscope.agent.types import ClusterVerdict, MarkerEvidence
+from panoscope.types.measured import Coverage
+
+#: A canonical-coverage count that clears its floor, for the hand-built drivers
+#: below. ``_compute_band`` requires one -- there is deliberately no default, so a
+#: caller cannot get the pre-coverage band back by omitting it.
+_COVERED = Coverage(V.CANONICAL_COVERAGE_WHAT, 1, 1, V.coverage_floor(1))
 
 
 # --------------------------------------------------------------------------- #
@@ -121,14 +127,15 @@ def test_nosig_driver_is_low_and_verify():
         is_on_panel=True,
         role="supports",
     )
-    band, basis, _ = V._compute_band(nosig_driver, fragile=False)
+    band, basis, _ = V._compute_band(nosig_driver, fragile=False,
+                                     coverage=_COVERED)
     assert band == "Low"
     assert "NoSig" in basis
 
 
 def test_no_canonical_support_is_low():
     """With no canonical driver at all, band is Low."""
-    band, _, _ = V._compute_band(None, fragile=False)
+    band, _, _ = V._compute_band(None, fragile=False, coverage=_COVERED)
     assert band == "Low"
     assert cfg.SCORE_MAP[band] == cfg.SCORE_MAP["Low"]
 
@@ -136,36 +143,80 @@ def test_no_canonical_support_is_low():
 # --------------------------------------------------------------------------- #
 # Panel-absence invariant — off-panel notes NEVER change the confidence band
 # --------------------------------------------------------------------------- #
-def test_offpanel_notes_never_change_band():
-    """Adding/removing panel-absence notes must not move confidence or verify.
+def test_offpanel_notes_never_change_band(monkeypatch):
+    """Take the notes away entirely; nothing about the number may move.
 
-    The band is computed purely from the driving canonical marker's jazzPanda
-    numbers. We recompute the band directly (notes cannot participate) and assert
-    it equals the full verdict's band, whether or not off-panel notes exist.
+    This used to recompute the band from the same inputs and assert the two agreed,
+    which cannot fail: the notes were never passed to the computation it compared
+    against. It now REMOVES them -- every off-panel note, for every cluster -- and
+    asserts band, score and verify are byte-identical. That is the claim the
+    headline rule actually makes, and it is the one worth being able to break.
     """
-    for cluster in cfg.CLUSTER_ORDER:
-        v = V.verdict_for_cluster(cluster)
-        drivers = V._driving_markers(v.evidence)
-        driver = drivers[0] if drivers else None
-        band_no_notes, _, _ = V._compute_band(driver, fragile=v.small_n)
-        # The band the verdict reports is exactly the notes-free computation.
-        assert v.confidence == band_no_notes, cluster
+    before = {c: V.verdict_for_cluster(c) for c in cfg.CLUSTER_ORDER}
+    assert sum(len(v.offpanel_notes) for v in before.values()), (
+        "no cluster carries an off-panel note; this test would prove nothing")
 
-    # c2 carries 5 off-panel notes; the band comes only from its driver, so the
-    # computation with notes-present and a hypothetical notes-absent path agree.
-    v2 = V.verdict_for_cluster("c2")
-    assert len(v2.offpanel_notes) == 5
-    driver2 = V._driving_markers(v2.evidence)[0]
-    band_a = V._compute_band(driver2, fragile=v2.small_n)[0]
-    band_b = V._compute_band(driver2, fragile=v2.small_n)[0]
-    assert band_a == band_b == v2.confidence
+    monkeypatch.setattr(V, "offpanel_notes", lambda cell_type: ())
+    for cluster, was in before.items():
+        now = V.verdict_for_cluster(cluster)
+        assert now.offpanel_notes == ()
+        assert now.confidence == was.confidence, cluster
+        assert now.confidence_score == was.confidence_score, cluster
+        assert now.verify == was.verify, cluster
+        assert now.demotions == was.demotions, cluster
+
+
+def test_a_per_gene_absence_is_not_an_input_but_the_per_label_count_is():
+    """The distinction the coverage demote rests on, stated rather than implied.
+
+    A panel-absence NOTE says "ERBB2 was never measured, so its absence argues
+    nothing about this call". That is a statement about one gene and it may never
+    move a number -- it is not evidence against anything, and the test above proves
+    it reaches nothing.
+
+    Canonical COVERAGE is a different quantity: how much of the label's curated
+    support the measurement was capable of speaking to AT ALL. It does not argue
+    against the call either -- it conditions how much the call's own number is
+    worth, and it can only subtract. Both halves are asserted here, because the
+    two are easy to collapse and the collapse is a rule violation in whichever
+    direction it happens.
+    """
+    # The notes exist and are per-gene; the coverage is per-label and is a K of N.
+    v = V.verdict_for_cluster("c2")
+    assert {n.gene for n in v.offpanel_notes} == {"COL1A1", "COL1A2", "DCN",
+                                                  "VIM", "FAP"}
+    cov = V.canonical_coverage(v.cell_type)
+    assert (cov.k, cov.n) == (4, 6)
+
+    # Coverage NEVER promotes: full coverage on a weak driver changes nothing.
+    weak = V.MarkerEvidence(
+        gene="LUM", top_cluster="c2", glm_coef=1.5, pearson=0.5, max_gg_corr=0.5,
+        max_gc_corr=0.0, p_value=None, within_cluster_pctile=1.0,
+        is_canonical=True, is_on_panel=True, role="supports", caveats=(),
+    )
+    full = Coverage(V.CANONICAL_COVERAGE_WHAT, 9, 9, V.coverage_floor(9))
+    thin = Coverage(V.CANONICAL_COVERAGE_WHAT, 1, 9, V.coverage_floor(9))
+    band_full, _, changes_full = V._compute_band(weak, fragile=False,
+                                                 coverage=full)
+    band_thin, _, changes_thin = V._compute_band(weak, fragile=False,
+                                                 coverage=thin)
+    assert band_full == "Medium" and changes_full == ()
+    assert band_thin == "Low", "it subtracts"
+    assert len(changes_thin) == 1
 
 
 def test_offpanel_notes_do_not_touch_verify():
-    """c2 has off-panel notes but verify stays driven by band/fragility only."""
+    """c2 has off-panel notes but verify stays driven by the rubric's conditions.
+
+    c2's canonical coverage is 4/6, which clears the floor, so the fifth condition
+    does not fire here -- the notes themselves reach ``verify`` through nothing at
+    all, which is what ``test_offpanel_notes_never_change_band`` proves by removing
+    them.
+    """
     v = V.verdict_for_cluster("c2")
     assert v.offpanel_notes  # notes present
-    # Very High + non-fragile + canonical driver -> verify False despite notes.
+    assert V.canonical_coverage(v.cell_type).ok
+    # Very High + non-fragile + canonical driver + covered -> verify False.
     assert v.verify is False
 
 

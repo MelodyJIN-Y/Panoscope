@@ -4,27 +4,30 @@ The enrichment mirror of ``stages/verdicts.py``, one step behind it. It writes
 **twice**, and the two halves are not symmetric:
 
   * ``interp/enrichment/c{n}.json`` + ``interp/enrichment.csv`` — the v1 view, still
-    produced by ``agent/enrichment.py`` itself. Byte-identical, because it is
-    literally the same code: ``ClusterEnrichment.confidence`` is reproduced
-    faithfully (``core/export.py`` and ``core/compat.py`` both record why that band
-    on a CHARACTERISATION survives until the method refactor deletes it).
+    produced by ``agent/enrichment.py`` itself. It no longer carries a band:
+    ``ClusterEnrichment.confidence``/``.confidence_score`` and the CSV's
+    ``cluster_confidence`` column are deleted, replaced by the per-item census
+    (``core/export.py`` and ``core/compat.py`` record the column change).
   * ``interp/records/characterisation/c{n}.json`` — the ``InterpretationRecord``,
     built through ``platforms/tidy`` -> ``methods/jazzpanda_cgst`` ->
     ``workflows/enrichment`` -> ``core/record``, which is exactly the composition
     ``pipeline/records.py`` runs for the marker half. Nothing reads these yet.
 
-**Why the v1 half was not cut over, said here rather than left to be rediscovered.**
-``verdicts.py`` could swap engines because ``core/compat.to_v1_assignment`` projects
-v2 back to the committed bytes. There is no such projection for enrichment
-(``core/compat.py`` says so outright), and there cannot be a faithful one: the two
-engines disagree about the measurement. v1 reads ``n_overlap``, the method's own
-count of a set's genes on the panel; ``jazzpanda_cgst._in_frame`` instead counts
-``genes_tested`` against EVERY gene frame, so the 49 of 280 demo genes with no usable
-spatial signal stop counting toward a set's footprint. On the committed demo that
-moves ``panel_hits`` on half the rows and the band on three of nine units. Swapping
-the engine would therefore move a committed CSV and the golden hash -- an
-interpretation change, not a refactor -- so the divergence is **measured and printed**
-instead, and :func:`run_enrichment` is the one place that evidence exists.
+**The two engines now agree about the measurement, and that was a reviewed change.**
+They did not. v1 read ``n_overlap``, the method's own count of a set's genes on the
+panel; ``jazzpanda_cgst._in_frame`` counts ``genes_tested`` against EVERY gene frame,
+so the 49 of 280 demo genes with no usable spatial signal stop counting toward a
+set's footprint. That moved ``panel_hits`` on 35 of 70 rows. The frame count is the
+correct one -- crediting a set with genes the measurement never usably saw is the
+panel-absence rule broken in the arithmetic -- so ``agent/enrichment`` was moved onto
+it, which moved a committed CSV and the golden hash deliberately.
+
+:func:`_report_divergence` stays, and its expected reading is now zero: it is what
+keeps the two code paths from drifting apart again without anyone noticing.
+
+The v1 half is still not *cut over* -- ``agent/enrichment.py`` still produces the v1
+view, because ``core/compat.py`` has no enrichment projection and writing one would
+mean authoring the thing the projection is supposed to be checked against.
 
 Computes nothing new. Both halves read the biologist's enrichment result; the stage
 arranges and serialises.
@@ -38,7 +41,7 @@ from typing import Optional
 
 from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as agent_enrichment
-from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
+from panoscope.agent.types import ClusterEnrichment
 
 from panoscope.pipeline import paths
 from panoscope.pipeline.serialize import enrichment_to_dict
@@ -211,46 +214,26 @@ def _panel_hits(ev) -> dict[str, int]:
     return out
 
 
-def _band_under_v2(ce: ClusterEnrichment, hits: dict[str, int]) -> str | None:
-    """The band this unit would carry under the v2 count, or ``None`` if unmoved.
-
-    ``agent/enrichment._band_cluster`` is CALLED, not reproduced. It is the reference
-    implementation of the enrichment ladder and this stage must not grow a second one
-    -- a band on a characterisation computed in a pipeline stage is exactly what the
-    no-band rule exists to catch. Nothing computed here is written anywhere; it
-    answers one question, "would the committed band move", and only the reference can
-    answer that about itself.
-    """
-    import dataclasses
-
-    top: PathwayEvidence | None = ce.enriched[0] if ce.enriched else None
-    if top is None:
-        return None
-    k = hits.get(top.gene_set)
-    if k is None or k == top.panel_hits:
-        return None
-    moved = dataclasses.replace(
-        top, panel_hits=k,
-        panel_coverage=(k / top.set_size_full) if top.set_size_full else 0.0)
-    band, _ = agent_enrichment._band_cluster(moved, ce.method)
-    return band if band != ce.confidence else None
-
-
 def _report_divergence(
     enrichments: list[ClusterEnrichment],
     evidence: dict,
     interp: Path,
 ) -> None:
-    """Say out loud, every build, how far apart the two engines are.
+    """Say out loud, every build, whether the two engines still agree.
+
+    This started as the go/no-go evidence for a cutover that had not happened: v1 read
+    ``n_overlap`` and v2 counted the capability frames, and the two differed on 35 of
+    70 rows. The v1 engine now counts the frames too
+    (``agent/enrichment._load_jazzpanda_rows``), so the expected reading is **zero**
+    and this is no longer a measurement of a gap -- it is the check that the gap
+    stayed closed. Two engines reading one file through two code paths drift silently
+    unless something compares them on every build.
 
     Always printed, including when nothing differs: silence has to mean "they agree"
-    and never "nobody looked". This is the whole evidence base for the real cutover's
-    go/no-go -- without it, the capability frame quietly disagreeing with
-    ``n_overlap`` is one more silent divergence, which is the shape every bug this
-    work has turned up has had.
+    and never "nobody looked".
     """
     rows = differing = tier_edge = 0
-    moves: list[str] = []
+    disagreements: list[str] = []
     for ce in enrichments:
         ev = evidence.get(ce.cluster)
         if ev is None:
@@ -264,25 +247,24 @@ def _report_divergence(
             if k == p.panel_hits:
                 continue
             differing += 1
+            disagreements.append(f"{ce.cluster}/{p.gene_set} v1={p.panel_hits} v2={k}")
             # The one threshold that moves a row between tiers, and so adds or
             # removes a line from the committed CSV.
             if (k >= cfg.MIN_PANEL_HITS) != (p.panel_hits >= cfg.MIN_PANEL_HITS):
                 tier_edge += 1
-        band = _band_under_v2(ce, hits)
-        if band is not None:
-            moves.append(f"{ce.cluster} {ce.confidence}->{band}")
 
     only_v1 = sorted({ce.cluster for ce in enrichments} - set(evidence))
     only_v2 = sorted(set(evidence) - {ce.cluster for ce in enrichments})
 
     print(
-        f"[enrichment] capability frame vs n_overlap: panel_hits differs on "
+        f"[enrichment] capability frame, both engines: panel_hits differs on "
         f"{differing} of {rows} (unit, set) rows; {tier_edge} of those cross the "
-        f"panel-hit floor; the v1 band would move on {len(moves)} of "
-        f"{len(enrichments)} units"
-        + (f" ({'; '.join(moves)})" if moves else "")
-        + ". The v1 view on disk is unchanged -- this is the go/no-go evidence for "
-        f"the cutover, not a cutover. v2 records: {interp / 'records'}."
+        f"panel-hit floor"
+        + (f" ({'; '.join(disagreements[:5])}"
+           + (f"; +{len(disagreements) - 5} more" if len(disagreements) > 5 else "")
+           + ")" if disagreements else "")
+        + ". Zero is the expected reading: v1 stopped trusting the result's own "
+        f"n_overlap. v2 records: {interp / 'records'}."
     )
     if only_v1 or only_v2:
         print(

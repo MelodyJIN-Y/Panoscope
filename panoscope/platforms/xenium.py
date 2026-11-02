@@ -49,7 +49,11 @@ from typing import Final
 import pandas as pd
 
 from panoscope.data.study import Study
-from panoscope.platforms.base import ClusteringMode, declared_clustering
+from panoscope.platforms.base import (
+    ClusteringMode,
+    UndeclaredSamples,
+    declared_clustering,
+)
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import UndeclaredClustering
 from panoscope.types.measured import Frame
@@ -183,6 +187,15 @@ class XeniumAdapter:
         guess: a table with no sample column holds one sample, and returning an empty
         list instead would let the clustering blocker fall through on a store that
         simply never mentioned the word.
+
+        **Unless the store contradicts it.** ``inputs/samples/<sample>/`` holding
+        per-sample marker tables is the store saying, in files, that it has more than
+        one reading. Answering "one sample, named after the store" over the top of
+        that is not a count and not a default: it is a false measurement claim, and
+        the one that costs most, because a single sample makes
+        ``declared_clustering`` return ``"independent"`` as a tautology and every
+        ``ReadingRecord`` then carries a clustering mode nobody declared. So the
+        fallback refuses, naming the tables it found and the file to fix.
         """
         declared = store.manifest.get("samples")
         if isinstance(declared, (list, tuple)) and declared:
@@ -201,7 +214,23 @@ class XeniumAdapter:
                        if "sample" in names else None)
             if col is None:
                 break
-            return sorted({str(v).strip() for v in col if str(v).strip()})
+            found = sorted({str(v).strip() for v in col if str(v).strip()})
+            if found:
+                return found
+            break
+
+        on_disk = self.sample_inputs(store)
+        if on_disk:
+            raise UndeclaredSamples(
+                f"study {store.id!r} has per-sample marker tables for "
+                f"{', '.join(sorted(on_disk))} under {store.inputs / 'samples'}, and "
+                f"neither {store.dir / 'manifest.json'} nor the cell table says which "
+                "samples the store holds. Answering with one sample named after the "
+                "store would report a multi-sample study as single-sample and stamp "
+                "'independent' clustering on every record without anyone declaring "
+                "it. Declare `samples` in manifest.json (and, with more than one, "
+                "`clustering_mode`)."
+            )
         return [store.id]
 
     def sample_inputs(self, store: Study) -> dict[str, Path]:
@@ -221,12 +250,22 @@ class XeniumAdapter:
         sample names would make every replicate agree with itself, and §9.10's one
         informative outcome -- divergence -- would become unreachable while the
         check went on reporting that it had run.
+
+        Scans the directory rather than iterating :meth:`samples`, which is both the
+        honest reading of "resolved from the filesystem" and what lets
+        :meth:`samples` consult this to catch its own fallback: a store whose sample
+        list is undeclared is exactly the store whose per-sample tables nobody has
+        asked about, and asking :meth:`samples` first would have made that
+        unanswerable. A directory here with no table under it is not a sample.
         """
+        base = store.inputs / "samples"
+        if not base.is_dir():
+            return {}
         out: dict[str, Path] = {}
-        for s in self.samples(store):
-            p = store.inputs / "samples" / s / "markers_top.csv"
-            if p.is_file():
-                out[s] = p
+        for d in sorted(base.iterdir()):
+            p = d / "markers_top.csv"
+            if d.is_dir() and p.is_file():
+                out[d.name] = p
         return out
 
     def clustering_mode(self, store: Study) -> ClusteringMode:
@@ -354,7 +393,16 @@ class XeniumAdapter:
                     f"{field} is not declared, and it blocks the study (§6.3)"
                 )
 
-        samples = self.samples(store)
+        # Both sample-shaped blockers come out of one call, because ``samples``
+        # itself refuses when the store has per-sample tables and declares no list.
+        # ``UndeclaredSamples`` subclasses ``UndeclaredClustering``, so the one
+        # handler below renders either as a checklist line rather than a traceback.
+        try:
+            samples = self.samples(store)
+        except UndeclaredClustering as exc:
+            problems.append(str(exc))
+            return problems
+
         if len(samples) > 1:
             missing = [s for s in samples if s not in self.sample_inputs(store)]
             if missing:

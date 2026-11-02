@@ -25,6 +25,7 @@ import pandas as pd
 from panoscope.agent import config as cfg
 from panoscope.data.study import Study
 from panoscope.agent import data
+from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent import enrichment_themes as agent_enrichment_themes
 from panoscope.agent import holistic as agent_holistic
 
@@ -38,15 +39,19 @@ from panoscope.pipeline.stages.validate import validate
 from panoscope.pipeline.stages.verdicts import run_verdicts
 from panoscope.pipeline.stages.viz import collect_viz
 
-# Legacy raw-input sources copied into <id>/inputs/ for provenance. (In a later
-# slice tissue/platform become per-dataset metadata inputs rather than constants.)
+# Legacy raw-input sources copied into <id>/inputs/ for provenance.
 _RAW_SOURCES: dict[str, Path] = {
     "markers_top.csv": cfg.DATA_DIR_PATH / "jazzpanda" / "markers_top.csv",
     "panel.parquet": cfg.DATA_DIR_PATH / "panels" / "panel.parquet",
     "cluster_key.json": cfg.DATA_DIR_PATH / "cluster_key.json",
 }
-_TISSUE = "human breast cancer"
-_PLATFORM = "Xenium"
+# `tissue` and `platform` used to be module constants here -- "human breast cancer"
+# and "Xenium" -- passed straight into build_manifest. They are declarations, not
+# derivations: no file in a store produces them, and a constant would have stamped
+# the kidney study as breast. Tissue is the corpus scoping key, so that is not a
+# cosmetic error, it is a literature search scoped to the wrong organ, reported as
+# a correct one. They are read from the study's declarations instead, and
+# build_manifest refuses an empty one.
 
 
 def _now_iso() -> str:
@@ -56,6 +61,44 @@ def _now_iso() -> str:
         .isoformat()
         .replace("+00:00", "Z")
     )
+
+
+def _declared(dataset_id: str, root: Optional[Path]) -> dict[str, Any]:
+    """The biologist's declarations for this study, read before the build rewrites them.
+
+    The manifest already in the output tree when there is one; otherwise the study's
+    own manifest in the canonical tree, which is what a run into a tmp root is
+    building from. Returned whole, so :func:`manifest.build_manifest` can carry every
+    declared key forward -- the §6.3 pair ``samples`` / ``clustering_mode`` above all,
+    which a from-scratch rebuild used to eat, leaving the next build to raise
+    ``UndeclaredClustering`` against the file it had just emptied.
+    """
+    for mp in (paths.manifest_json(dataset_id, root), paths.manifest_json(dataset_id, None)):
+        try:
+            raw = json.loads(mp.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(raw, dict) and raw:
+            return raw
+    return {}
+
+
+def _has_enrichment_result() -> bool:
+    """True when this study ships the enrichment table the Pathways slice reads.
+
+    An existence check and not ``except FileNotFoundError``. The absence of the
+    input is a condition; the stage's v2 half (``read_tidy`` -> ``adapter.frames``
+    -> ``record.write``) raises the *same* exception class for an unreadable tidy
+    table or a record it cannot write, and catching the pair together let a build
+    report success with ``interp/records/`` silently absent -- the artifact the
+    reproducibility claim is about, missing, with nothing said.
+
+    Reaches for the private resolver on purpose: it is the one function that knows
+    where a study's enrichment result lives, the stage already calls it to make sure
+    both engines read one file, and re-deriving the path here is how the check and
+    the stage end up disagreeing.
+    """
+    return agent_enrichment._jz_enrichment_csv().exists()
 
 
 def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, Any]]:
@@ -99,17 +142,18 @@ def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path])
     paths.calibration_md(dataset_id, root).write_text(
         calibration_mod.calibration_markdown(list(verdicts)) + "\n", encoding="utf-8"
     )
-    # Enrichment slice (second workflow) — fail-soft: only when this dataset has an
-    # enrichment result. Its absence just means the Pathways slice is not built.
-    try:
+    # Enrichment slice (second workflow) — built only when this dataset HAS an
+    # enrichment result. Its absence just means the Pathways slice is not built; a
+    # FileNotFoundError from INSIDE the stage is a real failure and now reaches the
+    # caller, because the v2 record composition runs in there and a swallowed one
+    # left records/ unbuilt while the build printed success.
+    if _has_enrichment_result():
         run_enrichment(dataset_id, root)
         themes = agent_enrichment_themes.pathway_themes()
         paths.pathway_themes_json(dataset_id, root).write_text(
             json.dumps(serialize.pathway_themes_to_dict(themes), indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
-    except FileNotFoundError:
-        pass
 
 
 def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
@@ -154,10 +198,8 @@ def _run_notes(dataset_id: str, root: Optional[Path]) -> None:
 
     notes_stage.run_celltype_notes(dataset_id, root)
     notes_stage.run_gene_notes(dataset_id, root)
-    try:
-        notes_stage.run_pathway_notes(dataset_id, root)  # per-pathway biology (fail-soft)
-    except FileNotFoundError:
-        pass  # no enrichment result for this dataset -> no pathway notes
+    if _has_enrichment_result():  # no enrichment result -> no pathway notes
+        notes_stage.run_pathway_notes(dataset_id, root)
 
 
 def run(
@@ -175,6 +217,7 @@ def run(
     dataset_id = dataset_id or cfg.DATASET_ID
     ddir = paths.dataset_dir(dataset_id, root)
     ddir.mkdir(parents=True, exist_ok=True)
+    declared = _declared(dataset_id, root)  # read BEFORE the build rewrites the file
 
     run_prep(dataset_id, root)  # raw .Rds -> tidy inputs (no-op if already present)
     validate(dataset_id)
@@ -258,8 +301,11 @@ def run(
     man = manifest_mod.build_manifest(
         dataset_id=dataset_id,
         generated_at=_now_iso(),
-        tissue=_TISSUE,
-        platform=_PLATFORM,
+        tissue=str(declared.get("tissue") or ""),
+        platform=str(declared.get("platform") or ""),
+        samples=declared.get("samples"),
+        clustering_mode=declared.get("clustering_mode"),
+        declared=declared,
         panel_gene_count=panel_n,
         n_cells=n_cells,
         clusters=list(cfg.CLUSTER_ORDER),

@@ -129,8 +129,10 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
             "Ask me why, or about any suggestive program.", [], verify,
         )
     parts = [
-        f"{cluster} {ct} shows {ce.confidence} enrichment, panel-scoped: only the set genes "
-        "on the 280-gene panel are measured, never genome-wide."
+        # The census, not a band. No label space means no unit-level confidence to
+        # open with; the counts say more and each one clicks back to its rows.
+        f"{cluster} {ct}: {ce.census_line}. Panel-scoped — only the set genes this "
+        "panel usably measured are tested, never genome-wide."
     ]
     progs: list[str] = []
     pmids: list[str] = []

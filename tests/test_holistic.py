@@ -182,3 +182,105 @@ def test_proportions_note_does_not_swallow_a_real_failure(monkeypatch) -> None:
     monkeypatch.setattr(data, "get_cluster_cells", boom)
     with pytest.raises(KeyError):
         holistic_review()
+
+
+# --------------------------------------------------------------------------- #
+# Arbitrary-study honesty. Everything below is about a study that is NOT the
+# breast demo: the module used to crash on one, and to describe the other two in
+# breast prose. Each test is a sabotage check -- it was watched to fail against
+# the old behaviour before being kept.
+# --------------------------------------------------------------------------- #
+_SHARED_CALL_FIXTURE = "synthetic_multisample_fixture"
+
+
+@pytest.fixture
+def shared_call_review() -> HolisticReview:
+    """The holistic review of a study whose c1 and c3 carry the same cell type.
+
+    Joint clustering over several samples produces exactly this, which is why the
+    fixture has it. Opened via ``use_study`` so the process-global caches are
+    scoped to the block (``tests/conftest.py`` clears them either side).
+    """
+    from panoscope.data.study import Study
+
+    if not Study.open(_SHARED_CALL_FIXTURE).exists:
+        pytest.skip(f"study {_SHARED_CALL_FIXTURE!r} is not on disk")
+    with cfg.use_study(_SHARED_CALL_FIXTURE):
+        return holistic_review()
+
+
+def test_two_clusters_sharing_a_cell_type_is_reported_not_raised(
+    shared_call_review: HolisticReview,
+) -> None:
+    """The defect that killed ``panoscope build`` on any jointly clustered study.
+
+    ``_redundancy_note`` raised AssertionError here, inside
+    ``pipeline.run._write_deterministic_interp``. Shared calls are a cross-cluster
+    FINDING -- the note must name both clusters and the label they share.
+    """
+    joined = " ".join(shared_call_review.coherence_notes)
+    assert "Shared calls" in joined
+    assert "c1" in joined and "c3" in joined
+    assert "Synthetic Type A" in joined
+
+
+def test_set_is_coherent_is_computed_not_asserted(
+    shared_call_review: HolisticReview,
+) -> None:
+    """``set_is_coherent`` was hardcoded True; a study with a shared call is not.
+
+    Paired with ``test_set_is_coherent_true`` (the demo, genuinely coherent), this
+    is what proves the flag tracks the set rather than being a constant: one study
+    must come back False or the field carries no information at all.
+    """
+    assert shared_call_review.set_is_coherent is False
+
+
+def test_no_tissue_claim_or_plausibility_verdict(review: HolisticReview) -> None:
+    """No note asserts a tissue, or that what it measured is plausible.
+
+    The proportions note opened "Proportions are plausible for a breast tumour"
+    and closed "(a rare, small population as expected)". Both are unsourced
+    judgments, written into ``holistic.json`` -- hashed into the manifest and
+    rendered in the Summary tab -- and on a kidney study the first is a fabricated
+    tissue. The real cluster sizes stay (asserted above); the verdict on them goes.
+    """
+    joined = " ".join(review.coherence_notes).lower()
+    for banned in ("plausible", "breast", "tumour", "as expected"):
+        assert banned not in joined, f"the holistic notes still assert {banned!r}"
+
+
+def test_uncalled_clusters_are_counted_not_treated_as_a_shared_call(monkeypatch) -> None:
+    """An un-annotated study: every cluster "Unknown" -- the annotate-failure shape.
+
+    ``stages/annotate.py`` writes cell_type "Unknown" for every cluster whose call
+    fails, so this is the state a real study lands in when annotation does not
+    resolve. Two Unknowns are the ABSENCE of two calls, not two clusters sharing
+    one, and a grouping whose every category is "Unknown" is not a compartment
+    reading. The review must say that, and must not be coherent.
+    """
+    from panoscope.agent import annotation as ann
+
+    blank = {
+        c: {"cluster": c, "cell_type": "Unknown", "cell_type_short": "Unknown",
+            "category": "Unknown", "lineage": "Unknown",
+            "canonical_markers": [], "offpanel_canonical": []}
+        for c in cfg.CLUSTER_ORDER
+    }
+    monkeypatch.setattr(ann, "load_annotation", lambda *a, **k: blank)
+
+    out = holistic_review()
+    joined = " ".join(out.coherence_notes)
+    assert "No compartment grouping" in joined
+    assert f"{len(cfg.CLUSTER_ORDER)} of {len(cfg.CLUSTER_ORDER)} clusters carry no cell-type call" in joined
+    assert "Shared calls" not in joined, "Unknown was counted as a shared cell type"
+    assert "No redundancy" not in joined, "uncalled clusters were claimed to be distinct calls"
+    assert out.set_is_coherent is False
+
+
+def test_redundancy_note_covers_all_nine_demo_units(review: HolisticReview) -> None:
+    """All nine, never one: every demo cluster's call appears in the note."""
+    joined = " ".join(review.coherence_notes)
+    assert len(cfg.CLUSTER_ORDER) == 9
+    for cluster in cfg.CLUSTER_ORDER:
+        assert cfg.CLUSTER_KEY[cluster]["cell_type"] in joined, cluster

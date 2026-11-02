@@ -8,8 +8,9 @@ jazzPanda number (from this cluster's own markers) or a panel fact.
 
 It composes three grounded signals that already exist:
 
-1. **Evidence thinness** — from :func:`agent.verdict.assess`: a call flagged
-   ``verify``/``small_n`` or resting on very few supporting markers is fragile.
+1. **Evidence thinness** — from :func:`pipeline.v1_verdicts.verdict_for`: a call
+   flagged ``verify``/``small_n`` or resting on very few supporting markers is
+   fragile.
 2. **Localization tension** — the top driver's ``max_gc_corr`` vs ``pearson``:
    if the gene localizes at least as well with some *other* cluster, that weakens
    its claim as a driver here.
@@ -30,7 +31,6 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 from panoscope.agent import discriminate as disc
-from panoscope.agent import verdict as vd
 from panoscope.agent.types import ClusterVerdict, MarkerEvidence
 
 # A gene "localizes at least as well elsewhere" when its correlation to some other
@@ -85,8 +85,19 @@ def _supporting(verdict: ClusterVerdict) -> tuple[MarkerEvidence, ...]:
 
 
 def second_opinion(cluster: str) -> SkepticReport:
-    """Try to refute ``cluster``'s call from grounded facts. ``KeyError`` if unknown."""
-    verdict = vd.assess(cluster)
+    """Try to refute ``cluster``'s call from grounded facts. ``KeyError`` if unknown.
+
+    The call it argues against is the one the biologist is looking at: built through
+    ``core/`` by the same projection that writes ``interp/clusters/<unit>.json``. A
+    second opinion on a band the table never showed is not a second opinion.
+    ``agent.discriminate`` is already on that path, so the two halves of this report
+    now read one engine instead of two.
+    """
+    # Local, like discriminate's: ``agent -> pipeline`` is a cycle risk, and
+    # importing this module must do no filesystem I/O.
+    from panoscope.pipeline import v1_verdicts
+
+    verdict = v1_verdicts.verdict_for(cluster)
     d = disc.discriminate(cluster)
     call = verdict.cell_type
     support = _supporting(verdict)

@@ -31,7 +31,7 @@ from panoscope.agent import config as cfg
 from panoscope.agent import verdict as A
 from panoscope.core import verdict as C
 from panoscope.types.evidence import EvidenceItem
-from panoscope.types.measured import Measured, MeasuredState
+from panoscope.types.measured import Coverage, Measured, MeasuredState
 from panoscope.types.subject import gene, subject
 from panoscope.types.trace import RULES
 
@@ -49,7 +49,14 @@ _RULE_FOR: tuple[tuple[str, str], ...] = (
     ("driver spatial pattern not unique", "band:demote_not_unique"),
     ("fragile cluster (<=2 markers): capped", "band:fragile_cap"),
     ("fragile cluster with canonical driver: floored", "band:fragile_floor"),
+    ("canonical coverage ", "band:demote_canonical_coverage"),
 )
+
+#: A canonical list whose markers are mostly NOT in frame, and one that is fully in
+#: frame. The grid below drives both, because the coverage demote is the one rung
+#: that reads the capability frames rather than the driver.
+_THIN: frozenset[str] = frozenset({"ERBB2", "C1", "C2", "C3", "C4", "C5"})
+_FULL: frozenset[str] = frozenset({"ERBB2"})
 
 # agent's caveat prose (``_caveats_for``) -> the registered flag the method layer
 # carries on an EvidenceItem. This is the transcription ``evidence.py`` FLAGS records.
@@ -151,12 +158,13 @@ def _grid():
             for gc in (0.0, pearson + 0.10):           # localises elsewhere, or not
                 for gg in (0.50, 0.99):                # pattern shared, or not
                     for fragile in (False, True):
-                        yield coef, pearson, gc, gg, fragile
+                        for covered in (True, False):  # canonical coverage ok, or not
+                            yield coef, pearson, gc, gg, fragile, covered
 
 
-@pytest.mark.parametrize("coef,pearson,gc,gg,fragile", list(_grid()))
+@pytest.mark.parametrize("coef,pearson,gc,gg,fragile,covered", list(_grid()))
 def test_core_matches_the_agent_band_function_across_the_reachable_grid(
-    coef, pearson, gc, gg, fragile
+    coef, pearson, gc, gg, fragile, covered
 ):
     """The demo fires at most ONE adjustment per cluster, so the nine-cluster sweep
     cannot see the order of two demotes, nor a cap, nor promote-then-demote. This
@@ -173,17 +181,25 @@ def test_core_matches_the_agent_band_function_across_the_reachable_grid(
         max_gg_corr=gg, max_gc_corr=gc, p_value=None, within_cluster_pctile=1.0,
         is_canonical=True, is_on_panel=True, role="supports", caveats=caveats,
     )
-    a_band, a_basis, a_changes = A._compute_band(me, fragile=fragile)
+    canonical = _FULL if covered else _THIN
+    # core DERIVES the coverage from the items; agent reads the capability frames.
+    # Feeding agent the number core derives is the point: if the two ever disagree
+    # about what K of N means, this compares a band computed from one count against
+    # a band computed from the other, which is the failure the fixture exposed.
+    cov = C._canonical_coverage((_item("ERBB2", coef, pearson),), canonical)
+    assert cov.ok is covered, "the grid must drive BOTH sides of the floor"
+    a_band, a_basis, a_changes = A._compute_band(me, fragile=fragile, coverage=cov)
 
     driver = _item("ERBB2", coef, pearson, tuple(_FLAG_FOR[c] for c in caveats))
     # fragile is len(assigned) <= 2, so it is set by how many items carry a number.
     filler = () if fragile else tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
-    cv = C.assess((driver, *filler), frozenset({"ERBB2"})).value
+    cv = C.assess((driver, *filler), canonical).value
 
     assert cv.fragile is fragile
     assert cv.band == a_band
     assert cv.basis == a_basis
     assert cv.demotions == tuple(_rule_for(c) for c in a_changes)
+    assert cv.coverage == cov
 
 
 def test_the_translation_table_is_exhaustive():
@@ -248,6 +264,204 @@ def test_the_record_and_the_value_agree_on_the_adjustments():
         assert t.value.demotions == from_record, cluster
 
 
+# --------------------------------------------------------------------------- #
+# Canonical coverage -- the rung that reads the apparatus, not the driver
+# --------------------------------------------------------------------------- #
+def _studies_on_disk() -> list[str]:
+    from panoscope.data import layout
+    return sorted(layout.available_studies())
+
+
+@pytest.mark.parametrize("study_id", _studies_on_disk())
+def test_both_engines_agree_on_every_unit_of_every_study_on_disk(study_id):
+    """The equivalence the nine-cluster sweep above cannot reach.
+
+    The demo never fires the coverage rule, so a sweep over the demo alone would
+    pass with the two engines computing K of N in completely different ways -- and
+    they DO compute it differently on purpose: ``agent`` reads the panel and
+    detectability frames directly, ``core`` derives the same count from the
+    measured state of the items it was handed. "Both say Very High" is not evidence
+    that they agree about coverage.
+
+    So this runs the real v2 composition root over every study on disk and compares
+    band, verify, the coverage K of N and the number of adjustments, unit by unit.
+    Nine demo units, three fixture units, three mini units -- never one; a one-unit
+    version of this check passed while five of nine were wrong earlier.
+    """
+    from panoscope.agent import annotation as ann
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    store = Study.open(study_id)
+    built = records.build_all(store)
+    with cfg.use_study(study_id):
+        agent_v = {v.cluster: v for v in A.all_verdicts()}
+        agent_cov = {u: A.canonical_coverage(ann.cell_type_for(u)) for u in built}
+
+    assert built, f"{study_id}: no unit was built"
+    for unit, b in sorted(built.items()):
+        core_v, av = b.verdict, agent_v[unit]
+        assert core_v.band == av.confidence, f"{study_id}/{unit}: band"
+        assert core_v.verify == av.verify, f"{study_id}/{unit}: verify"
+        assert len(core_v.demotions) == len(av.demotions), (
+            f"{study_id}/{unit}: {core_v.demotions} vs {av.demotions}")
+        # The number the new rung is read off, derived two independent ways.
+        assert (core_v.coverage.k, core_v.coverage.n, core_v.coverage.floor) == (
+            agent_cov[unit].k, agent_cov[unit].n, agent_cov[unit].floor), (
+            f"{study_id}/{unit}: core {core_v.coverage} vs agent {agent_cov[unit]}")
+
+
+def test_the_study_sweep_actually_reaches_the_coverage_rule():
+    """Guards the sweep above against being vacuous in the one direction that
+    matters: if no study on disk ever fails the floor, it proves the two engines
+    agree about a rung neither of them ever took."""
+    from panoscope.agent import annotation as ann
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    failing = []
+    for sid in _studies_on_disk():
+        with cfg.use_study(sid):
+            for unit in records.build_all(Study.open(sid)):
+                cov = A.canonical_coverage(ann.cell_type_for(unit))
+                if cov.n and not cov.ok:
+                    failing.append(f"{sid}/{unit} {cov}")
+    assert failing, "no study on disk exercises the canonical-coverage floor"
+
+
+def test_the_coverage_floor_is_the_same_number_in_both_engines():
+    """``core/`` may not import ``agent/``, so the floor is duplicated. Without this
+    the two bands diverge silently at the next tuning pass -- and the coverage floor
+    is the one threshold a new study is most likely to move."""
+    assert C.CANONICAL_COVERAGE_FLOOR == A.CANONICAL_COVERAGE_FLOOR
+    assert C.CANONICAL_COVERAGE_WHAT == A.CANONICAL_COVERAGE_WHAT
+    for n in range(0, 40):
+        assert C._coverage_floor(n) == A.coverage_floor(n), n
+
+
+def test_the_floor_is_an_exact_ratio_and_not_a_float_comparison():
+    """``ceil(n/3)`` by integer arithmetic. A float version is off by one wherever
+    ``n * (1/3)`` lands a hair above an integer, which moves a band by a rung on
+    some panel sizes and not others -- the hardest kind of threshold bug to see."""
+    import math
+    from fractions import Fraction
+
+    num, den = C.CANONICAL_COVERAGE_FLOOR
+    # Ratio-agnostic on purpose: this must keep testing ROUNDING after a tuning
+    # pass changes the ratio, and the ratio itself is pinned by the census in
+    # tests/test_second_study.py rather than by a literal here.
+    for n in range(0, 200):
+        assert C._coverage_floor(n) == math.ceil(Fraction(n * num, den)), n
+    # A K at the floor clears it and one below does not -- the two cases a
+    # rounding slip swaps, at every panel size a curated list plausibly has.
+    for n in range(1, 40):
+        f = C._coverage_floor(n)
+        assert Coverage("x", f, n, f).ok
+        assert not Coverage("x", f - 1, n, f).ok
+
+
+def test_the_v1_sentence_is_identical_in_both_engines():
+    """``core/compat.py`` renders the v1 record from rule ids and must produce the
+    byte-identical sentence ``agent/verdict.py`` writes. The demo never fires this
+    rule, so nothing else in the suite would compare the two."""
+    for k, n in ((0, 1), (1, 6), (2, 8), (4, 7)):
+        cov = Coverage(C.CANONICAL_COVERAGE_WHAT, k, n, C._coverage_floor(n))
+        assert C._v1_coverage_sentence(cov) == A._coverage_sentence(cov)
+    assert C._v1_coverage_sentence(
+        Coverage(C.CANONICAL_COVERAGE_WHAT, 1, 6, 2)
+    ) == "canonical coverage 1/6 below floor 2 -> -1 band"
+
+
+def test_coverage_counts_the_frame_and_not_this_unit_s_result():
+    """K is a fact about the APPARATUS. A canonical marker that was in frame, tested
+    and not reported here still counts: the panel could have reported it. Counting
+    only what this unit observed would make coverage a second reading of the band
+    and would demote every unit that is not the marker's own."""
+    canon = frozenset({"A", "B", "C"})
+    items = (_item("A", 10.0, 0.5),
+             _item("B", None, state=MeasuredState.TESTED_ABSENT),
+             _item("C", None, state=MeasuredState.NEVER_MEASURED))
+    cov = C._canonical_coverage(items, canon)
+    assert (cov.k, cov.n) == (2, 3), str(cov)
+
+
+def test_an_underpowered_canonical_marker_does_not_count_as_coverage():
+    """The whole rule is that a negative is evidence only where a positive was
+    possible. UNDERPOWERED says it was not, so it cannot buy canonical support --
+    counting it would let a measurement that could not have answered the question
+    look like one that did."""
+    canon = frozenset({"A", "B"})
+    items = (_item("A", 10.0, 0.5),
+             _item("B", None, state=MeasuredState.UNDERPOWERED))
+    assert C._canonical_coverage(items, canon).k == 1
+
+
+def test_a_canonical_marker_with_no_item_at_all_is_not_in_frame():
+    """The off-panel case, and the common one: a gene the panel never carried never
+    appears in a method's table, so its absence from ``items`` IS the refusal. If
+    this counted as in-frame the demote could never fire on the study it exists for,
+    because an IO panel's missing kidney markers are missing exactly this way."""
+    assert C._canonical_coverage((_item("A", 10.0, 0.5),),
+                                 frozenset({"A", "B", "C", "D", "E", "F"})).k == 1
+
+
+def test_thin_coverage_demotes_one_rung_and_sets_verify():
+    """The cliff, as a before/after on one set of numbers.
+
+    Same driver, same coefficient, same everything -- only the size of the curated
+    list the panel was asked to cover differs. That is the whole claim: the band is
+    still the driver's number, and coverage subtracts from it.
+    """
+    driver = _item("ERBB2", 30.0, 0.5)
+    filler = tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
+    items = (driver, *filler)
+
+    covered = C.assess(items, frozenset({"ERBB2"})).value
+    assert covered.band == "Very High" and covered.verify is False
+    assert covered.demotions == ()
+
+    thin = C.assess(items, _THIN).value
+    assert thin.band == "High", "one rung, not a collapse to Low"
+    assert thin.verify is True, "a rung alone still reads as a settled call"
+    assert thin.demotions == ("band:demote_canonical_coverage",)
+    assert str(thin.coverage) == "canonical markers in frame 1/6 (floor 2)"
+
+
+def test_the_coverage_decision_carries_its_k_of_n():
+    """A demote whose record does not say what it was measured against is a rung the
+    biologist cannot argue with."""
+    t = C.assess((_item("ERBB2", 30.0, 0.5),
+                  *(_item(f"G{i}", 1.0, 0.5) for i in range(3))), _THIN)
+    d = next(d for d in t.decisions if d.rule == "band:demote_canonical_coverage")
+    assert "1/6" in " ".join(d.because) and "floor 2" in " ".join(d.because)
+    assert d.outcome == "High", "the record carries the rung it landed on"
+    assert d.refs, "and what it read, so the sentence clicks back"
+
+
+def test_no_canonical_driver_does_not_also_take_a_coverage_demote():
+    """Already at the floor. A second rung would record a demotion that moved
+    nothing, and the record would read as a call that lost two.
+
+    The Coverage still travels, because "nothing canonical was reported" and "almost
+    nothing canonical was measurABLE" are different answers.
+    """
+    v = C.assess((_item("ACTA2", 30.0, 0.9), _item("PTPRC", 20.0, 0.9),
+                  _item("CD3E", 15.0, 0.9), _item("MS4A1", 9.0, 0.9)), _THIN).value
+    assert v.band == "Low"
+    assert v.demotions == ("band:no_canonical_driver",)
+    assert v.coverage is not None and (v.coverage.k, v.coverage.n) == (0, 6)
+
+
+def test_an_empty_canonical_list_never_demotes():
+    """A study whose annotation lists no canonical markers for a label says nothing
+    about coverage, and silence is not a floor failure. ``0/0`` must not read as the
+    worst possible coverage -- there is no driver either, so the band is already
+    Low, and an extra rung here would be the apparatus arguing from an empty list."""
+    v = C.assess((_item("ACTA2", 30.0, 0.9),) * 4, frozenset()).value
+    assert v.coverage.n == 0
+    assert v.demotions == ("band:no_canonical_driver",)
+
+
 def test_thresholds_match_the_live_config():
     """``core/`` may not import ``agent/``, so the ladder is duplicated. This is the
     drift alarm; without it the two bands diverge silently at the next tuning pass."""
@@ -279,7 +493,7 @@ def test_verify_is_not_an_input_anywhere_in_the_module():
     assert not offenders, "verify is settable from outside: " + "; ".join(offenders)
 
 
-def test_verify_fires_on_each_of_its_four_conditions():
+def test_verify_fires_on_each_of_its_five_conditions():
     canonical = frozenset({"ERBB2", "KRT7", "EPCAM", "FOXA1"})
     strong = tuple(_item(g, 20.0, 0.5) for g in ("ERBB2", "KRT7", "EPCAM", "FOXA1"))
 
@@ -289,6 +503,13 @@ def test_verify_fires_on_each_of_its_four_conditions():
                     canonical).value.verify is True
     low = C.assess(tuple(_item(g, 0.4, 0.5) for g in canonical), canonical)
     assert low.value.band == "Low" and low.value.verify is True         # Low band
+
+    # thin canonical coverage: a confident band on a question the panel could
+    # barely pose. The control above differs only in the size of the curated list.
+    thin = C.assess(strong, canonical | {"X1", "X2", "X3", "X4", "X5", "X6", "X7",
+                                         "X8", "X9", "X10"})
+    assert thin.value.band != C.LOW_BAND, "verify, not a collapse"
+    assert thin.value.verify is True
 
 
 # --------------------------------------------------------------------------- #

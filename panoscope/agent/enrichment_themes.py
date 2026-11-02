@@ -40,12 +40,17 @@ class RecurringTheme:
 
 @dataclass(frozen=True)
 class ClusterThemeLine:
-    """One cluster's headline enrichment (top programs + its confidence)."""
+    """One cluster's headline enrichment (top programs + its census).
+
+    ``confidence`` went with ``ClusterEnrichment``'s band: CHARACTERISATION has no
+    label space, so a per-cluster band here was the same category error one object
+    further out. ``census_line`` is the declared replacement.
+    """
     cluster: str
     cell_type: str
     category: str
     top_themes: tuple[str, ...]      # short names of top enriched sets
-    confidence: str
+    census_line: str                 # "7 supported · 3 suggestive · 12 untestable"
     verify: bool
 
 
@@ -72,7 +77,7 @@ def _per_cluster_lines(enrichments: list[ClusterEnrichment]) -> tuple[ClusterThe
                 cell_type=ce.cell_type,
                 category=cfg.CLUSTER_KEY[ce.cluster]["category"],
                 top_themes=top,
-                confidence=ce.confidence,
+                census_line=ce.census_line,
                 verify=ce.verify,
             )
         )

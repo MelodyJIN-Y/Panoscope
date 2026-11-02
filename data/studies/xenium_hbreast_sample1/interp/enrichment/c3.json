@@ -11,8 +11,8 @@
       "p_value": 5.21921394991409e-11,
       "q_value": 9.65554580734107e-10,
       "set_size_full": 200,
-      "panel_hits": 10,
-      "panel_coverage": 0.05,
+      "panel_hits": 9,
+      "panel_coverage": 0.045,
       "leading_edge": [
         "CCL5",
         "CD274",
@@ -25,8 +25,10 @@
       "n_leading_edge": 7,
       "gc_corr": 0.684072552724427,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 10 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
-      "caveats": [],
+      "panel_scope_caveat": "Panel-scoped: only 9 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage"
+      ],
       "source": "jazzpanda:enrichment"
     },
     {
@@ -47,7 +49,7 @@
       "n_leading_edge": 3,
       "gc_corr": 0.50627975767092,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -62,8 +64,8 @@
       "p_value": 2.76468673177099e-07,
       "q_value": 2.55733522688817e-06,
       "set_size_full": 200,
-      "panel_hits": 5,
-      "panel_coverage": 0.025,
+      "panel_hits": 3,
+      "panel_coverage": 0.015,
       "leading_edge": [
         "CTH",
         "CXCR4",
@@ -73,7 +75,7 @@
       "n_leading_edge": 4,
       "gc_corr": 0.36602793843034,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 5 of 200 genes in HALLMARK_GLYCOLYSIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 3 of 200 genes in HALLMARK_GLYCOLYSIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -88,8 +90,8 @@
       "p_value": 8.0613988673317e-07,
       "q_value": 5.96543516182546e-06,
       "set_size_full": 200,
-      "panel_hits": 8,
-      "panel_coverage": 0.04,
+      "panel_hits": 6,
+      "panel_coverage": 0.03,
       "leading_edge": [
         "CD9",
         "CTH",
@@ -103,7 +105,7 @@
       "n_leading_edge": 8,
       "gc_corr": 0.324749678153082,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 8 of 200 genes in HALLMARK_MTORC1_SIGNALING are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_MTORC1_SIGNALING were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage"
       ],
@@ -117,8 +119,8 @@
       "p_value": 1.62470686548843e-06,
       "q_value": 1.0019025670512e-05,
       "set_size_full": 200,
-      "panel_hits": 20,
-      "panel_coverage": 0.1,
+      "panel_hits": 17,
+      "panel_coverage": 0.085,
       "leading_edge": [
         "CCL5",
         "CD247",
@@ -142,7 +144,7 @@
       "n_leading_edge": 18,
       "gc_corr": 0.617277574665154,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 20 of 200 genes in HALLMARK_ALLOGRAFT_REJECTION are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 17 of 200 genes in HALLMARK_ALLOGRAFT_REJECTION were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [],
       "source": "jazzpanda:enrichment"
     },
@@ -154,8 +156,8 @@
       "p_value": 2.81060414948353e-05,
       "q_value": 0.000148560505044129,
       "set_size_full": 200,
-      "panel_hits": 12,
-      "panel_coverage": 0.06,
+      "panel_hits": 11,
+      "panel_coverage": 0.055,
       "leading_edge": [
         "ALDH1A3",
         "CXCR4",
@@ -171,7 +173,7 @@
       "n_leading_edge": 10,
       "gc_corr": 0.445083248396957,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 12 of 200 genes in HALLMARK_KRAS_SIGNALING_UP are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 11 of 200 genes in HALLMARK_KRAS_SIGNALING_UP were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [],
       "source": "jazzpanda:enrichment"
     }
@@ -195,7 +197,7 @@
       "n_leading_edge": 2,
       "gc_corr": 0.461797509279611,
       "tier": "untestable",
-      "panel_scope_caveat": "Panel-scoped: only 2 of 113 genes in HALLMARK_UNFOLDED_PROTEIN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 113 genes in HALLMARK_UNFOLDED_PROTEIN_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -210,8 +212,8 @@
       "p_value": 5.21921394991409e-11,
       "q_value": 9.65554580734107e-10,
       "set_size_full": 200,
-      "panel_hits": 10,
-      "panel_coverage": 0.05,
+      "panel_hits": 9,
+      "panel_coverage": 0.045,
       "leading_edge": [
         "CCL5",
         "CD274",
@@ -224,8 +226,10 @@
       "n_leading_edge": 7,
       "gc_corr": 0.684072552724427,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 10 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
-      "caveats": [],
+      "panel_scope_caveat": "Panel-scoped: only 9 of 200 genes in HALLMARK_INTERFERON_GAMMA_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
+      "caveats": [
+        "very low panel coverage"
+      ],
       "source": "jazzpanda:enrichment"
     },
     {
@@ -246,7 +250,7 @@
       "n_leading_edge": 3,
       "gc_corr": 0.50627975767092,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 4 of 200 genes in HALLMARK_P53_PATHWAY were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -261,8 +265,8 @@
       "p_value": 2.76468673177099e-07,
       "q_value": 2.55733522688817e-06,
       "set_size_full": 200,
-      "panel_hits": 5,
-      "panel_coverage": 0.025,
+      "panel_hits": 3,
+      "panel_coverage": 0.015,
       "leading_edge": [
         "CTH",
         "CXCR4",
@@ -272,7 +276,7 @@
       "n_leading_edge": 4,
       "gc_corr": 0.36602793843034,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 5 of 200 genes in HALLMARK_GLYCOLYSIS are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 3 of 200 genes in HALLMARK_GLYCOLYSIS were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -287,8 +291,8 @@
       "p_value": 8.0613988673317e-07,
       "q_value": 5.96543516182546e-06,
       "set_size_full": 200,
-      "panel_hits": 8,
-      "panel_coverage": 0.04,
+      "panel_hits": 6,
+      "panel_coverage": 0.03,
       "leading_edge": [
         "CD9",
         "CTH",
@@ -302,7 +306,7 @@
       "n_leading_edge": 8,
       "gc_corr": 0.324749678153082,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 8 of 200 genes in HALLMARK_MTORC1_SIGNALING are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_MTORC1_SIGNALING were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage"
       ],
@@ -316,8 +320,8 @@
       "p_value": 1.62470686548843e-06,
       "q_value": 1.0019025670512e-05,
       "set_size_full": 200,
-      "panel_hits": 20,
-      "panel_coverage": 0.1,
+      "panel_hits": 17,
+      "panel_coverage": 0.085,
       "leading_edge": [
         "CCL5",
         "CD247",
@@ -341,7 +345,7 @@
       "n_leading_edge": 18,
       "gc_corr": 0.617277574665154,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 20 of 200 genes in HALLMARK_ALLOGRAFT_REJECTION are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 17 of 200 genes in HALLMARK_ALLOGRAFT_REJECTION were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [],
       "source": "jazzpanda:enrichment"
     },
@@ -353,8 +357,8 @@
       "p_value": 2.81060414948353e-05,
       "q_value": 0.000148560505044129,
       "set_size_full": 200,
-      "panel_hits": 12,
-      "panel_coverage": 0.06,
+      "panel_hits": 11,
+      "panel_coverage": 0.055,
       "leading_edge": [
         "ALDH1A3",
         "CXCR4",
@@ -370,7 +374,7 @@
       "n_leading_edge": 10,
       "gc_corr": 0.445083248396957,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 12 of 200 genes in HALLMARK_KRAS_SIGNALING_UP are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 11 of 200 genes in HALLMARK_KRAS_SIGNALING_UP were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [],
       "source": "jazzpanda:enrichment"
     },
@@ -391,7 +395,7 @@
       "n_leading_edge": 2,
       "gc_corr": 0.558836870168767,
       "tier": "untestable",
-      "panel_scope_caveat": "Panel-scoped: only 2 of 200 genes in HALLMARK_OXIDATIVE_PHOSPHORYLATION are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 200 genes in HALLMARK_OXIDATIVE_PHOSPHORYLATION were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -400,18 +404,15 @@
     }
   ],
   "top_theme": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
-  "confidence": "Medium-High",
-  "confidence_score": 0.7,
-  "verify": false,
-  "demotions": [],
+  "verify": true,
   "source_trace": [
     "HALLMARK_UNFOLDED_PROTEIN_RESPONSE: score=9.52 q=0.0 K=2/113 LE=2",
-    "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=6.46 q=9.65554580734107e-10 K=10/200 LE=7",
+    "HALLMARK_INTERFERON_GAMMA_RESPONSE: score=6.46 q=9.65554580734107e-10 K=9/200 LE=7",
     "HALLMARK_P53_PATHWAY: score=5.19 q=1.32217345431377e-06 K=4/200 LE=3",
-    "HALLMARK_GLYCOLYSIS: score=5.01 q=2.55733522688817e-06 K=5/200 LE=4",
-    "HALLMARK_MTORC1_SIGNALING: score=4.80 q=5.96543516182546e-06 K=8/200 LE=8",
-    "HALLMARK_ALLOGRAFT_REJECTION: score=4.65 q=1.0019025670512e-05 K=20/200 LE=18",
-    "HALLMARK_KRAS_SIGNALING_UP: score=4.03 q=0.000148560505044129 K=12/200 LE=10",
+    "HALLMARK_GLYCOLYSIS: score=5.01 q=2.55733522688817e-06 K=3/200 LE=4",
+    "HALLMARK_MTORC1_SIGNALING: score=4.80 q=5.96543516182546e-06 K=6/200 LE=8",
+    "HALLMARK_ALLOGRAFT_REJECTION: score=4.65 q=1.0019025670512e-05 K=17/200 LE=18",
+    "HALLMARK_KRAS_SIGNALING_UP: score=4.03 q=0.000148560505044129 K=11/200 LE=10",
     "HALLMARK_OXIDATIVE_PHOSPHORYLATION: score=3.16 q=0.00369945592725751 K=2/200 LE=2"
   ]
 }

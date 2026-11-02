@@ -80,11 +80,13 @@ def _ce():
                     panel_hits=2, leading=1)
     absent = _pathway("HALLMARK_MYOGENESIS", tier="untestable", q=0.9,
                       panel_hits=40, leading=12)
+    # No confidence / confidence_score / demotions: the band on a CHARACTERISATION is
+    # deleted, so there is no longer a value this fixture could hand the header to be
+    # accidentally rendered. The absence is now structural rather than asserted.
     return ClusterEnrichment(
         cluster="c1", cell_type="Tumor", method="jazzpanda_enrichment",
         enriched=enriched, suggestive=(), all_tested=(*enriched, thin, absent),
-        top_theme="HALLMARK_E2F_TARGETS", confidence="High", confidence_score=0.8,
-        verify=False, demotions=(), source_trace=(),
+        top_theme="HALLMARK_E2F_TARGETS", verify=False, source_trace=(),
     )
 
 

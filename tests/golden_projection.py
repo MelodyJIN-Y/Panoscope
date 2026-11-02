@@ -16,7 +16,7 @@ What it covers (IMPLEMENTATION.md §7 Phase A.4):
 ...and the second workflow, which the hash was blind to until SCHEMA_VERSION 2
 (mutating ``MIN_PANEL_HITS`` or ``ENRICHMENT_BANDS`` left the hash byte-identical):
 
-  * the 9 per-cluster enrichments   ``agent.enrichment`` (tiers, bands, caveats)
+  * the 9 per-cluster enrichments   ``agent.enrichment`` (tiers, census, caveats)
   * the enrichment CSV              ``agent.enrichment.to_csv`` (14 columns)
   * the cross-cluster themes        ``agent.enrichment_themes.pathway_themes()``
 
@@ -132,9 +132,16 @@ def normalise(value: Any) -> Any:
 # the rows the adapter would have read.
 #
 # Everything DERIVED is then recomputed live: tier, caveats, panel_coverage, the
-# panel-scoped caveat, the band, demotions, verify, the source trace and the
-# cross-cluster themes. That is what makes the hash sensitive to MIN_PANEL_HITS,
-# MIN_LEADING_EDGE, ENRICH_Q_MAX, SUGGESTIVE_Q_MAX and ENRICHMENT_BANDS.
+# panel-scoped caveat, the census, verify, the source trace and the cross-cluster
+# themes. That is what makes the hash sensitive to MIN_PANEL_HITS, MIN_LEADING_EDGE,
+# ENRICH_Q_MAX and SUGGESTIVE_Q_MAX.
+#
+# Second known ceiling, now that panel_hits is a capability-frame count: the frames
+# are NOT re-derived here, because `panel_hits` in a committed record already is the
+# frame count and is fed straight back. A change to the study's panel or
+# detectability file therefore reaches this projection only after the enrichment
+# records are rebuilt. `tests/test_pipeline_enrichment_records.py` builds from the
+# real inputs and is where a frame change is caught.
 #
 # Known ceiling: a change to the RAW numbers in those committed JSONs would be
 # absorbed rather than flagged, because they are the input here. Committing
@@ -159,7 +166,12 @@ def _raw_rows_from_committed() -> dict[str, list[dict[str, Any]]]:
             {
                 "gene_set": p.gene_set,
                 "geneset_size": p.set_size_full,
-                "n_overlap": p.panel_hits,
+                # The FRAME-checked footprint, under the key the engine reads. Not
+                # "n_overlap": ``agent/enrichment`` stopped reading the result's own
+                # count, and offering it here would offer a number the engine
+                # deliberately refuses. ``panel_hits`` in a committed record is
+                # already the frame count, so this round-trips exactly.
+                E.PANEL_HITS_IN_FRAME: p.panel_hits,
                 "genes_selected": ",".join(p.leading_edge),
                 "test_statistic": p.score,
                 "p_value": p.p_value,

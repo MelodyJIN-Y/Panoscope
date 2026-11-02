@@ -35,11 +35,18 @@ inference.
 **What this does NOT do.** It does not project the enrichment workflow. There is no
 v2 ``Finding`` producer for enrichment yet (that is the method refactor), and
 inventing one here to project back would mean writing the thing the projection is
-supposed to be checked against. When it lands, note that
-``ClusterEnrichment.confidence`` stays: §10 deletes it *with* the method refactor,
-deliberately sequenced, because it is persisted in a committed CSV and rendered at
-``ui/enrichment_table.py:174``. ``export.py``'s docstring records the same decision
-for that table's last two columns.
+supposed to be checked against.
+
+**And when it lands, there is one less thing to project.** This docstring used to say
+``ClusterEnrichment.confidence`` stays until the method refactor deletes it. It does
+not: the band is gone now, ahead of that refactor and deliberately, because it was
+being *persisted* -- written into ``interp/enrichment/c*.json`` and exported as the
+``cluster_confidence`` column downstream R reads -- long after the Pathways page
+stopped drawing it. A category error that only an on-disk artifact carries is harder
+to find than one on screen, not easier, so the sequencing §10 asked for happened here
+rather than at refactor time. The replacement is the per-item census
+(``ClusterEnrichment.census``), and ``export.py``'s docstring records the column
+change. ``cluster_verify`` stays, since "a human should look" needs no label space.
 """
 
 from __future__ import annotations
@@ -56,8 +63,9 @@ from panoscope.core.verdict import (
     Verdict,
 )
 from panoscope.core.verdict import _drivers as _eligible_drivers
+from panoscope.core.verdict import _v1_coverage_sentence
 from panoscope.types.evidence import EvidenceItem, NormalisedEvidence
-from panoscope.types.measured import MeasuredState
+from panoscope.types.measured import Coverage, MeasuredState
 from panoscope.types.outputs import TaskKind
 from panoscope.types.trace import Traced
 
@@ -223,11 +231,15 @@ def _corroborator(item: EvidenceItem, name: str) -> float | None:
     return next((v for k, v in item.corroborating if k == name), None)
 
 
-def _demotion_sentence(rule: str, driver: EvidenceItem | None) -> str:
+def _demotion_sentence(rule: str, driver: EvidenceItem | None,
+                       coverage: Coverage | None = None) -> str:
     """One registered band rule id, in the English ``agent/verdict.py`` wrote to disk.
 
-    The two pearson rules interpolate the driver's own pearson, which is why this is
-    a function and not a dict.
+    The two pearson rules interpolate the driver's own pearson, and the coverage rule
+    interpolates its own K of N, which is why this is a function and not a dict. The
+    coverage sentence itself is imported from ``core.verdict`` rather than written
+    again here: a second copy would drift from v1 silently, and only on a study where
+    the rule fires -- which is never the demo.
     """
     plain = {
         "band:no_canonical_driver": "no canonical marker supports the call",
@@ -240,6 +252,13 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None) -> str:
     }
     if rule in plain:
         return plain[rule]
+    if rule == "band:demote_canonical_coverage":
+        if coverage is None:
+            raise NoV1Shape(
+                "band:demote_canonical_coverage renders its own K of N into the v1 "
+                "sentence, and the verdict carries no Coverage"
+            )
+        return _v1_coverage_sentence(coverage)
     if rule not in ("band:promote_pearson_high", "band:demote_pearson_low"):
         raise NoV1Shape(f"no v1 sentence for band rule {rule!r}")
     pearson = _corroborator(driver, _PEARSON) if driver is not None else None
@@ -460,7 +479,8 @@ def to_v1_assignment(evidence: NormalisedEvidence, verdict: Verdict,
     driver_genes = {_gene(i) for i in _eligible_drivers(observed, canon)}
     drivers = tuple(r for r in rows if r["gene"] in driver_genes)
 
-    demotions = [_demotion_sentence(r, verdict.driver) for r in verdict.demotions]
+    demotions = [_demotion_sentence(r, verdict.driver, verdict.coverage)
+                 for r in verdict.demotions]
     hooks = [
         {
             "claim": f"{d['gene']} marks {label.cell_type}",

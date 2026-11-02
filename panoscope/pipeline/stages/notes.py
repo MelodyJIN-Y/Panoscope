@@ -23,9 +23,8 @@ from typing import Any, Optional
 from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent import loop as agent_loop
-from panoscope.agent import verdict as agent_verdict
 
-from panoscope.pipeline import paths
+from panoscope.pipeline import paths, v1_verdicts
 
 _MAX_WORDS = 16
 _INLINE_PMID = re.compile(r"\s*[\(\[]?\s*PMID[:\s]*\d+\s*[\)\]]?", re.IGNORECASE)
@@ -194,7 +193,7 @@ def run_celltype_notes(
     for cluster in cfg.CLUSTER_ORDER:
         if cluster in notes and notes[cluster].get("summary"):
             continue
-        verdict = agent_verdict.verdict_for_cluster(cluster)
+        verdict = v1_verdicts.verdict_for(cluster)
         try:
             resp = agent_loop.chat(
                 _query(verdict.cell_type, list(verdict.key_markers)), cluster=cluster
@@ -262,7 +261,9 @@ def run_gene_notes(
 ) -> dict[str, Any]:
     """Generate (resumable) a skill-grounded biology note for EVERY assigned marker.
 
-    Iterates each cluster's Tier-A evidence (from ``agent.verdict``); for each gene
+    Iterates each cluster's Tier-A evidence (from ``pipeline.v1_verdicts``, the same
+    projection that writes ``interp/clusters/<unit>.json``, so a note's cell type and
+    numbers are the table's); for each gene
     asks the agent (which carries SKILL.md) to produce the Output-4 note grounded
     in that gene's evidence, then records the evaluation fields alongside the note.
     Confident floor: one real live PMID or none; deterministic role-only fallback
@@ -273,7 +274,7 @@ def run_gene_notes(
     notes = _load(out_path)
 
     for cluster in cfg.CLUSTER_ORDER:
-        verdict = agent_verdict.verdict_for_cluster(cluster)
+        verdict = v1_verdicts.verdict_for(cluster)
         notes.setdefault(cluster, {})
         for ev in verdict.evidence:
             gene = ev.gene

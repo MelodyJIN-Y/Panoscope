@@ -67,7 +67,7 @@ class ClusterSection:
     settle: str        # "" unless there is a genuine rival to settle
     notes: tuple[NoteLine, ...]
     enrichment: str = ""             # plain-text enriched-programs block (with PMIDs), "" if none
-    enrichment_confidence: str = ""  # the cluster's enrichment confidence band, "" if none
+    enrichment_census: str = ""      # "N supported · N suggestive · N untestable", "" if none
     lineage: str = ""                # for the overview table
     key_markers: str = ""            # top gene names (no numbers), for the overview table
 
@@ -147,11 +147,18 @@ def _settle_for(cluster: str, verify: bool) -> str:
 
 def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
     """A plain-text block of the cluster's enriched programs + cited biology, and the
-    enrichment confidence band. ('' , '') when there is no enrichment for the cluster."""
+    enrichment CENSUS. ('' , '') when there is no enrichment for the cluster.
+
+    The second element used to be ``ce.confidence`` -- a unit-level band on a task
+    with no label space, which is the one shape the no-band rule exists to catch.
+    It is now ``ce.census_line`` ("4 supported - 0 suggestive - 2 untestable"),
+    which says the thing the band could not: how many programs the panel could not
+    test at all.
+    """
     if ce is None:
         return "", ""
     if not getattr(ce, "enriched", ()):  # no program clears the gate
-        return "", ce.confidence
+        return "", ce.census_line
     bits: list[str] = []
     for p in ce.enriched[:4]:
         short = p.gene_set.replace("HALLMARK_", "").replace("_", " ").title()
@@ -160,7 +167,7 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
         pmid = note.get("pmid")
         cite = f" (PMID:{pmid})" if pmid else ""
         bits.append(f"{short} — {bio}{cite}" if bio else short)
-    return "; ".join(bits) + ".", ce.confidence
+    return "; ".join(bits) + ".", ce.census_line
 
 
 def build_report(
@@ -195,7 +202,7 @@ def build_report(
             for n in notes
             if n.scope == "cluster" and n.scope_ref.cluster == v.cluster
         )
-        enr_text, enr_conf = _enrichment_block(
+        enr_text, enr_census = _enrichment_block(
             enrichments.get(v.cluster), pathway_notes.get(v.cluster)
         )
         sections.append(
@@ -211,7 +218,7 @@ def build_report(
                 settle=_settle_for(v.cluster, v.verify),
                 notes=cluster_notes,
                 enrichment=enr_text,
-                enrichment_confidence=enr_conf,
+                enrichment_census=enr_census,
                 lineage=getattr(v, "lineage", "") or "",
                 key_markers=", ".join(v.key_markers[:4]) if v.key_markers else "",
             )
@@ -417,7 +424,7 @@ def report_html(report: ReportModel) -> str:
             bio = s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
             parts.append(f'<div style="font-size:12px;margin-top:4px"><em>Biology:</em> {_linkify(bio)}</div>')
         if s.enrichment:
-            conf = f" ({_html.escape(s.enrichment_confidence)})" if s.enrichment_confidence else ""
+            conf = f" ({_html.escape(s.enrichment_census)})" if s.enrichment_census else ""
             parts.append(
                 f'<div style="font-size:12px;margin-top:4px"><em>Programs{conf}, panel-scoped:</em> '
                 f'{_linkify(s.enrichment)}</div>'
@@ -561,7 +568,7 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
             bio = s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
             lines.append(("body", f"Biology: {bio}"))
         if s.enrichment:
-            conf = f" ({s.enrichment_confidence})" if s.enrichment_confidence else ""
+            conf = f" ({s.enrichment_census})" if s.enrichment_census else ""
             lines.append(("body", f"Programs{conf}, panel-scoped: {s.enrichment}"))
         if s.settle:
             lines.append(("body", f"What would settle it: {s.settle}"))
@@ -717,12 +724,12 @@ def default_cluster_summary(s: ClusterSection) -> str:
     paras = [ident]
 
     if s.enrichment:
-        conf = f" ({s.enrichment_confidence} enrichment)" if s.enrichment_confidence else ""
+        conf = f" ({s.enrichment_census})" if s.enrichment_census else ""
         paras.append(
             f"Programs — enriched gene sets{conf}, panel-scoped (measured only over the "
             f"set genes on the panel, not genome-wide): {s.enrichment}"
         )
-    elif s.enrichment_confidence:
+    elif s.enrichment_census:
         paras.append("Programs — no gene-set program clears the enrichment gate for this cluster.")
 
     if s.settle:

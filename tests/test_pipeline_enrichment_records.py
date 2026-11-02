@@ -3,14 +3,15 @@
 ``stages/enrichment.py`` now runs BOTH engines on every build. The v1 engine still
 writes ``interp/enrichment/`` and ``interp/enrichment.csv``; the v2 stack
 (``platforms/tidy`` -> ``methods/jazzpanda_cgst`` -> ``workflows/enrichment`` ->
-``core/record``) writes ``interp/records/characterisation/``. The two disagree about
-``panel_hits``, deliberately and measurably, and that disagreement is why the engine
-was not swapped -- so this file pins three things:
+``core/record``) writes ``interp/records/characterisation/``. The two used to disagree
+about ``panel_hits`` -- v1 read the result's own ``n_overlap``, v2 counted the
+capability frames -- and they no longer do, because v1 was moved onto the frame count.
+So this file pins three things:
 
-* the v1 bytes did not move (a swap would move a committed CSV and the golden hash);
+* the v1 view on disk matches what the engine produces today, byte for byte;
 * a v2 record exists for **every** unit and carries no band (no label space);
-* the divergence report states the measured counts, so the cutover's go/no-go is a
-  number on stdout rather than something a reader has to go and compute.
+* the divergence report reads **zero**, which is what keeps two code paths over one
+  file from drifting apart again without anyone noticing.
 
 **Every unit, never one.** The checks below are over all nine demo clusters for the
 reason ``test_pipeline_records`` gives: a one-unit version of a check like this
@@ -41,17 +42,13 @@ pytestmark = pytest.mark.skipif(
     ),
 )
 
-#: The divergence on the committed demo result, measured. v1 reads ``n_overlap``;
-#: ``jazzpanda_cgst._in_frame`` counts ``genes_tested`` against the panel frame AND
-#: the detectability frame, so the 49 of 280 genes with no usable spatial signal stop
-#: counting toward a set's footprint. One undetectable gene in
-#: HALLMARK_INTERFERON_GAMMA_RESPONSE (10/200 -> 9/200) crosses the 5% demotion
-#: threshold and moves the band on three units.
-EXPECTED_ROWS = "panel_hits differs on 35 of 70 (unit, set) rows"
-EXPECTED_BANDS = (
-    "the v1 band would move on 3 of 9 units "
-    "(c3 Medium-High->Medium; c6 Very High->High; c7 High->Medium-High)"
-)
+#: The divergence on the committed demo result, now CLOSED. v1 used to read
+#: ``n_overlap``; it now counts ``genes_tested`` against every gene frame through the
+#: same ``jazzpanda_cgst._in_frame`` the v2 method uses, so the 49 of 280 genes with
+#: no usable spatial signal no longer count toward a set's footprint in either engine.
+#: Zero is therefore the only acceptable reading, and it is pinned as a string so a
+#: reintroduced disagreement cannot pass as a smaller number.
+EXPECTED_ROWS = "panel_hits differs on 0 of 70 (unit, set) rows"
 
 
 @pytest.fixture(scope="module")
@@ -120,16 +117,19 @@ def test_the_record_does_not_claim_the_programs_were_never_measured(built) -> No
             f"{unit}: no gene-set capability frame in the reading"
 
 
-def test_the_divergence_between_the_engines_is_printed_with_its_counts(built) -> None:
-    """The go/no-go evidence, on stdout, every build.
+def test_the_two_engines_agree_about_the_measurement(built) -> None:
+    """Zero divergence, on stdout, every build.
 
-    Pinned to exact counts on purpose. If these move, either the capability frames
-    changed or the committed result did, and both are interpretation changes that
-    must not pass quietly -- the same failure shape as a band moving under a silent
-    row re-ordering.
+    This used to measure a real gap (35 of 70 rows, the band moving on c3/c6/c7) and
+    was the go/no-go evidence for a cutover. The cutover happened in the arithmetic:
+    ``agent/enrichment`` counts the capability frames now. So the check inverted --
+    it is no longer measuring how far apart two engines are, it is what stops them
+    drifting apart again, which two code paths reading one file silently will.
+
+    Pinned to the exact sentence on purpose: a reintroduced disagreement must not be
+    able to pass as a smaller number nobody read.
     """
     _, printed = built
     assert EXPECTED_ROWS in printed, printed
-    assert EXPECTED_BANDS in printed, printed
     assert "0 of those cross the panel-hit floor" in printed, printed
-    assert "The v1 view on disk is unchanged" in printed
+    assert "Zero is the expected reading" in printed

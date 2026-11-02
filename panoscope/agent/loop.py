@@ -262,23 +262,45 @@ def _global_interpretation_lines() -> str:
     scoped to a single cluster — the biologist can ask relational questions ("how
     does this sit next to c4?") and the agent keeps the annotation coherent.
     Cached PER STUDY (verdicts are static within a study, but not across two).
-    Falls back to the key on any error.
+
+    The bands come from ``pipeline.v1_verdicts`` — the SAME projection that writes
+    ``interp/clusters/<unit>.json`` — so the band the agent is told and the band in
+    the table the biologist is reading are one value. They used to come from
+    ``agent/verdict.py`` while the table came from ``core/``; the two agree on the
+    nine demo units (``tests/test_core_compat.py``) and nothing pinned them anywhere
+    else, so on the kidney study the chat could have quoted a band the table did not
+    show.
+
+    A build failure degrades to the cluster key WITHOUT a band, and says so on the
+    line. It must never degrade to a band, and a missing band must not read as a
+    confident one: the old fallback printed the cell type alone, which in a prompt
+    whose other lines all carry "— <band> confidence" is an invitation to infer one.
     """
-    from panoscope.agent import verdict as _verdict
+    from panoscope.pipeline import v1_verdicts
+
+    try:
+        built = v1_verdicts.verdicts()
+    except Exception as exc:  # pragma: no cover - loud, but never raises into chat
+        print(f"[loop] verdict build FAILED ({exc}) — prompts run without bands")
+        built = {}
 
     lines: list[str] = []
     for c in cfg.CLUSTER_ORDER:
-        meta = cfg.CLUSTER_KEY.get(c, {})
-        try:
-            v = _verdict.verdict_for_cluster(c)
-            flag = "  [VERIFY — re-check]" if v.verify else ""
-            drivers = ", ".join(v.key_markers[:3])
+        v = built.get(c)
+        if v is None:
+            meta = cfg.CLUSTER_KEY.get(c, {})
             lines.append(
-                f"  {c}: {v.cell_type} — {v.confidence} confidence{flag}"
-                f" (drivers: {drivers})"
+                f"  {c}: {meta.get('cell_type', '?')} — NO VERDICT (the "
+                f"interpretation did not build; do not state a confidence for this "
+                f"cluster)"
             )
-        except Exception:  # pragma: no cover - degrade to the bare key, never raise
-            lines.append(f"  {c}: {meta.get('cell_type', '?')}")
+            continue
+        flag = "  [VERIFY — re-check]" if v.verify else ""
+        drivers = ", ".join(v.key_markers[:3])
+        lines.append(
+            f"  {c}: {v.cell_type} — {v.confidence} confidence{flag}"
+            f" (drivers: {drivers})"
+        )
     return "\n".join(lines)
 
 
@@ -375,7 +397,11 @@ def _enrichment_context(cluster: Optional[str]) -> str:
     lines = [
         f"# ENRICHMENT CONTEXT — cluster {cluster} ({ce.cell_type.replace('_', ' ')}), "
         "jazzPanda competitive gene-set test (MSigDB Hallmark, panel-scoped)",
-        f"Enrichment confidence: {ce.confidence}{' — verify (re-check)' if ce.verify else ''}.",
+        # Per-item counts, not a band: this workflow has no label space, so a
+        # unit-level confidence here would be a figure the model could only have
+        # invented. The untestable count is the half that argues nothing.
+        f"Programs: {ce.census_line}"
+        f"{' — verify (re-check)' if ce.verify else ''}.",
     ]
     if ce.enriched:
         lines.append("Enriched programs (panel-scoped — K of N set genes on the 280-gene panel):")
@@ -1087,8 +1113,8 @@ class PanoscopeAgent:
     def _deterministic_skeptic_response(self, cluster: str) -> AgentResponse:
         """The deterministic second opinion as an AgentResponse (grounded, no network)."""
         from panoscope.agent import skeptic
-        from panoscope.agent import verdict as _vd
         from panoscope.agent.types import GroundingSidecar, Source
+        from panoscope.pipeline import v1_verdicts
 
         try:
             rep = skeptic.second_opinion(cluster)
@@ -1097,8 +1123,14 @@ class PanoscopeAgent:
 
         numbers: list[tuple[str, str, float]] = []
         markers: list[str] = []
+        # Through ``core/``, like the table and like skeptic.second_opinion above --
+        # the numbers quoted in the challenge and the numbers behind the call are
+        # then the same evidence, not two reads of it.
         try:
-            support = tuple(e for e in _vd.assess(cluster).evidence if e.role == "supports")
+            support = tuple(
+                e for e in v1_verdicts.verdict_for(cluster).evidence
+                if e.role == "supports"
+            )
         except Exception:  # noqa: BLE001
             support = ()
         for e in support[:5]:
@@ -1360,14 +1392,24 @@ def _split_reply(reply: Any) -> tuple[str, list[dict[str, Any]]]:
 def _cluster_verify_default(cluster: str) -> bool:
     """The verdict engine's verify flag for a cluster (fragile/low -> True).
 
-    Wrapped so a verdict failure never breaks a chat answer (defaults to False).
+    From ``pipeline.v1_verdicts`` — the same projection that writes the flag into
+    ``interp/clusters/<unit>.json`` and the ``verify`` column of ``verdicts.csv``.
+    A chat answer and the table could otherwise carry different re-check flags for
+    the same call.
+
+    Wrapped so a verdict failure never breaks a chat answer, but it fails CLOSED.
+    It used to return ``False`` — "no re-check needed" — which is an answer, and
+    the wrong one: the rubric was not evaluated at all. The honest degradation of a
+    deterministic flag nobody could compute is "a human should look".
     """
     try:
-        from panoscope.agent.verdict import verdict_for_cluster
+        from panoscope.pipeline import v1_verdicts
 
-        return bool(verdict_for_cluster(cluster).verify)
-    except Exception:  # pragma: no cover
-        return False
+        return bool(v1_verdicts.verdict_for(cluster).verify)
+    except Exception as exc:  # pragma: no cover
+        print(f"[loop] verify rubric UNAVAILABLE for {cluster} ({exc}) — "
+              f"failing closed to verify=True")
+        return True
 
 
 # --------------------------------------------------------------------------- #

@@ -42,6 +42,23 @@ ClusteringMode = Literal["joint", "independent", "integrated"]
 CLUSTERING_MODES: Final[tuple[str, ...]] = ("joint", "independent", "integrated")
 """The closed vocabulary ``PlatformAdapter.clustering_mode`` may return."""
 
+class UndeclaredSamples(UndeclaredClustering):
+    """The same blocker, hit one level earlier: the sample LIST is undeclared.
+
+    ``declared_clustering`` can only ask "more than one sample?" once something has
+    answered "which samples?". When a store has per-sample inputs on disk and neither
+    its manifest nor its cell table names them, an adapter that answers "one, named
+    after the store" does not produce a gap — it produces the wrong answer, and a
+    confidently single-sample store takes the ``"independent"`` tautology below and
+    stamps a clustering mode that was never declared onto every record.
+
+    A subclass of ``UndeclaredClustering`` rather than a sibling, because every caller
+    that already renders the fourth blocker as a checklist line (``agent/intake.py``,
+    ``XeniumAdapter.validate``) must render this one the same way. A new exception
+    type would have walked straight past those handlers as a traceback.
+    """
+
+
 _CHUNK: Final[int] = 1 << 20
 
 

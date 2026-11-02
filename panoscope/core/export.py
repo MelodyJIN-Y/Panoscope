@@ -46,17 +46,28 @@ formatting choice as if it were an inference.
 ``enrichment.py`` through these profiles is the method refactor (IMPLEMENTATION.md
 §10), a later task with a visible surface.
 
-**One thing to flag before it is rediscovered as a bug.** The characterisation
-profile's last two columns are ``cluster_confidence`` and ``cluster_verify``. A band
-on a characterisation row is exactly the shape the no-band rule exists to catch --
-there is no label space for a pathway finding, so a unit-level band over it is
-undefined, not merely unhelpful. It is defensible here only because it is the *parent
-cluster assignment's* band riding along on the row, not a band on the pathway
-finding; it answers "how sure are we this is a Tumor cluster", not "how sure are we
-this pathway is running". It is reproduced because it is persisted in a committed CSV
-and rendered as a pill at ``ui/enrichment_table.py:174``. IMPLEMENTATION.md §10 deletes
-``cluster_confidence`` with the method refactor and keeps ``cluster_verify``, since
-"a human should look" is well-defined without a label space.
+**``cluster_confidence`` is gone, and this is the deletion §10 sequenced.** The
+characterisation profile used to end with ``cluster_confidence`` and
+``cluster_verify``. A band on a characterisation row is exactly the shape the no-band
+rule exists to catch -- there is no label space for a pathway finding, so a unit-level
+band over it is undefined, not merely unhelpful. The defence previously written here
+was that it is the *parent cluster assignment's* band riding along on the row; that
+defence does not survive contact with the file, because the column is named
+``cluster_confidence`` on a row whose other thirteen cells are about a gene set, and
+downstream R reading it beside ``gene_set`` and ``tier`` reads "how sure are we this
+pathway is running". A column cannot carry a caveat.
+
+Three count columns replace it -- ``cluster_n_supported``, ``cluster_n_suggestive``,
+``cluster_n_untestable`` -- which is the header IMPLEMENTATION.md §10 specifies for a
+task kind with no label space, and is strictly more informative than the band it
+replaces: the untestable count is the only thing in the file that says how many of
+this cluster's scored programs the panel could not ask the question of at all, since
+those rows are not exported. ``cluster_verify`` stays, since "a human should look" is
+well-defined without a label space.
+
+All four come from ``agent/enrichment.ClusterEnrichment``: ``.census`` for the counts,
+``.verify`` for the flag. The counts are properties over the row lists rather than
+stored fields, so a count here cannot disagree with the rows beneath it.
 
 Row shapes differ between profiles and must. An assignment row is one unit; a
 characterisation row is one *item*, so the unit it belongs to has to travel with it
@@ -163,8 +174,11 @@ CHARACTERISATION_COLUMNS: tuple[Column, ...] = (
     Column("panel_coverage", lambda r: f"{r[1].panel_coverage:.4f}"),
     Column("n_leading_edge", lambda r: str(r[1].n_leading_edge)),
     Column("leading_edge", lambda r: ";".join(r[1].leading_edge)),
-    # The parent ASSIGNMENT's band, not a band on the finding. See the docstring.
-    Column("cluster_confidence", lambda r: r[0].confidence),
+    # The census: per-item counts, the header a task kind with no label space
+    # permits. These replace cluster_confidence -- see the docstring.
+    Column("cluster_n_supported", lambda r: str(r[0].census[0])),
+    Column("cluster_n_suggestive", lambda r: str(r[0].census[1])),
+    Column("cluster_n_untestable", lambda r: str(r[0].census[2])),
     Column("cluster_verify", lambda r: _flag(r[0].verify)),
 )
 

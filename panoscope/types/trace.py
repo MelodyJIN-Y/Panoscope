@@ -90,6 +90,10 @@ RULES: dict[str, Rule] = _rules(
          "fragile cluster (<=2 markers) cannot read above Medium-High"),
     Rule("band:fragile_floor", "confidence",
          "fragile cluster with a canonical driver stays at or above Medium"),
+    Rule("band:demote_canonical_coverage", "confidence",
+         "too few of the label's canonical markers were ever in frame for the "
+         "measurement to speak to -- K of N below the declared floor; -1 band, and "
+         "the rubric also sets verify. A fact about the panel, not about the unit"),
     # -- step: rival (panoscope.core.rival.rival_test) --
     # Three ids rather than one with three outcomes, for the reason measure's four
     # states have four: the UI and the grounding tests match on the id, and a single

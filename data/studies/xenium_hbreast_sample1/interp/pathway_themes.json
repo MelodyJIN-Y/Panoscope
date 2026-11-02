@@ -207,7 +207,7 @@
         "Androgen Response",
         "G2M Checkpoint"
       ],
-      "confidence": "High",
+      "census_line": "2 supported · 0 suggestive · 1 untestable",
       "verify": false
     },
     {
@@ -219,7 +219,7 @@
         "Angiogenesis",
         "Interferon Gamma Response"
       ],
-      "confidence": "High",
+      "census_line": "4 supported · 0 suggestive · 2 untestable",
       "verify": true
     },
     {
@@ -231,8 +231,8 @@
         "P53 Pathway",
         "Glycolysis"
       ],
-      "confidence": "Medium-High",
-      "verify": false
+      "census_line": "6 supported · 0 suggestive · 2 untestable",
+      "verify": true
     },
     {
       "cluster": "c4",
@@ -243,7 +243,7 @@
         "Allograft Rejection",
         "Mitotic Spindle"
       ],
-      "confidence": "Medium-High",
+      "census_line": "10 supported · 0 suggestive · 0 untestable",
       "verify": true
     },
     {
@@ -255,7 +255,7 @@
         "P53 Pathway",
         "Glycolysis"
       ],
-      "confidence": "High",
+      "census_line": "8 supported · 0 suggestive · 2 untestable",
       "verify": false
     },
     {
@@ -267,8 +267,8 @@
         "Pi3K Akt Mtor Signaling",
         "Hypoxia"
       ],
-      "confidence": "Very High",
-      "verify": false
+      "census_line": "8 supported · 0 suggestive · 2 untestable",
+      "verify": true
     },
     {
       "cluster": "c7",
@@ -279,8 +279,8 @@
         "P53 Pathway",
         "Uv Response Dn"
       ],
-      "confidence": "High",
-      "verify": false
+      "census_line": "5 supported · 0 suggestive · 1 untestable",
+      "verify": true
     },
     {
       "cluster": "c8",
@@ -291,7 +291,7 @@
         "Inflammatory Response",
         "Glycolysis"
       ],
-      "confidence": "Medium",
+      "census_line": "7 supported · 0 suggestive · 3 untestable",
       "verify": true
     },
     {
@@ -303,7 +303,7 @@
         "Allograft Rejection",
         "Heme Metabolism"
       ],
-      "confidence": "Low",
+      "census_line": "3 supported · 0 suggestive · 4 untestable",
       "verify": true
     }
   ]

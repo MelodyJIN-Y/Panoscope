@@ -11,8 +11,8 @@
       "p_value": 0.0,
       "q_value": 0.0,
       "set_size_full": 100,
-      "panel_hits": 6,
-      "panel_coverage": 0.06,
+      "panel_hits": 5,
+      "panel_coverage": 0.05,
       "leading_edge": [
         "ALDH1A3",
         "CCND1",
@@ -23,7 +23,7 @@
       "n_leading_edge": 5,
       "gc_corr": 0.728058117177178,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 6 of 100 genes in HALLMARK_ANDROGEN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 100 genes in HALLMARK_ANDROGEN_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [],
       "source": "jazzpanda:enrichment"
     },
@@ -48,7 +48,7 @@
       "n_leading_edge": 6,
       "gc_corr": 0.829300175595044,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_G2M_CHECKPOINT are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_G2M_CHECKPOINT were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage"
       ],
@@ -65,8 +65,8 @@
       "p_value": 0.0,
       "q_value": 0.0,
       "set_size_full": 100,
-      "panel_hits": 6,
-      "panel_coverage": 0.06,
+      "panel_hits": 5,
+      "panel_coverage": 0.05,
       "leading_edge": [
         "ALDH1A3",
         "CCND1",
@@ -77,7 +77,7 @@
       "n_leading_edge": 5,
       "gc_corr": 0.728058117177178,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 6 of 100 genes in HALLMARK_ANDROGEN_RESPONSE are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 5 of 100 genes in HALLMARK_ANDROGEN_RESPONSE were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [],
       "source": "jazzpanda:enrichment"
     },
@@ -102,7 +102,7 @@
       "n_leading_edge": 6,
       "gc_corr": 0.829300175595044,
       "tier": "enriched",
-      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_G2M_CHECKPOINT are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 6 of 200 genes in HALLMARK_G2M_CHECKPOINT were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage"
       ],
@@ -125,7 +125,7 @@
       "n_leading_edge": 2,
       "gc_corr": 0.880164435198625,
       "tier": "untestable",
-      "panel_scope_caveat": "Panel-scoped: only 2 of 158 genes in HALLMARK_FATTY_ACID_METABOLISM are on this 280-gene panel; over-representation among measured genes, not genome-wide.",
+      "panel_scope_caveat": "Panel-scoped: only 2 of 158 genes in HALLMARK_FATTY_ACID_METABOLISM were usably measured on this 280-gene panel (on-panel and producing spatial signal); over-representation among measured genes, not genome-wide.",
       "caveats": [
         "very low panel coverage",
         "tiny leading edge"
@@ -134,12 +134,9 @@
     }
   ],
   "top_theme": "HALLMARK_ANDROGEN_RESPONSE",
-  "confidence": "High",
-  "confidence_score": 0.85,
   "verify": false,
-  "demotions": [],
   "source_trace": [
-    "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=6/100 LE=5",
+    "HALLMARK_ANDROGEN_RESPONSE: score=9.46 q=0.0 K=5/100 LE=5",
     "HALLMARK_G2M_CHECKPOINT: score=6.43 q=1.14914355808793e-09 K=6/200 LE=6",
     "HALLMARK_FATTY_ACID_METABOLISM: score=5.06 q=2.60195926963617e-06 K=2/158 LE=2"
   ]

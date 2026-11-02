@@ -3,21 +3,30 @@
 
 Turns a per-cluster gene-set enrichment RESULT into a grounded ``ClusterEnrichment``
 per cluster: the enriched pathways, a two-tier split (``enriched`` vs
-``suggestive · verify``), a confidence, and a ``verify`` flag — every value tracing
-to the enrichment result or the panel. No network, no LLM.
+``suggestive · verify``), a per-item census, and a ``verify`` flag — every value
+tracing to the enrichment result or to the study's capability frames. No network,
+no LLM.
 
 The method wired here is the biologist's own jazzPanda competitive gene-set test
 (``_load_jazzpanda_rows`` parses its result CSV). The schema keeps a ``score_kind``
 so the record stays self-describing, but this workflow interprets one method.
 
+**No band.** This workflow answers *what is RUNNING here*, which has no label space,
+so a unit-level confidence over a cluster is undefined rather than merely unhelpful.
+``ClusterEnrichment`` carries no ``confidence``/``confidence_score``/``demotions``
+and this module computes none. The header is ``ClusterEnrichment.census_line`` —
+*7 supported · 3 suggestive · 12 untestable*. ``verify`` stays, because "a human
+should look" is well-defined without a label space, and the deterministic rubric in
+:func:`_cluster_enrichment` is what decides it.
+
 Confident floor (enrichment edition):
 - Never invent a pathway, a score, a q-value, or a leading-edge gene — all come
   from the result.
 - **Panel-coverage rule:** a Hallmark set has ~200 genes but only ``panel_hits``
-  are on this ~280-gene panel; enrichment is only measured over those. Every row
+  were usably measured here; enrichment is only measured over those. Every row
   carries ``panel_hits``/``panel_coverage`` + a deterministic "panel-scoped, not
-  genome-wide" caveat. A set with too few panel genes, or a tiny leading edge, is
-  ``untestable`` and never surfaced.
+  genome-wide" caveat. A set with too few measured genes, or a tiny leading edge,
+  is ``untestable`` and never surfaced.
 - **Two tiers:** ``enriched`` (q < ENRICH_Q_MAX, leading edge >= MIN_LEADING_EDGE,
   panel_hits >= MIN_PANEL_HITS); ``suggestive`` (same gate but q in
   [ENRICH_Q_MAX, SUGGESTIVE_Q_MAX]) carries ``verify = TRUE``; everything else is
@@ -27,12 +36,13 @@ Confident floor (enrichment edition):
 from __future__ import annotations
 
 import csv
-from functools import lru_cache
 
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
+from panoscope.methods.jazzpanda_cgst import _in_frame, _split
+from panoscope.types.subject import EntityKind
 
 # The dataset's jazzPanda enrichment result: prefer the per-dataset tree
 # (inputs/enrichment.csv), else the bundled legacy demo file. Absent -> no
@@ -59,19 +69,35 @@ _JZ_COLLECTION = "MSigDB_Hallmark"
 
 
 # --------------------------------------------------------------------------- #
-# Panel size (the enrichment universe) — read once from the panel file.
+# Panel size (the enrichment universe) — read from the panel file, per study.
 # --------------------------------------------------------------------------- #
-@lru_cache(maxsize=1)
+@data._per_study
 def _panel_size() -> int:
+    """The analysed panel's gene count, derived and never asserted.
+
+    ``_per_study`` rather than a bare ``lru_cache(maxsize=1)``: a zero-argument
+    reader keyed on the empty tuple has ONE slot shared across studies, so opening
+    the kidney study after the demo served the demo's 280 into every caveat sentence
+    the kidney study wrote. A wrong panel size is not a cosmetic staleness — it is
+    the denominator of the panel-coverage rule.
+    """
     return int(len(data.load_panel()))
 
 
 def _panel_scope_caveat(gene_set: str, panel_hits: int, set_size_full: int) -> str:
-    """The mandatory, deterministic panel-scoped caveat (not model-generated)."""
+    """The mandatory, deterministic panel-scoped caveat (not model-generated).
+
+    Says *usably measured*, not *on the panel*. ``panel_hits`` is now the count
+    every gene capability frame admits, so a set gene that is on the panel but
+    produced no usable spatial signal is not in it; calling that number "on this
+    panel" would describe the panel design where the sentence is reporting what this
+    section actually measured.
+    """
     return (
         f"Panel-scoped: only {panel_hits} of {set_size_full} genes in {gene_set} "
-        f"are on this {_panel_size()}-gene panel; over-representation among measured "
-        f"genes, not genome-wide."
+        f"were usably measured on this {_panel_size()}-gene panel (on-panel and "
+        f"producing spatial signal); over-representation among measured genes, not "
+        f"genome-wide."
     )
 
 
@@ -84,13 +110,64 @@ def _split_genes(cell: str) -> tuple[str, ...]:
     return tuple(g.strip() for g in str(cell).split(",") if g.strip())
 
 
-@lru_cache(maxsize=1)
+#: The key :func:`_load_jazzpanda_rows` installs on every row, and the ONLY panel-hit
+#: count anything downstream is allowed to read. Deliberately not ``n_overlap``: a
+#: distinct name means the result's own count can never be mistaken for the
+#: frame-checked one by a reader skimming for a familiar column.
+PANEL_HITS_IN_FRAME: str = "panel_hits_in_frame"
+
+
+@data._per_study
+def _gene_world():
+    """The study's capability frames, as a ``MeasuredWorld``. Declared, not counted here.
+
+    Imported inside the function for the reason ``agent/discriminate.py`` gives: the
+    adapter pulls pandas and the ``agent -> platforms`` edge is kept narrow. There is
+    no platform registry yet, so the Xenium adapter is named directly — the same gap
+    ``pipeline/stages/enrichment.py`` flags.
+    """
+    from panoscope.platforms.xenium import XeniumAdapter
+    from panoscope.types.measured import MeasuredWorld
+
+    study = cfg.current_study()
+    world = MeasuredWorld(tuple(XeniumAdapter().frames(study)))
+    if not world.for_kind(EntityKind.GENE):
+        raise ValueError(
+            f"[enrichment] study {study.id!r} declares no gene capability frame, so "
+            "no set's panel footprint can be counted. Every panel hit would come "
+            "back 0 and every program would read as untestable — a study-wide "
+            "refusal with a false reason behind it. Fix inputs/panel.parquet (and "
+            "inputs/markers_top.csv for detectability) before interpreting."
+        )
+    return world
+
+
+@data._per_study
 def _load_jazzpanda_rows() -> tuple[dict, ...]:
     """Parse the jazzPanda enrichment result CSV into per-(cluster, set) rows.
 
-    Columns consumed: gene_set, geneset_size, n_overlap, test_statistic, p_value,
-    p_adj_bh, gc_corr, n_sig_features, genes_selected, cluster, anno. The honest
-    driving genes are ``genes_selected`` (the lasso sig_features), NOT n_overlap.
+    Columns consumed: gene_set, geneset_size, test_statistic, p_value, p_adj_bh,
+    gc_corr, genes_tested, genes_selected, cluster. The honest driving genes are
+    ``genes_selected`` (the lasso sig_features).
+
+    **Why ``n_overlap`` is not read.** The result carries the method's own count of a
+    set's genes on the panel. Taking it would credit a set with genes the measurement
+    never usably saw — on the demo study, the 49 of 280 panel genes that yield no
+    usable spatial signal — which is the panel-absence rule violated in the
+    arithmetic rather than in a sentence. Capability is declared by the apparatus
+    before the result is read, so every row's footprint is recounted here against
+    EVERY gene frame the study declares, and the count is installed under
+    :data:`PANEL_HITS_IN_FRAME`. This is the one place raw rows enter, so there is
+    one place the frame is applied.
+
+    ``_in_frame`` and ``_split`` are imported from ``methods/jazzpanda_cgst`` rather
+    than re-implemented. The two engines are compared against each other on every
+    build (``pipeline/stages/enrichment._report_divergence``), and two copies of the
+    counting rule is exactly how that comparison would come to prove nothing.
+
+    Per study, not ``lru_cache(maxsize=1)``: the rows now depend on the study's
+    frames as well as on its result file, and one shared slot served the first
+    study's counts to the second.
     """
     path = _jz_enrichment_csv()
     if not path.exists():
@@ -98,8 +175,19 @@ def _load_jazzpanda_rows() -> tuple[dict, ...]:
             f"[enrichment] jazzPanda enrichment result missing: {path}. "
             f"Place the per-cluster top-set result there."
         )
+    world = _gene_world()
     with open(path, newline="", encoding="utf-8") as fh:
-        return tuple(csv.DictReader(fh))
+        rows = [dict(r) for r in csv.DictReader(fh)]
+    for row in rows:
+        if row.get("genes_tested") is None:
+            raise KeyError(
+                f"[enrichment] {path} has no 'genes_tested' column. Without the "
+                "set's tested symbols the panel footprint cannot be checked against "
+                "the capability frames, and falling back to 'n_overlap' would take "
+                "the method's word for its own capability."
+            )
+        row[PANEL_HITS_IN_FRAME] = _in_frame(_split(row["genes_tested"]), world)
+    return tuple(rows)
 
 
 def _to_float(v) -> float | None:
@@ -114,7 +202,15 @@ def _pathway_from_jz_row(row: dict) -> PathwayEvidence:
     """Build a grounded PathwayEvidence from one jazzPanda result row."""
     gene_set = str(row["gene_set"]).strip()
     set_size_full = int(float(row["geneset_size"]))
-    panel_hits = int(float(row["n_overlap"]))           # set genes on panel (tested)
+    if PANEL_HITS_IN_FRAME not in row:
+        raise KeyError(
+            f"[enrichment] row for {gene_set!r} carries no {PANEL_HITS_IN_FRAME!r}. "
+            "That key is installed by _load_jazzpanda_rows after checking the set's "
+            "tested genes against the study's capability frames; a row that skipped "
+            "it has an unaudited footprint, and reading 'n_overlap' instead would "
+            "silently restore the count this change exists to replace."
+        )
+    panel_hits = int(row[PANEL_HITS_IN_FRAME])   # set genes EVERY gene frame admits
     leading_edge = _split_genes(row.get("genes_selected", ""))
     n_leading_edge = len(leading_edge)
     score = _to_float(row.get("test_statistic")) or 0.0
@@ -162,29 +258,15 @@ def _pathway_from_jz_row(row: dict) -> PathwayEvidence:
 
 
 # --------------------------------------------------------------------------- #
-# The per-cluster verdict (band + two-tier + verify), method-agnostic.
+# The per-cluster call (two-tier + census + verify), method-agnostic.
+#
+# There is deliberately no band ladder here. The one that stood in this place
+# ("_band_cluster": band_for_enrichment on the top set's score, demoted for low
+# coverage or a tiny leading edge) was a unit-level confidence on a CHARACTERISATION,
+# which has no label space — the category error IMPLEMENTATION.md §10 sequenced for
+# deletion and ``methods/jazzpanda_cgst.rubric`` already refuses to produce. The
+# per-item counts on ``ClusterEnrichment.census_line`` replace it.
 # --------------------------------------------------------------------------- #
-def _band_cluster(top: PathwayEvidence | None, method: str) -> tuple[str, tuple[str, ...]]:
-    """Confidence band from the top enriched set's score, with demotions.
-
-    Mirrors verdict._compute_band: base band on the score, then demote one band
-    each for very low panel coverage or a tiny leading edge. No enriched set -> Low.
-    """
-    if top is None:
-        return "Low", ()
-    band = cfg.band_for_enrichment(top.score, method)
-    order = ("Very High", "High", "Medium-High", "Medium", "Low")
-    idx = order.index(band)
-    demotions: list[str] = []
-    if top.panel_coverage < 0.05:
-        idx = min(idx + 1, len(order) - 1)
-        demotions.append("top set very low panel coverage -> -1 band")
-    if top.n_leading_edge < 5:
-        idx = min(idx + 1, len(order) - 1)
-        demotions.append("top set tiny leading edge -> -1 band")
-    return order[idx], tuple(demotions)
-
-
 def _cluster_enrichment(
     cluster: str, pathways: tuple[PathwayEvidence, ...], method: str
 ) -> ClusterEnrichment:
@@ -197,8 +279,9 @@ def _cluster_enrichment(
         sorted((p for p in pathways if p.tier == "suggestive"), key=lambda p: p.score, reverse=True)
     )
     top = enriched[0] if enriched else None
-    confidence, demotions = _band_cluster(top, method)
-    # verify when nothing clears the enriched bar, or the top call is shaky.
+    # The deterministic verify rubric. Unchanged by the band's removal, because it
+    # never depended on one: verify when nothing clears the enriched bar, or when the
+    # top call rests on too little of its set. The model is never offered the choice.
     verify = (
         not enriched
         or (top is not None and (top.panel_coverage < 0.05 or top.n_leading_edge < cfg.MIN_LEADING_EDGE))
@@ -215,10 +298,7 @@ def _cluster_enrichment(
         suggestive=suggestive,
         all_tested=pathways,
         top_theme=top.gene_set if top else None,
-        confidence=confidence,
-        confidence_score=cfg.SCORE_MAP[confidence],
         verify=bool(verify),
-        demotions=demotions,
         source_trace=source_trace,
     )
 
@@ -230,7 +310,7 @@ def enrichment_for_cluster(cluster: str) -> ClusterEnrichment:
     """Return the jazzPanda-method enrichment verdict for one cluster.
 
     Raises KeyError for an unknown cluster id. Reads the biologist's enrichment
-    result; computes nothing new — bands + tiers the reported sets.
+    result; computes nothing new — tiers the reported sets and counts them.
     """
     if cluster not in cfg.KNOWN_CLUSTERS:
         raise KeyError(f"[enrichment] unknown cluster {cluster!r}")
@@ -248,6 +328,17 @@ def all_enrichments() -> list[ClusterEnrichment]:
 # CSV export — one row per surfaced pathway (enriched + suggestive), the
 # portable analog of verdicts.csv. `leading_edge` is ";"-joined so the cell is
 # atomic; untestable sets are not exported (they are never a surfaced call).
+#
+# **``cluster_confidence`` is gone.** It carried the unit-level band this workflow
+# has no label space for, and downstream R was reading it as though it meant "how
+# sure are we this program is running". Three count columns replace it, which is
+# strictly more informative and says the thing the band could not: how many of this
+# cluster's scored programs the panel could not test at all. ``cluster_verify``
+# stays — it is well-defined without a label space.
+#
+# ``cluster_n_untestable`` counts the sets this cluster scored that fell below a
+# floor; those rows are NOT in the file, so without this column a reader cannot tell
+# "nothing else was running" from "nothing else could be asked".
 # --------------------------------------------------------------------------- #
 ENRICHMENT_CSV_COLUMNS: tuple[str, ...] = (
     "cluster",
@@ -262,12 +353,15 @@ ENRICHMENT_CSV_COLUMNS: tuple[str, ...] = (
     "panel_coverage",
     "n_leading_edge",
     "leading_edge",
-    "cluster_confidence",
+    "cluster_n_supported",
+    "cluster_n_suggestive",
+    "cluster_n_untestable",
     "cluster_verify",
 )
 
 
 def _csv_row(ce: ClusterEnrichment, p: PathwayEvidence) -> tuple[str, ...]:
+    supported, suggestive, untestable = ce.census
     return (
         ce.cluster,
         ce.cell_type,
@@ -281,7 +375,9 @@ def _csv_row(ce: ClusterEnrichment, p: PathwayEvidence) -> tuple[str, ...]:
         f"{p.panel_coverage:.4f}",
         str(p.n_leading_edge),
         ";".join(p.leading_edge),
-        ce.confidence,
+        str(supported),
+        str(suggestive),
+        str(untestable),
         "TRUE" if ce.verify else "FALSE",
     )
 

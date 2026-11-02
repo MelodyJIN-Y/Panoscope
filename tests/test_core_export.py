@@ -93,11 +93,16 @@ def _pathway(**kw):
     return NS(**(base | kw))
 
 
+# ``census``, not ``confidence``: the band on a CHARACTERISATION is deleted, and the
+# profile's last four columns are the three per-item counts plus cluster_verify.
+# A zero untestable count and a non-zero one are both here, because untestable rows
+# are the ones NOT in the file -- an error in that column is invisible in every
+# other cell.
 _ENRICHMENT_STUBS = (
-    (NS(cluster="c1", cell_type="Tumor", confidence="High", verify=False), _pathway()),
+    (NS(cluster="c1", cell_type="Tumor", census=(7, 3, 12), verify=False), _pathway()),
     # q_value None renders as an empty cell, and an empty leading edge as an empty
     # one too -- two blanks a tuple writer and a dict writer could disagree about.
-    (NS(cluster="c2", cell_type='Stromal, "fibro"', confidence="Low", verify=True),
+    (NS(cluster="c2", cell_type='Stromal, "fibro"', census=(0, 1, 0), verify=True),
      _pathway(q_value=None, leading_edge=(), n_leading_edge=0, score=0.0,
               panel_coverage=0.0, tier="suggestive")),
 )
@@ -142,9 +147,25 @@ def test_assignment_columns_are_the_eleven_in_exact_order():
     assert len(ASSIGNMENT_COLUMNS) == 11
 
 
-def test_characterisation_columns_are_the_fourteen_in_exact_order():
+def test_characterisation_columns_are_the_sixteen_in_exact_order():
     assert PROFILES[TaskKind.CHARACTERISATION].names == E.ENRICHMENT_CSV_COLUMNS
-    assert len(CHARACTERISATION_COLUMNS) == 14
+    assert len(CHARACTERISATION_COLUMNS) == 16
+
+
+def test_the_characterisation_table_carries_no_band_column():
+    """The deleted ``cluster_confidence``, pinned by name.
+
+    A band on a characterisation row is the shape the no-band rule exists to catch,
+    and a committed CSV is where it survived longest: the Pathways page stopped
+    drawing it and downstream R went on reading it. The three count columns that
+    replace it are asserted present in the same breath, because deleting a column
+    without replacing it would leave a reader unable to tell "nothing else was
+    running" from "nothing else could be asked".
+    """
+    names = PROFILES[TaskKind.CHARACTERISATION].names
+    assert not {n for n in names if "confidence" in n or n.endswith("band")}, names
+    assert names[-4:] == ("cluster_n_supported", "cluster_n_suggestive",
+                          "cluster_n_untestable", "cluster_verify")
 
 
 def test_each_profile_keeps_the_csv_api_its_committed_file_was_written_with():

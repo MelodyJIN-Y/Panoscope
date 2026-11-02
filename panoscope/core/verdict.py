@@ -42,6 +42,16 @@ most likely to be loosened, and a transcription that silently drops the branches
 loosen it into a band change nobody reviewed. The equivalence test asserts neither
 fires on the demo study, so "unreachable" is a measured claim and not a comment.
 
+**Canonical coverage is the one modifier that is about the apparatus.** Every other
+rung reads the driver: its coefficient, its pearson, how many markers carry a number.
+``band:demote_canonical_coverage`` reads the capability frames instead -- K of N of
+the label's canonical list that a frame admitted. It exists because the rest of the
+ladder had a cliff at one: a unit with a single canonical marker on panel and the
+rest never measured took the full band with no demotion and ``verify=False``, while
+zero canonical markers was handled honestly. The curated list still supplies no
+value; it selects which measurement is asked, and the one it selects is still the
+only thing that answers.
+
 **A note on NoSig.** ``MarkerEvidence.top_cluster == "NoSig"`` has no field here, and
 should not get one: NoSig means *in the panel, tested, not assigned to this unit*,
 which is precisely ``TESTED_ABSENT``. So the NoSig branch keys on the measurement
@@ -58,7 +68,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from panoscope.types.evidence import EvidenceItem
-from panoscope.types.measured import MeasuredState
+from panoscope.types.measured import Coverage, MeasuredState
 from panoscope.types.trace import Trace, Traced, fmt_num, ref
 
 # --------------------------------------------------------------------------- #
@@ -78,6 +88,24 @@ CONFIDENCE_BANDS: dict[str, float] = {
 PROMOTE_PEARSON: float = 0.85   # strong spatial specificity on the driver -> +1 band
 LOW_PEARSON: float = 0.30       # below this a canonical marker cannot drive the call
 FRAGILE_MARKER_COUNT: int = 2   # "one or two assigned markers" -> capped, always verify
+
+#: How much of the LABEL'S canonical support the panel had to be able to ask for,
+#: as an exact integer ratio so no float epsilon decides a band. One in three: a
+#: confident call must rest on a measurement that could have tested at least a
+#: third of what the reference list says defines the label. Two thirds of a
+#: canonical list may be off-panel or undetectable and the call still stands on
+#: its own number -- below that the panel was not asking this question.
+#:
+#: Chosen inside a band verified against every study on disk: the worst demo
+#: coverage is c7 at 4/7 = 0.571 and the synthetic fixture sits at 1/6 = 0.167,
+#: so any floor strictly between those two demotes the fixture and no demo unit.
+#: 1/3 sits in the middle of that band rather than on either edge, where one new
+#: study would tip it.
+CANONICAL_COVERAGE_FLOOR: tuple[int, int] = (1, 3)
+
+#: ``Coverage.what`` for the canonical-support count. One string, because the
+#: interface clicks back to it.
+CANONICAL_COVERAGE_WHAT: str = "canonical markers in frame"
 
 LOW_BAND: str = "Low"
 FRAGILE_CAP_BAND: str = "Medium-High"
@@ -113,6 +141,7 @@ class Verdict:
     demotions: tuple[str, ...]
     driver: EvidenceItem | None
     fragile: bool
+    coverage: Coverage | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -140,6 +169,69 @@ def _demote(band: str) -> str:
 
 def _promote(band: str) -> str:
     return BANDS[max(BANDS.index(band) - 1, 0)]
+
+
+def _coverage_floor(n: int) -> int:
+    """Smallest K that clears :data:`CANONICAL_COVERAGE_FLOOR` out of ``n``.
+
+    ``ceil(n * num / den)`` in integer arithmetic. Not ``math.ceil(n * 1 / 3)``:
+    that is a float comparison deciding a band, and ``0.1 * 3 > 0.3`` is how a
+    tuned threshold silently moves a study by one rung.
+    """
+    num, den = CANONICAL_COVERAGE_FLOOR
+    return -(-n * num // den)
+
+
+def _canonical_coverage(items: tuple[EvidenceItem, ...],
+                        canonical: frozenset[str]) -> Coverage:
+    """K of N canonical markers the measurement was CAPABLE of reporting.
+
+    N is the label's whole curated list; K is how many of them a capability frame
+    admitted. ``Coverage`` is the one home for every K-of-N in the system, so this
+    is counted, never re-invented.
+
+    **Derived from the items rather than taken as an argument, on purpose.** An
+    optional ``coverage=`` parameter is a soft default: every caller that forgot it
+    would silently get the old, uncapped band back -- and ``workflows/marker.py``
+    and ``pipeline/records.py`` are different callers. Deriving it means there is no
+    seam to forget.
+
+    **What "in frame" means here.** ``measured.testable`` -- OBSERVED or
+    TESTED_ABSENT. ``UNDERPOWERED`` is deliberately NOT counted: the whole rule is
+    that a negative is evidence only where a positive was possible, and
+    underpowered says it was not. A canonical marker with no item at all is not in
+    frame either; that is the off-panel case, which is the common one -- an
+    off-panel gene never appears in a method's table, so its absence from ``items``
+    IS the panel refusing it.
+
+    The direction of the residual risk is stated so it stays a decision: a caller
+    that hands over only the rows a unit was assigned under-counts K and demotes
+    further than it should. That errs toward "look again", never toward a
+    confident call the panel could not support.
+    """
+    in_frame = {
+        e.id.upper()
+        for i in items if i.measured.testable
+        for e in i.subject.entities()
+    }
+    n = len(canonical)
+    return Coverage(CANONICAL_COVERAGE_WHAT, len(canonical & in_frame), n,
+                    _coverage_floor(n))
+
+
+def _v1_coverage_sentence(cov: Coverage) -> str:
+    """The coverage demote in the English ``agent/verdict.py`` writes to disk.
+
+    Underscored because ``tests/test_contracts.py`` requires every PUBLIC function
+    in ``core/`` to return ``Traced`` -- this one is a renderer, not a step, and has
+    no decision to record. ``core/compat.py`` imports it anyway, exactly as it
+    already imports ``_drivers``: it renders the v1 record from registered rule ids
+    and must not hold a second copy of this string. ``agent/verdict.py`` DOES hold
+    a second copy, only because ``core/`` may not be imported from under it, and
+    ``tests/test_core_verdict.py`` fails the moment the two diverge.
+    """
+    return (f"canonical coverage {cov.k}/{cov.n} below floor {cov.floor} "
+            f"-> -1 band")
 
 
 def _corroborator(item: EvidenceItem, name: str) -> float | None:
@@ -177,16 +269,23 @@ def _drivers(items: tuple[EvidenceItem, ...],
     )
 
 
-def _verify(band: str, driver: EvidenceItem | None, fragile: bool) -> bool:
-    """The rubric. Four conditions, no argument through which a caller states a wish.
+def _verify(band: str, driver: EvidenceItem | None, fragile: bool,
+            coverage: Coverage) -> bool:
+    """The rubric. Five conditions, no argument through which a caller states a wish.
 
     Private and computed, never passed in: ``verify`` is the flag that says a human
     must look again, so a layer that could set it could also clear it. The band being
-    Low is one condition of four -- a confident-looking band standing on two markers
+    Low is one condition of five -- a confident-looking band standing on two markers
     still asks for a second pair of eyes.
+
+    Thin canonical coverage is the fifth, and it is the reason the demote alone was
+    not enough. One rung off a Very High leaves High, which still reads as a settled
+    call; "re-check this" is what the rubric owes a call the panel could barely ask
+    for. ``coverage`` is a measured K-of-N, not a preference: no caller supplies it.
     """
     nosig = driver is not None and not driver.measured.carries_number
-    return band == LOW_BAND or nosig or fragile or driver is None
+    return (band == LOW_BAND or nosig or fragile or driver is None
+            or (bool(coverage.n) and not coverage.ok))
 
 
 # --------------------------------------------------------------------------- #
@@ -216,6 +315,11 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
     assigned = tuple(i for i in items if i.measured.carries_number)
     fragile = len(assigned) <= FRAGILE_MARKER_COUNT
 
+    # Canonical COVERAGE: how much of the label's curated support the measurement
+    # could have spoken to at all. Reference data selecting what gets asked, never
+    # supplying a value -- the number below is still read off the driver alone.
+    cov = _canonical_coverage(items, canon)
+
     drivers = _drivers(items, canon)
     driver = drivers[0] if drivers else None
 
@@ -240,9 +344,15 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
             because = (f"{len(assigned)} marker(s) carry a number, none canonical",)
             refs = ()
         t.note(rule, LOW_BAND, because, refs)
+        # No second demote here: the band is already at the floor, and recording a
+        # coverage demote that moved nothing would read as a rung the call lost.
+        # The Coverage still travels, because "nothing canonical was reported" and
+        # "almost nothing canonical was measurABLE" are different answers and the
+        # interface has to be able to say which.
         return t.done(Verdict(band=LOW_BAND, basis=basis,
-                              verify=_verify(LOW_BAND, None, fragile),
-                              demotions=(rule,), driver=None, fragile=fragile))
+                              verify=_verify(LOW_BAND, None, fragile, cov),
+                              demotions=(rule,), driver=None, fragile=fragile,
+                              coverage=cov))
 
     band = _band_for_coef(driver.statistic)
     basis = "glm_coef direct"
@@ -278,6 +388,19 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
             demotions.append(rule)
             t.note(rule, band, (f"driver carries {flag}",), (ref(driver.subject),))
 
+    # Then the condition that is about the APPARATUS rather than about the driver:
+    # too little of the label's canonical list was ever in frame. One rung, like
+    # every other demote. It is placed LAST among the rungs and before the fragile
+    # cap/floor, which is not cosmetic: the band is order-independent (each rung is
+    # one step) but the record is not, and putting it ahead of the promote would let
+    # a high-pearson driver cancel it out -- the apparatus demote undone by a
+    # property of the one marker that survived.
+    if cov.n and not cov.ok:
+        band = _demote(band)
+        demotions.append("band:demote_canonical_coverage")
+        t.note("band:demote_canonical_coverage", band, (str(cov),),
+               (ref(driver.subject),))
+
     if fragile:
         basis = "glm_coef direct (fragile cap)"
         if BANDS.index(band) < BANDS.index(FRAGILE_CAP_BAND):
@@ -299,6 +422,7 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str]) -> Traced
 
     return t.done(Verdict(
         band=band, basis=basis,
-        verify=_verify(band, driver, fragile),
+        verify=_verify(band, driver, fragile, cov),
         demotions=tuple(demotions), driver=driver, fragile=fragile,
+        coverage=cov,
     ))

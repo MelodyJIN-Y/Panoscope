@@ -257,7 +257,11 @@ class PathwayEvidence:                      # mirrors MarkerEvidence (per gene s
     q_value: Optional[float]               # BH-adjusted (jazzPanda p_adj_bh)
     # panel-coverage grounding spine
     set_size_full: int                     # |set| in the source collection (~200)
-    panel_hits: int                        # set genes on THIS 280-panel (tested)
+    # Set genes EVERY gene capability frame admits -- on the panel AND producing
+    # usable spatial signal. NOT the result's own ``n_overlap``: see
+    # ``agent/enrichment._load_jazzpanda_rows`` for why the method's word about its
+    # own capability is not taken.
+    panel_hits: int
     panel_coverage: float                  # panel_hits / set_size_full (0..1)
     leading_edge: tuple[str, ...]          # the driving genes (all on-panel, real)
     n_leading_edge: int                    # honest driving-gene count (gate uses this)
@@ -270,6 +274,25 @@ class PathwayEvidence:                      # mirrors MarkerEvidence (per gene s
 
 @dataclass(frozen=True)
 class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster)
+    """One cluster's enrichment call. **No band, and nowhere to put one.**
+
+    ``confidence``, ``confidence_score`` and ``demotions`` were deleted here
+    (IMPLEMENTATION.md §10, *The one behaviour change with a visible surface*).
+    CHARACTERISATION has no label space, so a unit-level band over it is undefined
+    rather than merely unhelpful -- there is no alternative for the remaining
+    probability mass to sit on. ``demotions`` went with them because it only ever
+    held band-change sentences ("-> -1 band"), and an always-empty audit trail for a
+    rule that no longer exists is an invitation to refill it.
+
+    :attr:`census_line` is the replacement, and it is strictly more informative than
+    the band it replaces: it names how many programs cleared each bar and how many
+    the panel could not test at all.
+
+    ``verify`` stays. "A human should look" is well-defined without a label space,
+    and it comes from the deterministic rubric in ``agent/enrichment.py``, never from
+    a model.
+    """
+
     cluster: str
     cell_type: str                         # from CLUSTER_KEY (not re-derived)
     method: ScoreKind
@@ -277,8 +300,31 @@ class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster
     suggestive: tuple[PathwayEvidence, ...]    # tier=="suggestive" (verify=TRUE)
     all_tested: tuple[PathwayEvidence, ...]    # full audit incl. untestable
     top_theme: Optional[str]               # leading enriched set name, or None
-    confidence: Confidence
-    confidence_score: float                # reuse cfg.SCORE_MAP anchors
     verify: bool
-    demotions: tuple[str, ...]             # audit trail of band changes
     source_trace: tuple[str, ...]          # every (set, score, q, K) used
+
+    # --- the census: per-item counts, the header a no-label-space task permits -- #
+    # Properties, not fields, because each is a count of a list this object already
+    # carries. A stored copy could disagree with the rows under it, and
+    # ``dataclasses.asdict`` would then persist the disagreement.
+    @property
+    def n_untestable(self) -> int:
+        """Programs the panel could not test: below the panel-hit or leading-edge floor."""
+        return sum(1 for p in self.all_tested if p.tier == "untestable")
+
+    @property
+    def census(self) -> tuple[int, int, int]:
+        """``(supported, suggestive, untestable)`` -- the three counts, in header order."""
+        return (len(self.enriched), len(self.suggestive), self.n_untestable)
+
+    @property
+    def census_line(self) -> str:
+        """``7 supported \u00b7 3 suggestive \u00b7 12 untestable``: the band's replacement.
+
+        One spelling, here, because several call sites render it (the chat context,
+        the report section, the conversation opener) and several spellings of a
+        header is how the numbers in them drift apart.
+        """
+        supported, suggestive, untestable = self.census
+        return (f"{supported} supported \u00b7 {suggestive} suggestive "
+                f"\u00b7 {untestable} untestable")

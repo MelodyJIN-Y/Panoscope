@@ -63,35 +63,92 @@ SPEC_VERSION: Final[str] = "0.1"
 RECORDS_DIR: Final[str] = "records"
 
 
+class UnattributableTrace(ValueError):
+    """Raised when a trace cannot be cut into the segment belonging to this unit.
+
+    A programming error at the call site, not a fact about the study. Records are
+    built one unit at a time, so a trace that holds no decision of this unit's -- or
+    that opens with decisions belonging to no unit at all -- has been joined to the
+    wrong record. Both alternatives are silent: keeping nothing writes an empty
+    source trace, which reads as "nothing was decided here", and keeping everything
+    is the leak this segmentation exists to close.
+    """
+
+
 def unit_decisions(evidence: NormalisedEvidence,
                    *traced: Traced[Any]) -> Traced[tuple[Decision, ...]]:
     """The decisions that read THIS unit's subjects, in call order.
 
     A ``MethodModule.load`` traces one read of a whole file: nine clusters' measure
     decisions arrive in one tuple, and a record for one of them must not carry the
-    other eight's. The narrowing is by ``ref`` anchor against the unit's own
-    ``Subject.key``\\s -- the same join key the interface clicks back on -- rather
-    than by position, because position is a property of how a loader happened to
-    loop.
+    other eight's.
 
-    A decision carrying NO refs is kept. That is deliberate and it is the limit of
-    this function: ``band:no_canonical_driver`` has nothing to anchor on (its content
-    is that nothing qualified), and dropping it would delete the one decision that
-    explains a Low band. Pass a single unit's traces and the two rules agree; pass a
-    multi-unit trace and a ref-less decision from another unit would come along, so
-    narrow the method trace and leave the per-unit ones alone.
+    **The anchor join alone cannot do that, and used alone it leaked.** An item
+    subject is keyed on the entity, not on the unit it was read under -- ``ERBB2``
+    is ``gene|g=gene:ERBB2`` under every cluster -- so narrowing a nine-unit trace by
+    ``Subject.key`` membership kept all nine clusters' ``measure:*`` decisions in all
+    nine records. Measured on the demo: 2,522 decisions on each assignment record,
+    off a 2,529-decision trace in which this unit's own share is 281.
+
+    So each trace is first cut into **unit segments**. A decision anchored on a
+    subject of the unit's own shape (``unit|…``) opens that unit's segment and every
+    decision after it belongs to that unit until the next such anchor.
+    ``core.measure.measure_unit`` is what makes the opener reliable: it resolves the
+    unit's own capability verdict *before* any item's, and says why -- "this unit has
+    four cells" explains every untestable item under it and must precede them.
+
+    A trace carrying no unit anchor at all is wholly this unit's. That is the
+    per-unit case -- a ``verdict``, a single ``measure`` -- and it is left alone.
+
+    Inside this unit's segment the anchor join still runs, because a segment can
+    carry decisions that read something other than the unit's own subjects.
+
+    A decision carrying NO refs is kept **within the segment**.
+    ``band:no_canonical_driver`` has nothing to anchor on -- its content is that
+    nothing qualified -- and dropping it would delete the one decision that explains
+    a Low band. Segmenting first is what makes keeping it safe; before, a ref-less
+    decision from any unit came along to every record.
+
+    Two shapes raise rather than guess, because the silent readings of both are the
+    failure this function exists to prevent: see :class:`UnattributableTrace`.
 
     The value and the decisions are the SAME tuple. This function's product is a
     decision list, and returning it in the slot :func:`build` splices from is what
     lets a caller write ``build(ev, reading, unit_decisions(ev, loaded), verdict)``
     and get the narrowed decisions rather than silently none of them.
     """
-    anchors = {evidence.unit_subject.key} | {i.subject.key for i in evidence.items}
-    kept = tuple(
-        d for t in traced for d in t.decisions
-        if not d.refs or any(r.split("#", 1)[0] in anchors for r in d.refs)
-    )
-    return Traced(value=kept, decisions=kept)
+    mine = evidence.unit_subject.key
+    unit_prefix = evidence.unit_subject.shape + "|"
+    anchors = {mine} | {i.subject.key for i in evidence.items}
+
+    kept: list[Decision] = []
+    for t in traced:
+        heads = [tuple(r.split("#", 1)[0] for r in d.refs) for d in t.decisions]
+        opens = [next((h for h in hs if h.startswith(unit_prefix)), None)
+                 for hs in heads]
+        seen = [o for o in opens if o is not None]
+        if seen and mine not in seen:
+            raise UnattributableTrace(
+                f"a trace covering {sorted(set(seen))} was passed to the record "
+                f"assembler for {mine}: it carries no decision of this unit's, so "
+                "every decision in it belongs to some other unit's record"
+            )
+        if seen and opens.index(seen[0]) != 0:
+            raise UnattributableTrace(
+                f"{opens.index(seen[0])} decision(s) precede the first unit anchor "
+                f"in a trace covering {sorted(set(seen))}: they belong to no unit, "
+                "and core.measure.measure_unit resolves the unit before any item "
+                "precisely so that this cannot happen"
+            )
+        # No unit anchor anywhere: a per-unit trace, wholly this unit's.
+        inside = not seen
+        for d, hs, opener in zip(t.decisions, heads, opens):
+            if opener is not None:
+                inside = opener == mine
+            if inside and (not d.refs or any(h in anchors for h in hs)):
+                kept.append(d)
+    out = tuple(kept)
+    return Traced(value=out, decisions=out)
 
 
 def build(evidence: NormalisedEvidence, reading: ReadingRecord,

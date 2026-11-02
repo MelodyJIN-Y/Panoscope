@@ -22,11 +22,21 @@ the real second study. What it reproduces is that study's *shape* -- several
 samples, joint clustering, and a panel that mostly does not cover the annotation's
 cell types -- and nothing else.
 
-**The number this file does not assert.** The band. ``test_the_band_is_the_finding``
-below records what the rubric actually returns for a unit with one canonical marker
-on panel and five never measured, which is Very High with no demotion, and pins it
-as a characterisation rather than as an approval. Changing it moves the golden hash,
-so it is a finding to be decided on, not a fix smuggled in under a fixture.
+**The number this file pins, and why it moved.** The band.
+``test_the_band_is_the_finding`` used to record a finding rather than a fix: a unit
+with one canonical marker on panel and five never measured read **Very High, verify
+False, no demotion**, while zero canonical markers read Low and set verify. The
+rubric had a cliff at one. On the regime this fixture reproduces -- an
+immuno-oncology panel against a tissue it was not designed for -- most resident
+types land on zero or one, so roughly half of them would have come back confidently
+wrong on the study built to stress exactly this.
+
+The fix is ``band:demote_canonical_coverage``: K of N of the label's canonical
+markers that a capability frame admitted, against a declared floor of one in three.
+It demotes this fixture (1/6) and no demo cluster (worst is c7 at 4/7), so the
+golden hash does not move. The test below now pins the corrected behaviour and the
+census it rests on, so the floor cannot drift without a reader seeing the K of N it
+was measured against.
 """
 
 from __future__ import annotations
@@ -254,33 +264,84 @@ def test_no_breast_knowledge_reaches_a_study_that_is_not_breast(store: Study) ->
         assert annotation.canonical_markers("Synthetic Type A")[0] == "SYNG01"
 
 
-def test_the_band_is_the_finding(store: Study) -> None:
-    """**Characterisation, not approval.** Pinned so the decision stays visible.
+def test_the_cliff_at_one_canonical_marker_is_gone(store: Study) -> None:
+    """The correction, with the number it is conditioned on.
 
-    c1 is called Very High, score 0.95, verify False, with exactly ONE canonical
-    marker on the panel and five never measured -- and ``demotions`` is empty. The
-    rubric has a cliff at one: zero canonical drivers demotes to Low and sets
-    verify, one canonical driver is worth the full band however little else was
-    measurable. The off-panel notes are all present and all honest; the *number* is
-    simply not conditioned on them.
+    c1 has ONE canonical marker in frame of six. It used to read Very High (0.95)
+    with ``verify=False`` and no demotion at all, while the off-panel notes sat
+    beside that number saying how little had been measurable. It now reads one rung
+    lower AND carries verify, because a single rung off Very High is still High,
+    which reads as settled.
 
-    That is precisely the real second study's regime, where an immuno-oncology
-    panel leaves most resident types with zero or one canonical marker. Changing
-    the rubric moves the golden hash, so this test states the behaviour and does
-    not change it.
+    Both halves are asserted. A demote alone would leave a confident-looking band on
+    a call the panel could barely ask for; a verify alone would leave the number
+    saying something the rubric no longer believes.
+    """
+    from panoscope.agent import verdict as V
+
+    with cfg.use_study(FIXTURE):
+        by_unit = {v.cluster: v for v in _verdicts()}
+        coverage = V.canonical_coverage("Synthetic Type A")
+
+    # The K of N the demote rests on, stated rather than implied.
+    assert (coverage.k, coverage.n) == (1, 6)
+    assert coverage.floor == 2 and not coverage.ok
+
+    c1 = by_unit["c1"]
+    assert c1.confidence == "High" and c1.confidence_score == 0.85
+    assert c1.verify is True
+    assert c1.demotions == ("canonical coverage 1/6 below floor 2 -> -1 band",)
+    assert c1.band_basis == "glm_coef direct"
+    # The conditionality is still recorded per gene, and now also reaches the band.
+    assert len(c1.offpanel_notes) == 5
+    assert all("absence is not evidence against" in n.message
+               for n in c1.offpanel_notes)
+
+
+def test_the_coverage_demote_is_one_rung_and_not_a_collapse(store: Study) -> None:
+    """Thin canonical support is not the same answer as none, and must not read as it.
+
+    c1 (one canonical marker in frame) and c2 (none at all) both now carry verify,
+    which is the point -- but they are different findings and the band has to keep
+    them apart. Collapsing both to Low would make "the panel could barely test this"
+    indistinguishable from "nothing canonical supports this", which is the same
+    collapse the four measurement states exist to prevent.
     """
     with cfg.use_study(FIXTURE):
         by_unit = {v.cluster: v for v in _verdicts()}
 
-    c1 = by_unit["c1"]
-    assert c1.confidence == "Very High" and c1.confidence_score == 0.95
-    assert c1.verify is False
-    assert c1.demotions == (), "one canonical marker is currently worth the full band"
-    assert c1.band_basis == "glm_coef direct"
-    # The conditionality IS recorded -- it just does not reach the band.
-    assert len(c1.offpanel_notes) == 5
-    assert all("absence is not evidence against" in n.message
-               for n in c1.offpanel_notes)
+    assert by_unit["c1"].confidence == "High"
+    assert by_unit["c2"].confidence == "Low"
+    assert by_unit["c1"].verify is by_unit["c2"].verify is True
+    assert by_unit["c1"].demotions != by_unit["c2"].demotions
+
+
+def test_no_demo_cluster_is_demoted_by_the_coverage_floor(store: Study) -> None:
+    """The floor was chosen inside a measured band; this is the measurement.
+
+    Every demo unit's canonical coverage clears the floor and the fixture's does
+    not, which is what makes the floor a decision about studies rather than a number
+    that happened to leave the golden hash alone. Stated as the census it is, so a
+    future tuning pass sees how much headroom there is: the worst demo unit is c7 at
+    4/7 and the fixture sits at 1/6.
+    """
+    from panoscope.agent import verdict as V
+
+    with cfg.use_study(cfg.BUNDLED_DEMO_ID):
+        demo = {u: V.canonical_coverage(annotation.cell_type_for(u))
+                for u in cfg.CLUSTER_ORDER}
+    assert len(demo) == 9, "nine units, never one"
+    assert all(c.ok for c in demo.values()), {
+        u: str(c) for u, c in demo.items() if not c.ok}
+    worst = min(demo.values(), key=lambda c: c.fraction)
+    assert round(worst.fraction, 3) == 0.571, str(worst)
+
+    with cfg.use_study(FIXTURE):
+        thin = V.canonical_coverage("Synthetic Type A")
+    assert not thin.ok and round(thin.fraction, 3) == 0.167
+
+    # The floor sits strictly between the two, and not on either edge.
+    assert thin.fraction < 1 / 3 < worst.fraction
 
 
 # --------------------------------------------------------------------------- #

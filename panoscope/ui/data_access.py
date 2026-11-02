@@ -1,8 +1,8 @@
 """Cached read layer between the UI and the pure agent modules.
 
 Thin ``@st.cache_data`` wrappers over ``agent.data`` (markers, panel, cells,
-umap, density, marker-expression) and over ``agent.verdict.verdict_for_cluster``
-so a verdict is computed exactly once and every Streamlit rerun is a cache hit.
+umap, density, marker-expression) and over the per-unit verdict so it is computed
+exactly once and every Streamlit rerun is a cache hit.
 This is what lets viewing controls (pin, bin size, view toggle) rerun the script
 without ever recomputing a value — they only re-read an already-cached frame.
 
@@ -27,7 +27,6 @@ from typing import Any, Callable, Optional
 import pandas as pd
 
 from panoscope.agent import data as agent_data
-from panoscope.agent import verdict as agent_verdict
 from panoscope.agent.types import ClusterVerdict, Note
 
 # --------------------------------------------------------------------------- #
@@ -318,16 +317,20 @@ def verdict_for(cluster: str) -> ClusterVerdict:
     """Verdict for one cluster (cached once per session).
 
     Prefers the verdict PERSISTED by the per-dataset pipeline
-    (``data/studies/<id>/interp/clusters/c{n}.json``); falls back to computing it
-    live when the pipeline tree is absent. The persisted object is byte-faithful
-    to the computed one (``tests/test_pipeline.py`` round-trip gate), so the call
-    is identical either way — reading it just avoids recomputation and makes the
-    verdict a portable dataset artifact. Depends only on the cluster id.
+    (``data/studies/<id>/interp/clusters/c{n}.json``); falls back to BUILDING it
+    live when the pipeline tree is absent. Depends only on the cluster id.
+
+    Both arms are now the same engine. The persisted file is written by
+    ``pipeline/stages/verdicts.py`` through ``core/``, and the fallback goes through
+    ``pipeline.v1_verdicts``, which is that stage's own projection. It used to call
+    ``agent/verdict.py``, so an unbuilt study showed the v1 band in the table and a
+    built one showed the v2 band — identical on the nine demo units
+    (``tests/test_core_compat.py``) and pinned nowhere else.
     """
-    from panoscope.pipeline import store
+    from panoscope.pipeline import store, v1_verdicts
 
     persisted = store.load_verdict(cluster)
-    return persisted if persisted is not None else agent_verdict.verdict_for_cluster(cluster)
+    return persisted if persisted is not None else v1_verdicts.verdict_for(cluster)
 
 
 @_cache_data(show_spinner=False)
@@ -500,8 +503,18 @@ def override_info(cluster: str) -> "Optional[dict]":
 
 
 def verdict_csv() -> str:
-    """The 11-column CSV export, with any `exclude` notes applied at composition."""
-    return agent_verdict.to_csv(composed_verdicts())
+    """The 11-column CSV export, with any `exclude` notes applied at composition.
+
+    Rendered through ``core/export``'s ASSIGNMENT profile — the registry that pairs
+    each column name with the getter that fills it — rather than ``agent/verdict``'s
+    hand-written pair of tuples. Byte-identical: ``tests/test_core_export.py`` proves
+    it by string equality against the function this replaces, including the
+    un-tidied ``confidence_score`` (0.7, not 0.70).
+    """
+    from panoscope.core.export import to_csv
+    from panoscope.types.outputs import TaskKind
+
+    return to_csv(TaskKind.ASSIGNMENT, composed_verdicts()).value
 
 
 @_cache_data(show_spinner=False)

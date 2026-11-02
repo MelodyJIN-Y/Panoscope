@@ -195,10 +195,11 @@ def enrichment_from_dict(d: dict[str, Any]) -> ClusterEnrichment:
         suggestive=tuple(_pathway_from_dict(x) for x in d.get("suggestive", ())),
         all_tested=tuple(_pathway_from_dict(x) for x in d.get("all_tested", ())),
         top_theme=d["top_theme"],
-        confidence=d["confidence"],
-        confidence_score=d["confidence_score"],
+        # No confidence / confidence_score / demotions: the band on a CHARACTERISATION
+        # was deleted (IMPLEMENTATION.md §10). A record written before that still
+        # carries the keys; they are ignored rather than read, because reviving them
+        # would put a band back on an object with no label space to put one over.
         verify=d["verify"],
-        demotions=tuple(d.get("demotions", ())),
         source_trace=tuple(d.get("source_trace", ())),
     )
 
@@ -227,7 +228,7 @@ def _cluster_theme_from_dict(d: dict[str, Any]) -> ClusterThemeLine:
         cell_type=d["cell_type"],
         category=d["category"],
         top_themes=tuple(d.get("top_themes", ())),
-        confidence=d["confidence"],
+        census_line=d["census_line"],
         verify=d["verify"],
     )
 

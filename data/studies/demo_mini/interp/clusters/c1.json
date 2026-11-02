@@ -2,18 +2,18 @@
   "cluster": "c1",
   "cell_type": "HER2+ Breast Tumor Epithelial",
   "cell_type_short": "Tum_HER2pos",
-  "confidence": "Very High",
-  "confidence_score": 0.95,
+  "confidence": "High",
+  "confidence_score": 0.85,
   "key_markers": [
     "ERBB2",
     "KRT7",
     "SCD"
   ],
-  "notes": "HER2+ Breast Tumor Epithelial call driven by ERBB2 glm_coef=21.44/pearson=0.91, KRT7 glm_coef=13.48/pearson=0.92. Confidence Very High.",
+  "notes": "HER2+ Breast Tumor Epithelial call driven by ERBB2 glm_coef=21.44/pearson=0.91, KRT7 glm_coef=13.48/pearson=0.92. Confidence High. Adjustments: canonical coverage 2/8 below floor 3 -> -1 band. verify=TRUE, re-check this call.",
   "category": "Epithelial",
   "lineage": "Tumor",
   "exclude": false,
-  "verify": false,
+  "verify": true,
   "small_n": false,
   "evidence": [
     {
@@ -103,8 +103,8 @@
   "opening": {
     "cluster": "c1",
     "cell_type": "HER2+ Breast Tumor Epithelial",
-    "confidence": "Very High",
-    "headline": "HER2+ Breast Tumor Epithelial, Very High confidence, driven by ERBB2 (glm_coef 21.44, pearson 0.91).",
+    "confidence": "High",
+    "headline": "HER2+ Breast Tumor Epithelial, High confidence, driven by ERBB2 (glm_coef 21.44, pearson 0.91).",
     "driving_markers": [
       {
         "gene": "ERBB2",
@@ -199,10 +199,12 @@
         "status": "unfilled"
       }
     ],
-    "verify": false
+    "verify": true
   },
   "band_basis": "glm_coef direct",
-  "demotions": [],
+  "demotions": [
+    "canonical coverage 2/8 below floor 3 -> -1 band"
+  ],
   "source_trace": [
     "jz:ERBB2:glm_coef=21.437845",
     "jz:ERBB2:pearson=0.906160",

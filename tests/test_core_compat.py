@@ -338,11 +338,13 @@ def _grid():
             for gc in (0.0, pearson + 0.10):
                 for gg in (0.50, 0.99):
                     for fragile in (False, True):
-                        yield coef, pearson, gc, gg, fragile
+                        for covered in (True, False):
+                            yield coef, pearson, gc, gg, fragile, covered
 
 
-@pytest.mark.parametrize("coef,pearson,gc,gg,fragile", list(_grid()))
-def test_every_rule_id_renders_the_sentence_agent_wrote(coef, pearson, gc, gg, fragile):
+@pytest.mark.parametrize("coef,pearson,gc,gg,fragile,covered", list(_grid()))
+def test_every_rule_id_renders_the_sentence_agent_wrote(coef, pearson, gc, gg,
+                                                        fragile, covered):
     """The demo fires at most one adjustment per cluster, and only three of the eight
     rules across all nine (one promote, one localises-elsewhere, one fragile floor).
     So the record gate above cannot see five of the sentences at all, nor the order
@@ -355,12 +357,20 @@ def test_every_rule_id_renders_the_sentence_agent_wrote(coef, pearson, gc, gg, f
         max_gg_corr=gg, max_gc_corr=gc, p_value=None, within_cluster_pctile=1.0,
         is_canonical=True, is_on_panel=True, role="supports", caveats=caveats,
     )
-    _band, _basis, expected = A._compute_band(me, fragile=fragile)
+    # The coverage demote renders its own K of N, so the sentence it produces is
+    # only comparable when both sides are given the SAME count. core derives it;
+    # agent is handed what core derived.
+    canonical = (frozenset({"ERBB2"}) if covered
+                 else frozenset({"ERBB2", "C1", "C2", "C3", "C4", "C5"}))
+    cov = C._canonical_coverage((_item("ERBB2", coef, pearson),), canonical)
+    assert cov.ok is covered
+    _band, _basis, expected = A._compute_band(me, fragile=fragile, coverage=cov)
 
     driver = _item("ERBB2", coef, pearson, tuple(_FLAG_FOR[c] for c in caveats))
     filler = () if fragile else tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
-    v = C.assess((driver, *filler), frozenset({"ERBB2"})).value
-    assert tuple(compat._demotion_sentence(r, v.driver) for r in v.demotions) == expected
+    v = C.assess((driver, *filler), canonical).value
+    assert tuple(compat._demotion_sentence(r, v.driver, v.coverage)
+                 for r in v.demotions) == expected
 
 
 def test_the_caveat_table_is_the_inverse_of_the_agent_rule():
