@@ -172,9 +172,17 @@ def _state_for(entity: Entity, world: MeasuredWorld,
     for f in frames:
         if not f.contains(entity):
             return MeasuredState.NEVER_MEASURED, f.name
+    # ADMITTED states name every frame that admitted the entity, not frames[0].
+    # A kind may declare several frames -- gene declares the panel AND
+    # detectability -- and an admitted entity passed all of them. Naming the
+    # first implied that one frame settled the status, when the name returned
+    # was really just whichever the adapter happened to list first. The refusing
+    # frame above IS singular and is named singly, which is the case that
+    # actually explains something.
+    admitted = "+".join(f.name for f in frames)
     if entity.id in reported:
-        return MeasuredState.OBSERVED, frames[0].name
-    return MeasuredState.TESTED_ABSENT, frames[0].name
+        return MeasuredState.OBSERVED, admitted
+    return MeasuredState.TESTED_ABSENT, admitted
 
 
 def resolve(subj: Subject, world: MeasuredWorld, reported: frozenset[str],
