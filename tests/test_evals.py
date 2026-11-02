@@ -162,6 +162,24 @@ def test_seeded_scorer_flags_a_regression_in_an_expected_class(seeded):
 
 
 def test_scorers_import_nothing_that_needs_the_network(seeded, refusal):
-    """A scorer that imported ``anthropic`` would make the suite need a key."""
-    import sys
-    assert "anthropic" not in sys.modules
+    """A scorer that imported ``anthropic`` would make the suite need a key.
+
+    Checked by reading the scorers' own imports, not ``sys.modules``. The
+    earlier version asserted global interpreter state, so it passed alone and
+    failed in company the moment any other test legitimately imported the SDK
+    -- an order-dependent assertion about something it did not mean.
+    """
+    import ast
+    import pathlib
+
+    offenders = []
+    for mod in (seeded, refusal):
+        src = pathlib.Path(mod.__file__)
+        for node in ast.walk(ast.parse(src.read_text(), filename=str(src))):
+            if isinstance(node, ast.Import):
+                offenders += [f"{src.name}: import {a.name}" for a in node.names
+                              if a.name.split(".")[0] == "anthropic"]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                if node.module.split(".")[0] == "anthropic":
+                    offenders.append(f"{src.name}: from {node.module}")
+    assert not offenders, "scorers reach for the network SDK: " + "; ".join(offenders)

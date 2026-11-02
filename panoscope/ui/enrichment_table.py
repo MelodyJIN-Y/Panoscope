@@ -1,9 +1,32 @@
 """Pathways page — gene-set enrichment interpretation (second workflow).
 
+**The center stage is no longer hand-built.** It is rendered by ``ui/surface.py``
+from ``workflows/enrichment.py``'s ``UISpec`` — the header variant, every column,
+every absence block, the sort key and the coverage ribbon are read off the
+declaration, and this module's job is reduced to the one thing a declaration cannot
+do: adapt this method's rows (``PathwayEvidence``) into resolved ``SurfaceRow``\\s
+with a measurement state on each. That is the shape ARCHITECTURE §13 asks for —
+*the review surface is part of the interpretation contract, declared by the
+workflow, not a UI concern.*
+
+Two consequences are visible on screen:
+
+* **The confidence band is gone.** This page used to import the assignment header's
+  id line and render ``ce.confidence`` as a ``cf-*`` pill — the counter-example
+  ``docs/interface-design.md`` §3.1 names: a CHARACTERISATION surface inheriting a
+  unit-level band it had no right to, on a task with no label space. The declared
+  header is a ``CensusHeader``, which has no band slot, and
+  ``surface.label_band_html`` refuses a non-ASSIGNMENT spec, so the old shape is
+  unreachable from here rather than merely discouraged.
+* **Untestable programs are rows now.** The page showed ``enriched`` and
+  ``suggestive`` only; every set the panel could not test simply did not render,
+  which is indistinguishable from a set that was tested and found nothing. All of
+  ``ce.all_tested`` is adapted, and the declared blocks put each set under the
+  state that produced it, with its number hatched where there is none.
+
 Laid out like the Marker-genes page: a 3-pane shell — the cluster **rail** (shared
-selection), the **center stage** (the cluster's enrichment header + a pinnable
-pathway table + the pinned pathway's leading-edge spatial views), and a **side
-column** with the cross-cluster pathway themes.
+selection), the **center stage** (the declared surface + the pinned pathway's
+leading-edge spatial views), and a **side column** with the cross-cluster themes.
 
 Selecting pathways is a viewing control (``ui.state.toggle_pathway``, a per-cluster
 multi-select): it drives the spatial stage (``ui.enrichment_spatial``) small-multiples
@@ -21,7 +44,11 @@ import html
 
 import streamlit as st  # module-level for the @st.fragment chat wrapper
 
+from panoscope.agent import config as cfg
 from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
+from panoscope.types.measured import MeasuredState
+from panoscope.types.subject import gene_set, subject
+from panoscope.workflows import enrichment as enrichment_workflow
 
 from panoscope.ui import cluster_rail
 from panoscope.ui import data_access as da
@@ -29,6 +56,7 @@ from panoscope.ui import enrichment_conversation
 from panoscope.ui import enrichment_spatial
 from panoscope.ui import format as fmt
 from panoscope.ui import state
+from panoscope.ui import surface
 
 _METHOD_LABEL = {"jazzpanda_enrichment": "jazzPanda competitive test"}
 
@@ -50,56 +78,8 @@ def _short(gene_set: str) -> str:
 _ENR_CSS = """
 .pano-enr-eyebrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
   letter-spacing: .1em; color: var(--faint); margin: 0 0 10px; }
-.pano-enr-head { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; margin: 2px 0 3px; }
-.pano-enr-head .dot { font-size: 12px; }
-.pano-enr-head .cid { font-family: var(--mono); font-size: 12px; color: var(--faint); }
-.pano-enr-head .ct { font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
-.pano-enr-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); margin: 0 0 14px; }
-.pano-enr-sub .lbl { color: var(--faint); }
-
-/* Pathway table header + rows */
-.pano-enr-hrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-  letter-spacing: .05em; color: var(--faint); }
-.pano-enr-num { display: flex; flex-direction: column; line-height: 1.35; gap: 1px; }
-.pano-enr-num .s { font-family: var(--mono); font-size: 13px; color: var(--ink); }
-.pano-enr-num .q { font-family: var(--mono); font-size: 10px; color: var(--faint); }
-.pano-enr-num .cov { font-family: var(--mono); font-size: 10px; color: var(--muted); cursor: help; }
-.pano-enr-bio { font-size: 12px; color: var(--muted); line-height: 1.5; }
-.pano-enr-bio .dim { color: var(--faint); }
-.pano-bio-cite { font-family: var(--mono); font-size: 10px; color: var(--accent); white-space: nowrap; text-decoration: none; }
-.pano-bio-cite:hover { text-decoration: underline; }
-.pano-enr-sug { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
-  color: var(--absent); background: var(--absent-bg); border-radius: 5px; padding: 3px 9px;
-  display: inline-block; margin: 10px 0 2px; }
 .pano-enr-empty { font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
   border: 1px dashed var(--hair); border-radius: 10px; text-align: center; }
-
-/* Pinnable pathway button: chromeless, a ●/○ pin dot as ::before (mirrors the
-   marker evidence-table select dot). Keyed container st-key-pwrow_. */
-div[class*="st-key-pwrow_"] [data-testid="stColumn"] { padding: 0 !important; }
-div[class*="st-key-pwrow_"] div[data-testid="stButton"] > button {
-  background: transparent !important; border: 0 !important; box-shadow: none !important;
-  min-height: 0 !important; padding: 5px 4px !important; border-radius: 6px !important;
-  display: flex !important; align-items: center !important; justify-content: flex-start !important;
-  font-family: var(--sans) !important; font-weight: 600 !important; font-size: 13px !important;
-  color: var(--ink) !important; text-align: left !important;
-}
-div[class*="st-key-pwrow_"] div[data-testid="stButton"] > button > div { flex: 0 1 auto !important; width: auto !important; }
-div[class*="st-key-pwrow_"] div[data-testid="stButton"] > button::before {
-  content: ''; width: 10px; height: 10px; border-radius: 50%; flex: none; margin-right: 9px;
-  box-sizing: border-box; border: 1.5px solid var(--faint); background: transparent;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-div[class*="st-key-pwrow_"] button[kind="primary"]::before,
-div[class*="st-key-pwrow_"] button[data-testid="stBaseButton-primary"]::before {
-  background: var(--accent) !important; border-color: var(--accent) !important;
-}
-div[class*="st-key-pwrow_"] button[kind="primary"],
-div[class*="st-key-pwrow_"] button[data-testid="stBaseButton-primary"] { color: var(--accent) !important; background: transparent !important; }
-div[class*="st-key-pwrow_"] div[data-testid="stButton"] > button:hover { background: var(--hair2) !important; }
-div[class*="st-key-pwrow_sug_"] div[data-testid="stButton"] > button::after {
-  content: 'suggestive'; margin-left: 8px; font-family: var(--mono); font-size: 8px; font-weight: 500;
-  color: var(--absent); background: var(--absent-bg); padding: 1px 6px; border-radius: 4px; }
 
 /* Cross-cluster themes (side column) */
 .pano-th-h { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--ink); margin: 2px 0 10px; }
@@ -116,94 +96,171 @@ div[class*="st-key-pwrow_sug_"] div[data-testid="stButton"] > button::after {
   border: 1px dashed var(--hair); border-radius: 10px; text-align: center; padding: 22px 16px; margin-top: 14px; }
 """
 
-_ROW_COLS = [0.36, 0.22, 0.42]
+# --------------------------------------------------------------------------- #
+# The adapter: this method's rows -> resolved SurfaceRows.
+#
+# The ONLY thing left that is specific to jazzPanda's enrichment output. Everything
+# downstream of it is read off the declaration. Nothing here computes a statistic:
+# the score, the q and the K of N are read off `PathwayEvidence`, and the state is
+# read off the same gates `agent/enrichment.py` already applied to produce the tier.
+# --------------------------------------------------------------------------- #
+def _state_of(p: PathwayEvidence) -> MeasuredState:
+    """Which of the four states this set is in, from the gates that made its tier.
+
+    ``enriched`` and ``suggestive`` both carry a number, so both are OBSERVED -- the
+    enriched/suggestive split is a question about how cautious this lab is, not about
+    whether the set was measured, and the surface keeps those separate concerns
+    separate (the split shows in the header census, the state shows in the block).
+
+    The two ways a set can fail are NOT the same fact and do not share a row:
+    below the capability floor is UNDERPOWERED and argues nothing; scored, reported
+    and above the q bar is TESTED_ABSENT and argues against the program running here.
+    """
+    if p.tier in ("enriched", "suggestive"):
+        return MeasuredState.OBSERVED
+    if p.panel_hits < cfg.MIN_PANEL_HITS or p.n_leading_edge < cfg.MIN_LEADING_EDGE:
+        return MeasuredState.UNDERPOWERED
+    return MeasuredState.TESTED_ABSENT
 
 
-# --------------------------------------------------------------------------- #
-# Center: header + pinnable pathway table + spatial stage
-# --------------------------------------------------------------------------- #
-def _cite_html(note: dict | None) -> str:
+def _reason(p: PathwayEvidence, mstate: MeasuredState) -> str:
+    """Why this row is in this state -- the hover on the hatch, named not implied."""
+    if mstate is MeasuredState.UNDERPOWERED:
+        return (f"{p.panel_hits} of {p.set_size_full} set genes on panel "
+                f"(floor {cfg.MIN_PANEL_HITS}), {p.n_leading_edge} driving gene(s) "
+                f"(floor {cfg.MIN_LEADING_EDGE}): below the capability floor, so its "
+                "absence here argues nothing.")
+    if mstate is MeasuredState.TESTED_ABSENT:
+        return (f"scored on {p.panel_hits} of {p.set_size_full} set genes and not "
+                f"reported for this unit (q at or above {cfg.SUGGESTIVE_Q_MAX}); "
+                "absence IS evidence here.")
+    return p.panel_scope_caveat
+
+
+def _key_of(p: PathwayEvidence) -> str:
+    """The click-back anchor: the same ``Subject.key`` reconciliation joins on."""
+    return subject("gene_set", set=gene_set(p.gene_set)).key
+
+
+def _cite_value(note: dict | None):
+    """The CITATION cell: ``(prose, url)``. The renderer escapes and links it.
+
+    Never generated here -- the prose is the pipeline's precomputed, live-cited note
+    and a set with no note gets no sentence rather than an invented one.
+    """
     if not note or not note.get("summary"):
-        return '<span class="dim">—</span>'
-    summary = html.escape(str(note["summary"]))
+        return ""
     pmid = note.get("pmid")
-    if pmid:
-        cite = (
-            f'<a class="pano-bio-cite" href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(pmid))}/" '
-            f'target="_blank">&#128196; PMID:{html.escape(str(pmid))}</a>'
-        )
-    else:
-        cite = '<span class="dim">literature thin</span>'
-    return f"{summary} {cite}"
+    url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else ""
+    summary = str(note["summary"]) + ("" if pmid else "  (literature thin)")
+    return (summary, url)
 
 
-def _num_html(p: PathwayEvidence) -> str:
-    q = "" if p.q_value is None else f'<span class="q">q {p.q_value:.1e}</span>'
-    cov = (
-        f'<span class="cov" title="{html.escape(p.panel_scope_caveat)}">'
-        f"cov {p.panel_hits}/{p.set_size_full}</span>"
+def _row(cluster: str, p: PathwayEvidence) -> surface.SurfaceRow:
+    """One ``PathwayEvidence`` as a resolved row.
+
+    ``statistic`` and ``p_adj_bh`` are withheld on every state that does not carry a
+    number, so those cells hatch. That is not politeness: ``cell_html`` refuses a
+    number on such a row outright, which is the structural form of *statistic is
+    None iff the state is TESTED_ABSENT or NEVER_MEASURED*.
+    """
+    mstate = _state_of(p)
+    observed = mstate is MeasuredState.OBSERVED
+    return surface.SurfaceRow(
+        key=_key_of(p),
+        state=mstate,
+        reason=_reason(p, mstate),
+        values={
+            "gene_set": _short(p.gene_set),
+            "statistic": p.score if observed else None,
+            "p_adj_bh": p.q_value if observed else None,
+            # TEXT, not a numeric kind, by declaration: the K of N is the REASON a
+            # row has no statistic, so hatching it would hide the panel-coverage
+            # rule on exactly the rows it decided.
+            "coverage": f"{p.panel_hits}/{p.set_size_full}",
+            "leading_edge": p.leading_edge[:4],
+            "citation": _cite_value(da.pathway_note(cluster, p.gene_set)),
+        },
     )
-    return f'<div class="pano-enr-num"><span class="s">{p.score:.2f}</span>{q}{cov}</div>'
 
 
-def _render_pathway_rows(st, cluster: str, pathways, suggestive: bool) -> None:
-    for p in pathways:
-        selected = state.is_pathway_selected(cluster, p.gene_set)
-        key = f"pwrow_{'sug_' if suggestive else ''}{'on' if selected else 'off'}_{p.gene_set}"
-        with st.container(key=key):
-            c_name, c_num, c_bio = st.columns(_ROW_COLS, vertical_alignment="top")
-            with c_name:
-                if st.button(
-                    _short(p.gene_set),
-                    key=f"pwsel_{p.gene_set}",
-                    type="primary" if selected else "secondary",
-                    use_container_width=True,
-                ):
-                    state.toggle_pathway(cluster, p.gene_set)
-                    st.rerun()
-            with c_num:
-                st.markdown(_num_html(p), unsafe_allow_html=True)
-            with c_bio:
-                note = da.pathway_note(cluster, p.gene_set)
-                st.markdown(f'<div class="pano-enr-bio">{_cite_html(note)}</div>', unsafe_allow_html=True)
+def _unit_scope(cluster: str) -> str:
+    """``CLUSTER 3 · 4,812 cells`` — provenance, read, never computed."""
+    label = f"CLUSTER {fmt.short_cluster_id(cluster)}"
+    try:
+        return f"{label} · {len(da.cluster_cells_df(cluster)):,} cells"
+    except Exception:  # noqa: BLE001 - an unknown cell count still has an id line
+        return label
 
 
+def _header_values(ce: ClusterEnrichment,
+                   rows: list[surface.SurfaceRow]) -> dict:
+    """The fields the declared ``CensusHeader`` names. Counts, denominators, gates.
+
+    No band, and nowhere to put one. The cell type is passed as imported context:
+    the header attributes it to the marker workflow and does not re-derive it.
+    """
+    top = ce.enriched[0] if ce.enriched else None
+    values = {
+        "unit_scope": _unit_scope(ce.cluster),
+        "cell_type": da.display_cell_type(ce.cluster),
+        "n_enriched": len(ce.enriched),
+        "n_suggestive": len(ce.suggestive),
+        "n_not_supported": sum(1 for r in rows
+                               if r.state is MeasuredState.TESTED_ABSENT),
+        "n_untestable": sum(1 for r in rows
+                            if r.state is MeasuredState.UNDERPOWERED),
+        "n_scored": len(rows),
+        "panel_scope_caveat": (
+            top.panel_scope_caveat if top else
+            "Panel-scoped: over-representation among the genes this panel measured, "
+            "not genome-wide."
+        ),
+        "gates": (
+            f"enriched: q < {cfg.ENRICH_Q_MAX}",
+            f"suggestive: q <= {cfg.SUGGESTIVE_Q_MAX}",
+            f"testable: >= {cfg.MIN_PANEL_HITS} set genes on panel",
+            f"defensible: >= {cfg.MIN_LEADING_EDGE} driving genes",
+        ),
+    }
+    if top is not None:
+        values |= {
+            "gene_set": _short(top.gene_set),
+            "statistic_name": "test_statistic",
+            "statistic": f"{top.score:.2f}",
+            "panel_hits": top.panel_hits,
+            "set_size": top.set_size_full,
+            "top_key": _key_of(top),      # the header sentence's click-back anchor
+        }
+    return values
+
+
+# --------------------------------------------------------------------------- #
+# Center: the declared surface + the pinned programs' spatial stage
+# --------------------------------------------------------------------------- #
 def _render_center(st, ce: ClusterEnrichment) -> None:
-    from panoscope.ui.verdict_header import _idline  # reuse the marker id line, verbatim
+    """Render the declaration, then the figures the pinned rows select.
 
-    css, _ = fmt.confidence_chip(ce.confidence)
-    verify = f' <span class="pano-verify">{html.escape(fmt.verify_badge(True))}</span>' if ce.verify else ""
-    tops = [_short(p.gene_set) for p in ce.enriched[:3]]
-    rationale = ("Enriched for " + ", ".join(tops) + ".") if tops else "No program clears the enrichment gate."
-    # Same simple header as the marker verdict: id line, big call + a pill, a one-liner.
-    st.markdown(
-        f'<div class="pano-idline">{html.escape(_idline(ce.cluster))}</div>'
-        f'<div class="pano-verdict"><h1>{html.escape(da.display_cell_type(ce.cluster))}</h1>'
-        f'<span class="cf {css}">{html.escape(ce.confidence)} enrichment</span>{verify}</div>'
-        f'<div class="pano-rat">{html.escape(rationale)}</div>',
-        unsafe_allow_html=True,
+    This function no longer decides what the page looks like. It adapts rows, hands
+    them to the renderer with the workflow's own ``UISpec``, and maps a pin back to
+    the gene set id the spatial stage takes.
+    """
+    spec = enrichment_workflow.WORKFLOW.uispec()
+    rows = [_row(ce.cluster, p) for p in ce.all_tested]
+    by_key = {r.key: p for r, p in zip(rows, ce.all_tested)}
+
+    surface.render_surface(
+        spec,
+        header=_header_values(ce, rows),
+        rows=rows,
+        on_select=lambda r: state.toggle_pathway(ce.cluster, by_key[r.key].gene_set),
+        selected=lambda r: state.is_pathway_selected(ce.cluster,
+                                                     by_key[r.key].gene_set),
     )
-
-    if not ce.enriched and not ce.suggestive:
-        st.markdown('<div class="pano-enr-empty">No pathway clears the enrichment gate for this cluster.</div>',
-                    unsafe_allow_html=True)
-        return
-
-    with st.container(key="pwhead"):
-        h1, h2, h3 = st.columns(_ROW_COLS)
-        h1.markdown('<span class="pano-enr-hrow">Program · select to map</span>', unsafe_allow_html=True)
-        h2.markdown('<span class="pano-enr-hrow">score · q · cov</span>', unsafe_allow_html=True)
-        h3.markdown('<span class="pano-enr-hrow">biology · relevance (cited)</span>', unsafe_allow_html=True)
-
-    _render_pathway_rows(st, ce.cluster, ce.enriched, suggestive=False)
-    if ce.suggestive:
-        st.markdown('<div class="pano-enr-sug">suggestive · re-check (below the strict bar)</div>',
-                    unsafe_allow_html=True)
-        _render_pathway_rows(st, ce.cluster, ce.suggestive, suggestive=True)
 
     # The selected programs' leading edge on tissue (spatial stage — small-multiples).
     selected = state.active_pathways(ce.cluster)
-    chosen = [p for p in (*ce.enriched, *ce.suggestive) if p.gene_set in selected]
+    chosen = [p for p in ce.all_tested if p.gene_set in selected]
     st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
     enrichment_spatial.render_pathways_spatial(ce.cluster, chosen)
 
