@@ -386,7 +386,7 @@ class PlotSpec:
     )
 
     def __post_init__(self) -> None:
-        if False:
+        if not self.conditionality_builder.strip():
             raise UndrawableFigure(
                 f"plot {self.key!r} declares no conditionality builder; a figure "
                 "that cannot state its conditions does not render, so declaring it "
