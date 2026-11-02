@@ -251,9 +251,19 @@ class XeniumAdapter:
             v = store.manifest.get(key)
             return Condition(str(v), Provenance.READ) if v else UNKNOWN
 
+        # Modality follows from the platform and is not a guess. A Xenium store is
+        # imaging-based spatial transcriptomics by construction -- the same kind of
+        # vendor fact as coordinate_system()'s micron scale, which nobody calls an
+        # inference. It derives from `platform`, which IS read from the manifest, so
+        # it is READ. Reporting it UNKNOWN threw away something certain and made
+        # every downstream check carry "modality unknown" for no reason.
+        modality = read("modality")
+        if modality is UNKNOWN and (store.manifest.get("platform") or "").strip().lower() == "xenium":
+            modality = Condition("imaging_spatial_transcriptomics", Provenance.READ)
+
         return Conditions(
             assay=read("platform"),
-            modality=read("modality"),
+            modality=modality,
             tissue=read("tissue"),
             method=read("method"),
             segmentation=read("segmentation"),

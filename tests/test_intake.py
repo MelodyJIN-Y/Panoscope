@@ -105,7 +105,14 @@ def test_the_checklist_shows_three_columns_and_nothing_else(demo: Study) -> None
     assert checklist.blocking == ()
     assert {i.field for i in checklist.of(Status.KNOWN)} >= {MEASURED_SET, "assay",
                                                             "tissue"}
-    assert {i.field for i in checklist.of(Status.OPTIONAL)} == set(DECLARED_UNKNOWN_OK)
+    # OPTIONAL is the declared-unknown-ok fields MINUS any the store actually
+    # answered. The demo answers modality (it follows from platform=Xenium), so
+    # it sits under KNOWN -- the checklist asks about what is missing, not about
+    # every field that COULD be missing.
+    optional = {i.field for i in checklist.of(Status.OPTIONAL)}
+    known = {i.field for i in checklist.of(Status.KNOWN)}
+    assert optional == set(DECLARED_UNKNOWN_OK) - known
+    assert "modality" in known
     assert "Known from the files" in rendered
     assert "Optional" in rendered
     assert "BLOCKING" not in rendered, "a complete study must not show a blocking header"

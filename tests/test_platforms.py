@@ -241,9 +241,12 @@ def test_standing_conditions_never_write_inferred(demo: Study) -> None:
     assert Provenance.INFERRED not in provenances
     assert conds.assay.value == "Xenium"
     assert conds.assay.provenance is Provenance.READ
-    # Nothing in the store states these, and FFPE "sounding right" is not a read.
-    assert set(conds.declared_unknown) == {"modality", "method",
-                                           "segmentation", "fixation"}
+    # Modality is NOT among these: it follows from platform=Xenium, which is read
+    # from the manifest, so it is READ -- the same kind of vendor fact as
+    # coordinate_system()'s micron scale. The rest are genuinely unstated, and
+    # FFPE "sounding right" is not a read.
+    assert conds.modality.provenance is Provenance.READ
+    assert set(conds.declared_unknown) == {"method", "segmentation", "fixation"}
 
 
 def test_the_conditions_carry_every_frame(demo: Study) -> None:
