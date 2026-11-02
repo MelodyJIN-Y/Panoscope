@@ -304,6 +304,21 @@ RULES: dict[str, Rule] = _rules(
     Rule("corpus:not_built", "corpus",
          "there was no corpus to search; nothing was read, so nothing may be "
          "concluded about what the literature holds"),
+    # -- step: propagate (panoscope.core.propagate.requires) --
+    # Two ids rather than one with a boolean outcome, for the reason de has three
+    # per check: "every condition this check reads is known" and "one of them was
+    # declared unknown at intake" are opposite readings, and only the second names
+    # something the biologist can go and get. Neither is ever a value or a caveat on
+    # a number -- a condition nobody declared does not make a measurement weaker, it
+    # makes a question unaskable, and conflating the two is how an unknown silently
+    # applies.
+    Rule("propagate:conditions_known", "propagate",
+         "every Conditions field this check declared it reads carries a value and a "
+         "provenance, so the check could be asked of this study at all"),
+    Rule("propagate:cannot_be_settled", "propagate",
+         "a Conditions field this check reads was declared UNKNOWN at intake (§6.3's "
+         "non-blocking half), so the check CANNOT BE SETTLED and names the field "
+         "rather than answering from a default"),
 )
 
 
