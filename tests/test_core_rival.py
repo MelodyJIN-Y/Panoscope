@@ -283,8 +283,10 @@ def test_the_record_names_which_frame_refused_each_marker(world) -> None:
     assert frames["GZMB"] == (MeasuredState.NEVER_MEASURED, PANEL_FRAME)
     assert frames["KLRD1"][0] is MeasuredState.TESTED_ABSENT
     assert _symbols(out.value.against_rival) == ["KLRD1"]
+    # and the record SAYS which frame, once, in the decision that adjudicated it
     assert {b for d in out.decisions for b in d.because} >= {
-        "GNLY never_measured in detect:nosig", "GZMB never_measured in panel:demo",
+        "gene:GNLY never_measured in detect:nosig",
+        "gene:GZMB never_measured in panel:demo",
     }
 
 
@@ -301,9 +303,9 @@ def test_every_marker_gets_a_measure_decision_before_the_verdict(world) -> None:
                      annotation.canonical_markers("T_Cells"), world)
     assert [d.rule for d in out.decisions] == [
         "measure:tested_absent", "measure:tested_absent", "measure:tested_absent",
-        "measure:tested_absent", "measure:tested_absent",   # IL7R PTPRC TRAC CD3E CD8A
+        "measure:tested_absent",                            # IL7R PTPRC TRAC CD3E
         "measure:never_measured",                           # CD3D, off panel
-        "measure:tested_absent",                            # CD4, peaks in c3
+        "measure:tested_absent", "measure:tested_absent",   # CD8A, CD4 (peaks in c3)
         "rival:argued_against",
     ]
     for d in out.decisions:

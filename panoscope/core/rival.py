@@ -33,7 +33,8 @@ honest output is that the panel cannot settle it.
 **And a boolean cannot say which frame refused.** "off the panel" and "on the panel
 but undetectable" are different facts to a biologist -- the first is fixed by ordering
 a different panel, the second is not -- and ``off_panel=True`` collapses them.
-``Measured.frame`` names the frame that refused each marker, so the record can say
+``Measured.frame`` names the frame that refused each marker -- carried on the item and
+spelled out in the ``measure:*`` decision that adjudicated it -- so the record can say
 *CD3D is not in panel:xenium_hbc_v1* and *GNLY failed detect:nosig* in the same
 breath.
 
@@ -181,23 +182,24 @@ def rival_test(ev: NormalisedEvidence, call: str, alternative: str,
         ref(i.subject) for i in (*supports_rival, *against_rival, *undecidable)
     )
     because = (f"{alternative}: {cov}",)
+    # The out-of-frame markers are named on EVERY verdict, not only when they decide
+    # it. ``agent/skeptic.py``'s elif chain reached its off-panel branch only when
+    # nothing localised elsewhere, so a rival that was ruled out on four panel markers
+    # never mentioned the fifth that was never measured. WHICH frame refused each one
+    # is already in the ``measure:*`` decision that adjudicated it, and is not
+    # restated here -- a second copy is the one that drifts.
+    unmeasured = ((f"{_names(undecidable)} not in frame; they argue nothing",)
+                  if undecidable else ())
 
     if not cov.ok:
-        # Name the refusing frame per marker. The boolean this replaces could say
-        # "not measured" but never "not measured HERE, by THIS frame", which is the
-        # half the biologist acts on.
-        t.note("rival:undecidable", alternative, because + tuple(
-            f"{i.subject.display()} {i.measured.state.value} in {i.measured.frame}"
-            for i in undecidable
-        ), refs)
+        t.note("rival:undecidable", alternative, because + unmeasured, refs)
     elif supports_rival:
-        t.note("rival:ambiguous", alternative,
-               because + (f"{_names(supports_rival)} observed in {ev.unit}",), refs)
+        t.note("rival:ambiguous", alternative, because
+               + (f"{_names(supports_rival)} observed in {ev.unit}",) + unmeasured, refs)
     else:
         t.note("rival:argued_against", alternative, because
                + (f"{_names(against_rival)} in frame, tested, not reported in {ev.unit}",)
-               + ((f"{_names(undecidable)} never measured; they argue nothing",)
-                  if undecidable else ()), refs)
+               + unmeasured, refs)
 
     return t.done(Rivalry(
         call=call,
