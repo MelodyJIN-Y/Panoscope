@@ -15,7 +15,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, NamedTuple, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from panoscope.data import layout
 from panoscope.data.study import Study, StudyNotFound
@@ -88,16 +88,11 @@ def _cmd_build(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 # explain
 # --------------------------------------------------------------------------- #
-#: The interpretive question ``explain`` answers: *what IS this unit?* The id is a
-#: registry key, validated by ``workflows.get`` rather than assumed -- the verb picks
-#: a question, and the registry says which methods and which task kind answer it.
-_WORKFLOW_ID = "marker-interpretation"
-
-#: The entity column of a marker table. ``UnitSpec`` declares the *unit* column and
-#: its reasoning but says nothing about which column names the entity, so this is the
-#: one schema fact the verb still supplies. Named here rather than inline so the gap
-#: is visible; it belongs on ``UnitSpec``, which is frozen.
-_ENTITY_COLUMN = "gene"
+# The interpretive question ``explain`` answers -- *what IS this unit?* -- its entity
+# column and the whole composition root now live in ``pipeline/records.py``, because
+# ``panoscope build`` needs the same one. They were here while only ``explain`` went
+# through ``core/``; a second copy on the pipeline side is how the file on disk and
+# the view on screen start disagreeing about a band.
 
 
 def _cmd_explain(args: argparse.Namespace) -> int:
@@ -138,121 +133,15 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
-class _Built(NamedTuple):
-    """One unit's record and the two things the record has no field for.
+def _build_record(study: Study, unit: str) -> Any:
+    """Study + unit -> ``pipeline.records.UnitBuild``. Composition lives there.
 
-    ``InterpretationRecord`` carries the reading, the decisions, the claims and the
-    undecidables -- it carries no band, no ``verify`` and no evidence items, so a
-    renderer cannot print the current output from the record alone. Rather than
-    pretend otherwise, the pieces the record was assembled FROM travel beside it and
-    every line below says which of the two it came from.
+    Imported inside the verb like every other pipeline import, so ``panoscope
+    doctor`` still answers on an install missing the extras it pulls.
     """
+    from panoscope.pipeline import records
 
-    record: Any          # InterpretationRecord
-    evidence: Any        # NormalisedEvidence, glm_coef-descending
-    verdict: Any         # core.verdict.Verdict
-    canonical: frozenset[str]
-
-
-def _build_record(study: Study, unit: str) -> _Built:
-    """Study + unit -> ``InterpretationRecord``. Composition only; no statistic here.
-
-    Heavy imports are local for the reason every verb's are: ``panoscope doctor``
-    must answer on an install missing them.
-
-    Two reads of the method's table, deliberately and not by accident. The tidy
-    reader produces the ``ReadingRecord`` -- rows in, rows dropped and why, the
-    entities no frame admits -- and the method module produces the evidence, because
-    only it knows what its own specificity columns mean. Neither can produce the
-    other's half today.
-    """
-    import dataclasses
-
-    import pandas as pd
-
-    from panoscope import methods, workflows
-    from panoscope.core import measure, record as core_record
-    from panoscope.core import verdict as core_verdict
-    from panoscope.platforms.tidy import read_tidy
-    from panoscope.platforms.xenium import XeniumAdapter
-    from panoscope.types.measured import MeasuredWorld
-    from panoscope.types.subject import EntityKind, gene, subject
-
-    registered = methods.for_workflow(_WORKFLOW_ID)
-    if len(registered) != 1:
-        raise SystemExit(
-            f"{len(registered)} methods answer {_WORKFLOW_ID!r} "
-            f"({', '.join(m.name for m in registered) or 'none'}); explain cannot "
-            "pick one for you. The record names its method, so build it with the "
-            "pipeline and read it back."
-        )
-    method = registered[0]
-    adapter = XeniumAdapter()          # no platform registry exists yet; see report
-    path = study.inputs / "markers_top.csv"
-    if not path.is_file():
-        raise SystemExit(f"Study {study.id!r} has no method output at {path}.")
-
-    # The unit column comes off the SCHEMA, through the method, never from here.
-    spec = method.detect_unit(pd.read_csv(path))
-    world = MeasuredWorld(adapter.frames(study))
-    reading = read_tidy(
-        path,
-        unit_column=spec.unit_column,
-        entity_column=_ENTITY_COLUMN,
-        entity_kind=EntityKind.GENE,
-        statistic_column=method.statistic_name,
-        unit_kind=spec.unit_kind,
-        world=world,
-        clustering_mode=adapter.clustering_mode(study),
-        # Whatever the method did not declare a unit is not a unit. Derived, so no
-        # sentinel string ("NoSig") is restated outside the method that owns it.
-        not_units=frozenset(str(v) for v in pd.read_csv(path)[spec.unit_column])
-        - set(spec.units),
-        unit_detection_because=spec.because,
-        # Store-relative: an absolute path in a hashed record makes byte-stability a
-        # property of whose laptop produced it.
-        record_path=str(path.relative_to(study.dir)),
-    ).value.record
-
-    loaded = method.load(str(path), adapter, study)
-    ev = loaded.value[unit]
-    meta = study.unit_labels.get(unit, {})
-
-    # Reference data, selecting which absences are worth reporting and nothing else:
-    # the canonical markers this study's annotation lists for the label, and the ones
-    # it records as off panel. The lattice decides what each one IS -- a gene named
-    # here that the panel does measure comes back tested-absent, not never-measured.
-    reported = frozenset().union(*(f.members for f in ev.reported)) if ev.reported \
-        else frozenset()
-    absences = tuple(
-        measure.measure(
-            measure.Reading(subject=subject("gene", g=gene(str(g))), statistic=None,
-                            statistic_name=method.statistic_name),
-            world, reported)
-        for g in meta.get("offpanel_canonical", ())
-    )
-
-    # glm_coef descending, which is the order core/verdict.py says the CALLER owns:
-    # the first eligible canonical marker is the driver, and the committed file is
-    # not sorted within a cluster. See the report -- this belongs in the method.
-    observed = tuple(sorted((i for i in ev.items if i.measured.carries_number),
-                            key=lambda i: -float(i.statistic or 0.0)))
-    ev = dataclasses.replace(ev, items=(
-        observed
-        + tuple(i for i in ev.items if not i.measured.carries_number)
-        + tuple(t.value for t in absences)
-    ))
-
-    canonical = frozenset(str(g) for g in meta.get("canonical_markers", ()))
-    verdict = core_verdict.assess(ev.items, canonical)
-    record = core_record.build(
-        ev, reading,
-        core_record.unit_decisions(ev, loaded, *absences),
-        verdict,
-        task_kind=workflows.get(method.workflow).task_kind,
-    ).value
-    return _Built(record=record, evidence=ev, verdict=verdict.value,
-                  canonical=frozenset(g.upper() for g in canonical))
+    return records.build(study, unit)
 
 
 def _band_from(record: Any) -> str:
@@ -268,7 +157,7 @@ def _band_from(record: Any) -> str:
     return steps[-1].outcome if steps else "(no band decision)"
 
 
-def _render_record(study: Study, built: _Built) -> list[str]:
+def _render_record(study: Study, built: Any) -> list[str]:
     """Pure projection of one record. No statistic is derived here."""
     from panoscope.core import record as core_record
     from panoscope.types.measured import MeasuredState

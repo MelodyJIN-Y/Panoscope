@@ -191,6 +191,12 @@ def run(
     for v in verdicts:
         p = paths.cluster_json(dataset_id, v.cluster, root)
         artifacts[str(p.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(p)}
+    # The v2 records (§10) are hashed like everything else: they are the artifact
+    # the reproducibility claim is about, and an unhashed one is a file nobody can
+    # say arrived unchanged.
+    recdir = paths.interp_dir(dataset_id, root) / "records"
+    for p in sorted(recdir.rglob("*.json")):
+        artifacts[str(p.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(p)}
     csvp = paths.verdicts_csv(dataset_id, root)
     artifacts[str(csvp.relative_to(ddir))] = {
         "sha256": manifest_mod.sha256_file(csvp),
