@@ -15,14 +15,29 @@ cell-type call. The grounding gate still governs every stated number.
 Each entry is composed from the agent's own decision prose (the note claim it drafted
 from the chat) plus structured provenance, so the memory is auto-written and
 attributed, not free text typed by hand.
+
+**Why this is not a claim.** IMPLEMENTATION §10 routes the note store onto ``Claim``;
+a user-memory entry deliberately does not go with it. A LAB claim is refused without
+the ``Conditions`` it was formed under (``UnformedLabClaim``) precisely so the lab's
+caveat about one FFPE block cannot leak into another study -- and a portable entry is
+the opposite object by design: it is kept BECAUSE it travels, with no conditions to
+carry. Storing one as a LAB claim would mean inventing the frames it was formed under,
+which is the one thing the invariant exists to stop. So it stays here, open-ceiling,
+and :mod:`panoscope.claims.notes` bridges the dataset-local notes instead.
 """
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Iterable
 
-_PATH = Path(__file__).resolve().parent.parent / "context" / "user_memory.jsonl"
+from panoscope.agent import config as cfg
+
+# The repo root's ``context/``, resolved the way ``agent/memory.py`` resolves the note
+# store beside it. Spelling it relative to ``__file__`` put it INSIDE the package
+# (``panoscope/context/``) after the Phase B move, where nothing had ever been written
+# -- so every decision the biologist saved read back as "none saved", silently, which
+# is the failure a portable memory can least afford.
+_PATH = cfg.PROJECT_ROOT / "context" / "user_memory.jsonl"
 
 # How much prior knowledge to inject into the system prompt: recent entries only,
 # hard-capped so a long history can never crowd out the skill or the contract.

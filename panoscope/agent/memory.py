@@ -19,6 +19,14 @@ What it enforces (the load-bearing invariants):
   agreement and dissent, and attaches that :class:`~agent.types.Tension` to the
   note. Citations are only kept if the callable marks them real; a fabricated
   citation is the worst possible failure.
+- **"Nobody looked" is not "the literature is thin."** ``Tension.thin`` is one
+  boolean over two different facts, so :func:`reconcile` leaves ``looked_up_at``
+  empty whenever no lookup completed and :func:`claims.notes.lookup_state` reads the
+  trichotomy back out. No field was added: the note JSON on disk is unchanged.
+
+Notes become :class:`~panoscope.types.claim.Claim` objects through
+:mod:`panoscope.claims.notes` (IMPLEMENTATION §10). That bridge READS these files and
+never rewrites one; this module remains the only writer.
 
 A note is a versioned, git-tracked file. The base directory is configurable
 (default ``context/``) so tests can point it at a tmp dir.
@@ -46,6 +54,8 @@ from panoscope.agent.types import (
     Status,
     Tension,
 )
+from panoscope.claims.notes import lookup_state
+from panoscope.corpus.store import Resolution
 
 # --------------------------------------------------------------------------- #
 # Types
@@ -198,20 +208,29 @@ def reconcile(note: Note, literature_search: Optional[LiteratureSearch] = None) 
 
     Returns a fresh :class:`Tension`. When no search is provided or nothing real
     resolves, ``thin=True`` (say the literature is thin; never invent a ref).
+
+    **``looked_up_at`` stamps a lookup that COMPLETED, and only that.** A search that
+    was never injected and a connector that raised are both "nobody looked", which is
+    not the same claim as "we looked and the literature is thin". Leaving the stamp
+    empty on both no-lookup paths makes that trichotomy readable back out of the note
+    JSON (:func:`claims.notes.lookup_state`) without adding a field to a persisted
+    shape -- the note files on disk still parse unchanged.
     """
     query = _reconcile_query(
         note.claim, note.subject_cell_type, note.subject_markers, note.subject_gene_sets
     )
-    looked_up_at = _now_iso()
 
     if literature_search is None:
-        return Tension(agree=(), dissent=(), thin=True, query=query, looked_up_at=looked_up_at)
+        return Tension(agree=(), dissent=(), thin=True, query=query, looked_up_at="")
 
     try:
         results = list(literature_search(query))
     except Exception:
-        # A failed lookup is thin literature, never a fabricated fallback.
-        return Tension(agree=(), dissent=(), thin=True, query=query, looked_up_at=looked_up_at)
+        # A failed lookup is not thin literature; it is no lookup at all. Never a
+        # fabricated fallback, and never the empty-search sentence either.
+        return Tension(agree=(), dissent=(), thin=True, query=query, looked_up_at="")
+
+    looked_up_at = _now_iso()
 
     real = [c for c in results if isinstance(c, Citation) and c.is_real]
     dissent = tuple(c for c in real if c.stance == _STANCE_DISSENT)
@@ -618,13 +637,23 @@ def render_citation(note: Note, *, refresh: Optional[LiteratureSearch] = None) -
     the note carries tension — the count of agreeing vs dissenting citations
     with their PMIDs. When ``refresh`` is given, the tension is re-reconciled
     live before rendering (real PMIDs only). Never smooths disagreement over.
+
+    **Three sentences where there was one.** "We searched and found nothing" is a
+    finding about the literature; "no lookup completed" is a statement about this
+    session and says nothing about the literature at all. Rendering them in the same
+    voice is how a note written while the connector was down ends up reading as
+    evidence of thinness. :func:`claims.notes.lookup_state` draws the line.
     """
     tension = reconcile(note, refresh) if refresh is not None else note.tension
     src = cite_note(note)
     line = f'"{note.claim}" [note:{note.id}] ({src.detail})'
 
-    if tension.thin and not tension.agree and not tension.dissent:
-        return line + " — literature is thin; no supporting reference found."
+    state = lookup_state(tension)
+    if state is Resolution.NOT_LOOKED_UP:
+        return line + (" — no literature lookup completed for this note; that says "
+                       "nothing about what the literature holds.")
+    if state is Resolution.NOT_FOUND:
+        return line + " — literature was searched and is thin; no reference found."
 
     def _pmids(cites: tuple[Citation, ...]) -> str:
         return ", ".join(f"PMID:{c.pmid}" for c in cites if c.pmid)
