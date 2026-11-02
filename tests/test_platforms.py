@@ -626,3 +626,45 @@ def test_a_misspelled_sentinel_stays_out_of_the_detectability_frame(
         assert m.absence_is_evidence is False, (
             f"{gene} yielded no usable signal; its absence cannot argue"
         )
+
+
+def test_the_missing_sample_blocker_counts_what_can_still_be_compared(
+    tmp_path: Path,
+) -> None:
+    """A §6.3 line is the sentence a biologist acts on, so it must not assert.
+
+    It said "only the pooled table is readable, so replicate concordance has
+    nothing to run on" for every shape of this problem -- false as soon as two of
+    the declared sections DO have a table, and false in the direction that stops a
+    biologist reading a study that can still be compared. On a multi-sample kidney
+    store, one section failing QC is the ordinary case, not the edge.
+    """
+    def _with_samples(sid, declared, on_disk):
+        store = _store(tmp_path / sid, sid,
+                       manifest={"platform": "Xenium", "tissue": "t",
+                                 "clusters": ["u1"], "samples": list(declared),
+                                 "clustering_mode": "joint"},
+                       panel=["AAA", "BBB"],
+                       markers=[("AAA", "u1", 1.0, 0.5), ("BBB", "NoSig", 0.0, 0.0)])
+        for s in on_disk:
+            d = store.inputs / "samples" / s
+            d.mkdir(parents=True)
+            pd.DataFrame([("AAA", "u1", 1.0, 0.5)],
+                         columns=list(MARKER_COLUMNS)).to_csv(
+                d / "markers_top.csv", index=False)
+        return store
+
+    # Two of three readable: the study is still comparable, out of two.
+    some = ADAPTER.validate(_with_samples("some", ("s1", "s2", "s3"), ("s1", "s2")))
+    line = next(p for p in some if "no per-sample marker table" in p)
+    assert "s3" in line
+    assert "2 of 3 sections can still be compared" in line, line
+    assert "nothing to run on" not in line, (
+        "the blocker asserted that no comparison is possible; two sections are "
+        f"readable: {line}"
+    )
+
+    # One of three readable: now it genuinely has nothing to compare, and says so.
+    one = ADAPTER.validate(_with_samples("one", ("s1", "s2", "s3"), ("s1",)))
+    line = next(p for p in one if "no per-sample marker table" in p)
+    assert "fewer than two sections are readable" in line, line

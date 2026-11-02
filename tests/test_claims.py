@@ -260,11 +260,11 @@ def test_evaluability_applies_to_every_authority_class():
             (Authority.LITERATURE,
              Claim(id="l:1", subject=FAP, predicate="marks", object="Stromal",
                    authority=Authority.LITERATURE, source="pmid:00000003",
-                   depends_on=(cell_type("Stromal"),))),
+                   depends_on=(cell_type("Stromal"),), scope="study")),
             (Authority.MEASUREMENT,
              Claim(id="m:1", subject=FAP, predicate="marks", object="Stromal",
                    authority=Authority.MEASUREMENT, source="file:sha256:" + "0" * 64,
-                   depends_on=(cell_type("Stromal"),))),
+                   depends_on=(cell_type("Stromal"),), scope="study")),
         )
     }
     assert set(states.values()) == {Evaluable.NEVER_MEASURED}
@@ -290,7 +290,7 @@ def test_no_verdict_for_database_curated():
 
 def test_no_verdict_for_literature_either():
     lit = Claim(id="l:2", subject=ERBB2, predicate="marks", object="Tumor",
-                authority=Authority.LITERATURE, source="pmid:00000004")
+                authority=Authority.LITERATURE, source="pmid:00000004", scope="study")
     assert not manifest_sourced(lit)
     assert transfer_check(lit, HERE).value.stamp
 
@@ -655,7 +655,7 @@ def test_thin_literature_only_speaks_about_knowledge_claims():
     assert not thin_literature(_lab())
     assert not thin_literature(
         Claim(id="m:2", subject=ERBB2, predicate="marks", object="Tumor",
-              authority=Authority.MEASUREMENT, source="file:sha256:" + "0" * 64))
+              authority=Authority.MEASUREMENT, source="file:sha256:" + "0" * 64, scope="study"))
     assert thin_literature(_curated(source="panel:demo_v1"))
 
 

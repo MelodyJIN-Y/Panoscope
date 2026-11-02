@@ -766,15 +766,38 @@ class XeniumAdapter:
             return problems
 
         if len(samples) > 1:
-            missing = [s for s in samples if s not in self.sample_inputs(store)]
+            on_disk = self.sample_inputs(store)
+            missing = [s for s in samples if s not in on_disk]
             if missing:
+                # What the MISSING tables cost, counted rather than assumed. The
+                # sentence here used to say "only the pooled table is readable, so
+                # replicate concordance has nothing to run on" for every shape of
+                # this problem -- which is false as soon as two of the declared
+                # sections do have a table, and false in the direction that makes a
+                # biologist stop reading a study that can still be compared. On a
+                # kidney-shaped store, where one section failing QC is the ordinary
+                # case rather than the edge, that is the difference between a
+                # blocked study and a narrower denominator.
+                readable = [s for s in samples if s in on_disk]
+                if len(readable) >= 2:
+                    cost = (
+                        f"{len(readable)} of {len(samples)} sections can still be "
+                        f"compared ({', '.join(readable)}), so every replicate "
+                        f"coverage on this study is out of {len(readable)} and not "
+                        f"{len(samples)}, and nothing these sections report can be "
+                        "checked against the missing one"
+                    )
+                else:
+                    cost = (
+                        "fewer than two sections are readable, so replicate "
+                        "concordance (ARCHITECTURE §9.10) has nothing to run on and "
+                        "a divergence between samples cannot be seen at all"
+                    )
                 problems.append(
                     f"the store declares {len(samples)} samples and has no per-sample "
                     f"marker table for {', '.join(missing)} "
                     f"({store.inputs / 'samples' / '<sample>' / 'markers_top.csv'}). "
-                    "Only the pooled table is readable, so replicate concordance "
-                    "(ARCHITECTURE §9.10) has nothing to run on and a divergence "
-                    "between samples cannot be seen"
+                    + cost
                 )
 
         try:

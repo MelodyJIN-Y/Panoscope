@@ -278,6 +278,14 @@ class Edge:
             object=self.object.id,
             authority=Authority.CURATED,     # NOT a parameter. See the docstring.
             source=self.citation,
+            # Stated, now that ``Claim.scope`` has no default to inherit. ``study``
+            # is what this minted before and what it has to stay: a reference edge
+            # is tissue-general knowledge, keyed to no sample and no dataset, and
+            # the rung above it (``lab``) means the lab's OWN accumulated call,
+            # which a database row is not. Writing it out rather than defaulting is
+            # the point -- the previous silence read identically to a claim whose
+            # author simply forgot, and those two must not look the same.
+            scope="study",
             licence=self.licence,
         )
 

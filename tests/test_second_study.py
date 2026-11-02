@@ -449,3 +449,46 @@ def test_every_unit_is_concordance_checkable(store: Study) -> None:
         divergent[u] = c.divergent
     # SYNG03 moved out of c1 and into c2, so exactly those two diverge.
     assert divergent == {"c1": True, "c2": True, "c3": False}
+
+
+# --------------------------------------------------------------------------- #
+# The bundled breast fallback belongs to the bundled demo and to nothing else
+# --------------------------------------------------------------------------- #
+def test_a_study_with_no_marker_table_does_not_inherit_the_demos(tmp_path):
+    """``data/jazzpanda/markers_top.csv`` is the DEMO's flat file, not a default.
+
+    ``config._active_input`` fell back to it for any study, so a store missing its
+    own table read the demo's: ``cfg.CLUSTER_ORDER`` came back as nine clusters and
+    ``load_panel`` as 280 genes, under the other study's id. The onboarding line
+    showed it first -- "9 clusters, 280-gene panel" over a kidney store -- but
+    ``CLUSTER_ORDER`` is also what Stage 0's unknown-label guard compares against,
+    and the panel is the capability frame every absence is judged in.
+
+    The honest answer for a study with no file is the path that does not exist, so
+    the reader raises and names it.
+    """
+    import pytest
+
+    from panoscope.agent import data as agent_data
+    from panoscope.data.study import Study
+
+    root = tmp_path / "studies" / "kidney_like"
+    (root / "inputs").mkdir(parents=True)
+    (root / "manifest.json").write_text(
+        json.dumps({"dataset_id": "kidney_like", "platform": "Xenium",
+                    "tissue": "kidney"}))
+    st = Study.open("kidney_like", data_root=tmp_path)
+
+    with cfg.use_study(st):
+        resolved = cfg.ACTIVE_MARKERS_CSV
+        assert "kidney_like" in str(resolved), (
+            f"a non-demo study resolved to {resolved} -- the bundled demo's file"
+        )
+        assert not resolved.exists()
+        with pytest.raises((FileNotFoundError, ValueError)) as exc:
+            _ = cfg.CLUSTER_ORDER
+        assert "kidney_like" in str(exc.value)
+
+    # ...and the bundled demo still gets its fallback, which is what it is for.
+    with cfg.use_study(cfg.BUNDLED_DEMO_ID):
+        assert len(cfg.CLUSTER_ORDER) == 9

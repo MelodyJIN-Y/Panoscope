@@ -45,11 +45,30 @@ def _conditions(frames: tuple[FrameRef, ...] = (PANEL_REF,)) -> Conditions:
 
 
 def _claim(**kw) -> Claim:
+    # ``scope`` is stated, because there is no default to inherit: it used to be
+    # ``"study"``, an UNKEYED rung that applies downward into every study, so a
+    # claim built without one silently became a claim about all of them. The tests
+    # that care about scope override it; the rest state the narrowest rung that
+    # parses, so none of them is quietly exercising the widest.
     base = dict(
         id="c1", subject=ERBB2, predicate="marks", object="Tumor",
         authority=Authority.CURATED, source="panel:xenium_hbc_v1",
+        scope="study",
     )
     return Claim(**{**base, **kw})
+
+
+def test_a_claim_built_with_no_scope_is_refused() -> None:
+    """Fail-closed on the rows this process builds, not only on the ones it reads.
+
+    ``claims/store._from_dict`` already refuses a file that forgot its scope key.
+    The dataclass default was ``"study"`` -- unkeyed, and therefore true of every
+    study -- so the same omission in code widened the claim instead of raising.
+    """
+    with pytest.raises(BadScope) as exc:
+        Claim(id="c9", subject=ERBB2, predicate="marks", object="Tumor",
+              authority=Authority.CURATED, source="panel:xenium_hbc_v1")
+    assert "c9" in str(exc.value)
 
 
 # --------------------------------------------------------------------------- #

@@ -125,9 +125,29 @@ def use_study(study: Study | str):
 
 
 def _active_input(name: str, legacy: Path) -> Path:
-    """Prefer the study's own tree; fall back to the bundled legacy flat file."""
+    """The study's own file; the bundled legacy flat file ONLY for the bundled demo.
+
+    **The fallback used to fire for every study, and it is a breast fallback.**
+    ``data/jazzpanda/markers_top.csv`` and ``data/panels/panel.parquet`` are the
+    bundled demo's flat files, kept so the demo runs before anything is built. A
+    study missing either one therefore read the demo's: ``cfg.CLUSTER_ORDER`` came
+    back as the demo's nine clusters and ``load_panel`` as its 280 genes, under the
+    other study's id. The onboarding line showed it first -- "9 clusters, 280-gene
+    panel" over a kidney store -- but it does not stop there, because
+    ``CLUSTER_ORDER`` is what Stage 0's unknown-label guard compares against and the
+    panel is the capability frame every absence is judged in.
+
+    Same gate, same reason, as ``agent/annotation._is_bundled_demo``: wrong-tissue
+    data reaching another study's numbers is the precise failure this project exists
+    to prevent, so it is refused structurally rather than by convention. A
+    non-demo study with no file of its own gets the path that does not exist, and
+    every reader above raises with that path in the message -- which is the honest
+    answer, and the one that names the missing file.
+    """
     cand = current_study().inputs / name
-    return cand if cand.exists() else legacy
+    if cand.exists():
+        return cand
+    return legacy if current_study().id == BUNDLED_DEMO_ID else cand
 
 
 def _active_markers_csv() -> Path:

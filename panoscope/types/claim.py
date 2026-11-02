@@ -184,7 +184,17 @@ class Claim:
     source: str                        # URI: see SOURCE_SCHEMES
     conditions: Conditions | None = None
     depends_on: tuple[Entity, ...] = ()
-    scope: str = "study"               # sample:<id> | dataset:<id> | study | lab
+    #: ``sample:<id> | dataset:<id> | study | lab``. **No usable default**: ``""``
+    #: does not parse, so ``__post_init__`` raises :class:`BadScope` naming the
+    #: claim and the four legal spellings. It defaulted to ``"study"``, which is an
+    #: UNKEYED rung and applies downward into every study -- so a claim constructed
+    #: without a scope silently became a claim about all of them, which is the
+    #: widening the fail-closed gate exists to refuse. ``claims/store._from_dict``
+    #: already refuses it on the read path; this is the same rule for the rows this
+    #: process builds itself. A default rather than a required field only because
+    #: making it required would reorder the positional arguments of a dataclass
+    #: eight defaulted fields deep.
+    scope: str = ""
     status: str = "firm"               # firm | tentative
     valid: str = "active"              # active | superseded | retracted
     superseded_by: str | None = None
