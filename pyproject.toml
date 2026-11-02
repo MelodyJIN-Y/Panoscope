@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "panoscope"
+version = "0.1.0"
+description = "A human-in-the-loop interpretation layer for bioinformatics results."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"          # panoscope/types/ uses enum.StrEnum (3.11+)
+dependencies = [
+    "pandas>=2,<4",                 # dev runs 3.0.x; see NOTE below
+    "pyarrow>=14,<26",
+    "numpy>=1.26,<3",
+    "pyyaml>=6",
+]
+
+# NOTE on upper bounds. IMPLEMENTATION.md §8 pinned pandas>=2,<3, plotly<7 and an
+# unbounded pyarrow. Development actually runs pandas 3.0.5, plotly 7.0.0 and
+# pyarrow 25.0.1 with the whole offline suite green, so those bounds would have
+# made a clean `pip install` resolve something nobody has tested. Widened to the
+# next major instead of removed: an unbounded UI/dataframe pin is the
+# reproducibility hazard §8 warns about, a stale one is just a lie.
+
+[project.optional-dependencies]
+app     = ["streamlit>=1.59,<2", "plotly>=5.20,<8"]
+agent   = ["anthropic>=0.40", "mcp>=1.2", "python-dotenv>=1"]
+export  = ["python-docx>=1.1", "fpdf2>=2.7"]
+spatial = ["spatialdata>=0.2", "zarr>=2.17"]
+dev     = ["pytest>=8", "pytest-cov", "ruff", "mypy"]
+
+[project.scripts]
+panoscope = "panoscope.cli:main"
+
+[tool.hatch.build.targets.wheel]
+# Everything under panoscope/ ships, which is what keeps panoscope/skills/*/SKILL.md
+# and panoscope/assets/*.png alive under a site-packages install. They are read at
+# runtime via package-relative paths, so losing them is a silent runtime break.
+packages = ["panoscope"]
+
+[tool.hatch.build]
+# The study store never ships in the wheel.
+exclude = ["studies", "Raw_data_*", "jazzPanda output", "handoff", "context", "tests"]

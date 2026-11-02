@@ -24,7 +24,7 @@ jazzPanda is the engine. This is the interpretation layer.
 - **The one catch to see (cluster c2).** Its textbook stromal markers COL1A1 and VIM are **off-panel**, never measured. A general reader (or a general LLM) counts that as evidence against stroma; Panoscope checks the panel first, marks them "not measured" rather than "absent", and holds the call on LUM (glm 18.00) and POSTN (glm 15.80). An absence you never measured is not evidence.
 - **Why trust it.** Nothing is fabricated: a grounding gate discards any answer whose number, marker, or PMID does not trace to source. Check it yourself from a fresh clone, no API key: `pytest -m "not live"` (230+ tests; a green run *is* the guarantee).
 - **Depth.** Two skill-driven workflows (marker cell-typing + gene-set enrichment), a scope-enforced memory layer that records the biologist's overrides with the literature tension visible, a live rival-test, and three linked spatial views. Built with Claude Code as a team of agents against one contract.
-- **Where to look.** the grounding gate [`agent/grounding_check.py`](agent/grounding_check.py), the deterministic verdict engine [`agent/verdict.py`](agent/verdict.py), the portable skill [`skills/jazzpanda-markers/SKILL.md`](skills/jazzpanda-markers/SKILL.md), and the calibration table (`python scripts/calibration_table.py`).
+- **Where to look.** the grounding gate [`agent/grounding_check.py`](agent/grounding_check.py), the deterministic verdict engine [`agent/verdict.py`](agent/verdict.py), the portable skill [`skills/marker-interpretation/SKILL.md`](skills/marker-interpretation/SKILL.md), and the calibration table (`python scripts/calibration_table.py`).
 
 ## The honest framing
 
@@ -61,7 +61,7 @@ It also **compounds across a lab's work.** The memory layer already reconciles a
 
 ## A second workflow: gene-set enrichment (Pathways)
 
-Markers say *what cell it is*; enrichment says *what program is running*. Panoscope's **Pathways** workflow interprets a per-cluster **MSigDB Hallmark** gene-set enrichment for clusters that are already cell-typed: a separate skill (`skills/geneset-enrichment/`), a separate pipeline stage (`pipeline/stages/enrichment.py`), a separate tab. It complements the cell-type call and never re-derives it.
+Markers say *what cell it is*; enrichment says *what program is running*. Panoscope's **Pathways** workflow interprets a per-cluster **MSigDB Hallmark** gene-set enrichment for clusters that are already cell-typed: a separate skill (`skills/enrichment-interpretation/`), a separate pipeline stage (`pipeline/stages/enrichment.py`), a separate tab. It complements the cell-type call and never re-derives it.
 
 The engine is the **jazzPanda competitive gene-set test**, re-scoped to the panel: for a set and a cluster it lasso-selects the set's genes whose spatial vectors track the cluster, then a one-sided z-test compares them against the mean of all *other* panel genes. The confident-floor discipline carries over intact:
 
@@ -72,16 +72,16 @@ The engine is the **jazzPanda competitive gene-set test**, re-scoped to the pane
 
 ## The pipeline: one command per dataset
 
-The skill is the interpretation contract; the **per-dataset pipeline is its executor**. `python -m pipeline.run --dataset <id>` turns a dataset's inputs (jazzPanda markers, the gene panel, an optional gene-set enrichment result, and viz sources) into a self-contained `data/datasets/<id>/` tree (`annotation.json`, `verdicts.csv`, per-cluster `interp/clusters/c{n}.json`, `gene_notes.json`, `celltype_notes.json`, and a `manifest.json` with provenance and artifact hashes) that the UI reads with no live recomputation. It runs in two skill-driven tiers:
+The skill is the interpretation contract; the **per-dataset pipeline is its executor**. `panoscope build --study <id>` turns a dataset's inputs (jazzPanda markers, the gene panel, an optional gene-set enrichment result, and viz sources) into a self-contained `data/studies/<id>/` tree (`annotation.json`, `verdicts.csv`, per-cluster `interp/clusters/c{n}.json`, `gene_notes.json`, `celltype_notes.json`, and a `manifest.json` with provenance and artifact hashes) that the UI reads with no live recomputation. It runs in two skill-driven tiers:
 
 - **Tier A, the skill's mechanical rules as deterministic code** (`agent/verdict.py` = SKILL Steps 3a/3b/3d): per-gene evaluation, the `glm_coef`-anchored confidence rubric, and the panel-absence rule. Offline and reproducible.
 - **Tier B, the skill's literature interpretation, live** (SKILL.md sits in the agent's system prompt): the Output-4 per-marker biology note is *the skill reading that gene's own Tier-A evidence*, its role framed by canonical status, with a specificity caveat flagged only when the numbers show the gene marks another lineage. One real live PMID or none.
 
-**Bring your own dataset.** Panoscope derives its interpretation entirely from the data you provide: the cluster set from its markers, the cell-type call from the marker-gene skill, and the panel-absence set from its own gene panel. Place the tidy inputs under `data/datasets/<id>/inputs/` (`markers_top.csv`, `panel.parquet`, and optionally `enrichment.csv`), then:
+**Bring your own dataset.** Panoscope derives its interpretation entirely from the data you provide: the cluster set from its markers, the cell-type call from the marker-gene skill, and the panel-absence set from its own gene panel. Place the tidy inputs under `data/studies/<id>/inputs/` (`markers_top.csv`, `panel.parquet`, and optionally `enrichment.csv`), then:
 
 ```bash
-PANOSCOPE_DATASET=<id> python -m pipeline.run --dataset <id> --notes   # build the tree
-PANOSCOPE_DATASET=<id> streamlit run app.py                            # review it
+panoscope build --study <id> --notes   # build the tree
+panoscope run --study <id>             # review it
 ```
 
 Each stage is **read-if-present, else generate**. A `prep` stage converts raw Seurat / jazzPanda `.Rds` objects into the tidy inputs (`scripts/prep_data.R`; skipped when they already exist). An **`annotate` stage applies the marker-gene skill to each cluster**: from that cluster's jazzPanda markers it produces the cell-type call, its lineage and category, and the canonical markers that ground the panel-absence rule (the skill's Output 2). The deterministic verdicts, the gene-set enrichment, and the live per-marker and per-pathway biology notes follow. Artifacts already present are read as they are, so a prepared dataset (including the bundled demo) rebuilds nothing. jazzPanda is never run; its output is a consumed input.
@@ -111,13 +111,16 @@ The clean calls commit (c1 Tumor rides ERBB2 at glm 21.44 to Very High, no verif
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev,app,agent,export]"
 
-streamlit run app.py                             # launch the app
+panoscope run                                    # launch the app
 pytest -m "not live"                             # run the grounding suite (deterministic, no network)
 
-python -m pipeline.run --dataset <id>            # (re)build a dataset's tree: verdicts + manifest (offline)
-python -m pipeline.stages.notes --dataset <id>   # live: skill-grounded per-marker + cell-type notes (PubMed)
+panoscope build --study <id>                     # (re)build a study tree: verdicts + manifest (offline)
+panoscope explain <unit>                         # print the stored interpretation for one unit
+panoscope doctor                                 # resolved paths, studies, versions, credentials
+
+python -m panoscope.pipeline.stages.notes --dataset <id>   # live: skill-grounded per-marker + cell-type notes (PubMed)
 ```
 
 The app runs entirely on precomputed jazzPanda output: no live jazzPanda run, no GPU. For live PubMed citations inside the app, add your NCBI credentials (see [MCP setup](#skill--mcp-setup)); without them the app still runs and every jazzPanda-grounded number is unaffected.
@@ -140,7 +143,7 @@ NCBI credentials are present. This is the fastest way to confirm the project doe
 
 ## Skill + MCP setup
 
-The interpretation logic ships as two installable, standalone skills. The marker workflow is **[`skills/jazzpanda-markers/`](skills/jazzpanda-markers/SKILL.md)**: the panel-absence rule, the `glm_coef`-anchored confidence rubric, the holistic cross-cluster review, and the no-fabrication / real-citation discipline; point any agent at jazzPanda `top_result` output plus a panel list and it works. The Pathways workflow is a second skill, **[`skills/geneset-enrichment/`](skills/geneset-enrichment/SKILL.md)**: the panel-coverage rule, the two-tier enrichment report, and the cross-cluster themes review. Both install and run independently of this app.
+The interpretation logic ships as two installable, standalone skills. The marker workflow is **[`skills/marker-interpretation/`](skills/marker-interpretation/SKILL.md)**: the panel-absence rule, the `glm_coef`-anchored confidence rubric, the holistic cross-cluster review, and the no-fabrication / real-citation discipline; point any agent at jazzPanda `top_result` output plus a panel list and it works. The Pathways workflow is a second skill, **[`skills/enrichment-interpretation/`](skills/enrichment-interpretation/SKILL.md)**: the panel-coverage rule, the two-tier enrichment report, and the cross-cluster themes review. Both install and run independently of this app.
 
 Live citations come from a PubMed MCP server declared in [`.mcp.json`](.mcp.json) (`@cyanheads/pubmed-mcp-server`). To enable it, copy `.env.example` to `.env` and set `NCBI_API_KEY` and `NCBI_ADMIN_EMAIL` (the email registered to that key). Get a key at <https://www.ncbi.nlm.nih.gov/account/settings/>. The `pytest -m "not live"` suite needs none of this; one optional live test (`-m live`) exercises a real lookup when credentials are present.
 
