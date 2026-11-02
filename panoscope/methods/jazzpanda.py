@@ -124,12 +124,14 @@ def _columns(table: Any) -> tuple[str, ...]:
 
 
 def _rows(table: Any) -> tuple[dict[str, Any], ...]:
-    """Rows as plain dicts, in the table's own order. Never re-sorted.
+    """Rows as plain dicts, in the table's own order.
 
-    The order is jazzPanda's (``glm_coef`` descending within a cluster) and it is
-    load-bearing downstream: ``core/verdict.py`` takes the first eligible canonical
-    marker as the driver and does not re-sort, because re-sorting on the statistic
-    would have to place items with no statistic somewhere arbitrary.
+    The order here is whatever the file has; ``load`` sorts per unit. This docstring
+    used to claim the file arrived glm_coef-descending within a cluster. It does not
+    -- ``markers_top.csv`` is alphabetical by gene, and 8 of the demo's 9 clusters
+    are unsorted -- and the claim was load-bearing: ``core/verdict._drivers`` takes
+    the first eligible canonical marker in caller order, so trusting the file's
+    order gave the wrong driver, and therefore the wrong band, on 5 of 9 units.
     """
     to_dict = getattr(table, "to_dict", None)
     if to_dict is not None:
@@ -257,7 +259,17 @@ class JazzPandaSpatialGLM:
 
         out: dict[str, NormalisedEvidence] = {}
         for uid in spec.units:
-            mine = tuple(r for r in rows if str(r["top_cluster"]) == uid)
+            # Sort by descending statistic, as agent/data.get_cluster_markers
+            # already does. core/verdict._drivers takes the FIRST eligible
+            # canonical marker in caller order, so the driver -- and the band read
+            # off it -- is decided here. A row with no statistic sorts last: it
+            # cannot drive a band it carries no number for.
+            mine = tuple(sorted(
+                (r for r in rows if str(r["top_cluster"]) == uid),
+                key=lambda r: (r.get(self.statistic_name) is not None,
+                               r.get(self.statistic_name) or 0.0),
+                reverse=True,
+            ))
             readings = tuple(self._reading(r) for r in mine)
             reported = Frame(
                 EntityKind.GENE,

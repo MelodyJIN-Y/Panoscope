@@ -15,7 +15,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, NamedTuple, Optional, Sequence
 
 from panoscope.data import layout
 from panoscope.data.study import Study, StudyNotFound
@@ -88,94 +88,276 @@ def _cmd_build(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 # explain
 # --------------------------------------------------------------------------- #
-def _cmd_explain(args: argparse.Namespace) -> int:
-    """Render the stored interpretation for one unit.
+#: The interpretive question ``explain`` answers: *what IS this unit?* The id is a
+#: registry key, validated by ``workflows.get`` rather than assumed -- the verb picks
+#: a question, and the registry says which methods and which task kind answer it.
+_WORKFLOW_ID = "marker-interpretation"
 
-    TRANSITIONAL. This reads the committed per-unit JSON under
-    ``<study>/interp/clusters/<unit>.json``, which is what the pipeline writes and the
-    UI reads today. It moves to ``InterpretationRecord`` (panoscope/types/record.py)
-    once that lands; the rendering below is a projection of the same fields, so the
-    swap is a change of source, not of output.
+#: The entity column of a marker table. ``UnitSpec`` declares the *unit* column and
+#: its reasoning but says nothing about which column names the entity, so this is the
+#: one schema fact the verb still supplies. Named here rather than inline so the gap
+#: is visible; it belongs on ``UnitSpec``, which is frozen.
+_ENTITY_COLUMN = "gene"
+
+
+def _cmd_explain(args: argparse.Namespace) -> int:
+    """Render the interpretation record for one unit.
+
+    The record is **built**, not read: ``panoscope explain`` goes through the same
+    adapter, reader, method and ``core/`` functions the pipeline does, so every
+    number on screen traces to the method's own table rather than to a JSON somebody
+    could have edited. ``--json`` still emits the committed per-unit file verbatim,
+    which is the v1 *compatibility view* (``core/compat.py``) and a different
+    artifact from the record; ``--record`` emits the record itself.
     """
     study = Study.open(_resolve_study_id(args.study))
     unit = args.unit
-    path = study.interp / "clusters" / f"{unit}.json"
-    if not path.is_file():
-        present = sorted(p.stem for p in (study.interp / "clusters").glob("*.json"))
+    if unit not in study.units:
         raise SystemExit(
-            f"No interpretation for unit {unit!r} in study {study.id!r} ({path}). "
-            f"Units present: {', '.join(present) or '(none)'}"
+            f"No interpretation for unit {unit!r} in study {study.id!r}. "
+            f"Units present: {', '.join(study.units) or '(none)'}"
         )
-    rec = json.loads(path.read_text(encoding="utf-8"))
+
     if args.json:
-        print(json.dumps(rec, indent=2, ensure_ascii=False))
+        path = study.interp / "clusters" / f"{unit}.json"
+        if not path.is_file():
+            raise SystemExit(f"No committed v1 record at {path}.")
+        print(json.dumps(json.loads(path.read_text(encoding="utf-8")),
+                         indent=2, ensure_ascii=False))
         return 0
-    for line in _render_unit(study, rec):
+
+    from panoscope.core import record as core_record
+
+    built = _build_record(study, unit)
+    if args.record:
+        print(json.dumps(core_record.to_dict(built.record).value, indent=2,
+                         ensure_ascii=False))
+        return 0
+    for line in _render_record(study, built):
         print(line)
     return 0
 
 
-def _render_unit(study: Study, rec: dict[str, Any]) -> list[str]:
-    """Pure projection of a stored unit record. No statistic is derived here."""
-    out: list[str] = []
-    unit = rec.get("cluster", "?")
-    out.append(f"{study.id} / {unit} — {rec.get('cell_type', 'Unknown')}")
+class _Built(NamedTuple):
+    """One unit's record and the two things the record has no field for.
+
+    ``InterpretationRecord`` carries the reading, the decisions, the claims and the
+    undecidables -- it carries no band, no ``verify`` and no evidence items, so a
+    renderer cannot print the current output from the record alone. Rather than
+    pretend otherwise, the pieces the record was assembled FROM travel beside it and
+    every line below says which of the two it came from.
+    """
+
+    record: Any          # InterpretationRecord
+    evidence: Any        # NormalisedEvidence, glm_coef-descending
+    verdict: Any         # core.verdict.Verdict
+    canonical: frozenset[str]
+
+
+def _build_record(study: Study, unit: str) -> _Built:
+    """Study + unit -> ``InterpretationRecord``. Composition only; no statistic here.
+
+    Heavy imports are local for the reason every verb's are: ``panoscope doctor``
+    must answer on an install missing them.
+
+    Two reads of the method's table, deliberately and not by accident. The tidy
+    reader produces the ``ReadingRecord`` -- rows in, rows dropped and why, the
+    entities no frame admits -- and the method module produces the evidence, because
+    only it knows what its own specificity columns mean. Neither can produce the
+    other's half today.
+    """
+    import dataclasses
+
+    import pandas as pd
+
+    from panoscope import methods, workflows
+    from panoscope.core import measure, record as core_record
+    from panoscope.core import verdict as core_verdict
+    from panoscope.platforms.tidy import read_tidy
+    from panoscope.platforms.xenium import XeniumAdapter
+    from panoscope.types.measured import MeasuredWorld
+    from panoscope.types.subject import EntityKind, gene, subject
+
+    registered = methods.for_workflow(_WORKFLOW_ID)
+    if len(registered) != 1:
+        raise SystemExit(
+            f"{len(registered)} methods answer {_WORKFLOW_ID!r} "
+            f"({', '.join(m.name for m in registered) or 'none'}); explain cannot "
+            "pick one for you. The record names its method, so build it with the "
+            "pipeline and read it back."
+        )
+    method = registered[0]
+    adapter = XeniumAdapter()          # no platform registry exists yet; see report
+    path = study.inputs / "markers_top.csv"
+    if not path.is_file():
+        raise SystemExit(f"Study {study.id!r} has no method output at {path}.")
+
+    # The unit column comes off the SCHEMA, through the method, never from here.
+    spec = method.detect_unit(pd.read_csv(path))
+    world = MeasuredWorld(adapter.frames(study))
+    reading = read_tidy(
+        path,
+        unit_column=spec.unit_column,
+        entity_column=_ENTITY_COLUMN,
+        entity_kind=EntityKind.GENE,
+        statistic_column=method.statistic_name,
+        unit_kind=spec.unit_kind,
+        world=world,
+        clustering_mode=adapter.clustering_mode(study),
+        # Whatever the method did not declare a unit is not a unit. Derived, so no
+        # sentinel string ("NoSig") is restated outside the method that owns it.
+        not_units=frozenset(str(v) for v in pd.read_csv(path)[spec.unit_column])
+        - set(spec.units),
+        unit_detection_because=spec.because,
+        # Store-relative: an absolute path in a hashed record makes byte-stability a
+        # property of whose laptop produced it.
+        record_path=str(path.relative_to(study.dir)),
+    ).value.record
+
+    loaded = method.load(str(path), adapter, study)
+    ev = loaded.value[unit]
+    meta = study.unit_labels.get(unit, {})
+
+    # Reference data, selecting which absences are worth reporting and nothing else:
+    # the canonical markers this study's annotation lists for the label, and the ones
+    # it records as off panel. The lattice decides what each one IS -- a gene named
+    # here that the panel does measure comes back tested-absent, not never-measured.
+    reported = frozenset().union(*(f.members for f in ev.reported)) if ev.reported \
+        else frozenset()
+    absences = tuple(
+        measure.measure(
+            measure.Reading(subject=subject("gene", g=gene(str(g))), statistic=None,
+                            statistic_name=method.statistic_name),
+            world, reported)
+        for g in meta.get("offpanel_canonical", ())
+    )
+
+    # glm_coef descending, which is the order core/verdict.py says the CALLER owns:
+    # the first eligible canonical marker is the driver, and the committed file is
+    # not sorted within a cluster. See the report -- this belongs in the method.
+    observed = tuple(sorted((i for i in ev.items if i.measured.carries_number),
+                            key=lambda i: -float(i.statistic or 0.0)))
+    ev = dataclasses.replace(ev, items=(
+        observed
+        + tuple(i for i in ev.items if not i.measured.carries_number)
+        + tuple(t.value for t in absences)
+    ))
+
+    canonical = frozenset(str(g) for g in meta.get("canonical_markers", ()))
+    verdict = core_verdict.assess(ev.items, canonical)
+    record = core_record.build(
+        ev, reading,
+        core_record.unit_decisions(ev, loaded, *absences),
+        verdict,
+        task_kind=workflows.get(method.workflow).task_kind,
+    ).value
+    return _Built(record=record, evidence=ev, verdict=verdict.value,
+                  canonical=frozenset(g.upper() for g in canonical))
+
+
+def _band_from(record: Any) -> str:
+    """The band, read back off the record's own spine.
+
+    Every ``confidence``-step decision notes the band AFTER that step as its outcome
+    (``core/verdict.py``), so the last one is the band and the ones before it are how
+    it got there. Read rather than re-derived: a renderer that recomputed the band
+    could disagree with the record it is rendering, which is the one disagreement a
+    reader has no way to notice.
+    """
+    steps = [d for d in record.decisions if d.step == "confidence"]
+    return steps[-1].outcome if steps else "(no band decision)"
+
+
+def _render_record(study: Study, built: _Built) -> list[str]:
+    """Pure projection of one record. No statistic is derived here."""
+    from panoscope.core import record as core_record
+    from panoscope.types.measured import MeasuredState
+
+    rec, ev, verdict = built.record, built.evidence, built.verdict
+    meta = study.unit_labels.get(rec.unit, {})
+    out: list[str] = [f"{study.id} / {rec.unit} — {meta.get('cell_type', 'Unknown')}"]
     out.append("=" * len(out[0]))
-    band = rec.get("confidence", "?")
-    score = rec.get("confidence_score")
-    out.append(f"band          {band}" + (f" ({score})" if score is not None else ""))
-    out.append(f"verify        {str(bool(rec.get('verify'))).upper()}")
-    out.append(f"band basis    {rec.get('band_basis', '(not recorded)')}")
-    out.append(f"lineage       {rec.get('lineage', '?')} / {rec.get('category', '?')}")
-    if rec.get("small_n"):
+    out.append(f"band          {_band_from(rec):<16}[from the record's decisions]")
+    out.append(f"verify        {str(bool(verdict.verify)).upper():<16}"
+               "[core/verdict rubric; the record has no field for it]")
+    out.append(f"band basis    {verdict.basis}")
+    out.append(f"lineage       {meta.get('lineage', '?')} / {meta.get('category', '?')}")
+    out.append(f"task          {rec.task_kind.value}  ·  {ev.module}  "
+               f"·  spec {rec.spec_version}")
+    generated = ", ".join(
+        f"{f}={'present' if getattr(rec, f) is not None else 'not generated'}"
+        for f in core_record.GENERATED_FIELDS
+    )
+    out.append(f"generated     {generated}  (every other field is deterministic)")
+    if verdict.fragile:
         out.append("flag          small_n: few markers support this unit")
 
+    r = rec.reading
     out.append("")
-    out.append("evidence (measured — jazzPanda output)")
-    evidence = rec.get("evidence") or []
-    if not evidence:
+    out.append(f"reading       {r.path}")
+    out.append(f"  sha256      {r.sha256}")
+    out.append(f"  columns     unit={r.unit_column}  statistic={r.statistic_column}"
+               f"  unit_kind={r.unit_kind}")
+    out.append(f"  rows        {r.rows_in} read, {r.rows_dropped} dropped")
+    out.extend(f"                - {why}: {n}" for why, n in r.drop_reasons)
+    out.append(f"  clustering  {r.clustering_mode}")
+    out.append("  frames      " + "  ".join(f"{f.name}={f.size}" for f in r.frames))
+    out.append(f"  outside the capability frame: {len(r.entities_outside_frame)} "
+               f"entity(s) the method named that no frame admits")
+
+    out.append("")
+    out.append(f"evidence (measured — {ev.module} {r.statistic_column})")
+    observed = [i for i in ev.items if i.measured.carries_number]
+    if not observed:
         out.append("  (none recorded)")
-    for e in evidence:
-        marks = "".join(
-            (
-                "*" if e.get("is_canonical") else " ",
-                "!" if e.get("role") == "against" else " ",
-            )
-        )
+    for i in observed:
+        canon = any(e.id.upper() in built.canonical for e in i.subject.entities())
         out.append(
-            f"  {marks} {e.get('gene', '?'):<10} glm_coef={_num(e.get('glm_coef'))}"
-            f"  pearson={_num(e.get('pearson'))}  top={e.get('top_cluster', '?')}"
-            f"  role={e.get('role', '?')}"
+            f"  {'*' if canon else ' '} {i.subject.display():<10} "
+            f"{r.statistic_column}={_num(i.statistic)}"
+            f"  {'  '.join(f'{k}={_num(v)}' for k, v in i.corroborating)}"
         )
-        for caveat in e.get("caveats") or []:
-            out.append(f"      caveat: {caveat}")
-    out.append("  (* canonical, ! argues against)")
+        out.extend(f"      caveat: {f}" for f in i.flags)
+    out.append("  (* canonical for this label, from the study annotation)")
 
-    offpanel = rec.get("offpanel_notes") or []
+    never = [i for i in ev.items
+             if i.measured.state is MeasuredState.NEVER_MEASURED]
     out.append("")
-    out.append(f"never measured ({len(offpanel)}) — absence is NOT evidence")
-    for n in offpanel:
-        out.append(f"  - {n.get('gene', '?')}: {n.get('message', '')}")
-    if not offpanel:
-        out.append("  (none)")
+    out.append(f"never measured ({len(never)}) — absence is NOT evidence")
+    for i in never:
+        out.append(f"  - {i.subject.display()}: outside {i.measured.frame}")
+    if not never:
+        out.append("  (none among this label's canonical markers)")
+    # The second never-measured fact, which is about the READ rather than the label:
+    # a reader who saw only the line above would take "(0)" for "nothing was missed".
+    out.append(f"  and {len(r.entities_outside_frame)} entity(s) in this read lie "
+               "outside a capability frame — their absence argues nothing either")
 
-    demotions = rec.get("demotions") or []
-    if demotions:
+    if verdict.demotions:
         out.append("")
-        out.append("band adjustments")
-        out.extend(f"  - {d}" for d in demotions)
+        out.append(f"band adjustments ({len(verdict.demotions)})")
+        for d in rec.decisions:
+            if d.step == "confidence" and d.rule in verdict.demotions:
+                out.append(f"  - {d.rule} -> {d.outcome}: {'; '.join(d.because)}")
 
-    if rec.get("notes"):
+    if rec.claims_used:
         out.append("")
-        out.append("notes")
-        out.append(f"  {rec['notes']}")
+        out.append(f"claims used ({len(rec.claims_used)})")
+        out.extend(f"  {cid} -> {v}" for cid, v in rec.claims_used)
+    if rec.undecidable:
+        out.append("")
+        out.append(f"undecidable ({len(rec.undecidable)})")
+        out.extend(f"  - {u}" for u in rec.undecidable)
 
-    trace = rec.get("source_trace") or []
     out.append("")
-    out.append(f"source trace ({len(trace)})")
-    out.extend(f"  {t}" for t in trace)
+    out.append(f"source trace ({len(rec.decisions)}) — every line resolves to its "
+               "subject")
+    for d in rec.decisions:
+        out.append(f"  {d.rule} -> {d.outcome}"
+                   + (f"  [{'  '.join(d.refs)}]" if d.refs else ""))
     out.append("")
-    out.append(f"record        {study.interp / 'clusters' / (unit + '.json')}")
+    out.append(f"record        {core_record.path_for(study.interp, rec).value}"
+               "  (not written by explain)")
     return out
 
 
@@ -270,7 +452,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_explain = sub.add_parser("explain", help="render the interpretation record for one unit")
     p_explain.add_argument("unit", help="unit id, e.g. c1")
     p_explain.add_argument("--study", help="study id")
-    p_explain.add_argument("--json", action="store_true", help="emit the stored record verbatim")
+    p_explain.add_argument("--json", action="store_true",
+                           help="emit the committed v1 per-unit file verbatim")
+    p_explain.add_argument("--record", action="store_true",
+                           help="emit the InterpretationRecord as JSON")
     p_explain.set_defaults(func=_cmd_explain)
 
     p_doctor = sub.add_parser("doctor", help="resolved paths, studies, versions, credentials")
