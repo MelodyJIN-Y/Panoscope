@@ -52,17 +52,28 @@ def test_seeded_deterministic_reproduces_readme(seeded):
     a = s["by_arm"]["deterministic"]
     assert s["arms"] == ["deterministic"]
     assert (a["recall_k"], a["recall_n"]) == (55, 55)
-    assert (a["boundary_caught_k"], a["boundary_n"]) == (0, 27)
+    # 9 of the 27 pre-registered-unreachable are now caught: the
+    # panel-absence prose class became reachable via the capability frame.
+    # The denominator keeps its original meaning -- 27 is what was PREDICTED
+    # unreachable, not what remains unreachable.
+    assert (a["boundary_caught_k"], a["boundary_n"]) == (9, 27)
     assert (a["false_positive_k"], a["false_positive_n"]) == (0, 75)
 
 
-def test_seeded_misses_are_exactly_the_three_preregistered_classes(seeded):
-    """The honest half. If this set shrinks, the README's boundary claim moved."""
+def test_seeded_misses_are_exactly_the_two_remaining_classes(seeded):
+    """The honest half. If this set shrinks, the README's boundary claim moved --
+    and if it GROWS, a gate regressed.
+
+    It was three. off_panel_absence_as_evidence moved to caught when the
+    panel-absence rule was enforced on prose against the capability frame, so
+    the floor now covers reasoning from an absence the frame refuses. The two
+    left are deliberate: one needs a semantic judgement about a paper's
+    content, the other cannot be closed without binding bare numbers to
+    adjacent genes, which over-refuses on true prose.
+    """
     s = seeded.summarise(_doc("seeded_errors", "results.json"))
     missed = {m.split(":")[0] for m in s["by_arm"]["deterministic"]["misses"]}
-    assert missed == {"number_without_stat_keyword",
-                      "off_panel_absence_as_evidence",
-                      "real_pmid_wrong_claim"}
+    assert missed == {"number_without_stat_keyword", "real_pmid_wrong_claim"}
 
 
 def test_seeded_every_class_has_a_clean_control(seeded):

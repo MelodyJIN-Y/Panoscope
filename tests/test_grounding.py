@@ -244,3 +244,330 @@ def test_no_false_positive_on_english_prose(checker_real_lit):
     )
     result = checker_real_lit.check(answer, None, "c9")
     assert result.ok is True, result.summary()
+
+
+# --------------------------------------------------------------------------- #
+# (e) The panel-absence rule, enforced ON PROSE
+#
+# CLAUDE.md's headline rule. The numeric passes cannot reach it: the sentence
+# carries no number, so there is nothing for the gene+stat+number regex to bind.
+# The frame is consulted instead, which is the only thing that makes the two
+# halves of the rule separable -- an off-panel absence argues nothing, and a
+# MEASURED absence argues, and a gate that collapsed them would be worse than
+# no gate at all.
+# --------------------------------------------------------------------------- #
+def test_off_panel_absence_used_as_evidence_fails(checker_real_lit):
+    """The probe that used to walk straight through."""
+    assert not SourceIndex().is_on_panel("COL1A1")
+    answer = "COL1A1 is absent here, which argues against a fibroblast identity."
+    result = checker_real_lit.check(answer, None, "c2")
+    assert result.ok is False, (
+        "THE PANEL-ABSENCE RULE IS UNENFORCED ON PROSE: an off-panel gene's "
+        "absence was used as evidence and the gate let it through."
+    )
+    v = [x for x in result.violations if x.kind == "panel_absence"]
+    assert v and v[0].ref == "COL1A1", result.summary()
+
+
+def test_off_panel_absence_passes_when_the_sentence_says_it_was_never_measured(
+    checker_real_lit,
+):
+    """The rule's own escape hatch, and the reason the pass is not a word filter.
+
+    By the project's own rule the ONLY legitimate sentence about an off-panel
+    entity's absence is one that says it was never measured. Each of these is
+    that sentence, and each must render.
+    """
+    for answer in (
+        "COL1A1 is not on the panel, so its absence argues nothing here.",
+        "COL1A1 was never measured in this study; nothing follows from its "
+        "absence, so the fibroblast rival stays undecidable.",
+        "The rival needs COL1A1, which is off-panel -- that is not evidence "
+        "against it.",
+    ):
+        result = checker_real_lit.check(answer, None, "c2")
+        assert result.ok is True, f"{answer!r} -> {result.summary()}"
+
+
+def test_measured_absence_used_as_evidence_passes(checker_real_lit):
+    """The PRODUCTIVE half. LUM is on the panel and was measured, so a sentence
+    that reasons from where it did and did not peak is exactly what the tool is
+    for. A gate that refused this would have collapsed the four states into
+    two in the one direction that costs the biologist evidence."""
+    assert SourceIndex().is_on_panel("LUM")
+    answer = (
+        "LUM was tested and not reported in this unit, which argues against "
+        "a Stromal call."
+    )
+    result = checker_real_lit.check(answer, None, "c5")
+    assert result.ok is True, result.summary()
+
+
+def test_absence_with_no_conclusion_drawn_from_it_passes(checker_real_lit):
+    """Reporting an off-panel gene's absence is not the violation; REASONING
+    from it is. The rule is about the inference, not about the observation."""
+    answer = "COL1A1 is absent from this panel."
+    result = checker_real_lit.check(answer, None, "c2")
+    assert result.ok is True, result.summary()
+
+
+def test_panel_absence_pass_declines_without_a_frame(monkeypatch, checker_real_lit):
+    """With no panel loaded every token is 'off-panel', and a gate that refused
+    every absence sentence on a frame it does not have is the fail-closed-looks-
+    safe failure CLAUDE.md warns about. It declines instead."""
+    from panoscope.agent import grounding_check as gc
+
+    monkeypatch.setattr(gc.SourceIndex, "panel_known", lambda self: False)
+    answer = "COL1A1 is absent here, which argues against a fibroblast identity."
+    assert checker_real_lit.check(answer, None, "c2").ok is True
+
+
+# --------------------------------------------------------------------------- #
+# (f) The note-scope pass, wired to the REAL store
+#
+# ``allowed_notes`` used to be a parameter only the tests passed, so "a claim
+# used outside its scope" was unenforced on everything the agent actually said.
+# These tests call ``check`` exactly the way ``loop._finalize`` does -- text,
+# sidecar, cluster -- and pass NO note parameters at all.
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def real_note_store(tmp_path, monkeypatch):
+    """Two cluster-scoped notes in an isolated store, as the memory tools write them."""
+    from panoscope.agent import memory
+    from panoscope.agent import tools as agent_tools
+
+    base = str(tmp_path / "context")
+    prev = agent_tools.memory_base_dir()
+    agent_tools.set_memory_base_dir(base)
+    try:
+        here = memory.create_note(
+            claim="c2 is CAF, not generic stromal", scope="cluster", cluster="c2",
+            basis="convention", base_dir=base, literature_search=lambda _q: [],
+        )
+        elsewhere = memory.create_note(
+            claim="c5 is a T-cell niche", scope="cluster", cluster="c5",
+            basis="convention", base_dir=base, literature_search=lambda _q: [],
+        )
+        yield here, elsewhere
+    finally:
+        agent_tools.set_memory_base_dir(prev)
+
+
+def test_note_scope_fires_in_production_with_no_parameter(real_note_store):
+    """THE WIRING TEST. A note scoped to c5, cited while answering about c2, with
+    ``allowed_notes`` never passed -- the production call shape."""
+    _here, elsewhere = real_note_store
+    checker = GroundingChecker(literature_verifier=_resolver_all_real)
+    result = checker.check(f"Applying [note:{elsewhere.id}] here.", None, "c2")
+    assert result.ok is False, (
+        "THE NOTE-SCOPE PASS IS STILL INERT: a c5-scoped note was cited in a c2 "
+        "answer through the production call path and nothing fired."
+    )
+    assert any(
+        v.kind == "note" and v.ref == elsewhere.id for v in result.violations
+    ), result.summary()
+
+
+def test_in_scope_note_still_passes_in_production(real_note_store):
+    """The other half: the gate must not refuse the note that does apply here."""
+    here, _elsewhere = real_note_store
+    checker = GroundingChecker(literature_verifier=_resolver_all_real)
+    result = checker.check(f"Per lab convention [note:{here.id}], c2 is CAF.",
+                           None, "c2")
+    assert result.ok is True, result.summary()
+
+
+def test_ghost_note_fails_against_the_real_store(real_note_store):
+    """Existence is read from the same store as scope, so an invented id fails
+    without anyone injecting a known-notes set."""
+    checker = GroundingChecker(literature_verifier=_resolver_all_real)
+    result = checker.check("Per [note:ghost_note], c2 is CAF.", None, "c2")
+    assert result.ok is False, result.summary()
+    assert any(v.kind == "note" and v.ref == "ghost_note"
+               for v in result.violations), result.summary()
+
+
+def test_injected_known_notes_still_own_the_note_universe():
+    """A caller that injects ``known_notes`` owns both halves; the gate must not
+    mix an injected existence set with a filesystem-derived scope set."""
+    checker = GroundingChecker(
+        literature_verifier=_resolver_all_real,
+        known_notes={"note_c2_caf_real"},
+    )
+    result = checker.check("Per [note:note_c2_caf_real], c2 is CAF.", None, "c2")
+    assert result.ok is True, result.summary()
+
+
+# --------------------------------------------------------------------------- #
+# (g) Claim ids -- resolved through the store's own USE gate
+# --------------------------------------------------------------------------- #
+def _claim_store():
+    from panoscope.claims.store import ClaimStore
+    from panoscope.types.claim import Authority, Claim
+    from panoscope.types.subject import Entity, EntityKind, subject
+
+    base = dict(
+        subject=subject("gene", g=Entity(EntityKind.GENE, "LUM")),
+        predicate="marks", object="Stromal", authority=Authority.CURATED,
+        source="pmid:12345678",
+    )
+    return ClaimStore((
+        Claim(id="curated:marks:LUM:Stromal", scope="dataset:here", **base),
+        Claim(id="curated:marks:LUM:Other", scope="dataset:elsewhere", **base),
+        Claim(id="curated:marks:LUM:Gone", scope="dataset:here",
+              valid="retracted", **base),
+    ))
+
+
+def _claim_checker():
+    return GroundingChecker(
+        literature_verifier=_resolver_all_real,
+        claims=_claim_store(),
+        claim_context="dataset:here",
+    )
+
+
+def test_claim_id_resolves(checker_real_lit):
+    answer = "LUM is a canonical Stromal marker [claim:curated:marks:LUM:Stromal]."
+    assert _claim_checker().check(answer, None, "c2").ok is True
+
+
+def test_fabricated_claim_id_fails():
+    result = _claim_checker().check("As recorded [claim:no_such_claim].", None, "c2")
+    assert result.ok is False, result.summary()
+    assert any(v.kind == "claim" and v.ref == "no_such_claim"
+               for v in result.violations), result.summary()
+
+
+def test_out_of_scope_claim_id_fails():
+    """The store's own fail-closed scope gate, reached from the prose gate."""
+    result = _claim_checker().check(
+        "As recorded [claim:curated:marks:LUM:Other].", None, "c2"
+    )
+    assert result.ok is False, result.summary()
+    v = [x for x in result.violations if x.kind == "claim"]
+    assert v and "scope" in v[0].detail, result.summary()
+
+
+def test_retracted_claim_id_fails():
+    result = _claim_checker().check(
+        "As recorded [claim:curated:marks:LUM:Gone].", None, "c2"
+    )
+    assert result.ok is False, result.summary()
+    v = [x for x in result.violations if x.kind == "claim"]
+    assert v and "retracted" in v[0].detail, result.summary()
+
+
+def test_claim_citation_with_no_store_fails(checker_real_lit):
+    """Fail closed: a citation the gate cannot resolve is not a citation."""
+    result = checker_real_lit.check("As recorded [claim:anything].", None, "c2")
+    assert result.ok is False, result.summary()
+    assert any(v.kind == "claim" for v in result.violations), result.summary()
+
+
+# --------------------------------------------------------------------------- #
+# (h) Reference-graph edges
+# --------------------------------------------------------------------------- #
+def _edge_graph():
+    from panoscope.reference.graph import Edge, Graph
+    from panoscope.types.subject import Entity, EntityKind
+
+    return Graph(edges=(Edge(
+        subject=Entity(EntityKind.GENE, "LUM"), predicate="marks",
+        object=Entity(EntityKind.CELL_TYPE, "Stromal"),
+        source="panglao@2020", citation="pmid:12345678", licence="CC-BY",
+    ),))
+
+
+def test_edge_reference_resolves():
+    checker = GroundingChecker(literature_verifier=_resolver_all_real,
+                               graph=_edge_graph())
+    answer = "Reference data lists [edge:gene:LUM marks cell_type:Stromal]."
+    assert checker.check(answer, None, "c2").ok is True, answer
+
+
+def test_fabricated_edge_reference_fails():
+    checker = GroundingChecker(literature_verifier=_resolver_all_real,
+                               graph=_edge_graph())
+    result = checker.check(
+        "Reference data lists [edge:gene:LUM marks cell_type:Tumor].", None, "c2"
+    )
+    assert result.ok is False, result.summary()
+    assert any(v.kind == "edge" for v in result.violations), result.summary()
+
+
+# --------------------------------------------------------------------------- #
+# (i) ``record.prose`` -- gated as the generated layer, by NAME READ OFF THE TYPE
+# --------------------------------------------------------------------------- #
+def _record(prose=None):
+    from panoscope.types.outputs import TaskKind
+    from panoscope.types.record import InterpretationRecord, ReadingRecord
+    from panoscope.types.trace import Decision
+
+    return InterpretationRecord(
+        unit="c2", task_kind=TaskKind.ASSIGNMENT,
+        reading=ReadingRecord(
+            path="results/markers.csv", sha256="0" * 64,
+            statistic_column="glm_coef", unit_column="cluster_id",
+            unit_kind="cluster", unit_detection_because=("named column",),
+            rows_in=10, rows_dropped=0, drop_reasons=(),
+            entities_outside_frame=("COL1A1",), entities_not_in_reference=(),
+            frames=(), clustering_mode="independent",
+        ),
+        decisions=(Decision("band:from_coef", "High"),),
+        claims_used=(), undecidable=(), spec_version="0.1", prose=prose,
+    )
+
+
+def test_record_with_no_prose_passes(checker_real_lit):
+    """``prose=None`` is a complete, valid record -- the one the demo falls back
+    to -- and there is nothing generated in it to gate."""
+    assert checker_real_lit.check_record(_record()).ok is True
+
+
+def test_record_prose_is_gated(checker_real_lit):
+    result = checker_real_lit.check_record(
+        _record("c2 is Stromal, driven by LUM glm 99.9.")
+    )
+    assert result.ok is False, result.summary()
+    assert any(v.kind == "number" and v.ref == "LUM" for v in result.violations)
+    assert all(v.detail.startswith("prose: ") for v in result.violations), (
+        "a violation must name the generated field it came from"
+    )
+
+
+def test_record_prose_panel_absence_is_gated(checker_real_lit):
+    """The headline rule reaches the generated layer too."""
+    result = checker_real_lit.check_record(
+        _record("COL1A1 is absent, which argues against a fibroblast call.")
+    )
+    assert result.ok is False, result.summary()
+    assert any(v.kind == "panel_absence" for v in result.violations)
+
+
+def test_record_gate_reads_generated_fields_off_the_type(monkeypatch,
+                                                         checker_real_lit):
+    """THE POINT of :data:`GENERATED_FIELDS`: a gate that hardcoded ``"prose"``
+    silently stops covering the second generated field the day one is added.
+    Add one here and the gate must cover it with no edit to the gate."""
+    from panoscope.agent import grounding_check as gc
+
+    monkeypatch.setattr(gc, "GENERATED_FIELDS", ("prose", "caption"))
+
+    class _TwoGenerated:
+        unit = "c2"
+        prose = "LUM glm 17.998 drives the c2 Stromal call."      # clean
+        caption = "LUM glm 99.9."                                  # poisoned
+
+    result = checker_real_lit.check_record(_TwoGenerated())
+    assert result.ok is False, result.summary()
+    assert any(v.detail.startswith("caption: ") for v in result.violations), (
+        "the gate is still hardcoded to 'prose' and did not read the type"
+    )
+
+
+def test_record_deterministic_fields_are_not_gated(checker_real_lit):
+    """Only the generated layer is checked. ``entities_outside_frame`` holds
+    COL1A1 -- an off-panel gene name sitting in a DETERMINISTIC field -- and the
+    gate must not read it as something a model said."""
+    assert checker_real_lit.check_record(_record()).ok is True

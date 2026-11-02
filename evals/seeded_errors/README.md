@@ -36,7 +36,7 @@ records rather than against a list invented here.
 | | |
 |---|---|
 | recall, classes pre-registered as catchable | **55/55 = 100%** [93.5, 100] |
-| classes pre-registered as **not** catchable | **0/27 = 0%** caught [0, 12.5] |
+| classes pre-registered as **not** catchable | **9/27 = 33.3%** caught [16.9, 54.6] |
 | **false positives on clean controls** | **0/75 = 0%** [0, 4.9] |
 
 ### What it caught
@@ -58,12 +58,38 @@ records rather than against a list invented here.
 |---|---|---|
 | `real_pmid_wrong_claim` | 9/9 | the checker verifies that a citation **resolves**, never that it **supports**. §16.1 names this class; nothing in the repo addresses it. |
 | `number_without_stat_keyword` | 9/9 | `_check_numbers` binds a number only in a `GENE <stat> NUMBER` triple. "ERBB2 sits at 31.4 here" is a wrong number in a shape the regex does not bind, by documented design. |
-| `off_panel_absence_as_evidence` | 9/9 | the panel-absence rule violated in prose, carrying no number. The gate is numeric and citational; it has no prose-semantics pass. |
 
-**These three are the honest boundary of the confident-floor claim.** The floor holds
-for *numbers, markers, citations, bands and claim scope*. It does not hold for a
-sentence that misuses a real citation, states a number in an unbound shape, or reasons
-wrongly from a measured absence. Say that, rather than "every claim traces to source".
+### One class moved, after this was first written
+
+`off_panel_absence_as_evidence` was pre-registered as out of reach and is now **9/9
+caught**, with false positives still 0/75. It is left in the "not catchable" column
+above so the denominator keeps its original meaning: the 27 is what was predicted
+unreachable, and 9 of those 27 turned out to be reachable.
+
+What made it reachable was not word lists. The guard is `SourceIndex.is_on_panel` /
+`is_modeled` — a sentence is flagged only when the **capability frame** says the entity
+was never measured here, so every sentence about an on-panel gene is outside the pass by
+construction and the productive `TESTED_ABSENT` half is untouched. *"LUM was tested and
+not reported in this unit, which argues against a Stromal call"* passes, and a test
+pins that it does. The exemption is the rule's own escape hatch rather than a second
+opinion about English: the only legitimate sentence about an off-panel absence is one
+saying it was never measured.
+
+The pass **declines** when the panel file cannot be read, rather than treating every
+token as off-panel and refusing every absence sentence on a frame it does not have.
+
+**The remaining two are the honest boundary of the confident-floor claim.** The floor
+holds for *numbers, markers, citations, bands, claim scope, and reasoning from an
+absence the frame refuses*. It does not hold for a sentence that misuses a real
+citation, or states a number in a shape the regex does not bind. Say that, rather than
+"every claim traces to source".
+
+Both were left open deliberately. `real_pmid_wrong_claim` needs a semantic judgement
+about a paper's content and nothing binds a PMID to the clause it was hung on; any
+regex there would be a guess about English with no source to check against. And
+`number_without_stat_keyword` could be closed by binding a bare number to an adjacent
+gene — which over-refuses on real prose: *"LUM and POSTN are 2 of the 280 genes on the
+panel"* would bind LUM to 280 and reject a true answer.
 
 ## Model arm — a smoke, not a result
 

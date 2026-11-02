@@ -265,8 +265,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -513,8 +515,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -761,8 +765,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -1009,8 +1015,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -1257,8 +1265,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -1505,8 +1515,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -1753,8 +1765,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -2001,8 +2015,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
@@ -2249,8 +2265,10 @@
       "model": "",
       "ok": true,
       "error": "",
-      "detected": false,
-      "violations": [],
+      "detected": true,
+      "violations": [
+        "panel_absence:ALB:ALB is not in the capability frame (never measured here), so its absence is not evidence for or against anything; the sentence reasons from it anyway"
+      ],
       "raw": "",
       "expected_caught": false
     },
