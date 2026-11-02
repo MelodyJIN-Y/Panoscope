@@ -153,6 +153,7 @@ def read_tidy(
     clustering_mode: str,
     corroborating_columns: tuple[str, ...] = (),
     not_units: frozenset[str] = frozenset(),
+    not_subjects: frozenset[str] = frozenset(),
     unit_detection_because: tuple[str, ...] = (),
     enumerates_absence: bool = False,
     reference_ids: frozenset[str] | None = None,
@@ -165,6 +166,21 @@ def read_tidy(
     absolute path: the record is hashed into the golden artifact, and
     ``/Users/someone/...`` in it makes byte-stability a property of whose laptop
     produced it.
+
+    ``not_subjects`` names entities that are measured but are not subjects of
+    interpretation -- on Xenium, the negative control probes. They are dropped
+    BEFORE the universe is built, which is the whole difference: an entity in the
+    universe is one the method looked at, so every frame then gets asked about it
+    and the ones that refuse it put it in ``entities_outside_frame``. A control
+    refused by both gene frames is therefore counted and NAMED there, among the
+    genes this panel could not speak to -- and it is not a gene the panel missed,
+    it is a probe doing its job. The count is reported ("11 entity(s) the method
+    named that no frame admits"), so six probes inflate a number a biologist reads
+    as how much of the method's output the capability frames had to refuse.
+
+    Dropped with a REASON, like every other drop here, so ``panoscope explain``
+    prints "gene is a control probe, not a subject of interpretation: 6" rather
+    than six rows silently disappearing between the file and the record.
 
     ``reference_ids`` is the annotated vocabulary this study's entities are checked
     against. ``None`` means no reference was consulted, and
@@ -211,6 +227,11 @@ def read_tidy(
         ent = ents_raw[i]
         if not ent:
             drops[f"{entity_column} is empty"] += 1
+            continue
+        # Before the universe, deliberately -- see ``not_subjects`` in the docstring.
+        if ent.strip().upper() in not_subjects:
+            drops[f"{entity_column} is a control probe, not a subject of "
+                  f"interpretation"] += 1
             continue
         # Before the unit checks, deliberately: a row dropped for its unit column
         # still proves the method looked at this entity, and that is what makes it

@@ -379,8 +379,12 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     # Same filter as ``method.load`` applies to each per-sample table, for the same
     # reason: a control probe is not a subject of interpretation, and a reading that
     # carries one hands it to every consumer as a NEVER_MEASURED gene.
-    table = table[~table[ENTITY_COLUMN].astype(str).map(
-        lambda g: adapter.is_control(study, g))].reset_index(drop=True)
+    controls = frozenset(
+        str(g).strip().upper() for g in table[ENTITY_COLUMN]
+        if adapter.is_control(study, g)
+    )
+    table = table[~table[ENTITY_COLUMN].astype(str).str.strip().str.upper()
+                  .isin(controls)].reset_index(drop=True)
     # The unit column comes off the SCHEMA, through the method, never from here.
     spec = method.detect_unit(table)
     world = MeasuredWorld(adapter.frames(study))
@@ -396,6 +400,11 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # Whatever the method did not declare a unit is not a unit. Derived, so no
         # sentinel string ("NoSig") is restated outside the method that owns it.
         not_units=frozenset(str(v) for v in table[spec.unit_column]) - set(spec.units),
+        # ``read_tidy`` re-reads the FILE, so filtering ``table`` above is not
+        # enough on its own: without this the control rows come back in, enter the
+        # absence-enumeration universe, and are counted and named in
+        # ``entities_outside_frame`` as genes the capability frames refused.
+        not_subjects=controls,
         unit_detection_because=spec.because,
         # Store-relative: an absolute path in a hashed record makes byte-stability a
         # property of whose laptop produced it.

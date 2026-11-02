@@ -668,3 +668,49 @@ def test_the_missing_sample_blocker_counts_what_can_still_be_compared(
     one = ADAPTER.validate(_with_samples("one", ("s1", "s2", "s3"), ("s1",)))
     line = next(p for p in one if "no per-sample marker table" in p)
     assert "fewer than two sections are readable" in line, line
+
+
+def test_a_control_probe_never_enters_the_absence_universe(tmp_path: Path) -> None:
+    """A control is EXCLUDED from interpretation, not refused by a frame.
+
+    ``read_tidy`` builds the absence-enumeration universe from every entity the
+    method named, before any unit check, so a control row entered it and every
+    frame was then asked about it. Both gene frames refuse a control -- correctly --
+    which put it in ``entities_outside_frame`` and into the count ``panoscope
+    explain`` prints as *"N entity(s) the method named that no frame admits"*. That
+    number reads as how much of this panel the measurement could not speak to, and
+    six probes inflated it by six on the kidney rehearsal.
+
+    Filtering the caller's dataframe is not enough, because ``read_tidy`` re-reads
+    the file; ``not_subjects`` is the parameter that reaches the read itself. The
+    rows are dropped with a reason, so the record still says six rows left and why.
+    """
+    csv = tmp_path / "m.csv"
+    csv.write_text(
+        "gene,top_cluster,glm_coef,pearson\n"
+        "AAA,u1,9.0,0.9\n"
+        "BBB,u1,1.0,0.5\n"
+        "BlankCodeword_0001,u1,99.0,0.99\n"
+        "antisenseXYZ,u1,98.0,0.99\n"
+    )
+    world = MeasuredWorld((
+        Frame(EntityKind.GENE, "panel:t", frozenset({"AAA", "BBB"})),
+        Frame(EntityKind.UNIT, "clusters:t", frozenset({"u1"})),
+    ))
+    kw = dict(unit_column="top_cluster", entity_column="gene",
+              entity_kind=EntityKind.GENE, statistic_column="glm_coef",
+              unit_kind="cluster", world=world, clustering_mode="joint")
+
+    loose = read_tidy(csv, **kw).value.record
+    assert set(loose.entities_outside_frame) == {"BlankCodeword_0001", "antisenseXYZ"}
+
+    tight = read_tidy(
+        csv, not_subjects=frozenset({"BLANKCODEWORD_0001", "ANTISENSEXYZ"}), **kw
+    ).value.record
+    assert tight.entities_outside_frame == (), tight.entities_outside_frame
+    assert any("control probe" in reason for reason, _n in tight.drop_reasons), (
+        tight.drop_reasons
+    )
+    assert dict(tight.drop_reasons)[
+        "gene is a control probe, not a subject of interpretation"] == 2
+    assert tight.rows_in == 4, "the record still says four rows were read"

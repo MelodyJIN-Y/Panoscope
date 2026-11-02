@@ -44,6 +44,14 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from panoscope.core.measure import Reading, measure_unit
+# ``is_no_signal`` from the adapter, not a fifth private copy of ``!= NOSIG``.
+# A method importing a concrete platform is the wrong direction and is debt:
+# the sentinel is jazzPanda's own (``NOSIG`` below) while the predicate lives
+# beside ``NO_SIGNAL`` in the adapter, where this codebase already put it and
+# where ``agent/grounding_check`` already imports it from. One answer in the
+# process matters more than which module holds it; re-homing it is a move,
+# not a fix, and would touch every importer.
+from panoscope.platforms.xenium import is_no_signal
 from panoscope.types.contracts import PlatformAdapter, UnitSpec, UnrecognisedResult
 from panoscope.types.evidence import NormalisedEvidence
 from panoscope.types.measured import Frame, Measured, MeasuredState, MeasuredWorld
@@ -222,6 +230,20 @@ class JazzPandaSpatialGLM:
         for *tested here, assigned nowhere*, not a cluster. Admitting it would create
         a unit whose every item is a tested absence and whose band would then be
         computed as though something had been found.
+
+        **Excluded in ANY case, and a blank or NaN with it.** This compared
+        ``- {NOSIG}`` exactly, which is the same case-sensitive comparison that put
+        undetectable genes into the detectability frame one layer down -- and here
+        it is worse, because the sentinel does not merely mis-state a gene's status,
+        it becomes a UNIT. Measured on a kidney-shaped store whose table spelled it
+        ``nosig`` and left one row's column blank: ``records.build_all`` returned
+        five units for a three-cluster study, and ``interp/records/assignment/``
+        gained ``nosig.json`` and ``nan.json`` -- two cell populations that do not
+        exist, each with a band, each a file the app will read. ``verdicts.csv``
+        did not show them only because the v1 path lists ``cfg.CLUSTER_ORDER``
+        instead, which is the kind of accidental cover that hides a defect for a
+        release. The predicate is the adapter's, so there is one answer to "is this
+        value the no-signal sentinel" in the whole codebase.
         """
         cols = _columns(table)
         missing = [c for c in REQUIRED_COLUMNS if c not in cols]
@@ -230,7 +252,8 @@ class JazzPandaSpatialGLM:
                 f"{self.name}: not a jazzPanda top_result -- missing column(s) "
                 f"{missing}; saw {list(cols)}"
             )
-        seen = {str(r["top_cluster"]) for r in _rows(table)} - {NOSIG}
+        seen = {str(r["top_cluster"]).strip() for r in _rows(table)
+                if not is_no_signal(r["top_cluster"])}
         return UnitSpec(
             unit_kind=UNIT_KIND,
             unit_column="top_cluster",
@@ -239,8 +262,8 @@ class JazzPandaSpatialGLM:
             units=tuple(sorted(seen)),
             because=(
                 f"columns {list(REQUIRED_COLUMNS)} present; units read off "
-                f"'top_cluster' with {NOSIG!r} excluded as jazzPanda's "
-                "tested-but-unassigned sentinel",
+                f"'top_cluster' with {NOSIG!r} (in any case, and blank) excluded "
+                "as jazzPanda's tested-but-unassigned sentinel",
             ),
         )
 

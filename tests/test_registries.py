@@ -328,6 +328,30 @@ def test_detect_unit_reads_the_schema_and_refuses_what_it_cannot():
         jazzpanda.MODULE.detect_unit([{"gene": "ERBB2", "avg_log2FC": 2.0}])
 
 
+def test_a_misspelled_sentinel_does_not_become_a_unit():
+    """The sentinel in any case, and a blank column, are not cell populations.
+
+    ``markers_top.csv`` is a consumed input and its spelling is the upstream run's.
+    This compared ``- {"NoSig"}`` exactly, so a table writing ``nosig`` -- or
+    leaving one row's unit column empty, which pandas reads as NaN -- produced
+    UNITS by those names. Found on a kidney-shaped rehearsal, not by any unit test:
+    ``records.build_all`` returned five units for a three-cluster study and the
+    build wrote ``interp/records/assignment/nosig.json`` and ``nan.json``, two cell
+    populations that do not exist, each carrying a band. ``verdicts.csv`` hid it,
+    because the v1 path lists ``cfg.CLUSTER_ORDER`` instead -- accidental cover,
+    which is how a defect of this shape reaches a release.
+    """
+    rows = [{"gene": "ERBB2", "top_cluster": "c1", "glm_coef": 12.0},
+            {"gene": "LUM", "top_cluster": "c2", "glm_coef": 3.0},
+            {"gene": "ACTA2", "top_cluster": "NoSig", "glm_coef": 0.0},
+            {"gene": "TP63", "top_cluster": "nosig", "glm_coef": 0.0},
+            {"gene": "MKI67", "top_cluster": "NOSIG", "glm_coef": 0.0},
+            {"gene": "VIM", "top_cluster": "", "glm_coef": 0.0},
+            {"gene": "CD3E", "top_cluster": float("nan"), "glm_coef": 0.0}]
+    spec = jazzpanda.MODULE.detect_unit(rows)
+    assert spec.units == ("c1", "c2"), spec.units
+
+
 def test_absence_reads_as_keeps_the_four_states_apart():
     g = subject("gene", g=gene("TP63"))
     never = jazzpanda.MODULE.absence_reads_as(
