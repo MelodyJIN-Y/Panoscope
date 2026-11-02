@@ -4,11 +4,15 @@ Streamlit entrypoint. The chat is the product; the panels are the evidence it
 stands on. Every number shown here comes from the agent layer (jazzPanda output,
 the panel list, or a cited lab note) — this file only wires panels together.
 
-Navigation lives in a single TOP bar (not a sidebar): the brand and three tabs —
-``Marker genes | Pathways | Summary`` — in one row, left-to-right in workflow
-order (the Summary is the final, integrated step). Lab notes are folded into the
-Summary page. Session state is shared across pages natively (one script run per
-rerun), so the selected cluster / markers / chat / notes carry over between tabs.
+Navigation lives in a single TOP bar (not a sidebar): the brand, then one tab per
+registered workflow, in one row. The strip is **not listed here** — ``ui/nav.py``
+builds it from the workflow registry, so registering a workflow is the only step
+needed to make its declared surface reachable (ARCHITECTURE §13: the review surface
+is declared by the workflow, not a UI concern). This file supplies the wiring only
+— which renderer draws a surface id, and how to tell whether this study has a
+result for it — in :data:`_SURFACES`. Lab notes are folded into the Summary page.
+Session state is shared across pages natively (one script run per rerun), so the
+selected cluster / markers / chat / notes carry over between tabs.
 """
 from __future__ import annotations
 
@@ -21,8 +25,10 @@ import streamlit as st
 from panoscope.ui import (
     cluster_rail,
     conversation,
+    data_access as da,
     enrichment_table,
     evidence_table,
+    nav,
     onboarding,
     paper_drawer,
     spatial_stage,
@@ -50,14 +56,11 @@ def _logo_data_uri(name: str) -> str:
 # mirrored to the URL query param (?page=) so a full browser refresh restores the
 # tab instead of dropping back to the default — the tab is also shareable now.
 _K_PAGE = "active_page"
-# Every page has a dedicated ?page= URL name.
-_PAGE_WELCOME = "welcome"      # landing
-_PAGE_UPLOAD = "upload"        # load-your-data
-_PAGE_EXAMINE = "markers"      # marker-genes dashboard
-_PAGE_SUMMARY = "summary"
-_PAGE_PATHWAYS = "pathways"
-_ONBOARDING_PAGES = (_PAGE_WELCOME, _PAGE_UPLOAD)
-_VALID_PAGES = (_PAGE_WELCOME, _PAGE_UPLOAD, _PAGE_EXAMINE, _PAGE_SUMMARY, _PAGE_PATHWAYS)
+# The onboarding front door. These two are NOT workflows (no study is open yet), so
+# they are named here; every other ?page= name is a registered workflow's own
+# ``UISpec.workflow_id``, read off the registry by ui/nav.py.
+_PAGE_WELCOME = nav.ONBOARDING_PAGES[0]   # landing
+_PAGE_UPLOAD = nav.ONBOARDING_PAGES[1]    # load-your-data
 
 
 def _set_page(page: str) -> None:
@@ -66,25 +69,31 @@ def _set_page(page: str) -> None:
     st.query_params["page"] = page  # keep the URL in sync so a refresh persists the tab
 
 
-def _resolve_page() -> str:
+def _resolve_page(strip: tuple[nav.Tab, ...]) -> str:
     """The active tab, restoring it from the URL after a browser refresh.
 
     session_state is wiped on a hard refresh but the ``?page=`` query param
-    survives, so on a fresh session we seed the tab from the URL (validated), then
-    keep the URL mirrored to the current tab.
+    survives, so on a fresh session we seed the tab from the URL (validated against
+    what this build actually registers), then keep the URL mirrored to the current
+    tab. A name nobody answers to falls back to the landing page rather than to
+    whichever page happens to be first — the same fail-closed rule the registries
+    use for an unknown id.
     """
+    valid = nav.pages(strip)
     if _K_PAGE not in st.session_state:
         url_page = st.query_params.get("page")
-        if url_page in _VALID_PAGES:
+        if url_page in valid:
             default = url_page
         elif any(k in st.query_params for k in ("sign", "undo", "drill", "confirm", "accept")):
             # A Summary-table action link (?drill=cN etc.) drops the page param; the
             # user is on the Summary dashboard, not making a fresh visit -> not welcome.
-            default = _PAGE_SUMMARY
+            default = nav.SUMMARY_PAGE
         else:
             default = _PAGE_WELCOME
         st.session_state[_K_PAGE] = default
     page = st.session_state[_K_PAGE]
+    if page not in valid:
+        page = st.session_state[_K_PAGE] = _PAGE_WELCOME
     if st.query_params.get("page") != page:
         st.query_params["page"] = page
     return page
@@ -119,7 +128,7 @@ def _sync_selection_to_url(page: str) -> None:
     URL stays a clean ``?page=summary``. Marker/Pathways pages keep the selection.
     """
     qp = st.query_params
-    if page == _PAGE_SUMMARY:
+    if page == nav.SUMMARY_PAGE:
         for key in ("cluster", "m", "pw"):
             if key in qp:
                 del qp[key]
@@ -137,11 +146,13 @@ def _sync_selection_to_url(page: str) -> None:
             del qp[key]
 
 
-def _top_bar(page: str) -> None:
-    """The single top bar: brand · Marker genes / Pathways / Summary tabs.
+def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
+    """The single top bar: brand · one tab per registered workflow · study chip.
 
     The tabs are chromeless buttons styled (theme ``.st-key-pano_topnav``) into a
     top tab strip — the active one (``type="primary"``) gets an accent underline.
+    Which tabs exist, what they are called and what order they sit in all come from
+    ``ui/nav.py`` reading the workflow registry; nothing is named here.
     """
     with st.container(key="pano_appbar"):
         brand_col, tabs_col, ctx_col = st.columns(
@@ -160,37 +171,23 @@ def _top_bar(page: str) -> None:
             )
         with tabs_col:
             with st.container(key="pano_topnav"):
-                # Order: Summary · Marker genes · Pathways. Summary leads — it is the
-                # review surface the biologist lands on and signs off from; the marker
-                # and pathway panes are the evidence it stands on.
-                t_summary, t_examine, t_pathways = st.columns(3)
-                with t_summary:
-                    st.button(
-                        "Summary",
-                        key="nav_summary",
-                        type="primary" if page == _PAGE_SUMMARY else "secondary",
-                        use_container_width=True,
-                        on_click=_set_page,
-                        args=(_PAGE_SUMMARY,),
-                    )
-                with t_examine:
-                    st.button(
-                        "Marker genes",
-                        key="nav_examine",
-                        type="primary" if page == _PAGE_EXAMINE else "secondary",
-                        use_container_width=True,
-                        on_click=_set_page,
-                        args=(_PAGE_EXAMINE,),
-                    )
-                with t_pathways:
-                    st.button(
-                        "Pathways",
-                        key="nav_pathways",
-                        type="primary" if page == _PAGE_PATHWAYS else "secondary",
-                        use_container_width=True,
-                        on_click=_set_page,
-                        args=(_PAGE_PATHWAYS,),
-                    )
+                # Summary leads (it is the surface the biologist signs off from),
+                # then the workflows in task-kind order — all decided by nav.tabs().
+                for col, tab in zip(st.columns(len(strip)), strip):
+                    with col:
+                        # A workflow with no result in this study keeps its tab and
+                        # says so on hover, rather than vanishing: a missing tab and
+                        # a missing capability look identical, and they are not.
+                        st.button(
+                            tab.title,
+                            key=tab.key,
+                            help=None if tab.available()
+                            else f"No {tab.title.lower()} result for this study",
+                            type="primary" if page == tab.page else "secondary",
+                            use_container_width=True,
+                            on_click=_set_page,
+                            args=(tab.page,),
+                        )
         with ctx_col:
             st.markdown(
                 '<div class="pano-ctx-wrap"><div class="pano-ctx-chip">'
@@ -296,6 +293,23 @@ def _examine_body() -> None:
         _chat_pane_fragment(cluster)
 
 
+def _markers_available() -> bool:
+    """Does this study have a marker result to draw? Mirrors ``enrichment_available``
+    — the question is *is there a result*, not *is the method any good*."""
+    return not da.markers_df().empty
+
+
+# The wiring, and the only place this file names a surface: which renderer draws a
+# ``UISpec.workflow_id``, and how to tell whether THIS study has a result for it.
+# Registering a workflow is what puts a tab in the strip; adding a line here is what
+# gives that tab a page. A workflow with no line renders nav's stated-absence page —
+# it keeps its tab, because a hidden tab and an unsupported question read the same.
+_SURFACES: nav.Wiring = {
+    "markers": (_examine_body, _markers_available),
+    "pathways": (enrichment_table.render_pathways_page, da.enrichment_available),
+}
+
+
 # ── One script run per rerun (no st.navigation / sidebar) ──────────────────
 st.set_page_config(
     page_title="Panoscope",
@@ -305,10 +319,12 @@ st.set_page_config(
 theme.inject_css()
 state.init_state()
 
-# Page routing — each page has a dedicated ?page= URL name:
-#   welcome (landing) · upload · markers · pathways · summary.
-# welcome + upload are the onboarding front door; the rest are the dashboard.
-page = _resolve_page()
+# Page routing — each page has a dedicated ?page= URL name: welcome (landing) and
+# upload are the onboarding front door; summary is the integrated review surface;
+# every other name is a registered workflow's own surface id (markers · pathways
+# today, whatever is registered tomorrow).
+TABS = nav.tabs(_SURFACES, summary.render_summary_page)
+page = _resolve_page(TABS)
 
 if page == _PAGE_WELCOME:
     with st.container(key="pg_welcome"):
@@ -322,16 +338,22 @@ if page == _PAGE_UPLOAD:
 # Dashboard. on_click tab handlers have already fired, so this reads the fresh
 # page. On a hard refresh the tab + selections are restored from the URL.
 _restore_selection_from_url()
-_top_bar(page)
+_top_bar(page, TABS)
 
-# The dashboard body renders into a page-keyed container.
+# The dashboard body renders into a page-keyed container. Which renderer runs is the
+# tab's own, from the registry-built strip — there is no page branch here to forget
+# to extend. A tab with no result in this study states the absence instead.
+active = nav.find(TABS, page)
 with st.container(key=f"page_body_{page}"):
-    if page == _PAGE_SUMMARY:
-        summary.render_summary_page()
-    elif page == _PAGE_PATHWAYS:
-        enrichment_table.render_pathways_page()
+    if active is None:
+        # Not a dashboard page at all. Only reachable with no ScriptRunContext —
+        # under a bare ``import panoscope.app`` the ``st.stop()`` above is a no-op,
+        # so the onboarding pages fall through to here. Nothing to draw.
+        pass
+    elif active.render is None or not active.available():
+        nav.render_unavailable(active)
     else:
-        _examine_body()
+        active.render()
 
 _kill_cross_page_bleed()
 
