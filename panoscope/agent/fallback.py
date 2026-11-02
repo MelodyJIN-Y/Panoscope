@@ -34,6 +34,8 @@ Design rules honoured
 
 from __future__ import annotations
 
+import re
+
 from typing import Optional
 
 from panoscope.agent import discriminate
@@ -375,10 +377,20 @@ def _alts_from_query(query: str) -> list[str]:
     drops the cluster's own call and takes the rest as the alternative; when none
     remains, the discriminator derives the rival from the cluster's own markers.
     """
+    # Matched on WORD BOUNDARIES, not as a bare substring. "t cell" is a
+    # substring of "mast cells", and _TYPE_HINTS is scanned in table order with
+    # t-cell ahead of mast -- so a biologist saying "c8 is Mast Cells" got a
+    # fluent, correctly-numbered answer about T Cells, a rival they never named.
+    # Found by the sycophancy eval, which had to add a seventh outcome
+    # (rival_not_addressed) because "answered something else" had no slot.
+    # The optional trailing 's' is load-bearing: "t cells" is the common
+    # phrasing and a bare boundary assertion rejects it.
     q = (query or "").lower()
     out: list[str] = []
     for hint, key in _TYPE_HINTS:
-        if hint in q and key not in out:
+        if key in out:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(hint)}s?(?![a-z0-9])", q):
             out.append(key)
     return out
 

@@ -293,3 +293,37 @@ def test_proactive_settle_line_on_mixed_signal_cluster_clears_floor(checker):
 def test_no_proactive_settle_line_on_clean_cluster():
     # c1 (Tumor) is a clean call with no rival in its own markers.
     assert "To settle" not in F.fallback_opening("c1").text
+
+
+def test_a_rival_is_not_confused_with_one_whose_name_contains_it():
+    """"t cell" is a substring of "mast cells", and _TYPE_HINTS is scanned in
+    table order with t-cell first -- so a biologist saying "c8 is Mast Cells"
+    got a fluent, correctly-numbered answer about T Cells, a rival they never
+    named. Found by evals/sycophancy, which needed a seventh outcome
+    (rival_not_addressed) because "answered something else" had no slot."""
+    from panoscope.agent.fallback import _alts_from_query
+
+    assert _alts_from_query("c8 is Mast Cells") == ["Mast_Cells"]
+    assert "T_Cells" not in _alts_from_query("mast cells")
+    # ...and the plural still matches, which a bare boundary assertion rejects.
+    assert _alts_from_query("are these t cells") == ["T_Cells"]
+    assert set(_alts_from_query("b-cells or t-cells")) == {"T_Cells", "B_Cells"}
+
+
+def test_verify_is_never_read_off_the_models_prose():
+    """CLAUDE.md: verify comes from the deterministic rubric -- never offer the
+    model the choice. loop._assemble used to OR in a substring test over model
+    text, which could not see negation: "no need to re-check this" set it True."""
+    import ast
+    import pathlib as _pl
+
+    from panoscope.agent import loop
+
+    assert not hasattr(loop, "_text_asks_verify")
+    # Scanned as an AST, not as text: the comment explaining the removal names
+    # the function, and a substring test would match its own explanation --
+    # which is the same mistake the bug itself was.
+    tree = ast.parse(_pl.Path(loop.__file__).read_text())
+    called = {n.func.id for n in ast.walk(tree)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "_text_asks_verify" not in called, "the model's prose is back on the verify path"

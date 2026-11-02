@@ -1243,7 +1243,14 @@ class PanoscopeAgent:
 
     def _assemble(self, text: str, ledger: _Ledger, cluster: str) -> AgentResponse:
         """Build the AgentResponse from the model text + the accumulated ledger."""
-        verify = _text_asks_verify(text) or _cluster_verify_default(cluster)
+        # verify comes from the deterministic rubric ONLY. It used to be
+        # `_text_asks_verify(text) or _cluster_verify_default(cluster)`, which
+        # offered the model the choice -- against the rule in CLAUDE.md -- by
+        # substring-matching its prose for "re-check this". A substring test
+        # cannot see negation, so "The call is solid; no need to re-check this"
+        # set verify TRUE. The generator-swap eval moved it on 16 of 45
+        # observations, entirely from prose style.
+        verify = _cluster_verify_default(cluster)
         return AgentResponse(
             text=text,
             sources=ledger.source_chips(),
@@ -1329,11 +1336,6 @@ def _split_reply(reply: Any) -> tuple[str, list[dict[str, Any]]]:
             )
     return "\n".join(text_parts).strip(), tool_uses
 
-
-def _text_asks_verify(text: str) -> bool:
-    """True iff the model itself flagged the answer for re-checking."""
-    low = (text or "").lower()
-    return "verify=true" in low or "re-check this" in low
 
 
 def _cluster_verify_default(cluster: str) -> bool:
