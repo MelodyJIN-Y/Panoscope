@@ -57,6 +57,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from panoscope.ui import conditionality as cnd
 from panoscope.ui import data_access as da
 from panoscope.ui import format as fmt
 from panoscope.ui import state
@@ -400,7 +401,6 @@ def _render_cell_map(cluster: str) -> None:
     tissue aspect ratio is locked by ``_tissue_layout`` so the slide is never
     stretched.
     """
-    st = _st()
     go = _go()
 
     cells = da.cells_df()
@@ -447,7 +447,17 @@ def _render_cell_map(cluster: str) -> None:
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+    cnd.render_panel(
+        fig,
+        cnd.cell_map_cond(
+            cluster=cluster,
+            n_total=len(cells),
+            n_selected=int(sel_mask.sum()),
+            n_bg_drawn=len(bg),
+            n_bg_total=int((~sel_mask).sum()),
+        ),
+        config=_plot_config(),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -463,7 +473,6 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
     exported expression, fall back to the cluster-coloured UMAP with an honest
     note. ``gene`` is required when ``feature`` is True.
     """
-    st = _st()
     go = _go()
 
     umap = da.umap_df()
@@ -475,25 +484,51 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
 
     sel_mask = umap["cluster"] == cluster
     view = _downsample_bg(umap, sel_mask, _MAX_BG_POINTS)
+    n_sel = int(sel_mask.sum())
+    n_bg_total = int((~sel_mask).sum())
+    n_bg_drawn = len(view) - n_sel
 
     fig = go.Figure(layout=_base_layout(go, showlegend=False, equal_aspect=True))
 
     if feature and gene and expr is not None:
         _umap_feature(fig, go, view, expr, cluster)
-        # Legend is shared once in the control row above (no per-panel legend).
-        st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+        # Legend is shared once in the control row above; the conditionality
+        # caption is per-panel because its denominator is per-panel.
+        cnd.render_panel(
+            fig,
+            cnd.feature_umap_cond(
+                gene=gene,
+                n_expr_cells=len(expr),
+                n_total=len(umap),
+                n_bg_drawn=n_bg_drawn,
+                n_bg_total=n_bg_total,
+            ),
+            config=_plot_config(),
+        )
         return
 
     # Cluster-coloured UMAP: Row 1 default, or a gene row whose expression is
     # not exported (honest fallback).
     _umap_by_cluster(fig, go, view, cluster)
-    st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+    # Row-1 cluster UMAP: the caption was once removed for a cleaner grid. It is
+    # back as a conditionality record, not a label — a UMAP that does not say it
+    # is a layout reads as a measurement.
+    cnd.render_panel(
+        fig,
+        cnd.cluster_umap_cond(
+            cluster=cluster,
+            n_total=len(umap),
+            n_selected=n_sel,
+            n_bg_drawn=n_bg_drawn,
+            n_bg_total=n_bg_total,
+        ),
+        config=_plot_config(),
+    )
     if feature and gene and expr is None:
         _legend_line(
             f'<span style="color:var(--absent)">{gene}: per-cell expression not '
             f"precomputed</span> · showing cluster colour instead"
         )
-    # Row-1 cluster UMAP: no caption (the label was removed for a cleaner grid).
 
 
 def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> None:
@@ -619,10 +654,17 @@ def _render_density(gene: str) -> None:
     except Exception:
         _empty_panel(f"{gene}: density unavailable", height=_TISSUE_HEIGHT)
         return
-    _render_density_frame(hb, bin_um, empty=f"{gene}: density not precomputed")
+    _render_density_frame(
+        hb,
+        bin_um,
+        cond=cnd.gene_density_cond(gene=gene, hb=hb, bin_um=bin_um),
+        empty=f"{gene}: density not precomputed",
+    )
 
 
-def _render_density_frame(hb: Any, bin_um: int, empty: str = "density not precomputed") -> None:
+def _render_density_frame(
+    hb: Any, bin_um: int, *, cond: Any, empty: str = "density not precomputed"
+) -> None:
     """Draw a precomputed (or aggregated) hex-density frame as an area-normalized,
     ratio-locked tissue image. Shared by the single-marker density and the
     enrichment leading-edge set density (a sum of measured per-gene densities).
@@ -630,8 +672,11 @@ def _render_density_frame(hb: Any, bin_um: int, empty: str = "density not precom
     ``hb`` has columns hx, hy, count, density. The colour is sqrt(density) (lifts
     the low end); hover shows the real count + density. Absent bins stay NaN and
     render transparent so the slide reads through the holes.
+
+    ``cond`` is the caller's conditionality record — required, because the two
+    callers draw different things (one gene's detections vs a SUM over a
+    program's driving genes) and only the caller knows which.
     """
-    st = _st()
     go = _go()
 
     if hb is None or hb.empty:
@@ -694,8 +739,10 @@ def _render_density_frame(hb: Any, bin_um: int, empty: str = "density not precom
     )
 
     # No per-panel legend: the shared control+legend row above every gene row
-    # carries the ramp and the units once (see _render_density_controls).
-    st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+    # carries the ramp and the units once (see _render_density_controls). The
+    # conditionality caption is per-panel — the bin µm and the colour maximum it
+    # states are this panel's.
+    cnd.render_panel(fig, cond, config=_plot_config())
 
 
 # --------------------------------------------------------------------------- #
@@ -711,7 +758,6 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
     cluster labels) — this derives nothing beyond a mean and a fraction of source
     values. x = clusters (c1..c9), y = the selected genes.
     """
-    st = _st()
     go = _go()
 
     # Only plot genes that actually have exported per-cell expression; the rest
@@ -824,7 +870,17 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
             tickfont=dict(family="IBM Plex Mono, monospace", size=11),
         ),
     )
-    st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+    cnd.render_panel(
+        fig,
+        cnd.dotplot_cond(
+            genes_drawn=len(gene_order),
+            genes_selected=len(genes),
+            n_clusters=len(cfg.CLUSTER_ORDER),
+            n_expr_cells=len(da.marker_expr_df()),
+            n_total=len(da.cells_df()),
+        ),
+        config=_plot_config(),
+    )
     _legend_line("dot size = % of cells expressing · colour = mean expression")
 
 

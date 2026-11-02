@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from panoscope.ui import conditionality as cnd
 from panoscope.ui import data_access as da
 from panoscope.ui import state
 from panoscope.ui.spatial_stage import (
@@ -49,17 +50,44 @@ def _short(gene_set: str) -> str:
     return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
-def _render_set_density(genes: tuple[str, ...]) -> None:
+def _n_with_density(genes: tuple[str, ...]) -> int:
+    """How many driving genes actually contributed a frame to the sum.
+
+    ``leading_edge_density`` skips a gene with no precomputed frame, and the
+    summed picture cannot show which ones are missing — so the count goes in the
+    conditionality. Read from the density index (the same list the stage uses).
+    """
+    have = set(da.available_density_markers())
+    return sum(1 for g in genes if g in have)
+
+
+def _n_with_expr(genes: tuple[str, ...]) -> int:
+    """How many driving genes contributed a column to the mean (same reason)."""
+    have = {c.upper() for c in da.available_expr_markers()}
+    return sum(1 for g in genes if g.upper() in have)
+
+
+def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
     """The leading-edge set's transcript density (sum of the driving genes'
     precomputed hex densities), drawn as a ratio-locked tissue image."""
     bin_um = state.get_bin_um()
     hb = da.leading_edge_density(tuple(genes), bin_um)
-    _render_density_frame(hb, bin_um, empty="no precomputed density for the leading-edge genes")
+    _render_density_frame(
+        hb,
+        bin_um,
+        cond=cnd.set_density_cond(
+            program=program,
+            hb=hb,
+            bin_um=bin_um,
+            n_genes=len(genes),
+            n_drawn=_n_with_density(genes),
+        ),
+        empty="no precomputed density for the leading-edge genes",
+    )
 
 
-def _render_set_feature_umap(cluster: str, genes: tuple[str, ...]) -> None:
+def _render_set_feature_umap(program: str, cluster: str, genes: tuple[str, ...]) -> None:
     """UMAP recoloured by the leading-edge set's mean per-cell expression."""
-    st = _st()
     go = _go()
     expr = da.leading_edge_expr(tuple(genes))
     umap = da.umap_df()
@@ -70,7 +98,19 @@ def _render_set_feature_umap(cluster: str, genes: tuple[str, ...]) -> None:
     view = _downsample_bg(umap, sel_mask, _MAX_BG_POINTS)
     fig = go.Figure(layout=_base_layout(go, showlegend=False, equal_aspect=True))
     _umap_feature(fig, go, view, expr, cluster)
-    st.plotly_chart(fig, use_container_width=True, config=_plot_config())
+    cnd.render_panel(
+        fig,
+        cnd.leading_edge_umap_cond(
+            program=program,
+            n_genes=len(genes),
+            n_drawn=_n_with_expr(genes),
+            n_expr_cells=len(expr),
+            n_total=len(umap),
+            n_bg_drawn=len(view) - int(sel_mask.sum()),
+            n_bg_total=int((~sel_mask).sum()),
+        ),
+        config=_plot_config(),
+    )
 
 
 def render_pathways_spatial(cluster: str, pathways: list) -> None:
@@ -107,12 +147,12 @@ def render_pathways_spatial(cluster: str, pathways: list) -> None:
         r_left, r_right = st.columns(2, gap="medium")
         with r_left:
             _panel_title(f"<b>{short}</b> leading-edge transcript density")
-            _render_set_density(genes)
+            _render_set_density(short, genes)
         with r_right:
             _panel_title(
                 f"<b>{short}</b> leading-edge activity <span style='color:var(--faint)'>· UMAP</span>"
             )
-            _render_set_feature_umap(cluster, genes)
+            _render_set_feature_umap(short, cluster, genes)
         for g in genes:
             if g not in all_genes:
                 all_genes.append(g)
