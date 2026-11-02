@@ -773,7 +773,7 @@ CI jobs: `core` (no extras, no network), `spatial`, `reference`, `licence` (grep
 | Existing | Action |
 | --- | --- |
 | `agent/config.py` | strip dataset constants; PEP 562 `__getattr__`; keep the pure rubric constants |
-| `agent/data.py` | → `data/legacy.py` + `data/spatial.py`; readers take a `Study`; drop the unit-count assertion |
+| `agent/data.py` | **Row superseded — do not do this split.** The unit-count assertion is dropped and per-study caching is done, via a `_per_study` decorator rather than a `Study` argument. The `data/spatial.py` this row names already shipped as `platforms/xenium.py`; the archive spec's wording (`data/spatial.py` **new** + `data/legacy.py` **kept**) shows it was always a NEW reader beside a dying one, not a cut through 291 lines. And `pipeline/run.py` calls `load_panel()` and `load_cells()` thirteen lines apart, so `agent/data.py` would have to survive as a pure re-export shim — the split would add an import hop at ~30 call sites and remove nothing. The real duplication is `_resolved`, copied into `ui/data_access.py`, and the `viz/*` path literals known independently in four places. |
 | `agent/types.py` | → `types/*`; `MarkerRow` deleted (dead); `OffPanelNote` deleted — it becomes an `EvidenceItem` with `NEVER_MEASURED`, which removes the type split the new design exists to avoid |
 | `agent/verdict.py` | rubric → `methods/jazzpanda.py`; band → `core/verdict.py`; `is_canonical` → a **`CURATED` claim** (~60 seed claims, the largest single chunk) |
 | `agent/enrichment.py` | → `methods/jazzpanda_cgst.py` + the enrichment workflow; **`ClusterEnrichment.confidence` is deleted** (see below) |
