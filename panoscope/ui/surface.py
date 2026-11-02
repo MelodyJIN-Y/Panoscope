@@ -56,7 +56,9 @@ from panoscope.types.uispec import (
     DegradedUpward,
     HeaderKind,
     LabelBandHeader,
+    NothingToClick,
     ProvenanceOnlyHeader,
+    SpecCarriesCode,
     UISpec,
 )
 # Imported, never re-listed. uispec.py derives both from `Measured.carries_number`,
@@ -64,26 +66,6 @@ from panoscope.types.uispec import (
 # widened property would move the hatching in one file and leave this one behind.
 from panoscope.types.uispec import _NO_NUMBER, _NUMERIC_KINDS
 from panoscope.ui import format as fmt
-
-
-class NothingToClick(ValueError):
-    """Raised for a rendered claim that resolves to nothing.
-
-    *"Every sentence resolves to its claim, with authority and conditions visible.
-    A sentence with nothing to click should not have been rendered."* The honest
-    reading of that rule is that an unanchored sentence is a bug in the caller, not
-    a sentence to draw without its anchor -- so this raises rather than degrading to
-    plain text, which would look identical to a grounded one.
-    """
-
-
-class SpecCarriesCode(ValueError):
-    """Raised when a declaration handed to the renderer carries a callable.
-
-    ``MethodSpec.status_rule`` is the single callable in the spec module and it runs
-    server-side only; the wire carries resolved states. A callable reaching here
-    means a renderer is about to decide what counts as measured.
-    """
 
 
 # --------------------------------------------------------------------------- #

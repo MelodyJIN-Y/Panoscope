@@ -45,6 +45,8 @@ from typing import Any, Mapping, Protocol, Sequence
 from panoscope.types.measured import MeasuredState
 from panoscope.types.outputs import TaskKind
 from panoscope.types.uispec import (
+    NothingToClick,
+    SpecCarriesCode,
     BlockSpec,
     CensusHeader,
     ColumnKind,
@@ -63,19 +65,6 @@ from panoscope.types.uispec import (
 from panoscope.types.uispec import _NO_NUMBER, _NUMERIC_KINDS
 
 
-class NothingToClick(ValueError):
-    """Raised for a rendered claim that resolves to nothing.
-
-    The same rule as ``ui.surface.NothingToClick`` and deliberately NOT that class:
-    importing it would make this renderer depend on the other one. That the
-    exception type for a property of the *declaration* lives in a renderer at all
-    is a smell the report names; it is not fixable from here, because ``types/`` is
-    frozen.
-    """
-
-
-class SpecCarriesCode(ValueError):
-    """Raised when a declaration handed to this renderer carries a callable."""
 
 
 class Row(Protocol):

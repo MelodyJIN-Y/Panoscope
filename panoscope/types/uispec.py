@@ -403,6 +403,33 @@ class PlotSpec:
 # --------------------------------------------------------------------------- #
 # The workflow declaration
 # --------------------------------------------------------------------------- #
+class NothingToClick(ValueError):
+    """Raised for a rendered claim that resolves to nothing.
+
+    *"Every sentence resolves to its claim, with authority and conditions visible.
+    A sentence with nothing to click should not have been rendered."* An
+    unanchored sentence is a bug in the caller, not a sentence to draw without
+    its anchor, so this raises rather than degrading.
+
+    It lives HERE, not in a renderer, because it is a property of the
+    DECLARATION. It was defined in ``ui.surface`` first, so the second renderer
+    could not reuse it without importing the first, and ``except NothingToClick``
+    caught one medium's violation and not the other's. A second renderer is what
+    made that visible.
+    """
+
+
+class SpecCarriesCode(ValueError):
+    """Raised when a declaration handed to a renderer carries a callable.
+
+    ``MethodSpec.status_rule`` is the single callable in this module and it runs
+    server-side only; the wire carries resolved states. A callable reaching a
+    renderer means the renderer is about to decide what counts as measured.
+
+    Same ownership argument as :class:`NothingToClick`.
+    """
+
+
 class DegradedUpward(ValueError):
     """Raised for a surface that would claim more than its task kind permits.
 
