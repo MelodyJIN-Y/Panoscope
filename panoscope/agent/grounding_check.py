@@ -49,8 +49,10 @@ import re
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Optional, Union
 
+from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
+from panoscope.platforms.xenium import NO_SIGNAL
 from panoscope.types.record import GENERATED_FIELDS
 
 # --------------------------------------------------------------------------- #
@@ -215,6 +217,69 @@ _NEVER_MEASURED_RE = re.compile(
     re.IGNORECASE,
 )
 
+# --------------------------------------------------------------------------- #
+# Fabricated absence -- the SAME rule, the other direction
+# --------------------------------------------------------------------------- #
+# The pass above catches "this off-panel gene is absent, therefore X". This one
+# catches its inverse: "this gene was never measured" said of a gene the panel
+# DID measure. The sycophancy eval put a number on it -- 9 of 27 model answers
+# declared an on-panel gene unmeasured, one of them the unit's own driver, and
+# all nine cleared the floor -- and it is the worse half, because it manufactures
+# a limitation the assay does not have and reads as caution while doing it.
+#
+# Three cases, one violation. For a gene the panel measured and which produced
+# usable signal, "never measured" is FALSE. "Tested and not reported in this
+# unit" is TRUE and is the productive TESTED_ABSENT half, so it must keep
+# passing -- it is not a frame claim at all and never matches below. A gene on
+# the panel that produced no usable spatial signal genuinely WAS unmeasurable
+# here, so ``is_detectable`` (the second gene frame, the 49 NoSig genes) is
+# consulted as well as the panel and such a sentence is left alone.
+#
+# Scope is a CLAUSE, not a sentence. "...supports myoepithelial markers (MYLK,
+# ACTA2, DST), but T cell markers were not measured..." names four on-panel
+# genes that the frame claim does not govern; clause scope is what keeps them
+# out of it. When a clause names no gene at all the claim is about a CATEGORY
+# ("stromal markers were not measured"), and the category is resolved through
+# this study's own annotation -- which is why a kidney panel, where the
+# canonical markers really are off-panel, answers differently from the breast
+# demo without a line of this module changing.
+#
+# ponytail: clause splitting by punctuation and conjunctions, no parser. The
+# ceiling is a frame claim whose referent sits across a boundary we split on --
+# it is dropped, so the bias is toward a MISS, never toward refusing a true
+# sentence. Upgrade path is a dependency parse; nothing in this repo has one.
+_CLAUSE_SPLIT_RE = re.compile(
+    r"[,;:()\u2014\u2013]|--|\b(?:but|while|whereas|although|however|though"
+    r"|yet|and|or)\b",
+    re.IGNORECASE,
+)
+
+# A clause that asserts an entity is OUTSIDE the capability frame. Deliberately
+# narrower than _NEVER_MEASURED_RE above, which also matches "uninformative",
+# "no evidence", "underpowered" -- none of which claim the frame excluded the
+# entity, and two of which name a DIFFERENT lattice state that is not this
+# module's business.
+_FRAME_CLAIM_RE = re.compile(
+    r"\b(?:never\s+measured|never_measured|not\s+measured|unmeasured|unprofiled"
+    r"|not\s+profiled|no\s+marker\s+row|without\s+measuring"
+    r"|off[-\s]?panel"
+    r"|not\s+(?:on|in|part\s+of|covered\s+by|included\s+(?:on|in))"
+    r"[^.;]{0,40}?\bpanel\b"
+    r"|(?:absent|missing)\s+from[^.;]{0,20}?\bpanel\b"
+    r"|outside\s+the\s+(?:panel|frame|capability\s+frame)"
+    r"|out\s+of\s+frame|not\s+in\s+(?:the\s+)?(?:capability\s+)?frame)",
+    re.IGNORECASE,
+)
+
+# A category claim has to be ABOUT the measurement to count. "Stromal markers
+# were not measured" is one; "this is not stromal" is not.
+_MEASURED_NOUN_RE = re.compile(
+    r"\b(?:marker|markers|gene|genes|transcript|transcripts|probe|probes"
+    r"|signature|signatures)\b",
+    re.IGNORECASE,
+)
+
+
 # English/stat words that tokenise as upper-case gene-shaped tokens but are NOT
 # genes. These are excluded from gene extraction so prose like "AND", "THE",
 # "PMID" never triggers a false marker binding. We do NOT rely on this list to
@@ -287,6 +352,20 @@ class SourceIndex:
     def gene_exists(self, gene: str) -> bool:
         """A token counts as a real gene if it is modeled OR on the panel."""
         return self.is_modeled(gene) or self.is_on_panel(gene)
+
+    def is_detectable(self, gene: str) -> bool:
+        """True iff ``gene`` produced usable spatial signal -- the SECOND gene frame.
+
+        The panel is one capability frame and detectability is another: 49 of the
+        demo's 280 panel genes carry the ``NoSig`` sentinel and were genuinely
+        unmeasurable here. A sentence calling one of those unmeasured is true, so
+        the fabricated-absence pass asks this as well as ``is_on_panel`` before
+        it calls anything false. False when there is no marker row at all.
+        """
+        row = data.get_marker(gene)
+        if row is None:
+            return False
+        return str(row.get("top_cluster", "")).strip() != NO_SIGNAL
 
     def panel_known(self) -> bool:
         """True iff the capability frame could actually be read.
@@ -369,6 +448,7 @@ class ExtractedClaims:
     claim_refs: tuple[str, ...] = ()
     edge_refs: tuple[str, ...] = ()
     absences: tuple[AbsenceClaim, ...] = ()
+    frame_claims: tuple[str, ...] = ()
 
 
 # --------------------------------------------------------------------------- #
@@ -412,6 +492,7 @@ class Extractor:
             claim_refs=claim_refs,
             edge_refs=edge_refs,
             absences=tuple(self._extract_absences(masked)),
+            frame_claims=tuple(self._extract_frame_claims(masked)),
         )
 
     # -- absence-used-as-evidence sentences --------------------------------- #
@@ -441,6 +522,25 @@ class Extractor:
                     continue
                 seen.add(tok)
                 out.append(AbsenceClaim(entity=tok, sentence=sentence.strip()))
+        return out
+
+    # -- clauses that put something OUTSIDE the capability frame ------------ #
+    def _extract_frame_claims(self, text: str) -> list[str]:
+        """Clauses asserting an entity was never measured / is off-panel.
+
+        Extraction only, exactly as :meth:`_extract_absences`: this knows nothing
+        about what the frame actually holds. The clause, not the sentence, is the
+        unit, so a frame claim does not reach across a conjunction and pick up
+        genes it never governed.
+        """
+        out: list[str] = []
+        for sentence in _SENTENCE_SPLIT_RE.split(text):
+            if not _FRAME_CLAIM_RE.search(sentence):
+                continue
+            for clause in _CLAUSE_SPLIT_RE.split(sentence):
+                clause = (clause or "").strip()
+                if clause and _FRAME_CLAIM_RE.search(clause):
+                    out.append(clause)
         return out
 
     # -- gene tokens (names actually asserted as real genes) ---------------- #
@@ -604,6 +704,7 @@ class GroundingChecker:
         violations += self._check_claim_refs(claims)
         violations += self._check_edge_refs(claims)
         violations += self._check_panel_absence(claims)
+        violations += self._check_fabricated_absence(claims)
 
         return GroundingResult(ok=not violations, violations=tuple(violations))
 
@@ -929,6 +1030,107 @@ class GroundingChecker:
             ))
         return out
 
+
+    # -- the panel-absence rule, run backwards ------------------------------ #
+    def _check_fabricated_absence(self, claims: ExtractedClaims) -> list[Violation]:
+        """A measured entity declared unmeasured.
+
+        The frame is consulted here and nowhere else, for the same reason the
+        pass above gives: the word lists find a candidate, the frame decides.
+        Two shapes, because the prose comes in two:
+
+        * the clause NAMES genes -- every named gene that is on the panel AND
+          detectable makes the claim false, and those genes are the proof;
+        * the clause names no gene -- the claim is about a CATEGORY, so this
+          study's annotation supplies the category's canonical markers and the
+          claim is false if any of them is on the panel and detectable.
+
+        A category clause is only read when no gene is named, so "MS4A2, TPSB2 --
+        canonical Mast_Cells markers -- are off-panel" is answered by its genes
+        (both genuinely off-panel, nothing to flag) rather than by its category.
+        """
+        if not claims.frame_claims or not self._src.panel_known():
+            return []
+        out: list[Violation] = []
+        seen: set[tuple[str, str]] = set()
+        for clause in claims.frame_claims:
+            named = [
+                m.group(1) for m in _GENE_TOKEN_RE.finditer(clause)
+                if m.group(1) not in _STOPWORD_TOKENS
+            ]
+            if named:
+                for gene in named:
+                    if not (self._src.is_on_panel(gene)
+                            and self._src.is_detectable(gene)):
+                        continue
+                    if (gene, clause) in seen:
+                        continue
+                    seen.add((gene, clause))
+                    out.append(Violation(
+                        kind="fabricated_absence",
+                        severity="CRITICAL",
+                        detail=(
+                            f"{gene} is on the measured panel and produced usable "
+                            f"signal; the sentence declares it unmeasured, which "
+                            f"invents a limitation the assay does not have"
+                        ),
+                        ref=gene,
+                        claimed=clause,
+                        expected=f"{gene} is in the capability frame (measured here)",
+                    ))
+                continue
+            if not _MEASURED_NOUN_RE.search(clause):
+                continue
+            for cell_type, markers in _measured_types(clause, self._src).items():
+                if (cell_type, clause) in seen:
+                    continue
+                seen.add((cell_type, clause))
+                out.append(Violation(
+                    kind="fabricated_absence",
+                    severity="CRITICAL",
+                    detail=(
+                        f"{cell_type} markers {', '.join(markers)} are on the "
+                        f"measured panel and produced usable signal; the sentence "
+                        f"declares the category unmeasured"
+                    ),
+                    ref=cell_type,
+                    claimed=clause,
+                    expected=(
+                        f"{cell_type} canonical markers in frame: {', '.join(markers)}"
+                    ),
+                ))
+        return out
+
+
+
+def _measured_types(clause: str, src: "SourceIndex") -> dict[str, tuple[str, ...]]:
+    """Cell types this clause names that the study DID measure markers for.
+
+    The vocabulary is derived from this study's annotation, never asserted:
+    ``Mast_Cells`` -> "mast cell", ``T_Cells`` -> "t cell". Matched on word
+    boundaries with an optional plural, because "mast cells" contains "t cell"
+    as a substring and a bare ``in`` test answers the wrong rival (the bug the
+    sycophancy eval found in the fallback router).
+
+    A type with no on-panel detectable canonical marker is absent from the
+    result: for that type the clause may well be true, and this gate never
+    guesses.
+    """
+    low = clause.replace("_", " ").lower()
+    out: dict[str, tuple[str, ...]] = {}
+    for cell_type in annotation.all_canonical():
+        hint = cell_type.replace("_", " ").lower().rstrip("s")
+        if not hint:
+            continue
+        if not re.search(rf"(?<![a-z0-9]){re.escape(hint)}s?(?![a-z0-9])", low):
+            continue
+        in_frame = tuple(
+            g for g in annotation.canonical_markers(cell_type)
+            if src.is_on_panel(g) and src.is_detectable(g)
+        )
+        if in_frame:
+            out[cell_type] = in_frame
+    return out
 
 # --------------------------------------------------------------------------- #
 # Text helpers

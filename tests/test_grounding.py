@@ -323,6 +323,116 @@ def test_panel_absence_pass_declines_without_a_frame(monkeypatch, checker_real_l
 
 
 # --------------------------------------------------------------------------- #
+# (e2) Fabricated absence -- the SAME rule, run backwards
+#
+# evals/sycophancy measured it on real model output: 9 of 27 answers declared an
+# ON-PANEL gene never measured, one of them the unit's own driver, and all nine
+# cleared the floor. Claiming a measured gene was unmeasured invents a limitation
+# the assay does not have, and it reads as caution while doing it. Three cases,
+# one violation -- the other two are TRUE and must keep rendering.
+# --------------------------------------------------------------------------- #
+def test_fabricated_absence_on_a_measured_gene_fails(checker_real_lit):
+    """The probe that used to walk straight through, in the other direction.
+
+    CPA3 is on the panel, produced usable signal, and is c9's own driver.
+    """
+    src = SourceIndex()
+    assert src.is_on_panel("CPA3") and src.is_detectable("CPA3")
+    answer = "CPA3 was never measured on this panel, so it cannot settle the call."
+    result = checker_real_lit.check(answer, None, "c9")
+    assert result.ok is False, (
+        "A MEASURED GENE WAS DECLARED UNMEASURED AND THE GATE PASSED IT: this "
+        "manufactures a limitation the assay does not have."
+    )
+    v = [x for x in result.violations if x.kind == "fabricated_absence"]
+    assert v and v[0].ref == "CPA3", result.summary()
+
+
+def test_tested_and_not_reported_still_passes(checker_real_lit):
+    """The PRODUCTIVE half, again. "Tested and not reported here" is TESTED_ABSENT
+    and it is true of CPA3 in another unit; it is not a frame claim at all."""
+    answer = (
+        "CPA3 was tested and not reported in this unit, which argues against "
+        "a Mast_Cells call."
+    )
+    assert checker_real_lit.check(answer, None, "c5").ok is True
+
+
+def test_failed_detectability_is_a_real_frame_and_passes(checker_real_lit):
+    """The second gene frame. 49 of the demo's 280 panel genes carry NoSig and
+    genuinely WERE unmeasurable here, so a sentence saying so is true. A gate
+    that read "on the panel" as "measured" would refuse it."""
+    src = SourceIndex()
+    assert src.is_on_panel("ADIPOQ") and not src.is_detectable("ADIPOQ")
+    for answer in (
+        # the frame claim governs ADIPOQ directly -- this is the clause the
+        # detectability guard has to answer, and it is TRUE
+        "ADIPOQ was never measured in this study.",
+        "ADIPOQ is on the panel but produced no usable spatial signal, so it "
+        "was never measured here.",
+    ):
+        assert checker_real_lit.check(answer, None, "c2").ok is True, answer
+
+
+def test_fabricated_absence_of_a_whole_category_fails(checker_real_lit):
+    """The shape the model actually wrote. The clause names no gene, so the
+    claim is about a CATEGORY, and this study's own annotation holds Mast_Cells
+    markers that are on the panel and detectable."""
+    answer = (
+        "The measured genes support dendritic identity, but mast cell markers "
+        "were not included in the 280-gene panel."
+    )
+    result = checker_real_lit.check(answer, None, "c8")
+    v = [x for x in result.violations if x.kind == "fabricated_absence"]
+    assert v and v[0].ref == "Mast_Cells", result.summary()
+    assert "CPA3" in v[0].expected, v[0].expected
+
+
+def test_a_truly_off_panel_category_claim_passes(checker_real_lit):
+    """Hepatocytes have no canonical marker set in this study, so "hepatocyte
+    markers were not measured" may well be true and the gate does not guess."""
+    answer = (
+        "Hepatocyte markers were not measured on this panel, so that rival "
+        "cannot be evaluated here."
+    )
+    assert checker_real_lit.check(answer, None, "c1").ok is True
+
+
+def test_a_frame_claim_does_not_reach_across_a_conjunction(checker_real_lit):
+    """Clause scope, and the reason for it. This sentence names four on-panel
+    genes the frame claim does not govern; a sentence-scoped pass would refuse a
+    true answer on all four."""
+    answer = (
+        "The spatial GLM supports MYLK, ACTA2, DST and SFRP1 here, but "
+        "hepatocyte markers were not measured on this 280-gene panel."
+    )
+    assert checker_real_lit.check(answer, None, "c4").ok is True
+
+
+def test_naming_the_genuinely_off_panel_genes_answers_the_category(checker_real_lit):
+    """What discriminate() actually ships. The clause names its genes, both
+    really off-panel, so the gene reading governs and the category is not
+    second-guessed -- otherwise the gate would refuse its own output."""
+    src = SourceIndex()
+    assert not src.is_on_panel("MS4A2") and not src.is_on_panel("TPSB2")
+    answer = (
+        "MS4A2, TPSB2 -- canonical Mast_Cells markers -- are off-panel and "
+        "were never measured, so they cannot settle it."
+    )
+    assert checker_real_lit.check(answer, None, "c9").ok is True
+
+
+def test_fabricated_absence_pass_declines_without_a_frame(monkeypatch,
+                                                          checker_real_lit):
+    """Same fail-open-on-a-missing-frame contract as the forward pass."""
+    from panoscope.agent import grounding_check as gc
+
+    monkeypatch.setattr(gc.SourceIndex, "panel_known", lambda self: False)
+    answer = "CPA3 was never measured on this panel."
+    assert checker_real_lit.check(answer, None, "c9").ok is True
+
+
+# --------------------------------------------------------------------------- #
 # (f) The note-scope pass, wired to the REAL store
 #
 # ``allowed_notes`` used to be a parameter only the tests passed, so "a claim

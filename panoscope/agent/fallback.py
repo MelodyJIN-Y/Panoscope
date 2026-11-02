@@ -390,9 +390,54 @@ def _alts_from_query(query: str) -> list[str]:
     for hint, key in _TYPE_HINTS:
         if key in out:
             continue
-        if re.search(rf"(?<![a-z0-9]){re.escape(hint)}s?(?![a-z0-9])", q):
+        if _names_type(q, hint):
             out.append(key)
     return out
+
+
+def _names_type(q: str, hint: str) -> bool:
+    """Whether lower-cased ``q`` names ``hint`` as a word (optional plural).
+
+    One predicate, because there were two: ``_settle_answer`` had its own
+    ``hint in q`` and so still answered about T Cells when the biologist said
+    "mast cells". A gate fixed in one caller and not the other is not fixed.
+    """
+    return bool(re.search(rf"(?<![a-z0-9]){re.escape(hint)}s?(?![a-z0-9])", q))
+
+
+# "c1 is Hepatocytes, not Tumor" -- the biologist names a rival we have no
+# marker set for AND names the call as the thing they are rejecting. The
+# recognised word is then the CALL, so the old code took it as a synonym of the
+# call and answered "the alternative equals the call; nothing to discriminate"
+# -- fluent, and about a hypothesis nobody raised. Nine of the sycophancy
+# eval's pushbacks came back that way. Catching the contrasted term lets
+# ``discriminate`` say the honest thing instead: we do not recognise it.
+_CONTRAST_RE = re.compile(
+    r"\b(?:is|are|looks?\s+like|could\s+be|might\s+be|must\s+be)\s+"
+    r"(?:an?\s+|the\s+)?(?P<rival>[A-Za-z][A-Za-z0-9-]{3,}(?:\s+cells?)?)"
+    r"\s*,?\s+(?:not|rather\s+than|instead\s+of)\b",
+    re.IGNORECASE,
+)
+
+# Words the contrast pattern can capture that are not a cell type.
+_NOT_A_TYPE: frozenset[str] = frozenset({
+    "this", "that", "them", "they", "there", "here", "definitely", "clearly",
+    "really", "probably", "actually", "just", "more", "very", "still", "also",
+    "cell", "cells", "something", "anything", "likely", "certainly", "obviously",
+})
+
+
+def _contrasted_rival(query: str) -> Optional[str]:
+    """The rival named in an "X, not Y" pushback, or None.
+
+    Returned verbatim so ``discriminate`` -- which owns every decision about
+    what a cell-type name resolves to -- can answer it, including by declining.
+    """
+    m = _CONTRAST_RE.search(query or "")
+    if m is None:
+        return None
+    rival = " ".join(m.group("rival").split())
+    return None if rival.lower() in _NOT_A_TYPE else rival
 
 
 def _discrimination_grounding(d, include_support: bool = True):
@@ -440,11 +485,17 @@ def _settle_answer(v: ClusterVerdict, query: str) -> AgentResponse:
     off-panel genes (never recommends an experiment), and always clears the floor.
     """
     q = (query or "").lower()
-    named = [(hint, key) for hint, key in _TYPE_HINTS if hint in q]
+    named = [(hint, key) for hint, key in _TYPE_HINTS if _names_type(q, hint)]
     distinct = [key for hint, key in named if key != v.cell_type]
     if distinct:
         alt = distinct[0]
     else:
+        # A rival we have no marker set for is declined BY NAME, ahead of the
+        # synonym branch below: in "c1 is Hepatocytes, not Tumor" the only word
+        # we recognise is the call, and reading that as the alternative answers
+        # a question the biologist did not ask.
+        alt = _contrasted_rival(query)
+    if alt is None:
         # the biologist may have named a SUBTYPE/synonym of the call itself (e.g. CAF for
         # Stromal): pass their word so the discriminator answers it as a refinement, not
         # by auto-deriving "no competing hypothesis".
@@ -517,7 +568,7 @@ def _classify(query: str) -> Optional[str]:
                 return intent
     # No canned intent matched, but if the biologist named a specific cell type,
     # read it as a "what would settle it" comparison against that alternative.
-    if _alts_from_query(q):
+    if _alts_from_query(q) or _contrasted_rival(query):
         return "settle"
     return None
 
