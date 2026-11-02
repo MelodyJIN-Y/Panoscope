@@ -628,6 +628,22 @@ def test_a_hand_edited_claim_file_is_validated_on_read(tmp_path):
         load_dir(tmp_path)
 
 
+def test_a_claim_file_with_no_scope_key_is_refused_not_widened(tmp_path):
+    """A MISSING scope is the dangerous one, because nothing about the file looks wrong.
+
+    ``"study"`` is the unkeyed rung, so a file that merely forgot its scope key would
+    have applied in EVERY study -- the silent widening ``memory._note_from_dict`` was
+    fixed for one module over. Fail closed, loudly, naming the claim.
+    """
+    write_claim(_lab(), tmp_path)
+    path = tmp_path / "note-0001.json"
+    d = json.loads(path.read_text())
+    del d["scope"]
+    path.write_text(json.dumps(d))
+    with pytest.raises(ValueError):
+        load_dir(tmp_path)
+
+
 def test_load_dir_is_empty_not_an_error_for_a_new_lab(tmp_path):
     assert load_dir(tmp_path / "never_created").claims == ()
 

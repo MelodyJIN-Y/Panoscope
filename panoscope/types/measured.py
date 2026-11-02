@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from functools import lru_cache
 from enum import StrEnum
 
 from panoscope.types.subject import Entity, EntityKind, Gate, Subject
@@ -77,6 +78,19 @@ class Coverage:
         return f"{self.what} {self.k}/{self.n} (floor {self.floor})"
 
 
+@lru_cache(maxsize=256)
+def _normalised(members: frozenset[str]) -> frozenset[str]:
+    """``members`` stripped and upper-cased, memoised on the frozenset itself.
+
+    A frame's members are read once per study and asked about thousands of times,
+    so the normalisation is cached rather than rebuilt per call. Keyed on the
+    frozenset, which is both hashable and the whole input, so two frames with the
+    same members share one answer and a frame built from a different file can never
+    read another's.
+    """
+    return frozenset(str(m).strip().upper() for m in members)
+
+
 @dataclass(frozen=True, slots=True)
 class Frame:
     """What the apparatus was capable of observing, for ONE entity kind.
@@ -100,7 +114,27 @@ class Frame:
         return h.hexdigest()
 
     def contains(self, entity: Entity) -> bool:
-        return entity.id in self.members
+        """Membership, normalised on BOTH sides: stripped and case-folded.
+
+        **This is where the two band engines came to disagree about a gene.** The
+        comparison here was exact, while ``agent/data.panel_contains`` -- the v1
+        engine's copy of the same primitive, which ``agent/`` must keep because it
+        may not import ``core/`` -- upper-cased. So one contested row decided two
+        different bands: a ``markers_top.csv`` spelling a panel's ``CD68`` as
+        ``Cd68`` was admitted by the agent engine and refused here, and a
+        ``panel.parquet`` holding ``"CD68 "`` was refused there and admitted here.
+        Measured on a constructed store: Very High with ``verify`` False against
+        Medium-High with ``verify`` True, on the same evidence.
+
+        Normalising here rather than at construction keeps ``members`` the file's
+        own spellings, so ``digest`` and ``size`` still describe what the store
+        actually declared and no claim's ``FrameRef`` changes meaning. The rule
+        matches what this codebase already says about gene identity everywhere else
+        (``is_control_probe``: *"a vendor who writes erbb2 means ERBB2"*), and it is
+        a rule about identity, not about genes -- a label set that distinguishes two
+        cell types only by case is declaring two names for one thing.
+        """
+        return _normalised(self.members).__contains__(str(entity.id).strip().upper())
 
     def ref(self) -> "FrameRef":
         return FrameRef(self.kind, self.name, self.digest, len(self.members))

@@ -207,6 +207,21 @@ class PlatformAdapter(Protocol):
         genes that are not there.
         """
 
+    def is_control(self, store: Any, entity: str) -> bool:
+        """True if ``entity`` is a control probe of this platform, not a subject.
+
+        Declared here rather than left to each reader because a control is not a
+        state of the four-state lattice -- it is **excluded from every frame**, and
+        ``MeasuredState`` has no value for "measured, but not about anything". Ask a
+        frame about one and it answers ``NEVER_MEASURED``, byte-identical to a gene
+        the assay never probed and false about a probe whose count is on disk. So
+        the row has to be refused before it becomes a subject, and only the platform
+        knows which rows those are.
+
+        Xenium answers from the probe's NAME and from the panel file's own
+        ``annotation`` column, because a vendor renames the first and not the second.
+        """
+
     def unit_labels(self, store: Any) -> dict[str, str]:
         """Unit id -> display label. Display only; never load-bearing."""
 

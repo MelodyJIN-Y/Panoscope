@@ -43,6 +43,7 @@ them in.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Final
 
@@ -68,11 +69,60 @@ store is where it appears, so the adapter owns it: the tidy reader takes it as
 sentinel, from one declaration.
 """
 
+
+def is_no_signal(value: object) -> bool:
+    """True if a unit-column ``value`` says *no usable spatial signal*, in ANY case.
+
+    One predicate, because four places test this sentinel and they must agree about
+    it: this adapter's detectability frame, ``agent/config._derive_cluster_order``
+    (which builds the cluster label set as the sentinel's complement),
+    ``agent/grounding_check.is_detectable`` and ``agent/verdict._detectable_genes``.
+    They tested ``!= "NoSig"`` independently and case-SENSITIVELY, and
+    ``markers_top.csv`` is a consumed input whose spelling is whatever the upstream
+    jazzPanda run emitted. A table spelling it ``nosig`` therefore put every
+    undetectable gene INTO ``detect:<id>``, which makes its absence argue -- the
+    panel-absence rule inverted, and inverted hardest on an off-target panel where
+    the undetectable set is most of the assay. The Stage 0 guard that exists to
+    catch an unknown label shared the same comparison, so it passed the store clean.
+
+    **Blank and NaN count as no signal**, and that is the conservative direction
+    rather than a convenience: an empty unit column is not a declaration that the
+    gene was detected, and reading it as one both admits the gene to the
+    detectability frame and (at ``agent/config.py``) makes the empty string a
+    cluster id.
+    """
+    s = "" if value is None else str(value).strip()
+    return not s or s.upper() == NO_SIGNAL.upper() or s.lower() == "nan"
+
+
 CONTROL_PREFIXES: Final[tuple[str, ...]] = (
-    "NegControlProbe_", "NegControlCodeword_", "NegPrb", "BLANK_", "Blank-",
-    "antisense_", "UnassignedCodeword_", "DeprecatedCodeword_",
+    "NEGCONTROLPROBE", "NEGCONTROLCODEWORD", "NEGPRB", "BLANK", "ANTISENSE",
+    "UNASSIGNEDCODEWORD", "DEPRECATEDCODEWORD",
 )
 """Xenium puts its negative controls in the same table as the panel.
+
+**Prefix FAMILIES, not spellings.** Each entry names a control family and stops
+where the family name stops, because the vendor decorates the rest: ``BLANK`` is
+``BLANK_0003`` and ``BlankCodeword_0001`` and ``Blank-0002``, ``ANTISENSE`` is
+``antisense_ABC`` and ``antisenseXYZ``. The list used to carry the decorated
+spellings -- ``"BLANK_"``, ``"Blank-"``, ``"antisense_"`` -- which is the same
+mistake as a case-sensitive comparison one level down: it answers the probe the
+author happened to have in front of them rather than the family. ``BlankCodeword``
+is emitted by *every* Xenium run and matched none of them, so a blank codeword
+entered ``panel:<id>`` and ``detect:<id>`` as a gene, and a probe measuring nothing
+could be ``OBSERVED`` -- on an off-target panel, where a handful of rows carry any
+statistic at all, plausibly the top one, with a ``Source``-backed sentence calling
+it on-panel while quoting "negative control" as its annotation.
+
+The families are deliberately the longest string that is still only the family.
+``NEG`` is not one: **NEGR1 is a real human gene** and a bare ``NEG`` would delete
+it from the assay, which is the same class of error as admitting a control, pointed
+the other way. ``BLANK`` and ``ANTISENSE`` are safe in that direction because no
+HGNC symbol begins with either -- antisense transcripts are named ``<GENE>-AS1``,
+never ``ANTISENSE*``. ``tests/test_panel_controls.py`` pins both directions.
+
+Upper-cased in the source because the comparison is (see ``is_control_probe``);
+written out rather than lower-cased at use so the one list reads as what is matched.
 
 This is the platform-specific half of "how measured is derived": on another platform
 the rule is different, which is why it lives in an adapter and not in ``measured.py``.
@@ -119,6 +169,43 @@ def is_control_probe(name: str) -> bool:
     """
     return str(name).strip().upper().startswith(_CONTROL_PREFIXES_UPPER)
 
+
+CONTROL_ANNOTATION_TOKENS: Final[tuple[str, ...]] = ("CONTROL", "CODEWORD")
+"""Words in ``panel.parquet``'s ``annotation`` column that mark a row as a probe.
+
+**The second half of the control rule, and the half that is not the vendor's to
+rename.** :data:`CONTROL_PREFIXES` matches the probe's NAME, and a name is exactly
+what a vendor is free to change between panel versions: a negative control shipped
+as ``IntergenicRegion_0001`` or ``GenomicControl_02`` matches no family here, enters
+``panel:<id>`` as a gene, and can then be ``OBSERVED`` -- which on an off-target
+panel, where few rows carry any statistic, is plausibly the top one. Measured on a
+kidney-shaped rehearsal: two such probes led ``key_markers`` in ``interp/verdicts.csv``
+with ``role: supports`` and ``caveats: []``, read as *"Driven by IntergenicRegion_0001"*
+on the Markers page, and were handed to the model with ``glm_coef 89.0`` and a
+``jz`` Source -- while the row's own ``annotation`` column said ``negative control``
+and ``agent/data.panel_annotation`` already read that column.
+
+So the store already carried the answer and nothing asked it. These two tokens are
+the smallest rule that reads it. They are matched as substrings of the upper-cased
+annotation, and they are deliberately only two: both are terms this codebase already
+treats as vendor control vocabulary (``negative control`` is the annotation on this
+repo's own fixture control row; ``CODEWORD`` is already a prefix family above), and
+neither is a word a cell-type or tissue annotation uses. Widening this list guesses
+at strings no file here contains, and guessing wrong here deletes a real gene from
+the assay -- the same error as admitting a probe, pointed the other way.
+
+Name OR annotation, never name AND annotation: an unannotated control still matches
+by family, and an un-family-named control still matches by annotation.
+"""
+
+
+def is_control_annotation(annotation: object) -> bool:
+    """True if a panel row's ``annotation`` says the row is a control probe."""
+    if annotation is None:
+        return False
+    return any(t in str(annotation).strip().upper()
+               for t in CONTROL_ANNOTATION_TOKENS)
+
 _VIEW_ELEMENTS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     ("cell_map", ("viz/cells.parquet", "viz/cells.csv")),
     ("umap", ("viz/umap.parquet", "viz/umap.csv")),
@@ -139,6 +226,29 @@ def _present(store: Study, rel: str) -> bool:
     if p.is_dir():
         return any(p.iterdir())
     return p.is_file()
+
+
+@lru_cache(maxsize=16)
+def _annotated_controls_cached(path: str, mtime_ns: int, size: int) -> frozenset[str]:
+    """``panel.parquet``'s control rows BY ANNOTATION, memoised on the file itself.
+
+    ``is_control`` is asked once per row of every marker table a build reads, so an
+    uncached parquet read here is one file read per gene -- measured at roughly
+    three times the suite's runtime before this cache went in.
+
+    Keyed on ``(path, mtime_ns, size)`` rather than on the path alone: a build
+    rewrites study inputs in-process, and a cache keyed on the name would answer a
+    later study's question with an earlier study's panel. A rewrite changes at least
+    one of the two stat fields, so the key changes with the file.
+    """
+    df = pd.read_parquet(path)
+    if "annotation" not in df.columns:
+        return frozenset()
+    return frozenset(
+        str(g).strip().upper()
+        for g, note in zip(df["gene"], df["annotation"])
+        if is_control_annotation(note)
+    )
 
 
 class XeniumAdapter:
@@ -176,16 +286,115 @@ class XeniumAdapter:
         return XeniumAdapter(sample)
 
     # ---- frames ----------------------------------------------------------- #
-    def _panel_genes(self, store: Study) -> frozenset[str]:
-        """``panel.parquet``'s gene column, minus negative controls: the measured set."""
+    def _panel_genes(self, store: Study) -> frozenset[str] | None:
+        """``panel.parquet``'s gene column, minus negative controls: the measured set.
+
+        ``None`` when the file is absent, for the same reason ``_detectable_genes``
+        returns it: "no panel file" and "a panel file listing nothing but negative
+        controls" are different facts about a store, and only the second is the
+        apparatus declaring that it measured nothing. Returning a bare
+        ``frozenset()`` for both made the second unrepresentable, and ``frames``
+        then dropped the ``panel:`` frame and left ``detect:`` governing the gene
+        kind alone -- a tested absence against a measured set that is empty.
+        """
+        p = store.inputs / "panel.parquet"
+        if not p.is_file():
+            return None
+        df = pd.read_parquet(p)
+        notes = (df["annotation"] if "annotation" in df.columns
+                 else [None] * len(df))
+        return frozenset(
+            g for g, note in zip((str(v).strip() for v in df["gene"]), notes)
+            if g and not is_control_probe(g) and not is_control_annotation(note)
+        )
+
+    def is_control(self, store: Study, entity: str) -> bool:
+        """``PlatformAdapter.is_control``: the store's own answer about one name.
+
+        The public half of the rule the two gene frames already apply, exposed
+        because the frames are not enough on their own. A control row in
+        ``markers_top.csv`` is refused by both frames and therefore resolves
+        ``NEVER_MEASURED`` -- which is a real state, so the row becomes a real
+        subject: it is enumerated as a never-measured entity, projected to v1 as an
+        OffPanelNote reading *"X is off-panel (never measured); its absence is not
+        evidence against T"* in a container whose contract is *canonical markers
+        never measured*, and counted into the §9.10 replicate denominator as part of
+        "this unit's profile". None of those sentences is true of a probe, and all
+        three are click-backable. ``agent/data.is_control`` is this rule on the v1
+        side of the agent/core line; they read the same two columns.
+        """
+        return (is_control_probe(entity)
+                or str(entity).strip().upper() in self._annotated_controls(store))
+
+    def _annotated_controls(self, store: Study) -> frozenset[str]:
+        """Upper-cased names the panel file's ANNOTATION marks as control probes.
+
+        The detectability frame is read off ``markers_top.csv``, which carries no
+        annotation column, so without this a probe the panel file annotates as a
+        control but whose name matches no family stays a member of ``detect:<id>``.
+        The lattice would still refuse it -- ``_state_for`` requires every frame of
+        a kind to admit an entity and ``panel:<id>`` does not -- but the frame's
+        size is reported, and a detectability count inflated by probes is a derived
+        number that disagrees with the panel beside it.
+        """
         p = store.inputs / "panel.parquet"
         if not p.is_file():
             return frozenset()
-        col = pd.read_parquet(p, columns=["gene"])["gene"]
-        return frozenset(
-            g for g in (str(v).strip() for v in col)
-            if g and not is_control_probe(g)
-        )
+        st = p.stat()
+        return _annotated_controls_cached(str(p), st.st_mtime_ns, st.st_size)
+
+    def _markers_path(self, store: Study) -> Path:
+        """The marker table THIS adapter speaks for: the bound sample's, or pooled.
+
+        Factored out so the detectability frame and the sentence ``validate`` prints
+        when that frame comes back empty name the same file. They did not: the
+        blocker named ``inputs/markers_top.csv`` on a per-sample adapter, sending a
+        biologist to a pooled table full of signal to explain why one section had
+        none.
+        """
+        if self.sample is None:
+            return store.inputs / "markers_top.csv"
+        p = self.sample_inputs(store).get(self.sample)
+        if p is None:
+            raise KeyError(
+                f"study {store.id!r} has no per-sample marker table for "
+                f"{self.sample!r} ({store.inputs / 'samples' / self.sample / 'markers_top.csv'}), "
+                "so this sample's detectability cannot be read. Falling back to "
+                "the pooled table would hand this section another section's "
+                "detectability and report its NoSig genes as tested absences"
+            )
+        return p
+
+    def _why_detect_empty(self, store: Study) -> str:
+        """Why the detectability frame came back empty, COUNTED from the table.
+
+        The sentence this replaces asserted one cause -- "every gene is marked
+        NoSig" -- for three different stores, and was false on the one the empty
+        frame was built to represent: a table whose every row is a control probe
+        has no NoSig row in it at all, and a zero-row table has no gene to mark.
+        A blocker is the sentence a biologist acts on, so it says what the file
+        actually holds.
+        """
+        p = self._markers_path(store)
+        df = pd.read_csv(p, usecols=["gene", "top_cluster"])
+        total = len(df)
+        if not total:
+            return "it has no rows at all"
+        names = [str(g).strip() for g in df["gene"]]
+        by_note = self._annotated_controls(store)
+        controls = sum(1 for g in names
+                       if is_control_probe(g) or g.upper() in by_note)
+        nosig = sum(1 for u in df["top_cluster"] if is_no_signal(u))
+        parts = []
+        if nosig:
+            parts.append(f"{nosig} of {total} row(s) carry the no-signal sentinel")
+        if controls:
+            parts.append(f"{controls} of {total} name a control probe rather than "
+                         "a gene")
+        blank = sum(1 for g in names if not g)
+        if blank:
+            parts.append(f"{blank} have no gene name")
+        return "; ".join(parts) or f"none of its {total} row(s) names a panel gene"
 
     def _detectable_genes(self, store: Study) -> frozenset[str] | None:
         """Panel genes with usable spatial signal; ``None`` when nothing declares it.
@@ -229,25 +438,16 @@ class XeniumAdapter:
         See ``agent.data.is_control`` for where a control sits in the four states and
         what the lattice still cannot say about one.
         """
-        if self.sample is not None:
-            p = self.sample_inputs(store).get(self.sample)
-            if p is None:
-                raise KeyError(
-                    f"study {store.id!r} has no per-sample marker table for "
-                    f"{self.sample!r} ({store.inputs / 'samples' / self.sample / 'markers_top.csv'}), "
-                    "so this sample's detectability cannot be read. Falling back to "
-                    "the pooled table would hand this section another section's "
-                    "detectability and report its NoSig genes as tested absences"
-                )
-        else:
-            p = store.inputs / "markers_top.csv"
+        p = self._markers_path(store)
         if not p.is_file():
             return None
         df = pd.read_csv(p, usecols=["gene", "top_cluster"])
+        by_note = self._annotated_controls(store)
         return frozenset(
             str(g).strip() for g, u in zip(df["gene"], df["top_cluster"])
-            if str(g).strip() and str(u).strip() != NO_SIGNAL
+            if str(g).strip() and not is_no_signal(u)
             and not is_control_probe(g)
+            and str(g).strip().upper() not in by_note
         )
 
     def frames(self, store: Study) -> tuple[Frame, ...]:
@@ -258,13 +458,42 @@ class XeniumAdapter:
         gap, whereas an empty frame says the apparatus measured nothing at all -- the
         same verdict with a false explanation behind it. ``validate`` is where the gap
         becomes something a biologist can act on.
+
+        **Which is why the two gene frames test ``is not None`` and not truthiness.**
+        Both helpers already separated "nothing declares this" from "this is declared
+        and empty", and both tests threw the distinction away: ``frozenset()`` is
+        falsy, so a *declared* empty frame was dropped exactly as an undeclarable one
+        was. The gene kind then had only ``panel:`` left, every frame of the kind
+        admitted every panel gene, and a gene whose own ``markers_top.csv`` row says
+        ``NoSig`` came back ``TESTED_ABSENT`` with ``absence_is_evidence`` -- handed
+        to the rival machinery as "measured and did not mark this unit", with no flag
+        and nothing for ``verify`` to read. The frame built to stop that fabrication
+        was the thing producing it. (Reachable only since the controls filter above:
+        a ``markers_top.csv`` in which the one gene with a unit is a control probe
+        now yields an empty detectable set from a non-empty table.)
+
+        Emitted instead, an empty ``detect:`` frame admits nothing, so every gene in
+        the study resolves ``NEVER_MEASURED`` naming it, and no absence anywhere in
+        the study argues against anything -- which is precisely what a study whose
+        method marked every gene ``NoSig`` supports. ``validate`` blocks such a store
+        at Stage 0 as well, and the two do different jobs: the blocker is what reaches
+        the biologist, the frame is what keeps the lattice honest for the callers that
+        never run Stage 0 (``agent.discriminate``, ``methods.*``, ``pipeline.records``,
+        ``agent.intake``), which read ``frames`` directly on whatever is on disk.
+
+        The two kinds below stay on truthiness deliberately. Each declares exactly one
+        frame, so an omitted empty one already resolves ``NEVER_MEASURED`` -- the same
+        state, with a reason ("no frame declared for cell_type") that is not false.
+        Neither is read through a sentinel either: there is no "declared and empty" to
+        tell apart from "not declared", because the store declaring no cell types and
+        the store declaring no units are the one fact in both cases.
         """
         out: list[Frame] = []
         panel = self._panel_genes(store)
-        if panel:
+        if panel is not None:
             out.append(Frame(EntityKind.GENE, f"panel:{store.id}", panel))
         detect = self._detectable_genes(store)
-        if detect:
+        if detect is not None:
             # The sample is in the NAME, not only in the members, because the frame
             # name is what ``reconcile._compare`` quotes back at the biologist ("had
             # it in frame panel:X+detect:X"). Two sections whose detectability
@@ -480,16 +709,38 @@ class XeniumAdapter:
 
         frames = self.frames(store)
         kinds = {f.kind for f in frames}
-        if not any(f.name.startswith("panel:") for f in frames):
+        # Absent and empty are separate blockers, because they are separate facts and
+        # the fix is different: one is a missing file, the other is a study in which
+        # the method found nothing. ``frames`` now emits the empty frame rather than
+        # dropping it, so a check written as "is there a frame?" would pass on the
+        # worse of the two -- the store that measured nothing would validate clean.
+        panel = next((f for f in frames if f.name.startswith("panel:")), None)
+        detect = next((f for f in frames if f.name.startswith("detect:")), None)
+        if panel is None:
             problems.append(
                 f"no measured set: {store.inputs / 'panel.parquet'} is missing or has "
                 "no usable gene column. The panel IS the capability frame (§6.3)"
             )
-        if not any(f.name.startswith("detect:") for f in frames):
+        elif not panel.members:
+            problems.append(
+                f"the measured set is empty: {store.inputs / 'panel.parquet'} lists no "
+                "gene that is not a negative control, so the store declares no "
+                "capability for any gene (§6.3)"
+            )
+        if detect is None:
             problems.append(
                 f"no detectability frame: {store.inputs / 'markers_top.csv'} is "
                 "missing, so a gene that produced no usable signal is "
                 "indistinguishable from one tested and not reported"
+            )
+        elif not detect.members:
+            problems.append(
+                f"the detectability frame is empty: {self._markers_path(store)} "
+                f"leaves no gene with usable spatial signal -- "
+                f"{self._why_detect_empty(store)}. That is a fact about the study "
+                "and it blocks it (§6.3): no absence here is evidence of anything, "
+                "every gene resolves NEVER_MEASURED, and the result is "
+                "uninterpretable rather than negative"
             )
         if EntityKind.CELL_TYPE not in kinds:
             problems.append(

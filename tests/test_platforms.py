@@ -27,13 +27,19 @@ from panoscope.core.measure import measure_unit
 from panoscope.data.study import Study
 from panoscope.platforms.base import declared_clustering, digest
 from panoscope.platforms.tidy import read_tidy
-from panoscope.platforms.xenium import NO_SIGNAL, XeniumAdapter
+from panoscope.platforms.xenium import (
+    NO_SIGNAL,
+    XeniumAdapter,
+    is_no_signal,
+)
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import (
     PlatformAdapter, UndeclaredClustering, UnrecognisedResult,
 )
-from panoscope.types.measured import Frame, MeasuredState, MeasuredWorld
-from panoscope.types.subject import EntityKind, cell_type, subject
+from panoscope.types.measured import (
+    Frame, MeasuredState, MeasuredWorld, resolve,
+)
+from panoscope.types.subject import Entity, EntityKind, cell_type, subject
 from panoscope.types.trace import Traced
 
 ADAPTER = XeniumAdapter()
@@ -135,6 +141,111 @@ def test_detectability_is_a_second_gene_frame(demo: Study) -> None:
     assert detect.members < panel.members, "detectable genes must be a panel subset"
     assert panel.members - detect.members == nosig
     assert len(nosig) == 49 and len(panel.members) == 280  # the 17.5% in CLAUDE.md
+
+
+def _gene(store: Study, gene: str, reported: frozenset[str] = frozenset()):
+    """One gene through the adapter's own frames -- the production path, not a fixture."""
+    return resolve(subject("gene", g=Entity(EntityKind.GENE, gene)),
+                   MeasuredWorld(ADAPTER.frames(store)), reported)
+
+
+def test_a_study_that_detected_nothing_declares_an_empty_frame_and_measures_nothing(
+    tmp_path: Path,
+) -> None:
+    """A declared-and-empty detectability frame is not an undeclarable one.
+
+    Both gene helpers already separated "nothing declares this" (``None``) from "this
+    is declared and empty" (``frozenset()``), and ``frames`` tested both for
+    truthiness, which collapses them. The frame was dropped, the gene kind was left
+    with ``panel:`` alone, every frame of the kind then admitted every panel gene --
+    and AAA, whose own row in ``markers_top.csv`` says ``NoSig``, came back
+    ``TESTED_ABSENT`` with ``absence_is_evidence``, which is what ``band:driver_nosig``
+    reads as "measured and did not mark this unit". A fabricated measurement status
+    produced by the frame built to prevent it, with no flag on it.
+
+    The store below is the shape that makes the empty set reachable from a table that
+    is not empty: the one row carrying a unit is a negative control, and the controls
+    filter in ``_detectable_genes`` removes it. A store with any detectable gene at
+    all exercises neither branch -- that is the easy half, and it is covered by
+    ``test_detectability_is_a_second_gene_frame`` on the demo.
+    """
+    store = _store(tmp_path, "nosig",
+                   manifest={"platform": "Xenium", "tissue": "t", "clusters": ["u1"]},
+                   panel=["AAA", "BBB"],
+                   markers=[("AAA", NO_SIGNAL, 0.0, 0.0), ("BBB", NO_SIGNAL, 0.0, 0.0),
+                            ("NegControlProbe_00042", "u1", 9.0, 0.9)])
+
+    # The invariant first, so a regression fails on the fabrication itself rather
+    # than on the frame lookup that happens to sit in front of it.
+    absent = _gene(store, "AAA")
+    assert absent.absence_is_evidence is False
+    assert absent.state is MeasuredState.NEVER_MEASURED
+    assert absent.frame.startswith("detect:"), "the frame that refused it is named"
+
+    detect = next(f for f in ADAPTER.frames(store) if f.name.startswith("detect:"))
+    assert detect.members == frozenset()
+    # Nothing can promote it either: a gene the method never detected cannot carry a
+    # number even if something claims to have reported one for it.
+    assert _gene(store, "AAA", frozenset({"AAA"})).carries_number is False
+
+
+def test_the_missing_and_the_empty_detectability_frame_are_different_blockers(
+    tmp_path: Path,
+) -> None:
+    """One is a missing file, the other is a study in which the method found nothing.
+
+    They need separate lines because the fix is different and because the message for
+    the first is *false* about the second: ``markers_top.csv`` is right there, full of
+    rows. And the empty case is the one Stage 0 would now miss, since ``frames`` emits
+    the frame rather than dropping it: a check asking only "is there a detect frame?"
+    passes on the worse of the two.
+
+    §6.3 and the frame do different jobs, which is why this fix is both. The blocker
+    is what reaches the biologist -- a study where nothing produced usable signal is
+    uninterpretable, not negative. The frame is what the callers that never run
+    Stage 0 read (``agent.discriminate``, ``methods.*``, ``pipeline.records``), and on
+    those paths the empty frame is the only thing standing between a ``NoSig`` gene
+    and an absence that argues.
+    """
+    manifest = {"platform": "Xenium", "tissue": "t", "clusters": ["u1"]}
+    missing = _store(tmp_path, "nofile", manifest=manifest, panel=["AAA"])
+    assert not any(f.name.startswith("detect:") for f in ADAPTER.frames(missing))
+    assert any("no detectability frame" in p for p in ADAPTER.validate(missing))
+
+    empty = _store(tmp_path, "nosig", manifest=manifest, panel=["AAA"],
+                   markers=[("AAA", NO_SIGNAL, 0.0, 0.0)])
+    problems = ADAPTER.validate(empty)
+    assert any("the detectability frame is empty" in p for p in problems)
+    assert not any("no detectability frame" in p for p in problems)
+
+
+def test_a_panel_of_nothing_but_controls_is_an_empty_measured_set(tmp_path: Path) -> None:
+    """The same conflation on the other gene frame, with the same consequence.
+
+    ``_panel_genes`` returned ``frozenset()`` both when the file was absent and when
+    it listed nothing but negative controls, so the second could not be told from the
+    first and the ``panel:`` frame was dropped for it. Dropping it does NOT yield
+    ``NEVER_MEASURED`` here, because the gene kind declares a second frame: AAA is
+    detectable, so ``detect:`` admitted it alone and its silence argued -- a tested
+    absence measured against a measured set with nothing in it.
+
+    The annotation and cluster frames are not this shape and are deliberately left
+    alone: each is the only frame of its kind, so omitting an empty one already
+    resolves ``NEVER_MEASURED`` with a reason that is not false, and neither is read
+    through a sentinel that could tell "declared and empty" from "not declared".
+    """
+    store = _store(tmp_path, "ctl",
+                   manifest={"platform": "Xenium", "tissue": "t", "clusters": ["u1"]},
+                   panel=["NegControlProbe_00042", "BLANK_0003"],
+                   markers=[("AAA", "u1", 1.0, 0.5)])
+
+    panel = next(f for f in ADAPTER.frames(store) if f.name.startswith("panel:"))
+    assert panel.members == frozenset()
+
+    m = _gene(store, "AAA", frozenset({"AAA"}))
+    assert m.state is MeasuredState.NEVER_MEASURED and m.frame.startswith("panel:")
+    assert _gene(store, "AAA").absence_is_evidence is False
+    assert any("the measured set is empty" in p for p in ADAPTER.validate(store))
 
 
 def test_every_entity_kind_the_study_declares_gets_a_frame(demo: Study) -> None:
@@ -452,3 +563,66 @@ def test_the_demo_store_reads_into_normalised_evidence(demo: Study) -> None:
     assert traced.decisions[0].refs == (ev.unit_subject.key,)
     assert ev.unit_measured.state is MeasuredState.OBSERVED
     assert ev.conditions.frames == tuple(f.ref() for f in world.frames)
+
+
+# --------------------------------------------------------------------------- #
+# The no-signal sentinel: one predicate, or the panel-absence rule inverts
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "spelling", ["NoSig", "nosig", "NOSIG", "noSig", " NoSig ", "", "   "],
+)
+def test_the_no_signal_sentinel_is_read_in_any_case(spelling: str) -> None:
+    """``markers_top.csv`` is a CONSUMED input; its spelling is the upstream run's.
+
+    Four places tested this sentinel with ``!= "NoSig"`` independently and
+    case-sensitively -- this adapter's detectability frame,
+    ``agent/config._derive_cluster_order``, ``agent/grounding_check.is_detectable``
+    and ``agent/verdict._detectable_genes``. A table spelling it ``nosig`` therefore
+    put every undetectable gene INTO ``detect:<id>``, which makes its absence argue:
+    the panel-absence rule inverted, and inverted hardest on an off-target panel
+    where the undetectable set is most of the assay rather than 49 of 280.
+
+    Blank counts too, and conservatively: an empty unit column is not a declaration
+    that the gene was detected.
+    """
+    assert is_no_signal(spelling) is True
+
+
+@pytest.mark.parametrize("unit", ["c1", "u1", "cluster_3", "C1", "NoSignal", "Nosigma"])
+def test_a_real_unit_label_is_not_the_sentinel(unit: str) -> None:
+    """The other direction: a predicate that ate a unit label would delete a cluster."""
+    assert is_no_signal(unit) is False
+
+
+def test_a_misspelled_sentinel_stays_out_of_the_detectability_frame(
+    tmp_path: Path,
+) -> None:
+    """The frame, on a table whose sentinel is spelled three ways at once.
+
+    Only ``AAA`` was assigned to a unit, so only ``AAA`` produced usable spatial
+    signal. Before the shared predicate, ``BBB`` and ``CCC`` joined ``detect:`` and
+    became eligible for ``TESTED_ABSENT`` with ``absence_is_evidence`` -- a
+    fabricated measurement status on a gene its own file says yielded nothing.
+    """
+    store = _store(tmp_path, "s", manifest={"platform": "Xenium", "tissue": "t",
+                                            "clusters": ["u1"]},
+                   panel=["AAA", "BBB", "CCC", "DDD"],
+                   markers=[("AAA", "u1", 1.0, 0.5),
+                            ("BBB", "nosig", 0.0, 0.0),
+                            ("CCC", "NOSIG", 0.0, 0.0),
+                            ("DDD", "", 0.0, 0.0)])
+    frames = ADAPTER.frames(store)
+    detect = next(f for f in frames if f.name.startswith("detect:"))
+    clusters = next(f for f in frames if f.name.startswith("clusters:"))
+    assert detect.members == frozenset({"AAA"})
+    # And the blank never becomes a unit, which is how it used to reach the cluster
+    # label set and disarm Stage 0's unknown-label guard from the other side.
+    assert clusters.members == frozenset({"u1"})
+
+    world = MeasuredWorld(frames)
+    for gene in ("BBB", "CCC", "DDD"):
+        m = resolve(subject("gene", g=Entity(EntityKind.GENE, gene)), world, frozenset())
+        assert m.state is MeasuredState.NEVER_MEASURED
+        assert m.absence_is_evidence is False, (
+            f"{gene} yielded no usable signal; its absence cannot argue"
+        )

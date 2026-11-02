@@ -52,7 +52,7 @@ from typing import Any, Callable, Optional, Union
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
-from panoscope.platforms.xenium import NO_SIGNAL
+from panoscope.platforms.xenium import NO_SIGNAL, is_no_signal
 from panoscope.types.record import GENERATED_FIELDS
 
 # --------------------------------------------------------------------------- #
@@ -365,7 +365,7 @@ class SourceIndex:
         row = data.get_marker(gene)
         if row is None:
             return False
-        return str(row.get("top_cluster", "")).strip() != NO_SIGNAL
+        return not is_no_signal(row.get("top_cluster", ""))
 
     def panel_known(self) -> bool:
         """True iff the capability frame could actually be read.

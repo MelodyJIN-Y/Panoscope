@@ -57,6 +57,7 @@ from panoscope.agent.types import (
     OffPanelNote,
     OpeningInterpretation,
 )
+from panoscope.platforms.xenium import is_no_signal
 from panoscope.types.measured import Coverage
 
 # --------------------------------------------------------------------------- #
@@ -123,7 +124,8 @@ def _detectable_genes() -> frozenset[str]:
     """
     m = data.load_markers()
     return frozenset(
-        m.loc[m["top_cluster"] != "NoSig", "gene"].astype(str).str.upper()
+        m.loc[~m["top_cluster"].map(is_no_signal), "gene"]
+         .astype(str).str.strip().str.upper()
     )
 
 
@@ -180,16 +182,50 @@ def _caveats_for(pearson: float, max_gc_corr: float, max_gg_corr: float) -> tupl
     return tuple(caveats)
 
 
+def _in_the_gene_frame(gene: str) -> bool:
+    """The capability frame for a gene, in the one form this engine can express.
+
+    Transcribed from the guard in ``core/verdict.py``, which is a frame refusal
+    rather than a function: ``core.measure`` resolves every reading against the
+    platform's gene frames, a gene the panel frame does not admit comes back
+    ``NEVER_MEASURED`` with its statistic withheld, and
+    ``EvidenceItem.__post_init__`` then makes a row that both carries a number and
+    names an unmeasured subject structurally impossible. ``agent/`` may not import
+    ``core/`` -- the reason is written out at ``core/verdict._v1_coverage_sentence``
+    -- so the guard is duplicated here exactly as the band constants are, and
+    ``tests/test_core_verdict.py`` fails the moment the two copies refuse different
+    genes.
+
+    Detectability, core's second gene frame, needs no clause here: a row that
+    reaches this function was assigned to a cluster, which is precisely what
+    :func:`_detectable_genes` counts, and ``get_cluster_markers`` has already
+    dropped the ``NoSig`` rows that fail it.
+    """
+    return data.panel_contains(gene)
+
+
 def _build_evidence(cluster: str, cell_type: str) -> tuple[MarkerEvidence, ...]:
     """Turn a cluster's assigned (on-panel, glm_coef-desc) rows into evidence.
 
     Assigned rows come from ``data.get_cluster_markers`` (NoSig already excluded,
-    sorted glm_coef descending). Every assigned marker is on-panel by
-    construction of the jazzPanda top table + our panel-filtered demo pipeline;
-    we still record ``is_on_panel`` from the absence primitive to keep the role
-    column honest.
+    sorted glm_coef descending), and :func:`_in_the_gene_frame` then drops the ones
+    the panel frame does not admit.
+
+    **That filter is not a tidy-up, it is the headline rule.** A row naming
+    something the panel does not hold -- a control probe, a gene carried over from a
+    table built against another panel -- is a subject this measurement never
+    measured, so quoting its ``glm_coef`` attaches a real number to a
+    ``NEVER_MEASURED`` thing, and ``is_on_panel=False`` beside that number says so
+    in the same row. The method table cannot catch it: jazzPanda reports what it was
+    handed, and what the panel could speak to is the adapter's answer rather than
+    the method's.
+
+    Every surviving row is therefore on-panel and ``is_on_panel`` below is always
+    True. It is still read from the absence primitive rather than written as a
+    constant, because the column's job is to record what the frame said.
     """
     rows = data.get_cluster_markers(cluster)
+    rows = rows[rows["gene"].astype(str).map(_in_the_gene_frame)]
     n = len(rows)
     evidence: list[MarkerEvidence] = []
     for rank, (_, r) in enumerate(rows.iterrows()):
@@ -267,7 +303,7 @@ def _compute_band(
         # moved nothing would read as a rung the call lost.
         return LOW_BAND, "no canonical driver", ("no canonical marker supports the call",)
 
-    if driver.top_cluster == "NoSig":
+    if is_no_signal(driver.top_cluster) and driver.top_cluster is not None:
         return LOW_BAND, "driver NoSig", ("driving marker is NoSig",)
 
     band = cfg.band_for_coef(driver.glm_coef)
@@ -461,7 +497,8 @@ def verdict_for_cluster(cluster: str) -> ClusterVerdict:
     # is why the coverage demote is not the whole fix: one rung off Very High is
     # still High, which reads as settled, and a call the panel could barely ask for
     # has to say re-check this.
-    driver_is_nosig = driver is not None and driver.top_cluster == "NoSig"
+    driver_is_nosig = (driver is not None and driver.top_cluster is not None
+                       and is_no_signal(driver.top_cluster))
     verify = ((band == LOW_BAND) or driver_is_nosig or fragile or (driver is None)
               or (bool(coverage.n) and not coverage.ok))
 

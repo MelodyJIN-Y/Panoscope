@@ -24,7 +24,9 @@ from pathlib import Path
 import pandas as pd
 
 from panoscope.agent import config as cfg
-from panoscope.platforms.xenium import is_control_probe
+from panoscope.platforms.xenium import (
+    is_control_annotation, is_control_probe, is_no_signal,
+)
 
 # --------------------------------------------------------------------------- #
 # Tidy file locations (all under data/)
@@ -145,17 +147,38 @@ def _read_table(parquet_path, csv_path, produced_by: str) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 @_per_study
 def load_markers() -> pd.DataFrame:
-    """Return the full jazzPanda top-marker table (280 rows, incl. NoSig).
+    """Return the jazzPanda top-marker table (incl. NoSig), controls excluded.
 
     Columns: gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr,
     cell_type. Cached; callers must not mutate the returned frame.
+
+    **The control rows leave here, for the same reason they leave**
+    :func:`load_panel`. A method writes its output over every probe the instrument
+    ran, so a negative control arrives in ``markers_top.csv`` with a real unit and a
+    real statistic -- and on an off-target panel, where few rows carry a statistic at
+    all, plausibly the largest one in the file. This is the one read of that table,
+    so one filter here is what keeps a control out of ``get_cluster_markers`` (and so
+    out of ``agent.tools.marker_lookup``, which would otherwise hand the model a
+    control probe with a glm_coef and a ``Source`` behind it), out of
+    ``pipeline/stages/annotate``, out of ``agent.discriminate``, and out of
+    ``agent.verdict._detectable_genes``, which is v1's detectability frame and was
+    counting a control as a gene that produced usable signal.
+
+    ``XeniumAdapter._detectable_genes`` filters the same rows with the same rule when
+    it reads the file for the v2 frame; it reads the CSV directly rather than through
+    this reader (it is per sample, and this one is per study), so the two agree
+    because they call :func:`is_control`, not because both happen to be filtered.
+
+    The rows are dropped from the *reader*, never from the file: a control's count is
+    the assay's noise floor and ``markers_top.csv`` still carries it.
     """
     path = _require(_markers_top(), "scripts prep (markers_top.csv)")
     df = pd.read_csv(path)
     missing = set(_MARKERS_TOP_COLS) - set(df.columns)
     if missing:
         raise ValueError(f"[data] markers_top.csv missing columns {missing}")
-    return df[_MARKERS_TOP_COLS]
+    df = df[~df["gene"].astype(str).map(is_control)]
+    return df[_MARKERS_TOP_COLS].reset_index(drop=True)
 
 
 def get_cluster_markers(cluster: str, include_nosig: bool = False) -> pd.DataFrame:
@@ -174,7 +197,7 @@ def get_cluster_markers(cluster: str, include_nosig: bool = False) -> pd.DataFra
     df = load_markers()
     sub = df[df["top_cluster"] == cluster]
     if not include_nosig:
-        sub = sub[sub["top_cluster"] != "NoSig"]
+        sub = sub[~sub["top_cluster"].map(is_no_signal)]
     return sub.sort_values("glm_coef", ascending=False).reset_index(drop=True)
 
 
@@ -264,7 +287,41 @@ def is_control(gene: str) -> bool:
     ``agent.tools.panel_lookup``, which branch on this function instead of asking
     the lattice.
     """
-    return is_control_probe(gene)
+    if is_control_probe(gene):
+        return True
+    # The annotation half. ``is_control_probe`` reads the vendor's NAME, which is
+    # the one thing the vendor renames between panel versions; this reads the
+    # ``annotation`` column of the same row, which this module already exposes as
+    # :func:`panel_annotation` and ``agent/tools.panel_lookup`` already prints.
+    # Without it a probe named outside the seven families -- annotated ``negative
+    # control`` in the store's own file -- passed every filter here, led
+    # ``key_markers`` in the exported CSV and was handed to the model with its
+    # ``glm_coef`` and a Source. The adapter does the same join at
+    # ``XeniumAdapter._panel_genes``; one rule, read from one column, on both sides
+    # of the agent/core line.
+    return str(gene).strip().upper() in _annotated_control_names()
+
+
+@_per_study
+def _annotated_control_names() -> frozenset[str]:
+    """Panel names whose ``annotation`` column marks them control probes, upper-cased.
+
+    Derived once per study rather than joined per gene: :func:`is_control` is called
+    once for every row of ``panel.parquet`` AND every row of ``markers_top.csv``, and
+    a per-call lookup into the panel table makes that quadratic in the size of the
+    assay. Empty, not an error, when the panel file is missing or unreadable -- the
+    name rule still answers, and the callers that need the file to exist already
+    raise through :func:`_panel_table` on their own account.
+    """
+    try:
+        df = _panel_table()
+    except (FileNotFoundError, ValueError, KeyError):
+        return frozenset()
+    return frozenset(
+        str(g).strip().upper()
+        for g, note in zip(df["gene"], df["annotation"])
+        if is_control_annotation(note)
+    )
 
 
 @_per_study
@@ -323,18 +380,26 @@ def load_panel() -> pd.DataFrame:
 
 @_per_study
 def _panel_gene_set() -> frozenset[str]:
-    """Case-insensitive frozenset of panel gene names, derived FROM the file."""
-    return frozenset(load_panel()["gene"].astype(str).str.upper())
+    """Panel gene names, stripped and upper-cased, derived FROM the file."""
+    return frozenset(load_panel()["gene"].astype(str).str.strip().str.upper())
 
 
 def panel_contains(gene: str) -> bool:
-    """True iff ``gene`` is on the panel (case-insensitive). THE absence primitive.
+    """True iff ``gene`` is on the panel (stripped, case-insensitive).
 
-    O(1) frozenset membership over a set derived FROM the loaded panel file. The
-    absence of a gene NOT on the panel is never evidence against a cell type —
-    callers use this to make exactly that call.
+    THE absence primitive. O(1) frozenset membership over a set derived FROM the
+    loaded panel file. The absence of a gene NOT on the panel is never evidence
+    against a cell type — callers use this to make exactly that call.
+
+    **Normalised on both sides, which is what makes it the same primitive as
+    ``core``'s.** ``Frame.contains`` is the v2 half and ``agent/`` may not import
+    ``core/``, so the two are transcriptions of each other rather than one call;
+    they stopped being transcriptions when this one case-folded and did not strip
+    while that one did neither. A ``panel.parquet`` holding ``"CD68 "`` was then
+    off-panel here and in-frame there, and the two engines returned different bands
+    and different ``verify`` for one row. Both now strip and upper-case.
     """
-    return gene.upper() in _panel_gene_set()
+    return str(gene).strip().upper() in _panel_gene_set()
 
 
 def panel_annotation(gene: str) -> str | None:

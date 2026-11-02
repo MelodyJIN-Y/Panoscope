@@ -21,6 +21,7 @@ from pathlib import Path
 import pandas as pd
 
 from panoscope.data import layout
+from panoscope.platforms.xenium import is_no_signal
 from panoscope.data.study import Study
 
 # --------------------------------------------------------------------------- #
@@ -147,7 +148,12 @@ def _derive_cluster_order() -> tuple[str, ...]:
             f"[config] markers missing: {_active_markers_csv()} (run the data prep)"
         )
     m = pd.read_csv(_active_markers_csv())
-    labels = {str(x) for x in m["top_cluster"].unique() if str(x) != "NoSig"}
+    # ``is_no_signal``, not ``!= "NoSig"``: this set IS the cluster label space,
+    # so a table spelling the sentinel in any other case (or leaving the column
+    # blank) made the sentinel a cluster id -- and Stage 0's "unknown label"
+    # guard, which compares against this very set, then passed the store clean.
+    labels = {str(x).strip() for x in m["top_cluster"].unique()
+              if not is_no_signal(x)}
 
     def _key(c: str):
         mm = re.match(r"c(\d+)$", c)
@@ -214,7 +220,7 @@ def band_for_coef(glm_coef: float | None, top_cluster: str | None = None) -> str
     NoSig / None / non-positive -> "Low". Bigger coef -> higher band.
     Thresholds come from CONFIDENCE_BANDS (tunable). Pure; no source lookup.
     """
-    if glm_coef is None or (top_cluster is not None and top_cluster == "NoSig"):
+    if glm_coef is None or (top_cluster is not None and is_no_signal(top_cluster)):
         return "Low"
     coef = abs(float(glm_coef))
     for label in ("Very High", "High", "Medium-High", "Medium"):
@@ -308,7 +314,7 @@ def _derive_demo_markers() -> list[str]:
     panel_genes = _load_panel_gene_set()
 
     on_panel = markers[
-        (markers["top_cluster"] != "NoSig")
+        (~markers["top_cluster"].map(is_no_signal))
         & (markers["gene"].isin(panel_genes))
         & (markers["glm_coef"] > 0)
     ]

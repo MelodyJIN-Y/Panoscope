@@ -23,6 +23,13 @@ from panoscope.types.uispec import Conditionality, UndrawableFigure
 from panoscope.ui import conditionality as cnd
 
 
+@pytest.fixture(autouse=True)
+def _render_against_a_copy(app_tree):
+    """Every AppTest in this module renders a real study, and the app writes as it
+    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
+    committed tree stays the read-only input the suite says it is."""
+
+
 def _hb():
     """A two-bin density frame, shaped like a precomputed hexbin parquet."""
     import pandas as pd

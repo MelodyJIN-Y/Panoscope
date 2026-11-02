@@ -24,10 +24,12 @@ time ``panoscope build`` runs, a blocked study must stop, not be summarised.
 
 from __future__ import annotations
 
+import pandas as pd
+
 from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.data.study import Study
-from panoscope.platforms.xenium import XeniumAdapter
+from panoscope.platforms.xenium import XeniumAdapter, is_no_signal
 
 
 def validate(dataset_id: str | None = None) -> None:
@@ -71,13 +73,18 @@ def _check(store: Study) -> None:
         if missing_key:
             raise ValueError(f"[pipeline] cluster_key is missing clusters: {missing_key}")
 
-    allowed = set(cfg.KNOWN_CLUSTERS) | {"NoSig"}
-    seen = set(markers["top_cluster"].astype(str))
+    # Read the file, not ``data.load_markers()``: that reader drops the control
+    # rows, and a control row carrying a bogus unit label is exactly the incoherence
+    # this check exists to refuse. Filtering first made the guard quieter the moment
+    # the reader got stricter.
+    raw = pd.read_csv(data._markers_top())
+    allowed = set(cfg.KNOWN_CLUSTERS)
+    seen = {str(x).strip() for x in raw["top_cluster"] if not is_no_signal(x)}
     unknown = sorted(seen - allowed)
     if unknown:
         raise ValueError(
             f"[pipeline] markers_top has unknown top_cluster labels: {unknown} "
-            f"(allowed: c1..cN + NoSig)"
+            f"(allowed: c1..cN + the no-signal sentinel in any case)"
         )
 
     empty = [c for c in cfg.CLUSTER_ORDER if data.get_cluster_markers(c).empty]

@@ -10,9 +10,18 @@ from __future__ import annotations
 from panoscope.agent import config as cfg
 import html
 
+import pytest
+
 from panoscope.agent import verdict as agent_verdict
 from panoscope.ui import data_access as da
 from panoscope.ui import summary
+
+
+@pytest.fixture(autouse=True)
+def _render_against_a_copy(app_tree):
+    """Every AppTest in this module renders a real study, and the app writes as it
+    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
+    committed tree stays the read-only input the suite says it is."""
 
 
 def test_all_verdicts_returns_nine_complete_calls() -> None:
@@ -251,6 +260,60 @@ def test_board_renders_headless() -> None:
     assert 'href="?page=summary&sign=' in md   # a sign-off tick link (preserves the page)
     for ct in ("Tumor", "Stromal", "Mast Cells"):
         assert ct in md
+
+
+def test_my_notes_section_says_what_it_withheld(tmp_path, monkeypatch) -> None:
+    """The CALL SITE, not just the renderer: ``withheld_notes`` existed with zero
+    production callers, so the board stayed silent about a note it had dropped.
+    Driving the real page with the My-notes section open is what pins the wiring —
+    a test that only called the renderer would stay green if the call were deleted.
+    """
+    try:
+        from streamlit.testing.v1 import AppTest
+    except Exception:  # noqa: BLE001 - Streamlit testing API absent
+        import pytest
+
+        pytest.skip("streamlit.testing.v1 unavailable")
+
+    import json
+
+    from panoscope.agent import memory
+
+    base = tmp_path / "context"
+    corrections = base / "corrections"
+    corrections.mkdir(parents=True, exist_ok=True)
+    (corrections / "nostudy.json").write_text(json.dumps({
+        "id": "nostudy",
+        "claim": "c2 is CAF",
+        "scope": "cluster",
+        "scope_ref": {"cluster": "c2"},        # no dataset: the gate must drop it
+        "basis": "own_validation",
+        "status": "firm",
+        "type": "celltype_override",
+        "subject_cell_type": "CAF",
+        "created_at": "2026-01-01T00:00:00+00:00",
+    }), encoding="utf-8")
+    monkeypatch.setattr(memory, "_DEFAULT_BASE", base)
+
+    def _run() -> None:
+        import streamlit as _st
+
+        from panoscope.ui import state as _state
+        from panoscope.ui import summary as _summary
+
+        _state.init_state()
+        _st.session_state[_summary._K_ACTIVE] = _summary._SEC_NOTES
+        _summary.render_summary_page()
+
+    at = AppTest.from_function(_run)
+    at.run(timeout=60)
+    if at.exception and "unexpected keyword argument 'key'" in str(at.exception[0].value):
+        import pytest
+
+        pytest.skip("Streamlit too old for st.container(key=...)")
+    assert not at.exception, [str(e.value) for e in at.exception]
+    md = "\n".join(m.value for m in at.markdown)
+    assert "names no study" in md and "nostudy" in md and "c2 is CAF" in md
 
 
 def test_table_html_is_grounded() -> None:

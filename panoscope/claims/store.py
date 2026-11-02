@@ -210,7 +210,13 @@ def from_dict(d: dict[str, Any]) -> Claim:
         source=str(d["source"]),
         conditions=None if cond is None else _conditions_from_dict(cond),
         depends_on=tuple(_entity_from_dict(e) for e in d.get("depends_on", ())),
-        scope=str(d.get("scope", "study")),
+        # NO default. "study" is the unkeyed rung, so a file that simply forgot its
+        # scope key would apply in EVERY study -- the same silent widening that
+        # ``memory._note_from_dict`` was fixed for one module over. "" does not parse,
+        # so ``Claim.__post_init__`` raises ``BadScope`` naming the claim id and the
+        # four legal spellings. A read is where a malformed scope enters, and the
+        # fail-closed gate is worth nothing if it only runs on the write.
+        scope=str(d.get("scope", "")),
         status=str(d.get("status", "firm")),
         valid=str(d.get("valid", "active")),
         superseded_by=d.get("superseded_by"),

@@ -264,6 +264,13 @@ class JazzPandaSpatialGLM:
 
         tr = Trace()
         table = pd.read_csv(path)
+        # Control rows leave before anything here calls them a subject. The adapter
+        # owns the rule (``PlatformAdapter.is_control``) because it is platform
+        # knowledge, and this method is a declaration of what jazzPanda measures,
+        # not of what 10x ships in the probe table. Dropped from the READER, never
+        # from the file: a control's count is the assay's noise floor.
+        table = table[~table["gene"].astype(str).map(
+            lambda g: adapter.is_control(store, g))].reset_index(drop=True)
         spec = self.detect_unit(table)
         world = MeasuredWorld(adapter.frames(store))
         conditions = adapter.standing_conditions(store)

@@ -30,6 +30,13 @@ from panoscope.agent import data as agent_data
 from panoscope.data.study import Study
 from panoscope.ui import data_access as da
 
+
+@pytest.fixture(autouse=True)
+def _render_against_a_copy(app_tree):
+    """Every AppTest in this module renders a real study, and the app writes as it
+    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
+    committed tree stays the read-only input the suite says it is."""
+
 DEMO = "xenium_hbreast_sample1"
 FIXTURE = "synthetic_multisample_fixture"
 

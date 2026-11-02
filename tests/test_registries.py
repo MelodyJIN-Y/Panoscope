@@ -350,6 +350,15 @@ class _StubAdapter:
     def frames(self, store: Any) -> tuple[Frame, ...]:
         return (PANEL, CLUSTERS)
 
+    def is_control(self, store: Any, entity: str) -> bool:
+        """No control probes in this stub store: every row it names is a subject.
+
+        ``load`` asks the adapter this before it builds a single row, which is the
+        point -- a control is refused BEFORE it can become a NEVER_MEASURED subject
+        with an off-panel sentence and a place in a coverage denominator.
+        """
+        return False
+
     def standing_conditions(self, store: Any) -> Conditions:
         return CONDITIONS
 

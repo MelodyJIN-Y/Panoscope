@@ -229,6 +229,41 @@ def test_cite_note_returns_mem_source(base: Path):
     assert "cluster:c2" in src.detail
 
 
+def test_the_lab_rung_citation_names_the_study_the_note_was_formed_on(base: Path):
+    """The rung that TRAVELS is the one that has to say where it came from.
+
+    ``cluster`` and ``dataset`` notes are keyed to their study and can only fire
+    there. A ``lab`` note fires on every study the biologist opens -- so one formed
+    on 280-gene FFPE breast fires on a kidney immuno-oncology panel, where almost
+    none of its markers are even on the panel. It rendered as a bare ``scope=lab``,
+    and the grounding suite passed it because the note IS a real source: the suite
+    checks that a claim names its source, not that the source names its tissue.
+
+    ``ui/report.note_scope_label`` already said "formed on <id>" on the page. This
+    pins the same fact on the citation, which is the only provenance the chat shows.
+    """
+    lab = memory.create_note(
+        claim="POSTN here reads as stromal bleed",
+        scope="lab", basis="own_validation", status="firm",
+        dataset=DATASET, base_dir=base,
+    )
+    detail = memory.cite_note(lab).detail
+    assert "scope=lab" in detail
+    assert DATASET in detail, (
+        "a lab-rung note that travels to another tissue must carry its formation "
+        f"study; got {detail!r}"
+    )
+    assert DATASET in memory.render_citation(lab)
+
+    # The dataset rung already carried it, and must keep carrying it unchanged.
+    ds = memory.create_note(
+        claim="c2 is myoepithelial here",
+        scope="dataset", basis="own_validation", status="firm",
+        dataset=DATASET, base_dir=base,
+    )
+    assert f"dataset:{DATASET}" in memory.cite_note(ds).detail
+
+
 def test_render_citation_shows_tension(base: Path):
     note = _make_cluster_note(base, cluster="c2")
     rendered = memory.render_citation(note)

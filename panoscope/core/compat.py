@@ -195,6 +195,34 @@ UNREPRESENTABLE_BUCKETS: frozenset[str] = frozenset(
     u.bucket for u in V1_UNREPRESENTABLE
 )
 
+#: The one WHOLE-RECORD fact the v1 view cannot hold, recorded here beside
+#: :data:`V1_UNREPRESENTABLE` because it is the same kind of debt and not the same
+#: kind of object: every entry above is an item BUCKET, two-sided against
+#: ``_v1_bucket``, while this is a statement about the unit. It gets its own id and
+#: its own longhand reason rather than a bucket the classifier never returns.
+V1_NO_REPLICATE_SHAPE: str = "replicate_read_never_askable"
+
+V1_NO_REPLICATE_REASON: str = (
+    "ARCHITECTURE 9.10's replicate read has three outcomes and v1 carries two of "
+    "them, in the one free-text field it has (`notes`, which "
+    "with_v1_replicate_read extends): a unit whose subjects genuinely read "
+    "differently across sections, and a unit the comparison was ASKED of and could "
+    "compare nothing on. The third -- the question was never askable, because the "
+    "study holds one sample, or declares independent clustering, or has no "
+    "per-sample marker tables -- is omitted, and the omission is forced rather than "
+    "chosen: Verdict.replicate_coverage is None there, which is exactly the state "
+    "that leaves the band untouched, and the nine committed demo files are 10's "
+    "frozen reference. The demo is single-sample, so every one of its units is in "
+    "that third state, and writing the sentence would move the bytes the "
+    "equivalence gate reads as the definition of `unchanged`. It is not lost: "
+    "pipeline/records._concordance writes the reason -- naming the sample count, "
+    "the clustering mode or the missing tables -- into "
+    "InterpretationRecord.undecidable, panoscope explain prints it, the markers "
+    "page renders it, and ui/report.py carries it into the exported document. The "
+    "v1 row says nothing, which is silence rather than a claim; an invented "
+    "sentence there would be the claim."
+)
+
 
 class NoV1Shape(ValueError):
     """Raised for a v2 item the v1 record has no shape for.
@@ -646,6 +674,52 @@ def _source_trace(rows: tuple[dict[str, Any], ...],
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
+def with_v1_replicate_read(v1: Mapping[str, Any], undecidable: Iterable[str],
+                           replicate: Coverage | None) -> Traced[dict[str, Any]]:
+    """The §9.10 replicate read, into the one v1 field that can hold a sentence.
+
+    Returns a NEW dict whose ``notes`` ends with the record's own undecidable
+    sentences, or an unchanged copy when v1 has no shape for this unit's outcome
+    (:data:`V1_NO_REPLICATE_SHAPE`).
+
+    **Why the sentences are carried verbatim rather than recomposed.** The record
+    already distinguishes the three outcomes §9.10 produces -- a unit whose subjects
+    read differently across sections, a unit nothing could be compared on, and a
+    question that was never askable and why -- and it distinguishes them in prose
+    ``pipeline/records._concordance`` wrote for a biologist to act on. Writing a
+    second, shorter sentence here would be a second place those three can collapse
+    into "concordance: not ok", which is the failure the whole lattice exists to
+    prevent arriving in the compat layer. A ``Concordance`` summarised into one
+    adjective is a fabricated measurement status with a tidy header.
+
+    **The K of N travels because it is one of those sentences.** "replicate
+    concordance compared 1 of 12 subject(s)" and "... 11 of 12" are different facts
+    about how much of a unit's profile has a second reading behind it, and a v1 row
+    on which they read the same is the denominator-thrown-away failure one level out
+    from the one ``Concordance.coverage`` was added for.
+
+    **This is not a number the reader can mistake for a statistic**, and that is why
+    it goes in ``notes`` and not in a twelfth column. The 11 columns are frozen
+    (IMPLEMENTATION.md §10, ``core/export.py``); more to the point, a divergence is a
+    FLAG -- §9.10 does not claim whether it is batch effect, section quality or
+    biology -- and a cell beside ``confidence_score`` is read as a measurement.
+
+    ``replicate is None`` is the gate rather than ``undecidable`` being empty,
+    because the two say different things: ``None`` is "the question was never
+    askable", which is the state :data:`V1_NO_REPLICATE_SHAPE` records and the state
+    every demo unit is in, while an empty ``undecidable`` on a comparison that RAN
+    cannot happen (the K-of-N sentence is unconditional) and would be a record with
+    its reasoning missing, which is not something to paper over here.
+    """
+    out = dict(v1)
+    said = [s for s in undecidable if s]
+    if replicate is None or not said:
+        return Traced(out)
+    out["notes"] = (f"{out['notes']} Replicate read (ARCHITECTURE 9.10): "
+                    + "; ".join(said) + ".")
+    return Traced(out)
+
+
 def to_v1_assignment(evidence: NormalisedEvidence, verdict: Verdict,
                      label: UnitLabel,
                      canonical: frozenset[str]) -> Traced[dict[str, Any]]:

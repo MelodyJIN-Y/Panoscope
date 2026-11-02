@@ -77,10 +77,23 @@ def run_verdicts(
     verdicts: list[ClusterVerdict] = []
     rows: list[dict] = []
     omitted: Counter[str] = Counter()
+    no_replicate_shape = 0
     for unit in cfg.CLUSTER_ORDER:
         write_record(built[unit], interp)
         omitted.update(dict(compat.v1_omissions(built[unit].evidence).value))
-        v1 = records.to_v1_dict(built[unit])
+        # The §9.10 replicate read, into the v1 view's one free-text field. Spliced
+        # here rather than inside ``records.to_v1_dict`` because that projection is
+        # handed an evidence/verdict pair and never the record, and the record is
+        # where the concordance decisions and their sentences live. ``core/compat``
+        # still owns every word of it; this stage hands it the two pieces and writes
+        # what comes back.
+        v1 = compat.with_v1_replicate_read(
+            records.to_v1_dict(built[unit]),
+            built[unit].record.undecidable,
+            built[unit].verdict.replicate_coverage,
+        ).value
+        if built[unit].verdict.replicate_coverage is None:
+            no_replicate_shape += 1
         paths.cluster_json(dataset_id, unit, root).write_text(
             json.dumps(v1, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
@@ -98,6 +111,18 @@ def run_verdicts(
               + f" across {len(cfg.CLUSTER_ORDER)} units; v1 has no shape for them "
               "(core/compat.V1_UNREPRESENTABLE). They are in the v2 records under "
               f"{interp / 'records'}.")
+
+    # The same discipline for the one WHOLE-RECORD omission: a unit whose §9.10
+    # replicate read was never askable keeps that reason in the v2 record and the
+    # export, and the v1 row says nothing. Announced at the moment the lossy view is
+    # written, for the reason above -- an omission a reader has to notice is the one
+    # that gets read as "nothing to report".
+    if no_replicate_shape:
+        print(f"[verdicts] v1 view omits the replicate read on "
+              f"{no_replicate_shape} of {len(cfg.CLUSTER_ORDER)} units; the §9.10 "
+              "comparison was never askable there and v1 has no field for why "
+              f"(core/compat.V1_NO_REPLICATE_SHAPE). The reason is in the v2 "
+              f"records under {interp / 'records'} and in the exported document.")
 
     # The CSV comes off the SAME projections just written, never a second pass:
     # one row in the table and one file on disk cannot then disagree.

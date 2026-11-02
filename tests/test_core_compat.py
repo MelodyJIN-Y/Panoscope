@@ -53,7 +53,9 @@ from panoscope.core import verdict as C
 from panoscope.pipeline import paths
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.evidence import EvidenceItem
-from panoscope.types.measured import Frame, Measured, MeasuredState, MeasuredWorld
+from panoscope.types.measured import (
+    Coverage, Frame, Measured, MeasuredState, MeasuredWorld,
+)
 from panoscope.types.subject import EntityKind, cell_type, gene, subject
 
 PANEL_FRAME = "panel:xenium_hbc_v1"
@@ -751,3 +753,295 @@ def test_the_projection_is_deterministic():
     first = json.dumps(_project("c1"))
     for _ in range(3):
         assert json.dumps(_project("c1")) == first
+
+
+# --------------------------------------------------------------------------- #
+# The input the demo cannot supply: an out-of-frame entity CARRYING A NUMBER
+#
+# Everything above is parametrised over ``cfg.CLUSTER_ORDER`` of the demo, whose
+# method table holds nothing the panel frame refuses. So the two engines agree
+# there whether or not ``agent/verdict.py`` applies a capability frame at all --
+# the gate passes on the demo's good luck rather than by construction. A method
+# table naming a gene the panel does not hold is the ordinary case (a control
+# probe, a table carried over from another panel) and it is the input that tells
+# the engines apart: ``core`` refuses the row through ``core.measure`` (the panel
+# frame does not admit it, so it comes back NEVER_MEASURED with no statistic, and
+# ``EvidenceItem`` makes a numbered row for an unmeasured subject unconstructible),
+# and ``agent`` has to refuse it through ``agent.verdict._in_the_gene_frame``.
+#
+# Built on disk, under ``tmp_path``, and run through BOTH production paths --
+# ``records.build_all`` and ``agent.verdict.all_verdicts`` -- rather than through
+# the hand-assembled ``_rebuild`` above: ``_rebuild`` builds its readings from
+# ``data.get_cluster_markers`` and stamps every one of them ``OBSERVED``, so it
+# cannot see a frame refusal by construction and would report this as covered.
+# --------------------------------------------------------------------------- #
+#: A gene no panel file in the repository holds, with a coefficient far above
+#: every real row so a missing guard shows up as ``key_markers[0]`` rather than as
+#: a tail entry nothing reads.
+OUT_OF_FRAME_GENE: str = "OFFPANELGENE1"
+_OUT_OF_FRAME_ROW: str = (
+    f"{OUT_OF_FRAME_GENE},c3,99.0,0.99,0.5,0.5,Macrophages\n"
+)
+#: The on-panel row dropped in the fragile variant: with it, the unit has three
+#: assigned markers and an unguarded engine stays out of the fragile rule; without
+#: it, the unit has two real markers and the out-of-frame row is the only thing
+#: standing between ``core``'s fragile cap and ``agent``'s band.
+_DROPPED_ROW_PREFIX: str = "CD68,c3,"
+
+
+def _study_with_an_out_of_frame_number(tmp_path, monkeypatch, *, drop: bool) -> str:
+    """``demo_mini`` on disk under ``tmp_path``, plus one numbered off-panel row.
+
+    Hermetic in the way this repository has twice failed to be:
+    ``layout.resolve_data_root`` memoises, so ``monkeypatch.setenv`` redirects
+    nothing until ``layout.clear_cache()`` runs AFTER it. The committed studies are
+    copied, never edited, and nothing is written outside ``tmp_path``.
+    """
+    import shutil
+
+    from panoscope.data import layout
+
+    from tests.conftest import DATASETS_ROOT, MINI_ID
+
+    study_id = "offpanel_number_fragile" if drop else "offpanel_number"
+    dst = tmp_path / "studies" / study_id
+    shutil.copytree(DATASETS_ROOT / MINI_ID, dst)
+    table = dst / "inputs" / "markers_top.csv"
+    text = table.read_text(encoding="utf-8")
+    if drop:
+        kept = [ln for ln in text.splitlines(keepends=True)
+                if not ln.startswith(_DROPPED_ROW_PREFIX)]
+        assert len(kept) == len(text.splitlines()) - 1, "the drop must actually land"
+        text = "".join(kept)
+    table.write_text(text + _OUT_OF_FRAME_ROW, encoding="utf-8")
+
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path))
+    layout.clear_cache()          # AFTER the setenv, or the env redirects nothing
+    return study_id
+
+
+@pytest.mark.parametrize("drop", [False, True])
+def test_both_engines_refuse_a_number_attached_to_an_out_of_frame_gene(
+    tmp_path, monkeypatch, drop
+):
+    """The equivalence the demo cannot reach, on both halves of the failure.
+
+    ``drop=False`` is the half an evidence-list check alone would catch: the
+    out-of-frame row is quoted as a marker row and leads ``key_markers``, so the
+    record says ``glm_coef 99.0`` about a gene the panel never held, beside an
+    ``is_on_panel`` of False in the same row.
+
+    ``drop=True`` is the half that reaches the BAND, and it is why this is
+    parametrised rather than written once. The unit is left with two on-panel
+    markers, so ``core`` counts two assigned items and takes the fragile cap, while
+    an engine that counts the out-of-frame row counts three and does not -- the
+    out-of-frame gene then moves the one number the biologist acts on without ever
+    appearing as a driver. A test pinned on ``drop=False`` alone would report this
+    as covered.
+    """
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    study_id = _study_with_an_out_of_frame_number(tmp_path, monkeypatch, drop=drop)
+    store = Study.open(study_id)
+    with cfg.use_study(store):
+        agent_v = {v.cluster: v for v in A.all_verdicts()}
+        built = {u: records.to_v1_dict(b)
+                 for u, b in records.build_all(store).items()}
+
+    assert OUT_OF_FRAME_GENE in (store.inputs / "markers_top.csv").read_text(), (
+        "the row must be in the method's own table, or this proves nothing"
+    )
+    assert set(built) == set(agent_v) and built, "the two engines built different units"
+    for unit, core_d in sorted(built.items()):
+        av = agent_v[unit]
+        agent_genes = [e.gene for e in av.evidence]
+        core_genes = [r["gene"] for r in core_d["evidence"]]
+        assert OUT_OF_FRAME_GENE not in agent_genes, (
+            f"{unit}: agent quotes a statistic for {OUT_OF_FRAME_GENE}, which the "
+            f"panel frame refuses: {agent_genes}"
+        )
+        assert agent_genes == core_genes, f"{unit}: evidence rows"
+        assert list(av.key_markers) == core_d["key_markers"], f"{unit}: key_markers"
+        assert av.confidence == core_d["confidence"], f"{unit}: band"
+        assert av.verify == core_d["verify"], f"{unit}: verify"
+        assert av.small_n == core_d["small_n"], f"{unit}: fragile"
+        assert all(e.is_on_panel for e in av.evidence), (
+            f"{unit}: a row carries a number and says it was never measured"
+        )
+        assert not [s for s in av.source_trace if OUT_OF_FRAME_GENE in s], (
+            f"{unit}: the out-of-frame gene reaches the source trace"
+        )
+
+
+def test_the_out_of_frame_study_actually_reaches_the_rule_it_was_built_for(
+    tmp_path, monkeypatch
+):
+    """Guards the construction above against being vacuous.
+
+    The row must land on the unit it names, and the dropped variant must leave
+    exactly two assigned markers there -- the fragile threshold. If a future
+    ``demo_mini`` has four markers on c3, or the gene name becomes a panel member,
+    this says so instead of passing on a study that no longer poses the question.
+    """
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    study_id = _study_with_an_out_of_frame_number(tmp_path, monkeypatch, drop=True)
+    store = Study.open(study_id)
+    with cfg.use_study(store):
+        assert not data.panel_contains(OUT_OF_FRAME_GENE), (
+            f"{OUT_OF_FRAME_GENE} is on this panel; it cannot pose the question"
+        )
+        rows = data.get_cluster_markers("c3")
+        assert OUT_OF_FRAME_GENE in set(rows["gene"].astype(str)), (
+            "the method table hands the row to c3, or the guard is never asked"
+        )
+        assert len(rows) == 3, "two on-panel rows plus the out-of-frame one"
+        built = records.build_all(store)
+    assert built["c3"].verdict.fragile, "core must take the fragile branch here"
+
+
+# --------------------------------------------------------------------------- #
+# The §9.10 replicate read in the v1 view (concordance-travels)
+#
+# ``interp/verdicts.csv`` mentioned replicate concordance on no unit of any study,
+# so a divergent unit and a clean one exported the same eleven cells. The read goes
+# into ``notes`` -- the one v1 field that can hold a sentence -- and not into a
+# twelfth column, because the eleven are frozen (§10) and because a divergence is a
+# flag: §9.10 does not claim whether it is batch effect, section quality or
+# biology, and a cell beside ``confidence_score`` is read as a measurement.
+# --------------------------------------------------------------------------- #
+_REP_WHAT = "subjects_comparable"
+
+
+def _rep(k: int, n: int = 12, floor: int = 6) -> Coverage:
+    return Coverage(_REP_WHAT, k, n, floor)
+
+
+def test_a_replicate_read_that_was_never_askable_leaves_the_v1_row_alone():
+    """``replicate_coverage is None`` is the state every demo unit is in.
+
+    The nine committed demo files are §10's frozen reference, so a sentence here
+    would move the bytes the equivalence gate reads as the definition of
+    "unchanged" -- and the reason is not lost: it is in the v2 record, in
+    ``panoscope explain``, on the markers page and now in the exported document.
+    ``V1_NO_REPLICATE_SHAPE`` is where that omission is written down.
+    """
+    before = {"cluster": "c1", "notes": "Confidence High."}
+    after = compat.with_v1_replicate_read(
+        before, ("replicate concordance (ARCHITECTURE 9.10) does not apply: the "
+                 "study holds one sample (sample1)",), None).value
+
+    assert after == before and after is not before      # a copy, never a mutation
+    # The omission is recorded with a reason, to ``V1_UNREPRESENTABLE``'s standard:
+    # an entry nobody wrote a reason for is the unreviewed silence this file's two
+    # allowlists exist to make impossible.
+    assert len(compat.V1_NO_REPLICATE_REASON) > 120
+    assert "never askable" in compat.V1_NO_REPLICATE_REASON
+    assert "undecidable" in compat.V1_NO_REPLICATE_REASON
+
+
+def test_the_v1_k_of_n_separates_one_of_twelve_from_eleven_of_twelve():
+    """The denominator travels, or the caveat is not a caveat.
+
+    A unit comparable on 1 of 12 subjects and one comparable on 11 of 12 both
+    report "not divergent". If the v1 row renders them identically it has thrown
+    away the only thing that separates a profile with a second reading behind it
+    from one without -- the same failure ``Concordance.coverage`` was added one
+    level down to prevent.
+    """
+    thin = compat.with_v1_replicate_read(
+        {"notes": "n."}, ("replicate concordance compared 1 of 12 subject(s) "
+                          "across sampleA, sampleB",), _rep(1)).value["notes"]
+    thick = compat.with_v1_replicate_read(
+        {"notes": "n."}, ("replicate concordance compared 11 of 12 subject(s) "
+                          "across sampleA, sampleB",), _rep(11)).value["notes"]
+
+    assert thin != thick
+    assert "compared 1 of 12" in thin and "compared 1 of 12" not in thick
+    assert "compared 11 of 12" in thick
+
+
+def test_the_three_outcomes_stay_three_in_the_v1_notes():
+    """Divergent, not-comparable-and-cannot-say-why, and never-askable.
+
+    The first two are carried in the record's own words; the third is omitted and
+    recorded (:data:`compat.V1_NO_REPLICATE_SHAPE`). What must not happen is any
+    two of them reading alike.
+    """
+    diverged = compat.with_v1_replicate_read(
+        {"notes": "n."}, ("SYNG03 read differently across sampleA, sampleB",),
+        _rep(9)).value["notes"]
+    no_why = compat.with_v1_replicate_read(
+        {"notes": "n."}, ("replicate concordance (ARCHITECTURE 9.10) could not be "
+                          "assessed for this unit: sampleB reported no row under it",),
+        _rep(0)).value["notes"]
+    never = compat.with_v1_replicate_read({"notes": "n."}, ("anything",), None
+                                          ).value["notes"]
+
+    assert len({diverged, no_why, never}) == 3
+    assert "read differently" in diverged
+    assert "could not be assessed for this unit" in no_why
+    assert never == "n."
+
+
+def test_the_v1_row_carries_the_divergence_on_the_production_path(monkeypatch,
+                                                                   tmp_path):
+    """End to end through ``pipeline/stages/verdicts.py``, into a tmp tree.
+
+    The unit tests above pin the composition; this pins that the stage calls it,
+    that the sentence survives into ``interp/verdicts.csv``'s ``notes`` cell, and
+    -- the half that matters most -- that carrying it moved neither the band, the
+    score nor ``verify`` on any unit.
+
+    **Both redirections are needed and they are different mechanisms.** The READ
+    side resolves through ``layout.resolve_data_root``, an ``lru_cache`` keyed on
+    the environment as it stood at the first call, so the env must be set and the
+    cache cleared AFTER it. The WRITE side does not read the environment at all:
+    ``pipeline/paths.DEFAULT_DATASETS_ROOT`` is ``cfg.DATA_DIR_PATH / "studies"``
+    evaluated at import time, which is the frozen-root case ``conftest``'s tree
+    guard warns about -- so every write goes through ``run_verdicts``' explicit
+    ``root``. Setting only the env here wrote a full build into the committed
+    fixture study and ``git status`` showed nothing, because the tree is
+    gitignored under ``interp/``.
+    """
+    import csv
+    import io
+    import shutil
+
+    from panoscope.data import layout
+    from panoscope.data.study import Study
+    from panoscope.pipeline import paths
+    from panoscope.pipeline.stages.verdicts import run_verdicts
+
+    fixture = "synthetic_multisample_fixture"
+    source = Study.open(fixture)
+    if not source.exists:
+        pytest.skip(f"study {fixture!r} is not on disk")
+
+    root = tmp_path / "data"
+    studies = root / "studies"
+    shutil.copytree(source.dir, studies / fixture)
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(root))
+    layout.clear_cache()
+    try:
+        with cfg.use_study(Study.open(fixture, data_root=root)):
+            run_verdicts(fixture, studies)
+            rows = {r["cluster"]: r for r in csv.DictReader(io.StringIO(
+                paths.verdicts_csv(fixture, studies).read_text(encoding="utf-8")))}
+    finally:
+        layout.clear_cache()
+
+    # c1 and c2 diverge on SYNG03; c3 does not. All three were compared on 9 of 12.
+    assert "SYNG03 read differently across sampleA, sampleB" in rows["c1"]["notes"]
+    assert "read differently" not in rows["c3"]["notes"]
+    for row in rows.values():
+        assert "replicate concordance compared 9 of 12 subject(s)" in row["notes"]
+
+    # The band, the score and verify are untouched: a replicate read is a flag, and
+    # agreement never raises confidence either (§9.10).
+    assert [rows[c]["confidence"] for c in ("c1", "c2", "c3")] == ["High", "Low", "Low"]
+    assert [rows[c]["confidence_score"] for c in ("c1", "c2", "c3")] == \
+        ["0.85", "0.3", "0.3"]
+    assert {row["verify"] for row in rows.values()} == {"TRUE"}

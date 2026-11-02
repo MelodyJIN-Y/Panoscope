@@ -32,6 +32,8 @@ import pytest
 from panoscope.agent import config as cfg
 from panoscope.agent import memory
 from panoscope.ui import data_access as da
+from panoscope.ui import report
+from panoscope.ui import summary
 
 STUDY_A = "xenium_hbreast_sample1"         # the demo: c1..c9
 STUDY_B = "synthetic_multisample_fixture"  # the fixture: c1..c3, its own annotation
@@ -158,3 +160,120 @@ def test_withheld_notes_is_empty_when_every_note_names_its_study() -> None:
     for study in (STUDY_A, STUDY_B):
         with cfg.use_study(study):
             assert da.withheld_notes() == []
+
+
+# --------------------------------------------------------------------------- #
+# The lab rung travels (above) — but it may not travel with its conditions
+# stripped. These pin the other half: wherever it arrives, the surface names the
+# study it was FORMED on.
+# --------------------------------------------------------------------------- #
+def _lab_note(study: str):
+    """A lab-scoped marker-meaning note, written through the real writer under ``study``."""
+    with cfg.use_study(study):
+        return memory.create_note(
+            claim="POSTN here reads as stromal bleed",
+            scope="lab",
+            basis="own_validation",
+            subject_markers=("POSTN",),
+            note_type="marker_meaning",
+            literature_search=lambda _q: (),
+        )
+
+
+class _FakeSt:
+    """Records ``st.markdown`` calls. The note cards are pure markdown, so this is the
+    whole Streamlit surface they touch — no runtime needed."""
+
+    def __init__(self) -> None:
+        self.out: list[str] = []
+
+    def markdown(self, body: str, **_kw: object) -> None:
+        self.out.append(body)
+
+
+def test_lab_note_rendered_in_another_study_names_the_study_that_formed_it() -> None:
+    """The defect: a judgement formed on 280-gene FFPE breast arriving on another
+    study's board as a bare "all datasets", under the biologist's own authority, with
+    nothing on screen saying which tissue formed it.
+
+    The HARD half is study B. Naming the formation study in study A would also be
+    satisfied by a renderer that printed whatever study happens to be open, so study B
+    is the input that separates the two: the span must name A and must NOT name B.
+    """
+    note = _lab_note(STUDY_A)
+
+    with cfg.use_study(STUDY_B):
+        # it really does arrive here — the lab rung is meant to travel
+        arrived = [n for n in da.read_notes() if n.id == note.id]
+        assert arrived, "the lab rung must still cross studies"
+
+        span = report.note_scope_label(arrived[0])
+        assert STUDY_A in span, span
+        assert STUDY_B not in span, span
+        # "all datasets" is still true and still said; it is no longer said alone
+        assert "all datasets" in span
+
+        # every surface the span ships through: the on-page/HTML report, the
+        # .docx/PDF text, and the Summary note board.
+        line = report._note_line(arrived[0])
+        assert STUDY_A in report._note_html(line)
+        assert STUDY_A in report._note_text(line)
+
+        st = _FakeSt()
+        summary._render_lab_note_cards(st, arrived)
+        board = "\n".join(st.out)
+        assert STUDY_A in board, board
+        assert STUDY_B not in board, board
+
+
+def test_lab_note_in_its_own_study_still_names_that_study() -> None:
+    """The easy half, kept: the suffix is not a cross-study special case. A reader on
+    study A sees the same sentence, so "formed on …" never has to mean "formed
+    elsewhere" — the reader compares it with the study they are in."""
+    note = _lab_note(STUDY_A)
+    with cfg.use_study(STUDY_A):
+        assert STUDY_A in report.note_scope_label(note)
+
+
+def test_a_dataset_scoped_note_gains_no_formation_suffix() -> None:
+    """Only the lab rung travels, so only the lab rung needs the suffix. A
+    dataset-scoped note fires nowhere but the study it names, and "this dataset"
+    already says which one that is — repeating it would be noise on every row."""
+    with cfg.use_study(STUDY_A):
+        note = memory.create_note(
+            claim="this dataset is ER+ breast",
+            scope="dataset",
+            basis="own_validation",
+            note_type="caveat",
+            literature_search=lambda _q: (),
+        )
+        assert report.note_scope_label(note) == "this dataset"
+
+
+def test_withheld_note_reaches_the_summary_board_as_a_sentence(notes_base: Path) -> None:
+    """``withheld_notes`` had no production caller: the gate dropped the note and the
+    board said nothing, which is a committed judgement vanishing without a sentence."""
+    corrections = notes_base / "corrections"
+    corrections.mkdir(parents=True, exist_ok=True)
+    (corrections / "nostudy.json").write_text(json.dumps({
+        "id": "nostudy",
+        "claim": "c2 is CAF",
+        "scope": "cluster",
+        "scope_ref": {"cluster": "c2"},        # no dataset
+        "basis": "own_validation",
+        "status": "firm",
+        "type": "celltype_override",
+        "subject_cell_type": "CAF",
+        "created_at": "2026-01-01T00:00:00+00:00",
+    }), encoding="utf-8")
+
+    with cfg.use_study(STUDY_A):
+        st = _FakeSt()
+        summary._render_withheld_notes(st, da.withheld_notes())
+        board = "\n".join(st.out)
+        assert "nostudy" in board and "c2 is CAF" in board
+        assert "names no study" in board
+    # and nothing is drawn when there is nothing to say
+    quiet = _FakeSt()
+    summary._render_withheld_notes(quiet, [])
+    assert quiet.out == []

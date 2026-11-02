@@ -665,6 +665,24 @@ def cite_note(note: Note) -> Source:
         scope_txt = f"cluster:{note.scope_ref.cluster}"
     elif note.scope == "dataset":
         scope_txt = f"dataset:{note.scope_ref.dataset}"
+    elif note.scope == "lab":
+        # **The lab rung is the one that travels, and it was the one that said
+        # nothing about where it came from.** ``cluster`` and ``dataset`` are keyed
+        # to the study they were formed on and can only fire there; ``lab`` fires on
+        # every study the biologist opens. So a note formed on 280-gene FFPE breast
+        # fires on a kidney immuno-oncology panel, and this citation -- the thing the
+        # grounding suite checks, and the only provenance the chat shows -- rendered
+        # it as a bare "scope=lab". The suite passed it because the note IS a real
+        # source: it checks that a claim names its source, not that the source names
+        # its tissue. ``ui/report.note_scope_label`` already said "formed on <id>" on
+        # the page; this is the same sentence on the rung that needs it most.
+        #
+        # "not recorded" rather than silence for a pre-schema note, for the same
+        # reason as there: a bare "lab" reads as though the formation study were
+        # known and merely uninteresting.
+        scope_txt = (f"lab formed_on:{note.scope_ref.dataset}"
+                     if note.scope_ref.dataset
+                     else "lab formed_on:(not recorded)")
     detail = f"scope={scope_txt} basis={note.basis} status={note.status}"
     return Source(kind="mem", ref=note.id, value=note.claim, detail=detail)
 

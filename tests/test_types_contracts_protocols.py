@@ -69,6 +69,10 @@ class StubAdapter:
     def frames(self, store: Any) -> tuple[Frame, ...]:
         return (PANEL,)
 
+    def is_control(self, store, entity: str) -> bool:
+        """No control probes in a stub store: every row it names is a subject."""
+        return False
+
     def unit_labels(self, store: Any) -> dict[str, str]:
         return {"c1": "Tumor"}
 

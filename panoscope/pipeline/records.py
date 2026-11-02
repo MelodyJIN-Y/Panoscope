@@ -376,6 +376,11 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         raise SystemExit(f"Study {study.id!r} has no method output at {path}.")
 
     table = pd.read_csv(path)
+    # Same filter as ``method.load`` applies to each per-sample table, for the same
+    # reason: a control probe is not a subject of interpretation, and a reading that
+    # carries one hands it to every consumer as a NEVER_MEASURED gene.
+    table = table[~table[ENTITY_COLUMN].astype(str).map(
+        lambda g: adapter.is_control(study, g))].reset_index(drop=True)
     # The unit column comes off the SCHEMA, through the method, never from here.
     spec = method.detect_unit(table)
     world = MeasuredWorld(adapter.frames(study))

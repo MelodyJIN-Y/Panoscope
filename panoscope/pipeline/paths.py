@@ -19,11 +19,34 @@ from typing import Optional
 
 from panoscope.agent import config as cfg
 
-DEFAULT_DATASETS_ROOT: Path = cfg.DATA_DIR_PATH / "studies"
-
-
 def datasets_root(root: Optional[Path] = None) -> Path:
-    return Path(root) if root is not None else DEFAULT_DATASETS_ROOT
+    """``root`` if given, else the ACTIVE data root's ``studies/`` -- resolved now.
+
+    **This used to be a module constant**, ``cfg.DATA_DIR_PATH / "studies"``
+    evaluated at import. ``cfg.DATA_DIR_PATH`` is dynamic (``config.__getattr__``
+    resolves it against ``PANOSCOPE_DATA_ROOT`` on every read) and this froze it to
+    whatever the environment said the first time anything imported this module.
+
+    Two things followed, and both were silent. A test that correctly redirects the
+    root -- ``monkeypatch.setenv`` followed by ``layout.clear_cache()`` -- still had
+    ``ui/chat_store`` write ``chat_threads.json`` into the REAL repository tree,
+    gitignored, under a study id that exists nowhere; the suite did that on every
+    run. And ``ui/report._dataset_undecidables`` read one store's records while the
+    verdicts beside it followed ``cfg.current_study()``, so a document exported from
+    a study opened outside ``data/studies/`` either lost its replicate caveats or,
+    with a same-named store in the frozen root, attached THAT store's sentences to
+    these rows by unit id.
+
+    Resolving per call is the whole fix: every helper below routes through here.
+    """
+    return Path(root) if root is not None else cfg.DATA_DIR_PATH / "studies"
+
+
+def __getattr__(name: str):
+    """``DEFAULT_DATASETS_ROOT`` still resolves -- live, never frozen."""
+    if name == "DEFAULT_DATASETS_ROOT":
+        return datasets_root()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def dataset_dir(dataset_id: str, root: Optional[Path] = None) -> Path:

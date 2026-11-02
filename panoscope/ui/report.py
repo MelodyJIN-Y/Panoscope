@@ -68,6 +68,10 @@ class ClusterSection:
     notes: tuple[NoteLine, ...]
     enrichment: str = ""             # plain-text enriched-programs block (with PMIDs), "" if none
     enrichment_census: str = ""      # "N supported · N suggestive · N untestable", "" if none
+    #: The record's own undecidable sentences, verbatim — what this measurement did
+    #: NOT settle. Today they are the §9.10 replicate read; the field is the record's
+    #: field, not concordance's, so a later producer's undecidable travels too.
+    undecidable: tuple[str, ...] = ()
     lineage: str = ""                # for the overview table
     key_markers: str = ""            # top gene names (no numbers), for the overview table
 
@@ -111,14 +115,39 @@ def _tension_text(note: Note) -> str:
     return ""
 
 
-def _note_line(note: Note) -> NoteLine:
+def note_scope_label(note: Note) -> str:
+    """The note's scope as one readable span — the LAB rung carrying its formation study.
+
+    The lab rung is deliberately cross-study: a standing judgement is MEANT to travel,
+    and ``memory.note_in_study`` lets it. What it must not do is travel with its
+    conditions stripped. Rendered as a bare "all datasets", a call formed while looking
+    at one 280-gene FFPE breast panel arrives on an off-target kidney IO panel under the
+    biologist's own authority with nothing on screen naming the study that formed it --
+    so the reader cannot see the tension, and "the value is in the disagreement" requires
+    that they can. ``scope_ref.dataset`` was stored and correct all along; this names it.
+
+    One spelling for both surfaces (the exported report and the Summary note board), so
+    the two cannot drift into disagreeing about what a note's scope is.
+
+    Only the lab rung gets the suffix: a dataset- or cluster-scoped note fires nowhere
+    but the study it names, so "this dataset" already says which study formed it.
+    """
     if note.scope == "cluster" and note.scope_ref.cluster:
-        scope = f"cluster {note.scope_ref.cluster}"
-    else:
-        scope = _SCOPE_LABEL.get(note.scope, note.scope)
+        return f"cluster {note.scope_ref.cluster}"
+    label = _SCOPE_LABEL.get(note.scope, note.scope)
+    if note.scope != "lab":
+        return label
+    # A pre-schema note can name no dataset. Saying that out loud is the honest
+    # answer; a bare "all datasets" reads as though the formation study were known.
+    if not note.scope_ref.dataset:
+        return f"{label} · formation study not recorded"
+    return f"{label} · formed on {note.scope_ref.dataset}"
+
+
+def _note_line(note: Note) -> NoteLine:
     return NoteLine(
         claim=note.claim,
-        scope=scope,
+        scope=note_scope_label(note),
         basis=_BASIS_LABEL.get(note.basis, note.basis),
         status=_STATUS_LABEL.get(note.status, note.status),
         tension=_tension_text(note),
@@ -183,6 +212,7 @@ def build_report(
     pathway_notes: dict | None = None,
     tissue: str = "",
     platform: str = "",
+    undecidable: dict | None = None,
 ) -> ReportModel:
     """Assemble the interpretation report from durable, grounded inputs. Pure.
 
@@ -190,10 +220,23 @@ def build_report(
     cluster -> {gene_set: note}; when given, each section integrates the cluster's
     enriched programs + their cited biology alongside the marker call. ``tissue`` /
     ``platform`` populate the report header (grounded context, from the manifest).
+
+    ``undecidable`` maps cluster -> the v2 record's own undecidable sentences, and
+    is the half of the interpretation that had no way out of the building. The
+    exported document is what goes into a slide, a thesis chapter or a supplementary
+    file; a report that is honest on screen and silent in the file that leaves the
+    lab is not honest, and until this parameter existed the §9.10 replicate read --
+    *these two sections read this gene differently* -- reached ``panoscope explain``
+    and the markers page and stopped there, while the document named the diverging
+    gene as a driver and called the unit High confidence. The sentences are carried
+    verbatim, never summarised: they are the one place the three §9.10 outcomes stay
+    apart, and a document that renders "divergent" and "could not be compared" with
+    one word is the four-states-into-two collapse arriving in the export.
     """
     dataset = dataset or cfg.DATASET_ID
     enrichments = enrichments or {}
     pathway_notes = pathway_notes or {}
+    undecidable = undecidable or {}
     sections: list[ClusterSection] = []
     for v in verdicts:
         ct_note = celltype_notes.get(v.cluster) or {}
@@ -219,6 +262,7 @@ def build_report(
                 notes=cluster_notes,
                 enrichment=enr_text,
                 enrichment_census=enr_census,
+                undecidable=tuple(undecidable.get(v.cluster) or ()),
                 lineage=getattr(v, "lineage", "") or "",
                 key_markers=", ".join(v.key_markers[:4]) if v.key_markers else "",
             )
@@ -268,6 +312,42 @@ def _dataset_tissue_platform(dataset: str) -> tuple[str, str]:
         return "", ""
 
 
+def _dataset_undecidables(dataset: str) -> dict:
+    """``{cluster: (sentence, ...)}`` off the v2 records, for the report's caveats.
+
+    Read from ``interp/records/<task_kind>/<unit>.json`` rather than from the v1
+    ``ClusterVerdict``, because the v1 shape has no field for an undecidable and
+    inventing one would mean re-deriving in the UI what ``core/record`` already
+    wrote. ``core/compat.with_v1_replicate_read`` does put the §9.10 sentences into
+    the v1 ``notes`` string for the CSV's sake; parsing them back out of that
+    sentence here would be prose-matching, which is the failure
+    ``ui/evidence_table``'s ``FLAG_COPY`` was rebuilt to stop.
+
+    ``{}`` when the records are unreadable -- an unbuilt study, or one built before
+    the records existed. That is a thinner report, never a wrong one: the sections
+    then carry no undecidable line at all, which is the same thing the record says.
+    Same ``except Exception`` as the manifest reader directly above, for the same
+    reason: the Summary page must render on a half-built tree.
+    """
+    try:
+        import json
+
+        from panoscope.core.record import RECORDS_DIR
+        from panoscope.pipeline import paths
+        from panoscope.types.outputs import TaskKind
+
+        got: dict = {}
+        base = paths.interp_dir(dataset) / RECORDS_DIR / TaskKind.ASSIGNMENT.value
+        for path in sorted(base.glob("*.json")):
+            rec = json.loads(path.read_text(encoding="utf-8"))
+            said = tuple(str(s) for s in rec.get("undecidable") or ())
+            if said:
+                got[str(rec.get("unit") or path.stem)] = said
+        return got
+    except Exception:  # noqa: BLE001 - no records yet just means no undecidable line
+        return {}
+
+
 def build_report_from_sources(generated_at: str = "") -> ReportModel:
     """Convenience: pull the durable artifacts from ``ui.data_access`` and assemble.
 
@@ -295,6 +375,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         pathway_notes=pathway_notes,
         tissue=tissue,
         platform=platform,
+        undecidable=_dataset_undecidables(cfg.DATASET_ID),
     )
 
 
@@ -434,6 +515,11 @@ def report_html(report: ReportModel) -> str:
                 f'<div style="font-size:12px;margin-top:4px;color:var(--accent,#3b6fd4)">'
                 f'<em>What would settle it:</em> {_linkify(s.settle)}</div>'
             )
+        for u in s.undecidable:
+            parts.append(
+                f'<div style="font-size:12px;margin-top:4px">'
+                f'<em>Not settled by this measurement:</em> {_linkify(u)}</div>'
+            )
         for nl in s.notes:
             parts.append(_note_html(nl))
         parts.append("</div>")
@@ -572,6 +658,10 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
             lines.append(("body", f"Programs{conf}, panel-scoped: {s.enrichment}"))
         if s.settle:
             lines.append(("body", f"What would settle it: {s.settle}"))
+        # One line per sentence, never joined: each is a different outcome of the
+        # same check, and a reader skimming a paragraph reads the first clause.
+        for u in s.undecidable:
+            lines.append(("body", f"Not settled by this measurement: {u}"))
         for nl in s.notes:
             lines.append(("note", _note_text(nl)))
 
@@ -734,6 +824,11 @@ def default_cluster_summary(s: ClusterSection) -> str:
 
     if s.settle:
         paras.append(f"What would settle it — {s.settle}")
+    # Seeded into the EDITABLE space as well as the assembled report, because
+    # ``working_docx`` exports this text and not ``_section_lines``. A caveat that
+    # only reaches one of the two documents is the same defect one export out.
+    for u in s.undecidable:
+        paras.append(f"Not settled by this measurement — {u}")
     for nl in s.notes:
         t = f" — {nl.tension}" if nl.tension else ""
         paras.append(f'Note — "{nl.claim}" ({nl.scope} · {nl.basis} · {nl.status}){t}.')
@@ -867,6 +962,7 @@ def working_pdf(sections, *, report_model: ReportModel | None = None, **kw) -> b
 
 __all__ = [
     "NoteLine",
+    "note_scope_label",
     "ClusterSection",
     "ReportModel",
     "build_report",

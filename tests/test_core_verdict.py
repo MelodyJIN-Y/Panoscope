@@ -477,6 +477,47 @@ def test_thresholds_match_the_live_config():
     assert C._band_for_coef(None) == cfg.band_for_coef(None)
 
 
+@pytest.mark.parametrize("study_id", _studies_on_disk())
+def test_the_gene_frame_guard_refuses_the_same_rows_in_both_engines(study_id):
+    """The capability frame for a gene is the second duplicated guard, and this is
+    its drift alarm -- the same shape as the threshold test above it.
+
+    ``core/`` may not be imported from under ``agent/``, so the frame rule exists
+    twice: ``core.measure`` resolves every reading against the platform's gene
+    frames and withholds the statistic of anything they refuse, and
+    ``agent.verdict._in_the_gene_frame`` asks ``data.panel_contains`` instead. The
+    two answers are what decide whether a row becomes a marker row carrying a
+    number, so a divergence is a ``glm_coef`` quoted for a subject one engine says
+    was never measured -- and the band follows it, because the number of rows
+    carrying a statistic is what the fragile rule counts.
+
+    Row by row over every study on disk, rather than unit by unit: the demo's table
+    holds nothing either frame refuses, so a unit-level comparison of the two bands
+    is green whether the guard exists or not. The constructed study that DOES hold
+    such a row lives in ``tests/test_core_compat.py``, where the whole v1 projection
+    is compared; this one pins the predicate itself against every real panel.
+    """
+    from panoscope.agent import data
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    store = Study.open(study_id)
+    built = records.build_all(store)
+    with cfg.use_study(store):
+        for unit, b in sorted(built.items()):
+            core_admits = {
+                i.subject.one("g").id.upper(): i.measured.carries_number
+                for i in b.evidence.items if len(i.subject.entities()) == 1
+            }
+            for g in data.get_cluster_markers(unit)["gene"].astype(str):
+                assert core_admits.get(g.upper()) is A._in_the_gene_frame(g), (
+                    f"{study_id}/{unit}/{g}: core carries a number for it "
+                    f"{core_admits.get(g.upper())}, agent admits it "
+                    f"{A._in_the_gene_frame(g)}"
+                )
+
+
+
 # --------------------------------------------------------------------------- #
 # verify comes from the rubric, never from a caller
 # --------------------------------------------------------------------------- #
@@ -731,3 +772,118 @@ def test_the_replicate_floor_is_a_majority_and_an_exact_ratio():
         f = C._coverage_floor(n, C.REPLICATE_COVERAGE_FLOOR)
         assert Coverage("x", f, n, f).ok
         assert not Coverage("x", f - 1, n, f).ok
+
+
+# --------------------------------------------------------------------------- #
+# The two engines must spell a gene the same way
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "panel_spelling,marker_spelling,case",
+    [
+        ("CD68", "Cd68", "markers carry the vendor's mixed case"),
+        ("CD68 ", "CD68", "the panel file carries a trailing space"),
+        ("  cd68", "CD68 ", "both sides are untidy, in opposite ways"),
+    ],
+)
+def test_the_two_engines_admit_the_same_gene_however_it_is_spelled(
+    panel_spelling: str, marker_spelling: str, case: str,
+) -> None:
+    """``Frame.contains`` and ``data.panel_contains`` are one primitive, twice.
+
+    ``agent/`` may not import ``core/``, so v1's absence primitive is a
+    transcription of v2's rather than a call to it -- and the two stopped being
+    transcriptions when one case-folded without stripping and the other did neither.
+    Measured on a constructed store before this was closed: Very High with ``verify``
+    False from the agent engine against Medium-High with ``verify`` True from core,
+    on one contested row, with the engine the golden reads being the *less*
+    conservative of the two.
+
+    This is the input the whole suite was missing: no study anywhere in the repo has
+    a ``panel.parquet`` and a ``markers_top.csv`` that disagree about how to spell a
+    gene, which is the single input that separates the two implementations.
+    """
+    from panoscope.types.measured import Frame
+    from panoscope.types.subject import Entity, EntityKind
+
+    assert (str(marker_spelling).strip().upper()
+            == str(panel_spelling).strip().upper()), "the fixture must be one gene"
+
+    frame = Frame(kind=EntityKind.GENE, name="panel:t",
+                  members=frozenset({panel_spelling}))
+    assert frame.contains(Entity(EntityKind.GENE, marker_spelling)) is True, case
+
+
+def test_a_frame_still_refuses_a_gene_that_is_genuinely_absent() -> None:
+    """The other direction: normalising identity must not admit a different gene."""
+    from panoscope.types.measured import Frame
+    from panoscope.types.subject import Entity, EntityKind
+
+    frame = Frame(kind=EntityKind.GENE, name="panel:t", members=frozenset({"CD68"}))
+    for other in ("CD69", "CD8A", "CD6", "CD688", "C D68"):
+        assert frame.contains(Entity(EntityKind.GENE, other)) is False, other
+
+
+@pytest.mark.parametrize(
+    "edit,case",
+    [
+        ("markers", "the method table spells the gene Syng01, the panel SYNG01"),
+        ("panel", "the panel file carries 'SYNG01 ' with a trailing space"),
+    ],
+)
+def test_both_engines_build_the_same_band_on_a_spelling_mismatch(tmp_path, edit, case):
+    """The predicate test above, run through the ACTUAL two engines, end to end.
+
+    No study in the repo has a ``panel.parquet`` and a ``markers_top.csv`` that
+    disagree about how to spell a gene, which is the single input that separates
+    ``Frame.contains`` from ``data.panel_contains``. Without such a store the
+    unit-level comparison is green whether the two agree or not -- which is how a
+    two-rung divergence on band AND ``verify`` lived in the repo with the whole
+    suite passing, on the side where the agent engine (the one ``tests/golden`` and
+    ``agent/fallback`` read) was the LESS conservative of the two.
+
+    Built under ``tmp_path`` from the committed fixture, so the fixture on disk
+    stays byte-identical.
+    """
+    import shutil
+
+    import pandas as pd
+
+    from panoscope.data.study import Study
+    from panoscope.pipeline import records
+
+    src = Study.open("synthetic_multisample_fixture")
+    if not src.exists:
+        pytest.skip("synthetic_multisample_fixture is not on disk")
+
+    data_root = tmp_path / "data"
+    (data_root / "studies").mkdir(parents=True)
+    shutil.copytree(src.dir, data_root / "studies" / src.id)
+    inputs = data_root / "studies" / src.id / "inputs"
+
+    pq, csv = inputs / "panel.parquet", inputs / "markers_top.csv"
+    panel, markers = pd.read_parquet(pq), pd.read_csv(csv)
+    if edit == "markers":
+        markers.loc[markers["gene"] == "SYNG01", "gene"] = "Syng01"
+    else:
+        panel.loc[panel["gene"] == "SYNG01", "gene"] = "SYNG01 "
+    panel.to_parquet(pq, index=False)
+    markers.to_csv(csv, index=False)
+
+    st = Study.open(src.id, data_root=data_root)
+    core = records.build_all(st)
+    with cfg.use_study(st):
+        agent = {v.cluster: v for v in A.all_verdicts()}
+
+    disagree = [
+        (u, (agent[u].confidence, agent[u].verify),
+         (core[u].verdict.band, core[u].verdict.verify))
+        for u in sorted(agent)
+        if (agent[u].confidence, agent[u].verify)
+        != (core[u].verdict.band, core[u].verdict.verify)
+    ]
+    assert disagree == [], f"{case}: the two engines returned different calls: {disagree}"
+
+    # And the contested gene is genuinely in play, so a store where neither engine
+    # saw it could not pass this by accident.
+    assert any(str(e.gene).strip().upper() == "SYNG01"
+               for e in agent["c1"].evidence), "the fixture stopped exercising the row"

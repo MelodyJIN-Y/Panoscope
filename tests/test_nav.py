@@ -27,6 +27,13 @@ from panoscope.types.outputs import TaskKind
 from panoscope.types.uispec import degraded_spec
 from panoscope.ui import nav
 
+
+@pytest.fixture(autouse=True)
+def _render_against_a_copy(app_tree):
+    """Every AppTest in this module renders a real study, and the app writes as it
+    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
+    committed tree stays the read-only input the suite says it is."""
+
 APP_SRC = (pathlib.Path(panoscope.__file__).parent / "app.py").read_text()
 
 # The real wiring, restated. These tests must not import app.py: it is a Streamlit

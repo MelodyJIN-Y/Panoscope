@@ -1258,14 +1258,50 @@ def _render_lab_note_cards(st, notes: list) -> None:
                     unsafe_allow_html=True)
         return
     for n in sorted(notes, key=lambda x: (x.created_at, x.id), reverse=True):
-        scope = (f"cluster {n.scope_ref.cluster}" if n.scope == "cluster" and n.scope_ref.cluster
-                 else {"dataset": "this dataset", "lab": "all datasets"}.get(n.scope, n.scope))
+        # One spelling of a note's scope, shared with the exported report: the lab rung
+        # names the study it was FORMED on, because that rung travels across studies and
+        # a judgement arriving on another tissue with its conditions stripped is exactly
+        # the tension the reader has to be able to see (report.note_scope_label).
+        scope = report.note_scope_label(n)
         date = n.created_at.split("T", 1)[0] if n.created_at else "n/a"
         st.markdown(
             f'<div class="pano-lk-card"><div class="pano-lk-claim">{html.escape(n.claim)}</div>'
             f'<div class="pano-lk-meta"><span class="sco">{html.escape(scope)}</span> · '
             f'basis: {html.escape(n.basis)} · {html.escape(n.status)} · '
             f'{html.escape(n.author or "you")} · {html.escape(date)}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+
+def _render_withheld_notes(st, notes: list) -> None:
+    """The notes this study must NOT apply, said out loud instead of dropped.
+
+    ``data_access.withheld_notes`` is the other half of the fail-closed scope gate.
+    The gate is right to refuse a note naming no dataset -- cluster ids are c1..cN in
+    every study, so assuming it belongs to whichever one happens to be open is a
+    collision by default. But a judgement the biologist committed, vanishing from the
+    board with no sentence, is its own failure: they have no way to tell "we weighed it
+    and it does not apply here" from "it was never saved".
+
+    Empty in the normal case, so this renders nothing at all unless a hand-edited or
+    pre-schema file genuinely needs its study added.
+    """
+    if not notes:
+        return
+    st.markdown(
+        '<div class="pano-ed-eyebrow" style="margin-top:16px">Held back · names no study</div>'
+        '<div class="pano-ed-hint" style="margin:0 0 10px">Stored, but not applied here: '
+        "a note that names no dataset cannot be assumed to belong to this one. Add its "
+        "study to the file and it returns to the board.</div>",
+        unsafe_allow_html=True,
+    )
+    for n in sorted(notes, key=lambda x: (x.created_at, x.id), reverse=True):
+        date = n.created_at.split("T", 1)[0] if n.created_at else "n/a"
+        st.markdown(
+            f'<div class="pano-lk-card"><div class="pano-lk-claim">{html.escape(n.claim)}</div>'
+            f'<div class="pano-lk-meta"><span class="sco">no study named</span> · '
+            f'note:{html.escape(n.id)} · {html.escape(n.author or "you")} · '
+            f"{html.escape(date)}</div></div>",
             unsafe_allow_html=True,
         )
 
@@ -1501,6 +1537,7 @@ def render_summary_page() -> None:
                         "or confirm a call in the chat; compiled into the write-up and the exported "
                         "report.</div>", unsafe_allow_html=True)
             _render_lab_note_cards(st, da.read_notes())
+            _render_withheld_notes(st, da.withheld_notes())
 
 
 __all__ = ["render_summary_page"]

@@ -14,9 +14,18 @@ this file stayed green, because both sides spelled the sentence out.
 
 from __future__ import annotations
 
+import pytest
+
 from types import SimpleNamespace
 
 from panoscope.ui import evidence_table as et
+
+
+@pytest.fixture(autouse=True)
+def _render_against_a_copy(app_tree):
+    """Every AppTest in this module renders a real study, and the app writes as it
+    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
+    committed tree stays the read-only input the suite says it is."""
 
 _FLAG = "specificity:localises_elsewhere"
 _COPY = et.FLAG_COPY[_FLAG]
@@ -73,7 +82,6 @@ def test_canonical_membership_is_a_chip_and_selects_nothing_else():
 # frames are changing underneath this, and a test that pins the gene would pass by
 # agreeing with today's answer instead of with the record.
 # --------------------------------------------------------------------------- #
-import pytest
 
 from panoscope.data.study import Study
 from panoscope.pipeline import records
