@@ -192,6 +192,18 @@ class JazzPandaSpatialGLM:
     # propose an alternative account of a cluster.
     rival_space: Literal["reference", "data", "none"] = "reference"
 
+    # MANDATORY-ADJACENT: the declaration that makes TESTED_ABSENT reachable at all.
+    # ``platforms/tidy.py`` defines this flag and defaults it to False, because for a
+    # table truncated to the top N rows the unnamed entities were cut off, not tested,
+    # and enumerating them would fabricate measured absences. jazzPanda's top_result
+    # is not truncated: the assumption above -- "each gene is assigned to at most ONE
+    # cluster (maximum coefficient, minimum p-value)" -- means the table enumerates
+    # the WHOLE analysed panel, one row per gene, with ``NoSig`` for the genes it
+    # assigned nowhere. So a gene whose row says it peaked in c4 was tested in c1 and
+    # did not come up there, which is a measured absence and argues. True here is a
+    # statement about this method's output format, not a preference.
+    enumerates_absence: bool = True
+
     # Looked up live (Bioconductor, 2026-11-02), not written from memory. The
     # package DOI is the citation that resolves today; the Methods pages the SKILL
     # transcribes are cited there as page numbers, and no PMID is recorded in-repo.
@@ -256,6 +268,13 @@ class JazzPandaSpatialGLM:
         world = MeasuredWorld(adapter.frames(store))
         conditions = adapter.standing_conditions(store)
         rows = _rows(table)
+        # Every gene the table names, first-appearance order, INCLUDING the rows
+        # whose unit column is the NoSig sentinel. A gene jazzPanda assigned nowhere
+        # was still looked at, so it belongs to the domain absence is enumerated
+        # over; the capability frames, not this method, decide what each absence is
+        # (the panel and detectability frames turn the NoSig genes into
+        # NEVER_MEASURED, and everything else into a tested absence that argues).
+        universe: tuple[str, ...] = tuple(dict.fromkeys(str(r["gene"]) for r in rows))
 
         out: dict[str, NormalisedEvidence] = {}
         for uid in spec.units:
@@ -270,7 +289,17 @@ class JazzPandaSpatialGLM:
                                r.get(self.statistic_name) or 0.0),
                 reverse=True,
             ))
-            readings = tuple(self._reading(r) for r in mine)
+            # The absences follow every assigned row, in the file's own gene order,
+            # which is the same order for every unit. They carry no statistic, so
+            # core/verdict._drivers skips them and the band is still read off the
+            # first eligible canonical row -- but putting them anywhere other than
+            # last would make the driver depend on where an unnumbered row landed.
+            assigned = frozenset(str(r["gene"]) for r in mine)
+            readings = tuple(self._reading(r) for r in mine) + (tuple(
+                Reading(subject=subject("gene", g=gene(g)), statistic=None,
+                        statistic_name=self.statistic_name)
+                for g in universe if g not in assigned
+            ) if self.enumerates_absence else ())
             reported = Frame(
                 EntityKind.GENE,
                 f"reported:{self.name}:{uid}",

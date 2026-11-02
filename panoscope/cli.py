@@ -209,6 +209,27 @@ def _render_record(study: Study, built: Any) -> list[str]:
         out.extend(f"      caveat: {f}" for f in i.flags)
     out.append("  (* canonical for this label, from the study annotation)")
 
+    # The productive half, between the two this already printed. A record that lists
+    # what was observed and what was never measured, and says nothing about what was
+    # measured and came up empty, reads as though nothing else was tested -- the
+    # four-states-into-two collapse, in the renderer rather than in the lattice.
+    # The canonical ones are NAMED because the study's marker list selects which
+    # absences are worth reporting; it supplies no value, and there is none to supply.
+    tested = [i for i in ev.items
+              if i.measured.state is MeasuredState.TESTED_ABSENT]
+    out.append("")
+    out.append(f"tested, not reported here ({len(tested)}) — absence IS evidence")
+    canon_absent = [i for i in tested
+                    if any(e.id.upper() in built.canonical
+                           for e in i.subject.entities())]
+    for i in canon_absent:
+        out.append(f"  * {i.subject.display()}: in {i.measured.frame}, tested, "
+                   "peaked elsewhere")
+    if not tested:
+        out.append("  (none — every entity in frame was reported for this unit)")
+    elif not canon_absent:
+        out.append("  (none of this label's canonical markers is among them)")
+
     never = [i for i in ev.items
              if i.measured.state is MeasuredState.NEVER_MEASURED]
     out.append("")

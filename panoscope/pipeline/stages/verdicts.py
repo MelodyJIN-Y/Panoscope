@@ -29,6 +29,7 @@ serialises.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Optional
 
@@ -71,10 +72,14 @@ def run_verdicts(
     cdir.mkdir(parents=True, exist_ok=True)
     interp = paths.interp_dir(dataset_id, root)
 
+    from panoscope.core import compat
+
     verdicts: list[ClusterVerdict] = []
     rows: list[dict] = []
+    omitted: Counter[str] = Counter()
     for unit in cfg.CLUSTER_ORDER:
         write_record(built[unit], interp)
+        omitted.update(dict(compat.v1_omissions(built[unit].evidence).value))
         v1 = records.to_v1_dict(built[unit])
         paths.cluster_json(dataset_id, unit, root).write_text(
             json.dumps(v1, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -82,10 +87,20 @@ def run_verdicts(
         verdicts.append(verdict_from_dict(v1))
         rows.append(v1)
 
+    # The v1 view is lossy BY DESIGN (§10), and the loss is announced rather than
+    # left for a reader to notice: these items exist, in full, in the v2 records
+    # written above, and the v1 files say nothing at all about them -- which is the
+    # only representation that cannot be mistaken for "never measured". The reasons
+    # are written longhand in core/compat.V1_UNREPRESENTABLE.
+    if sum(omitted.values()):
+        print("[verdicts] v1 view omits "
+              + ", ".join(f"{n} {what}" for what, n in sorted(omitted.items()) if n)
+              + f" across {len(cfg.CLUSTER_ORDER)} units; v1 has no shape for them "
+              "(core/compat.V1_UNREPRESENTABLE). They are in the v2 records under "
+              f"{interp / 'records'}.")
+
     # The CSV comes off the SAME projections just written, never a second pass:
     # one row in the table and one file on disk cannot then disagree.
-    from panoscope.core import compat
-
     csv_path = paths.verdicts_csv(dataset_id, root)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     csv_path.write_text(compat.v1_verdict_csv(rows).value, encoding="utf-8")

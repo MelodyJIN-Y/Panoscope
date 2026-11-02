@@ -105,6 +105,78 @@ V1_DROPPED: tuple[Dropped, ...] = (
 DROPPED_PATHS: frozenset[str] = frozenset(d.path for d in V1_DROPPED)
 
 
+# --------------------------------------------------------------------------- #
+# The second allowlist: whole ITEMS v1 has no shape for. Same discipline as
+# V1_DROPPED -- a reason written longhand, an entry that only takes effect if the
+# projection also stops emitting the item, and a two-sided test.
+# --------------------------------------------------------------------------- #
+PANEL_FRAME_PREFIX: str = "panel:"
+"""The naming convention a platform adapter uses for its measured-set frame.
+
+``platforms/xenium.py`` declares two gene frames, ``panel:<study>`` and
+``detect:<study>``, and ``_state_for`` names the one that REFUSED an entity. Both
+refusals are ``NEVER_MEASURED``, and v1's ``OffPanelNote`` can only say one of the
+two things: its message is literally "is off-panel (never measured)". A gene that is
+*on* the panel and produced no usable spatial signal is not off-panel, and writing it
+into that list would be the false sentence -- so the prefix is matched here, at the
+translation boundary, rather than a second status field being invented in ``types/``.
+"""
+
+V1_EVIDENCE: str = "evidence"
+V1_OFFPANEL: str = "offpanel_notes"
+V1_OMIT_TESTED_ABSENT: str = "tested_absent"
+V1_OMIT_UNDETECTABLE: str = "never_measured_outside_the_panel_frame"
+
+
+@dataclass(frozen=True, slots=True)
+class Unrepresentable:
+    """One class of v2 item the v1 record cannot hold, and why it is omitted.
+
+    ``bucket`` is the id :func:`_v1_bucket` returns, so an entry cannot be written for
+    a class the classifier does not produce. ``reason`` has no default, for
+    ``Dropped``'s reason: adding an entry costs a sentence in this file's diff.
+    """
+
+    bucket: str
+    reason: str
+
+
+V1_UNREPRESENTABLE: tuple[Unrepresentable, ...] = (
+    Unrepresentable(
+        V1_OMIT_TESTED_ABSENT,
+        "v1 has exactly two buckets -- an `evidence` row, which requires a float "
+        "glm_coef and three float specificity columns, or an `offpanel_notes` entry, "
+        "whose message asserts the gene is off-panel. A tested-absent gene is neither: "
+        "it was on the panel, it was tested, and it peaked somewhere else. Writing it "
+        "as an evidence row needs a number that does not exist; writing it as an "
+        "off-panel note states the opposite of what was measured. v1 predates the "
+        "lattice and genuinely cannot express the state, so the v1 view says NOTHING "
+        "about these genes -- which is the only option that cannot mislead, because "
+        "silence is not a claim while an OffPanelNote is. The state itself is not "
+        "lost: every one of these items is carried, with its measure:tested_absent "
+        "decision and the frame that admitted it, in the v2 InterpretationRecord "
+        "written beside the view at records/assignment/<unit>.json (§10). The count "
+        "is reported by pipeline/stages/verdicts.py at the moment the view is "
+        "generated, so the omission is announced rather than silent.",
+    ),
+    Unrepresentable(
+        V1_OMIT_UNDETECTABLE,
+        "NEVER_MEASURED, but refused by a frame that is not the panel -- in the demo, "
+        "the 49 of 280 panel genes that yield no usable spatial signal, refused by "
+        "detect:<study>. v1's OffPanelNote is the only shape available and its message "
+        "says 'is off-panel (never measured)', which is false of a gene that IS on the "
+        "panel: 'order a different panel' and 'this section gave no signal' are "
+        "different facts to a biologist and v1 has one word for both. Omitted for the "
+        "same reason as above, and recorded in the same place -- the v2 record names "
+        "detect:<study> as the refusing frame on every one of them.",
+    ),
+)
+
+UNREPRESENTABLE_BUCKETS: frozenset[str] = frozenset(
+    u.bucket for u in V1_UNREPRESENTABLE
+)
+
+
 class NoV1Shape(ValueError):
     """Raised for a v2 item the v1 record has no shape for.
 
@@ -113,6 +185,11 @@ class NoV1Shape(ValueError):
     underpowered item cannot be written as one. Dropping it quietly would leave the
     biologist a record that reads as though the measurement never happened -- the
     exact confusion ``measured.py`` exists to prevent, one layer down.
+
+    Two item classes are now omitted rather than raised, each with an entry in
+    :data:`V1_UNREPRESENTABLE` and a counted announcement at generation time. Every
+    other class -- ``UNDERPOWERED`` today -- still raises, because an omission nobody
+    has written a reason for is exactly the silent skip this failure mode is about.
     """
 
 
@@ -266,6 +343,50 @@ def _offpanel_note(item: EvidenceItem, cell_type: str) -> dict[str, Any]:
     }
 
 
+def _v1_bucket(item: EvidenceItem) -> str:
+    """Which v1 shape this v2 item becomes, or which omission class it falls in.
+
+    One classifier, used by the projection and by :func:`v1_omissions`, so the thing
+    that is counted and the thing that is omitted cannot drift. Raises for any state
+    no one has written an entry for.
+
+    Private, and so returns a bare ``str``: ``test_every_core_function_returns_traced``
+    requires every PUBLIC function in ``core/`` to hand its reasoning up, and a
+    per-item classifier that returned ``Traced`` would emit one empty trace per gene
+    -- 280 of them per unit -- to say nothing. The reasoning that matters is the
+    count, which :func:`v1_omissions` carries.
+    """
+    if item.measured.carries_number:
+        return V1_EVIDENCE
+    if item.measured.state is MeasuredState.NEVER_MEASURED:
+        return (V1_OFFPANEL if item.measured.frame.startswith(PANEL_FRAME_PREFIX)
+                else V1_OMIT_UNDETECTABLE)
+    if item.measured.state is MeasuredState.TESTED_ABSENT:
+        return V1_OMIT_TESTED_ABSENT
+    raise NoV1Shape(
+        f"{_gene(item)} is {item.measured.state.value} in {item.measured.frame!r}; "
+        "v1 has only two buckets (an evidence row carrying a number, or an off-panel "
+        "note) and no entry in V1_UNREPRESENTABLE covers this state. Add one with a "
+        "reason, or give v1 a shape for it -- do not let it be skipped."
+    )
+
+
+def v1_omissions(evidence: NormalisedEvidence) -> Traced[tuple[tuple[str, int], ...]]:
+    """How many items of each unrepresentable class this unit's v1 view leaves out.
+
+    Sorted pairs, not a dict, for every other frozen carrier's reason: the caller
+    announces this at the moment the lossy view is written, so "omitted because v1
+    cannot hold it" arrives as a counted statement rather than as a gap a reader has
+    to notice.
+    """
+    counts = {b: 0 for b in sorted(UNREPRESENTABLE_BUCKETS)}
+    for item in evidence.items:
+        bucket = _v1_bucket(item)
+        if bucket in counts:
+            counts[bucket] += 1
+    return Traced(tuple(sorted(counts.items())))
+
+
 def _headline(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...]) -> str:
     if drivers:
         d = drivers[0]
@@ -327,16 +448,12 @@ def to_v1_assignment(evidence: NormalisedEvidence, verdict: Verdict,
     the band was read off, and the record would then disagree with itself.
     """
     canon = frozenset(g.upper() for g in canonical)
-    observed = tuple(i for i in evidence.items if i.measured.carries_number)
-    absent = tuple(i for i in evidence.items
-                   if i.measured.state is MeasuredState.NEVER_MEASURED)
-    leftover = len(evidence.items) - len(observed) - len(absent)
-    if leftover:
-        raise NoV1Shape(
-            f"{evidence.unit}: {leftover} item(s) are tested-absent or underpowered; "
-            "v1 has only two buckets (an evidence row carrying a number, or an "
-            "off-panel note) and would have to collapse four states into two"
-        )
+    # One pass through the one classifier. Anything v1 has no shape for and no
+    # reviewed entry for raises in there; the two classes that DO have entries are
+    # omitted here and counted by v1_omissions for the caller to announce.
+    buckets = tuple(_v1_bucket(i) for i in evidence.items)
+    observed = tuple(i for i, b in zip(evidence.items, buckets) if b == V1_EVIDENCE)
+    absent = tuple(i for i, b in zip(evidence.items, buckets) if b == V1_OFFPANEL)
 
     rows = tuple(_marker_row(i, evidence.unit, canon) for i in observed)
     offpanel = tuple(_offpanel_note(i, label.cell_type) for i in absent)

@@ -255,8 +255,18 @@ def test_the_record_carries_the_read_and_the_measurement_status(demo: Study) -> 
     # Never-measured items are rows that say so, never blanks.
     never = [i for i in built.evidence.items
              if i.measured.state is MeasuredState.NEVER_MEASURED]
-    assert len(never) == len(_committed(demo)["offpanel_notes"])
     assert all(i.statistic is None for i in never)
+    # The v1 view holds the PANEL-frame refusals and nothing else: a gene refused by
+    # the detectability frame is on the panel, and v1's only shape for it is an
+    # OffPanelNote whose message says it is not (core/compat.V1_UNREPRESENTABLE).
+    # So the two counts deliberately differ, and the panel half must still match.
+    off_panel = {e.id for i in never for e in i.subject.entities()
+                 if i.measured.frame.startswith("panel:")}
+    assert off_panel == {n["gene"] for n in _committed(demo)["offpanel_notes"]}
+    assert [i for i in never if not i.measured.frame.startswith("panel:")], (
+        "the demo's undetectable panel genes must reach the record as rows that name "
+        "the detectability frame, not be dropped for lacking a v1 shape"
+    )
 
 
 def test_every_decision_in_the_record_resolves_to_this_unit(demo: Study) -> None:

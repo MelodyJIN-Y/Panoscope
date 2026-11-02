@@ -10,6 +10,7 @@ here only pins that the verb forwards its arguments.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -82,8 +83,13 @@ def test_explain_prints_the_stored_numbers(capsys, demo_id, datasets_root):
     for ev in stored["evidence"]:
         assert ev["gene"] in out
         assert f"{ev['glm_coef']:.3f}" in out
-    # The never-measured count is stated, never implied by a blank.
-    assert f"never measured ({len(stored['offpanel_notes'])})" in out
+    # The never-measured count is stated, never implied by a blank. It is the
+    # RECORD's count and not the v1 file's: the v1 view carries only the panel-frame
+    # refusals (core/compat.V1_UNREPRESENTABLE), so the two deliberately differ --
+    # and every gene the v1 file DOES call off-panel must be named as such here.
+    assert re.search(r"never measured \(\d+\) . absence is NOT evidence", out)
+    for note in stored["offpanel_notes"]:
+        assert f"- {note['gene']}: outside panel:" in out
 
 
 def test_explain_json_is_the_record_verbatim(capsys, demo_id, datasets_root):

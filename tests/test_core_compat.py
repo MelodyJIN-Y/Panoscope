@@ -385,19 +385,98 @@ def test_an_unknown_band_rule_raises_rather_than_rendering_nothing():
 # --------------------------------------------------------------------------- #
 # Fails closed on the two v2 shapes v1 cannot hold
 # --------------------------------------------------------------------------- #
-def test_a_tested_absent_item_has_no_v1_shape_and_says_so():
-    """v1 has two buckets; v2 has four states. The two that fit neither must raise,
-    not vanish -- a dropped row reads to the biologist as a measurement that never
-    happened, which is the opposite of what TESTED_ABSENT means."""
-    ne, v, label, canonical = _rebuild("c9")
-    nosig = EvidenceItem(
-        subject=subject("gene", g=gene("MS4A1")), statistic=None,
-        statistic_name="glm_coef",
-        measured=Measured(MeasuredState.TESTED_ABSENT, PANEL_FRAME),
-    )
-    broken = dataclasses.replace(ne, items=ne.items + (nosig,))
-    with pytest.raises(compat.NoV1Shape, match="tested-absent"):
-        compat.to_v1_assignment(broken, v, label, canonical)
+def _with_extra(cluster: str, item: EvidenceItem):
+    ne, v, label, canonical = _rebuild(cluster)
+    return dataclasses.replace(ne, items=ne.items + (item,)), v, label, canonical
+
+
+def _absent_item(symbol: str, state: MeasuredState, frame: str) -> EvidenceItem:
+    return EvidenceItem(subject=subject("gene", g=gene(symbol)), statistic=None,
+                        statistic_name="glm_coef", measured=Measured(state, frame))
+
+
+def test_a_tested_absent_item_is_omitted_and_never_written_as_an_offpanel_note():
+    """The reviewed replacement for "it raises".
+
+    v1 predates the lattice and has two buckets: an ``evidence`` row, which needs a
+    float glm_coef, or an ``offpanel_notes`` entry, whose message asserts the gene is
+    off-panel. A tested-absent gene fits neither -- it was on the panel, it was
+    tested, and it peaked elsewhere -- so the v1 view says NOTHING about it. That is
+    the one representation that cannot mislead: silence is not a claim, while an
+    OffPanelNote is, and the state survives in full in the v2 record beside the view.
+
+    The gene must be absent from BOTH lists and from ``source_trace``. An omission
+    that leaked into ``offpanel_notes`` would print "MS4A1 is off-panel (never
+    measured)" about a gene the measurement did see, which is the exact confusion
+    ``measured.py`` exists to prevent, written out in English in a file the UI
+    renders.
+    """
+    ne, v, label, canonical = _with_extra(
+        "c9", _absent_item("MS4A1", MeasuredState.TESTED_ABSENT, PANEL_FRAME))
+    d = compat.to_v1_assignment(ne, v, label, canonical).value
+
+    assert "MS4A1" not in {r["gene"] for r in d["evidence"]}
+    assert "MS4A1" not in {n["gene"] for n in d["offpanel_notes"]}
+    assert not [s for s in d["source_trace"] if "MS4A1" in s]
+    assert dict(compat.v1_omissions(ne).value) == {
+        compat.V1_OMIT_TESTED_ABSENT: 1,
+        compat.V1_OMIT_UNDETECTABLE: 0,
+    }
+
+
+def test_a_never_measured_gene_the_panel_does_hold_is_not_called_off_panel():
+    """The second omission class, and why it is not the first.
+
+    ``platforms/xenium.py`` declares two gene frames. A gene refused by
+    ``detect:<study>`` is ON the panel and produced no usable spatial signal; v1's
+    only shape for it says "off-panel", which is false, and "order a different panel"
+    and "this section gave no signal" are different facts to a biologist. So it is
+    omitted too, under its own entry, and the off-panel list keeps meaning what it
+    says.
+    """
+    ne, v, label, canonical = _with_extra(
+        "c9", _absent_item("GNLY", MeasuredState.NEVER_MEASURED, "detect:whatever"))
+    d = compat.to_v1_assignment(ne, v, label, canonical).value
+
+    assert "GNLY" not in {n["gene"] for n in d["offpanel_notes"]}
+    assert dict(compat.v1_omissions(ne).value)[compat.V1_OMIT_UNDETECTABLE] == 1
+    # ...while a PANEL-frame refusal still becomes exactly the note it always did.
+    ne2, v2, label2, canon2 = _with_extra(
+        "c9", _absent_item("CD3D", MeasuredState.NEVER_MEASURED, PANEL_FRAME))
+    d2 = compat.to_v1_assignment(ne2, v2, label2, canon2).value
+    assert "CD3D" in {n["gene"] for n in d2["offpanel_notes"]}
+
+
+def test_a_state_with_no_reviewed_entry_still_raises():
+    """Fails closed on everything the two entries do not name.
+
+    ``UNDERPOWERED`` has no ``V1_UNREPRESENTABLE`` entry, so it raises rather than
+    joining the omitted pile. That is the anti-widening half: an omission nobody has
+    written a reason for is the silent skip, and a second entry costs a sentence in
+    ``compat.py``'s diff.
+    """
+    ne, v, label, canonical = _with_extra(
+        "c9", _absent_item("MS4A1", MeasuredState.UNDERPOWERED, PANEL_FRAME))
+    with pytest.raises(compat.NoV1Shape, match="no entry in V1_UNREPRESENTABLE"):
+        compat.to_v1_assignment(ne, v, label, canonical)
+
+
+def test_every_unrepresentable_entry_names_a_bucket_the_classifier_produces():
+    """Two-sided, as ``V1_DROPPED``'s test is.
+
+    An entry for a bucket ``_v1_bucket`` never returns would sit in the file reading
+    as a reviewed decision about nothing; a bucket the projection omits with no entry
+    would be an unreviewed omission. Neither is allowed, and every entry carries a
+    reason long enough to be a reason.
+    """
+    produced = {compat.V1_EVIDENCE, compat.V1_OFFPANEL,
+                compat.V1_OMIT_TESTED_ABSENT, compat.V1_OMIT_UNDETECTABLE}
+    listed = {u.bucket for u in compat.V1_UNREPRESENTABLE}
+    assert listed <= produced
+    assert listed == compat.UNREPRESENTABLE_BUCKETS
+    assert produced - listed == {compat.V1_EVIDENCE, compat.V1_OFFPANEL}
+    for u in compat.V1_UNREPRESENTABLE:
+        assert len(u.reason) > 120, f"{u.bucket} has no written reason"
 
 
 def test_a_composite_subject_has_no_v1_shape_and_says_so():

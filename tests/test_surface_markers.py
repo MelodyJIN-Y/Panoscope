@@ -61,10 +61,17 @@ def test_the_never_measured_cells_hatch_and_name_the_frame_that_refused_them(row
     never = [r for r in rows if r.state is MeasuredState.NEVER_MEASURED]
     html = surface.table_html(MARKERS, rows)
     assert "pano-sf-hatch" in html
+    from panoscope.platforms.xenium import XeniumAdapter
+
+    declared = {f.name for f in XeniumAdapter().frames(et.cfg.current_study())}
     for row in never:
         # The frame is named, not implied: "never measured" without which frame
-        # refused it is the blank row with extra words.
-        assert "frame panel:" in row.reason
+        # refused it is the blank row with extra words. WHICH frame refused it is
+        # the point: `panel:` means the gene was never probed, `detect:` means it
+        # was probed and produced no usable spatial signal, and those are different
+        # facts to a biologist -- so this asserts a real declared frame is named,
+        # not one hardcoded prefix.
+        assert any(f"frame {name}" in row.reason for name in declared), row.reason
         assert "absence argues nothing" in row.reason
         assert row.reason in html  # it is the hover, on the hatch itself
 
@@ -83,9 +90,17 @@ def test_these_rows_are_absent_from_the_v1_view_the_page_used_to_render(rows):
 
 def test_an_absence_block_renders_its_header_at_zero():
     """A block that disappears at zero is the panel-absence rule disappearing at the
-    moment it had something to say."""
+    moment it had something to say.
+
+    Driven from a filtered row set rather than from c1, which used to have no
+    never-measured rows and now has 49: the method enumerates the whole panel table,
+    so the detectability frame refuses the NoSig genes on every unit. The zero case
+    is still reachable (a study whose panel carries every canonical marker and whose
+    genes all gave signal), and it is the RENDERING of zero that this pins."""
     built = et.unit_build("c1")
-    html = surface.table_html(MARKERS, et.rows_for("c1", built))
+    observed = [r for r in et.rows_for("c1", built)
+                if r.state is not MeasuredState.NEVER_MEASURED]
+    html = surface.table_html(MARKERS, observed)
     assert "NEVER MEASURED - 0 off panel" in html
     assert "every canonical marker for this label is on panel" in html
 
