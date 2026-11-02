@@ -272,6 +272,38 @@ RULES: dict[str, Rule] = _rules(
          "no second method's result was supplied, or one side never measured the "
          "subjects the other raised; silence that is not a negative observation "
          "cannot be a disagreement"),
+    # -- step: corpus (panoscope.corpus.store, panoscope.corpus.retrieve) --
+    # Three resolve ids and three retrieve ids, for the reason reference has three:
+    # "we looked and there is no such paper" and "we never looked, or the lookup
+    # failed" render as the same sentence unless the id keeps them apart, and only
+    # the first is CLAUDE.md's "say the literature is thin" -- a claim about the
+    # world. Commit 5b7ab08 is that collapse in its pure form: ok=True, n_results=0.
+    # None of these is ever a value: a corpus record carries a citation, never a
+    # statistic, and a retrieval score orders evidence without supplying one.
+    Rule("corpus:resolved", "corpus",
+         "a citation URI resolves to a source record that came off a live connector"),
+    Rule("corpus:not_found", "corpus",
+         "a lookup RAN TO COMPLETION and the connector holds no such record -- thin "
+         "literature, which is a finding, and the only state that may be said so"),
+    Rule("corpus:not_looked_up", "corpus",
+         "no record and no completed lookup: never looked, or the lookup failed. "
+         "Carries no information at all, and must never read as absence"),
+    Rule("corpus:lookup_failed", "corpus",
+         "a lookup errored, timed out, returned an unparseable shape, or has no "
+         "connector for its scheme; NOTHING is written, so the URI stays unlooked-up "
+         "rather than becoming a paper that does not exist"),
+    Rule("corpus:fetched", "corpus",
+         "a batch of URIs was resolved against a connector, with the record and miss "
+         "counts and how many carry a licence-bearing abstract"),
+    Rule("corpus:support_found", "corpus",
+         "records cleared the relevance floor; the ranking and its weights are "
+         "stated. Topical relevance only -- never corroboration of a measurement"),
+    Rule("corpus:no_support", "corpus",
+         "the corpus was searched and nothing cleared the floor -- §10.4's 'no "
+         "support found', stated concretely as n searched rather than as silence"),
+    Rule("corpus:not_built", "corpus",
+         "there was no corpus to search; nothing was read, so nothing may be "
+         "concluded about what the literature holds"),
 )
 
 
