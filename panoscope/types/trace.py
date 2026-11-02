@@ -194,6 +194,83 @@ RULES: dict[str, Rule] = _rules(
     Rule("concordance:not_comparable", "concordance",
          "a sample never measured the subject, was underpowered for it, or emitted "
          "no item at all; replicates cannot diverge about something one could not see"),
+    # -- step: enrichment (panoscope.workflows.enrichment.interpret) --
+    # Four ids rather than one "enrichment:tier", for the reason measure has four
+    # states: "we measured it and it is not enriched here" and "the panel carried too
+    # little of it to ask" are different answers, and a single id would let the UI and
+    # the grounding tests collapse them back into "unknown". None of these is a band:
+    # a characterisation has no label space, so the unit-level number does not exist.
+    Rule("enrichment:enriched", "enrichment",
+         "the set's q clears the workflow's enriched bar; verify is set only where "
+         "the panel footprint is thin, which conditions the call and never tiers it"),
+    Rule("enrichment:suggestive", "enrichment",
+         "in frame and reported, but q sits between the enriched bar and the "
+         "method's own reporting bar -- real but weak, and it carries verify"),
+    Rule("enrichment:not_enriched", "enrichment",
+         "the set was scored against this unit and did not clear the method's "
+         "reporting bar -- a measured absence, which is the half that argues"),
+    Rule("enrichment:untestable", "enrichment",
+         "too little of the set was inside the capability frames, or it was never "
+         "scored at all; its absence argues nothing and its statistic is withheld"),
+    # -- step: confidence (panoscope.methods.seurat_de.SeuratDE.rubric) --
+    # A second method needs its OWN ladder ids, not jazzPanda's. "band:from_coef"
+    # says "read off the driver's glm_coef" and would be a lie over an avg_log2FC;
+    # worse, one shared id would make the two methods' decisions indistinguishable
+    # in the record, which is exactly the method-blindness ARCHITECTURE 9.4 forbids.
+    # Neither is ever a unit band: a COMPARISON has no label space (9.1), so these
+    # label a per-item effect size and nothing reads them for a unit verdict.
+    Rule("band:from_effect_size", "confidence",
+         "per-item effect size read off a method's own effect-size statistic, "
+         "through that method's own declared edges -- never a unit-level band"),
+    Rule("band:no_effect_reported", "confidence",
+         "no item carried an effect-size statistic, so the floor label is recorded "
+         "rather than omitted: a rubric whose answer simply did not appear is "
+         "indistinguishable from one that never ran"),
+    # -- step: de (panoscope.workflows.de, ARCHITECTURE 9.7's four checks) --
+    # Three outcomes per check rather than one id with a state field, for the reason
+    # measure has four states and rival has three: the UI and the grounding tests
+    # branch on the id, and "we checked and it is fine" must never render the same
+    # as "we could not check". CANNOT_BE_SETTLED is the productive outcome here --
+    # it is the refusal 9.7 names as the clearest demonstration of the behaviour --
+    # so it gets its own id everywhere it can occur, and every one of them carries
+    # what is missing rather than a bare refusal.
+    Rule("de:panel_scoped", "de",
+         "a DE result on a targeted panel is not a transcriptome-wide result: K of N "
+         "stated, and the canonical genes for the affected process that were never "
+         "measured named, because their absence from it argues nothing"),
+    Rule("de:panel_frame_absent", "de",
+         "no capability frame for genes was declared, so the scope of the result "
+         "cannot be stated; a denominator guessed here would be a panel size "
+         "asserted rather than read"),
+    Rule("de:replicate_confound", "de",
+         "the design cannot separate condition from batch or section -- one "
+         "biological replicate, or none declared -- so the condition-level claim "
+         "CANNOT BE SETTLED and the refusal names the replicates that are missing"),
+    Rule("de:replicate_not_in_result", "de",
+         "enough replicates exist, but the result reports one number per gene for "
+         "the whole unit, so which replicate drives it is not in the table; "
+         "core/concordance.py settles it once per-sample results exist"),
+    Rule("de:composition_confounded", "de",
+         "this unit's share of cells differs across the arms, so a gene can read as "
+         "up because the cells expressing it became more numerous; the measurement "
+         "does not separate a composition change from an expression change"),
+    Rule("de:composition_separated", "de",
+         "this unit's share of cells is unchanged across the arms, so a change here "
+         "is not explained by the mixture"),
+    Rule("de:composition_not_supplied", "de",
+         "no cluster abundance was supplied for the arms being compared, and a DE "
+         "table carries none; the question was not asked rather than answered"),
+    Rule("de:coherence_tension", "de",
+         "the DE result and the spatial result pull against each other about one "
+         "subject. Different questions, so never a disagreement about one fact "
+         "(9.11) -- two measurements that do not sit together"),
+    Rule("de:coherence_coherent", "de",
+         "the two results sit together. Coherent, NEVER corroborated: they answer "
+         "different questions, so neither is a second witness to the other"),
+    Rule("de:coherence_not_comparable", "de",
+         "no second method's result was supplied, or one side never measured the "
+         "subjects the other raised; silence that is not a negative observation "
+         "cannot be a disagreement"),
 )
 
 

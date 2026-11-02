@@ -119,5 +119,7 @@ def names() -> tuple[str, ...]:
 # file beside jazzpanda.py -- no type changes anywhere.
 # --------------------------------------------------------------------------- #
 from panoscope.methods import jazzpanda as _jazzpanda  # noqa: E402  (registration order)
+from panoscope.methods import jazzpanda_cgst as _jazzpanda_cgst  # noqa: E402
 
 register(_jazzpanda.MODULE)
+register(_jazzpanda_cgst.MODULE)

@@ -80,5 +80,7 @@ def names() -> tuple[str, ...]:
 # The entries. One line per question; this is the "dict literal" in call form.
 # --------------------------------------------------------------------------- #
 from panoscope.workflows import marker as _marker  # noqa: E402  (registration order)
+from panoscope.workflows import enrichment as _enrichment  # noqa: E402
 
 register(_marker.WORKFLOW)
+register(_enrichment.WORKFLOW)
