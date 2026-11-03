@@ -329,25 +329,31 @@ def test_frame_rejection_can_push_a_set_under_the_leading_edge_floor():
     assert "tiny leading edge" in pe.caveats
 
 
-def test_the_denominator_travels_into_the_chat_bubble_too() -> None:
+def test_the_denominator_travels_into_the_chat_bubble_too(monkeypatch) -> None:
     """The same claim, the same authority, one surface carrying its conditionality.
 
     ``ui/report.py`` names K of N for every program in the exported paragraph,
     because a set scored on 5 of its 100 genes reads exactly like one scored on
-    90 without it. The Pathways chat opened with "Top programs — Androgen
-    Response: ..." and no denominator at all -- and that program is scored on 5
-    of 100. Every plot carries its conditionality; a sentence is not exempt
-    because it is prose.
+    90 without it. The Pathways chat opened with "Top programs - <name>: ..." and
+    no denominator at all; on the real demo that program is scored on 5 of 100.
+
+    SYNTHETIC, like the rest of this file: the jazzPanda enrichment result is
+    gitignored, and a fresh clone must still run this guarantee rather than skip
+    it.
     """
     from panoscope.ui import enrichment_conversation as ec
 
+    ce = E._cluster_enrichment(
+        "c1",
+        (E._pathway_from_jz_row(_row(geneset_size=100, panel_hits=5, q=0.0)),),
+        _METHOD,
+    )
+    assert ce.enriched, "the fixture must produce an enriched program to name"
+    monkeypatch.setattr(ec, "_ce", lambda _c: ce)
+    monkeypatch.setattr(ec.da, "pathway_note", lambda _c, _s: {})
+
     text, _pmids, _verify = ec._opening_text("c1")
     assert "Top programs" in text, text
-
-    ce = E.enrichment_for_cluster("c1")
-    for p in ce.enriched[:3]:
-        if not (p.panel_hits and p.set_size_full):
-            continue
-        assert f"[{p.panel_hits}/{p.set_size_full} set genes on panel]" in text, (
-            f"{p.gene_set} is named with no denominator:\n{text}"
-        )
+    assert "[5/100 set genes on panel]" in text, (
+        f"the program is named with no denominator:\n{text}"
+    )
