@@ -64,6 +64,40 @@ def test_the_index_finds_each_feature_exactly(tiny: Path) -> None:
     assert (tiny / spatial.INDEX_NAME).is_file(), "the sidecar was not written"
 
 
+def test_a_rewritten_store_is_not_answered_from_the_old_index(tmp_path) -> None:
+    """The sidecar describes bytes, so it must say WHICH bytes.
+
+    ``index()`` keys its in-process cache on the parquet's mtime, and that half
+    worked. The miss then re-read ``points_index.json``, which carried no
+    fingerprint of the file it described and is only ever written by
+    ``build_index`` -- so a store rewritten under the same path was answered from
+    the previous store's spans. A span is a row range: wrong spans do not fail,
+    they return one gene's transcripts under another gene's name, which is the
+    shape of defect this module's own docstring says nobody finds.
+
+    Rewriting in place is not exotic: the docstring describes re-chunking
+    SpatialData's ~1M-row groups to 200k, which does exactly this.
+    """
+    import time
+
+    store = _write_store(tmp_path, [(5.0, 5.0, "GENE_A"), (15.0, 5.0, "GENE_A"),
+                                    (5.0, 25.0, "GENE_B")])
+    assert set(spatial.index(store).spans) == {"GENE_A", "GENE_B"}
+    assert (store / spatial.INDEX_NAME).is_file(), "the sidecar should be written"
+
+    time.sleep(0.01)  # a distinguishable mtime
+    _write_store(tmp_path, [(5.0, 5.0, "GENE_A"), (99.0, 99.0, "GENE_C"),
+                            (98.0, 98.0, "GENE_C")])
+
+    spans = spatial.index(store).spans
+    assert set(spans) == {"GENE_A", "GENE_C"}, (
+        f"the old index was served for a rewritten store: {spans}"
+    )
+    assert spatial.available_features(store) == ("GENE_A", "GENE_C")
+    # ...and the spans address the NEW rows, not merely the new names.
+    assert spans["GENE_C"] == (1, 3), spans
+
+
 def test_an_unsorted_store_is_refused_rather_than_answered_slowly(tmp_path) -> None:
     """The defect that returns the RIGHT number is the one nobody finds.
 

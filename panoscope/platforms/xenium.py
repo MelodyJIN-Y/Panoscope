@@ -242,7 +242,10 @@ def _annotated_controls_cached(path: str, mtime_ns: int, size: int) -> frozenset
     one of the two stat fields, so the key changes with the file.
     """
     df = pd.read_parquet(path)
-    if "annotation" not in df.columns:
+    # Both columns, not just the annotation: a panel spelling its gene column
+    # anything else raised a bare KeyError here as well as in ``_panel_genes``,
+    # and this one is reached first through ``frames``.
+    if "annotation" not in df.columns or "gene" not in df.columns:
         return frozenset()
     return frozenset(
         str(g).strip().upper()
@@ -300,7 +303,22 @@ class XeniumAdapter:
         p = store.inputs / "panel.parquet"
         if not p.is_file():
             return None
-        df = pd.read_parquet(p)
+        try:
+            df = pd.read_parquet(p)
+        except Exception:  # noqa: BLE001 - an unreadable panel is "no measured set"
+            return None
+        if "gene" not in df.columns:
+            # UNREADABLE, not empty -- the same answer a missing file gets, so the
+            # distinction this docstring protects (None = no frame at all,
+            # frozenset() = a frame that admits nothing) still holds.
+            #
+            # This indexed df["gene"] unguarded, so a panel whose column is spelled
+            # "Gene" or "gene_name" raised a bare KeyError out of ``frames``. And
+            # ``intake.derive`` wraps ``reads`` in try/except Blocked but not
+            # ``frames``, so the biologist got a traceback instead of the checklist
+            # line written for precisely this case -- which already says "missing
+            # or has no usable gene column" four hundred lines below.
+            return None
         notes = (df["annotation"] if "annotation" in df.columns
                  else [None] * len(df))
         return frozenset(

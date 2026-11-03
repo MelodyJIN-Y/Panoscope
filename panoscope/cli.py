@@ -191,8 +191,14 @@ def _render_record(study: Study, built: Any) -> list[str]:
     out.extend(f"                - {why}: {n}" for why, n in r.drop_reasons)
     out.append(f"  clustering  {r.clustering_mode}")
     out.append("  frames      " + "  ".join(f"{f.name}={f.size}" for f in r.frames))
+    # "at least one frame", not "no frame". ``read_tidy`` builds this set with
+    # ``not all(f.contains(e) for f in kind_frames)``, and this study declares TWO
+    # gene frames -- panel (280) and detect (231). The 49 no-signal genes land here
+    # by failing detect alone, while the panel admits every one of them, so the old
+    # wording asserted they were never probed. That is the collapse the four-state
+    # lattice exists to stop, printed by the command a reviewer uses to audit it.
     out.append(f"  outside the capability frame: {len(r.entities_outside_frame)} "
-               f"entity(s) the method named that no frame admits")
+               f"entity(s) the method named that at least one frame does not admit")
 
     out.append("")
     out.append(f"evidence (measured — {ev.module} {r.statistic_column})")
@@ -316,6 +322,20 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
 
     print()
     print("credentials (presence only — never printed)")
+    # Load .env first, because the agent does: PanoscopeAgent.__init__ calls
+    # load_dotenv() before reading ANTHROPIC_API_KEY, and mcp_client does the same
+    # for the NCBI pair. Reporting bare os.getenv printed "absent" for all three
+    # one line above doctor's own ".env in cwd: present" -- on a machine where the
+    # app would go live. doctor is the documented way to check this, and the README
+    # tells the reader to put exactly these keys in .env.
+    try:
+        from dotenv import load_dotenv
+
+        # The cwd .env specifically, not a parent walk: doctor reports ".env in
+        # cwd" one line below, so it must answer about that same file.
+        load_dotenv(Path.cwd() / ".env")
+    except Exception:  # noqa: BLE001 - no python-dotenv: report the shell as-is
+        pass
     for name in _CREDENTIAL_ENV:
         print(f"  {name:<20} {'present' if os.getenv(name) else 'absent'}")
     dotenv = Path.cwd() / ".env"

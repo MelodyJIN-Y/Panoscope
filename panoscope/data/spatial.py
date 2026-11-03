@@ -168,20 +168,43 @@ def build_index(store_dir: Path | str, name: str = DEFAULT_POINTS) -> PointsInde
 
     idx = PointsIndex(spans={k: (int(a), int(b)) for k, (a, b) in spans.items()},
                       row_group_size=int(rg_size), n_rows=int(cursor))
+    # ``source_mtime_ns`` fingerprints the bytes this index describes. Without it
+    # the sidecar was trusted forever: the in-process cache correctly missed when
+    # the parquet changed, and the miss then re-read the same stale JSON off disk.
+    # Measured on a rewritten store -- a gene removed from the store still listed,
+    # a gene added still missing, and spans pointing at the wrong rows, which is
+    # one gene's transcripts served under another gene's name.
     (Path(store_dir) / INDEX_NAME).write_text(
         json.dumps({"row_group_size": idx.row_group_size, "n_rows": idx.n_rows,
+                    "source_mtime_ns": _source_mtime_ns(store_dir, name),
                     "spans": idx.spans}) + "\n", encoding="utf-8")
     return idx
+
+
+def _source_mtime_ns(store_dir: Path | str, name: str) -> int:
+    """mtime of the parquet an index describes, or 0 when there is none."""
+    parts = sorted(points_parquet(store_dir, name).glob("*.parquet"))
+    return parts[0].stat().st_mtime_ns if parts else 0
 
 
 @lru_cache(maxsize=8)
 def _index_cached(store_dir: str, name: str, _mtime_ns: int) -> PointsIndex:
     p = Path(store_dir) / INDEX_NAME
     if p.is_file():
-        raw = json.loads(p.read_text(encoding="utf-8"))
-        return PointsIndex(
-            spans={k: (int(v[0]), int(v[1])) for k, v in raw["spans"].items()},
-            row_group_size=int(raw["row_group_size"]), n_rows=int(raw["n_rows"]))
+        try:
+            raw = json.loads(p.read_text(encoding="utf-8"))
+            fresh = int(raw.get("source_mtime_ns", -1)) == _mtime_ns
+        except Exception:  # noqa: BLE001 - an unreadable sidecar is a rebuild
+            fresh = False
+        if fresh:
+            return PointsIndex(
+                spans={k: (int(v[0]), int(v[1])) for k, v in raw["spans"].items()},
+                row_group_size=int(raw["row_group_size"]),
+                n_rows=int(raw["n_rows"]))
+        # Stale or unfingerprinted: rebuild. A sidecar written before this field
+        # existed has no claim on the current bytes, and an index that is wrong is
+        # worse than one that costs three seconds -- it answers with the wrong
+        # gene's rows and nothing looks broken.
     return build_index(store_dir, name)
 
 

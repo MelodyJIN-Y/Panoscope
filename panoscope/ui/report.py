@@ -529,7 +529,19 @@ def _provenance(dataset: str) -> dict:
         from panoscope.corpus import store as corpus_store
 
         c = corpus_store.load(corpus_store.corpus_path(dataset))
-        corpus = f"{getattr(c, 'version', '?')} · {len(getattr(c, 'sources', ()))} source(s)"
+        # The fields Corpus ACTUALLY has: records, misses, built, spec_version.
+        # This read ``version`` and ``sources``, neither of which exists, so both
+        # getattrs always took their defaults and a corpus holding two records and
+        # a build stamp rendered as "? · 0 source(s)" -- a §14 provenance line
+        # whose stated purpose is that "corpus not built" is an answer and a blank
+        # is not. It was neither: it was a built corpus reported as empty.
+        #
+        # ``misses`` is counted alongside ``records`` because it is first class
+        # here: it is what separates "asked and found nothing" from "never asked".
+        built = getattr(c, "built", "") or "no build stamp"
+        corpus = (f"{built} · {len(getattr(c, 'records', ()))} record(s), "
+                  f"{len(getattr(c, 'misses', ()))} miss(es) · spec "
+                  f"{getattr(c, 'spec_version', '?')}")
     except Exception:  # noqa: BLE001 - CorpusUnavailable is the ordinary case
         pass
 
