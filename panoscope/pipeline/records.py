@@ -60,6 +60,16 @@ class UnitBuild(NamedTuple):
     verdict: Any         # core.verdict.Verdict
     canonical: frozenset[str]
     label: Any           # core.compat.UnitLabel
+    #: The workflow's own output for this unit, through ``core.interpret.interpret``
+    #: -- the ASSIGNMENT shape, guarded against the declared task kind. It carries
+    #: the same band and ``verify`` as :attr:`verdict`, and the two are pinned to
+    #: each other by ``tests/test_workflow_routed.py`` rather than left to agree by
+    #: habit. They are not redundant: ``Assignment`` is the v2 output contract and
+    #: the thing a surface renders, while ``Verdict`` carries the basis, the
+    #: demotion ids and the driver that the v1 projection and ``cli explain`` branch
+    #: on and for which ``Assignment`` has no field. Defaulted, so the positional
+    #: constructor stays source-compatible with callers that build one directly.
+    assignment: Any = None   # types.outputs.Assignment
 
 
 def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
@@ -328,8 +338,10 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     import pandas as pd
 
     from panoscope import methods, workflows
-    from panoscope.core import compat, measure, record as core_record
+    from panoscope.core import compat, interpret as core_interpret, measure
+    from panoscope.core import record as core_record
     from panoscope.core import verdict as core_verdict
+    from panoscope.workflows import marker as wf_marker
     from panoscope.platforms.tidy import read_tidy
     from panoscope.platforms.xenium import XeniumAdapter
     from panoscope.types.measured import MeasuredWorld
@@ -345,12 +357,14 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         )
     method = registered[0]
     # The shape guard, at the one place that holds the declaration and the band.
-    # This root is ASSIGNMENT-shaped by construction: it calls ``core.verdict.assess``
-    # unconditionally and projects a band into interp/clusters/<unit>.json and into
-    # verdicts.csv. ``core/interpret.py`` guards the same rule by comparing a
-    # RETURNED object against the declaration; there is no returned object here --
-    # the shape is this function's own code -- so the comparison is against the
-    # declaration alone. Without it, registering a CHARACTERISATION workflow under
+    # This root projects a band into interp/clusters/<unit>.json and into
+    # verdicts.csv, so a workflow that declares no label space cannot be allowed to
+    # reach it. ``core/interpret.py`` guards the other half of the same rule by
+    # comparing the RETURNED object against the declaration, and now runs on this
+    # path too (see the ``interpret`` call below) -- but it cannot run before the
+    # IO, and a CHARACTERISATION workflow registered here should fail before the
+    # study is read rather than nine units in. Declaration first, object second;
+    # neither subsumes the other. Without it, registering a CHARACTERISATION workflow under
     # WORKFLOW_ID would write a unit-level band for a question with no label space,
     # and nothing downstream would notice: ``core.record.build`` takes task_kind as a
     # parameter and ``core.compat.to_v1_assignment`` is handed a Verdict and never
@@ -454,10 +468,20 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # come out byte-identical at Very High with verify false. ``None`` where
         # the comparison was not askable at all, which ``conc_because`` explains
         # in the same record.
-        verdict = core_verdict.assess(
-            ev.items, canonical,
-            _replicate_coverage(unit, n_method_subjects, conc, conc_uncomparable),
-        )
+        replicate = _replicate_coverage(unit, n_method_subjects, conc,
+                                        conc_uncomparable)
+        # ...and it travels ON the unit from here, because the workflow computes
+        # the band and must not be handed evidence whose band-relevant context was
+        # left behind at the root. ``Measured.coverage`` is where every K-of-N in
+        # the system already lives and ``workflows/de.py`` already reads one off it.
+        # Appended rather than assigned: the unit may already carry a coverage of
+        # its own, and ``marker._replicate_coverage`` matches on ``what`` rather
+        # than taking the first.
+        if replicate is not None:
+            ev = dataclasses.replace(ev, unit_measured=dataclasses.replace(
+                ev.unit_measured,
+                coverage=ev.unit_measured.coverage + (replicate,)))
+        verdict = core_verdict.assess(ev.items, canonical, replicate)
         record = core_record.build(
             ev, reading,
             core_record.unit_decisions(ev, loaded, *absences),
@@ -471,8 +495,30 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             task_kind=task_kind,
             undecidable=conc_because.get(unit, ()),
         ).value
+        # The workflow answers its own question. ``core.interpret.interpret``
+        # rather than ``wf.interpret`` directly: the guard that compares the
+        # RETURNED shape against the declared task kind lives there, and this is
+        # the path that writes a band into verdicts.csv, so it is the path that
+        # most needs it. The task-kind check above is the same rule asked of the
+        # declaration before any IO; this one asks it of the object.
+        #
+        # ``MarkerReference`` is named here, which is the one coupling left: the
+        # root has to know its workflow's reference TYPE to build one, exactly as
+        # ``stages/enrichment.py`` names ``EnrichmentReference``. The registry
+        # still chooses the workflow; what it cannot yet do is hand over a
+        # reference builder, so a second ASSIGNMENT workflow with a different
+        # reference carrier would need this line.
+        assignment = core_interpret.interpret(ev, wf, wf_marker.MarkerReference(
+            label=str(meta.get("cell_type", "Unknown")),
+            # Sorted, not the frozenset's own order: ``interpret`` re-freezes it
+            # so the band cannot depend on it, but an unsorted tuple in a record
+            # that gets hashed would make byte-stability depend on PYTHONHASHSEED.
+            canonical=tuple(sorted(canonical)),
+            world=world,
+        )).value
         out[unit] = UnitBuild(
             record=record, evidence=ev, verdict=verdict.value, canonical=canonical,
+            assignment=assignment,
             label=compat.UnitLabel(
                 cell_type=str(meta.get("cell_type", "Unknown")),
                 cell_type_short=str(meta.get("cell_type_short", "Unknown")),

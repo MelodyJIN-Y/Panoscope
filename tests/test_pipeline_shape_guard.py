@@ -8,9 +8,12 @@ and ``core.compat.to_v1_assignment`` is handed a ``Verdict`` and never asks what
 question it answers -- so registering a CHARACTERISATION workflow under
 ``WORKFLOW_ID`` would write a unit-level band for a question with no label space.
 
-``core/interpret.py`` guards the same rule by comparing a RETURNED object against
-the declaration. There is no returned object at this root (the shape is the
-function's own code), so the comparison here is against the declaration alone.
+``core/interpret.py`` guards the other half of the same rule by comparing a
+RETURNED object against the declaration, and since the root was routed through the
+workflow it runs on this path too -- ``tests/test_workflow_routed.py`` holds that
+end. It cannot replace this one: it only fires once the study has been read and a
+unit interpreted, whereas a workflow registered under the wrong task kind should be
+refused before any IO. What is asserted here is therefore the declaration alone.
 
 The stand-in is ``dataclasses.replace`` on the registered workflow: every other
 attribute stays real and exactly one thing -- the declaration -- moves. A

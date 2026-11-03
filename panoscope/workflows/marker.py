@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from panoscope.core.rival import rival_test as _core_rival_test
-from panoscope.core.verdict import assess as _assess
+from panoscope.core.verdict import REPLICATE_COVERAGE_WHAT, assess as _assess
 from panoscope.types.contracts import Check, RivalResult
 from panoscope.types.evidence import NormalisedEvidence
 from panoscope.types.measured import MeasuredState, MeasuredWorld
@@ -115,10 +115,22 @@ class MarkerInterpretation:
         ``verify`` is taken from ``core/verdict.py`` and is never recomputed, never
         widened and never offered as an argument. It is the flag that says a human
         must look again, so a layer that could set it could also clear it.
+
+        **The §9.10 replicate coverage reaches the band through the unit, not
+        through the reference.** :func:`_replicate_coverage` reads it off
+        ``ev.unit_measured``, which is where ``Measured.coverage`` already says
+        every K-of-N lives and where ``workflows/de.py`` already reads one. The
+        alternative was a field on :class:`MarkerReference`, and it would have been
+        wrong twice over: a replicate count is a measurement fact rather than
+        reference data, and a reference object that can lower a band is exactly the
+        thing the rule about reference data forbids. Routing it through the unit
+        also means a composition root cannot forget to pass it -- the coverage
+        travels with the evidence it describes.
         """
         t = Trace()
         ref_: MarkerReference = reference
-        verdict = t.absorb(_assess(ev.items, frozenset(ref_.canonical)))
+        verdict = t.absorb(_assess(ev.items, frozenset(ref_.canonical),
+                                   _replicate_coverage(ev)))
 
         drivers = tuple(i for i in ev.items if i.measured.carries_number)
         unmeasured = tuple(i for i in ev.items if not i.measured.carries_number)
@@ -247,6 +259,26 @@ class MarkerInterpretation:
             csv_columns=("unit", "label", "band", "verify", "gene", "statistic",
                          "pearson", "status"),
         )
+
+
+def _replicate_coverage(ev: NormalisedEvidence) -> Any:
+    """The §9.10 K of N this unit's band must see, or ``None`` if it was never asked.
+
+    ``None`` and ``Coverage(k=0, n=N)`` are different answers and the difference is
+    the whole reason this is a lookup rather than a flag. Absent means the question
+    was never askable -- one sample, no per-sample tables, independent clustering --
+    and the band is untouched, because demoting for the absence of a question would
+    punish the single-sample demo on every unit. Present with ``k=0`` means the
+    comparison WAS asked and compared nothing, which is a genuinely unsupported
+    profile and demotes.
+
+    Matched on :data:`~panoscope.core.verdict.REPLICATE_COVERAGE_WHAT` rather than
+    by position, because ``Measured.coverage`` is one home for every K-of-N in the
+    system -- panel hits, leading-edge size, cells in a niche -- and taking the
+    first would hand ``assess`` whichever one happened to be written first.
+    """
+    return next((c for c in ev.unit_measured.coverage
+                 if c.what == REPLICATE_COVERAGE_WHAT), None)
 
 
 def _rationale(ev: NormalisedEvidence, reference: MarkerReference,
