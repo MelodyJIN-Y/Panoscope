@@ -359,10 +359,12 @@ def _guard_data_tree():
 def tree_guard():
     """This module itself, for the guard's own test file.
 
-    A fixture rather than an ``import conftest``: ``tests/`` is not a package, so the
-    name this module lands under in ``sys.modules`` differs between the normal run
-    (``tests.conftest``, via pytest.ini's ``pythonpath = .``) and the out-of-tree CI
-    job that copies ``tests/`` elsewhere and moves the checkout aside. A test file that
-    guesses the name fails at collection in one of the two.
+    A fixture rather than an ``import conftest``: the name this module lands under
+    in ``sys.modules`` differs between the normal run (``tests.conftest``, because
+    ``tests/`` is a package and pytest puts the rootdir on sys.path) and the
+    out-of-tree CI job, which copies ``tests/`` elsewhere and moves the checkout
+    aside. A test file that guesses the name fails at collection in one of the two.
+    This used to rest on ``pytest.ini``'s ``pythonpath = .``; that setting is gone
+    (the config now lives in ``pyproject.toml``) and the reasoning is unchanged.
     """
     return sys.modules[__name__]

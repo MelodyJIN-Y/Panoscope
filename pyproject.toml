@@ -23,12 +23,21 @@ dependencies = [
 # next major instead of removed: an unbounded UI/dataframe pin is the
 # reproducibility hazard §8 warns about, a stale one is just a lie.
 
+# Upper bounds on EVERY extra, per §8. Each bound is the next major above a version
+# this project has actually run; the exact set lives in requirements.lock. The one
+# exception is called out rather than hidden.
 [project.optional-dependencies]
 app     = ["streamlit>=1.59,<2", "plotly>=5.20,<8"]
-agent   = ["anthropic>=0.40", "mcp>=1.2", "python-dotenv>=1"]
-export  = ["python-docx>=1.1", "fpdf2>=2.7"]
-spatial = ["spatialdata>=0.2", "zarr>=2.17"]
-dev     = ["pytest>=8", "pytest-cov", "ruff", "mypy"]
+agent   = ["anthropic>=0.40,<2", "mcp>=1.2,<3", "python-dotenv>=1,<2"]
+export  = ["python-docx>=1.1,<2", "fpdf2>=2.7,<3"]
+# UNTESTED, and bounded anyway. Nothing in this package imports spatialdata or
+# zarr, no CI job installs this extra and no test exercises it -- so these are the
+# only two bounds here not read off a working install. Bounded because an
+# unbounded pin is the hazard §8 names; flagged because a bound nobody has tested
+# is still a guess. (§8's own dependency list is stale the same way: it names
+# platformdirs, which no module in this package imports.)
+spatial = ["spatialdata>=0.2,<1", "zarr>=2.17,<4"]
+dev     = ["pytest>=8,<10", "pytest-cov>=5,<8", "ruff>=0.5,<1", "mypy>=1.10,<2"]
 
 [project.scripts]
 panoscope = "panoscope.cli:main"
@@ -42,3 +51,21 @@ packages = ["panoscope"]
 [tool.hatch.build]
 # The study store never ships in the wheel.
 exclude = ["studies", "Raw_data_*", "jazzPanda output", "handoff", "context", "tests"]
+
+# --------------------------------------------------------------------------- #
+# pytest config lives here, not in pytest.ini. IMPLEMENTATION.md §7 Phase B says
+# "delete pytest.ini", and the reason is one setting it carried: `pythonpath = .`
+# put the repo root on sys.path for every run, so no local run ever exercised the
+# INSTALLED package and every "works because cwd is the repo root" bug stayed
+# invisible. That is exactly what the out-of-tree CI job exists to catch, and
+# while the setting was here the job was testing something no developer ever ran.
+#
+# It is gone, and nothing needed it: `tests/` is a package and pytest puts the
+# rootdir on sys.path for a rooted test package, so `from tests.conftest import
+# ...` still resolves. `panoscope` resolves because it is installed.
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: exercises the network / live PubMed MCP (deselect with -m \"not live\")",
+]

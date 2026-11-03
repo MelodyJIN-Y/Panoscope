@@ -35,33 +35,121 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install dependencies
+      - name: Install the package and its declared extras
+        # pyproject.toml, not requirements.txt. requirements.txt is 12 unpinned
+        # names and installing it meant every run resolved whatever was newest,
+        # which is the reproducibility hazard §8 names -- and it never installed
+        # the package, so this job passed only because pytest.ini put the repo
+        # root on sys.path. That setting is gone.
+        #
+        # Editable, deliberately: this job tests that the declared BOUNDS resolve
+        # and work on three interpreters. The out-of-tree job is where a
+        # non-editable install is exercised.
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -e ".[app,agent,export,dev]"
 
       - name: Run offline test suite
         run: pytest -m "not live" -q
 
   # ---------------------------------------------------------------------------
-  # DO NOT DELETE THIS JOB WHEN IT IS RED. IT IS SUPPOSED TO BE RED RIGHT NOW.
+  # The lockfile, used the one way it is honest to use it. The matrix job above
+  # installs from pyproject.toml, which tests that the declared BOUNDS resolve on
+  # three interpreters. This job installs the one recorded set, which tests that
+  # a run can be REPRODUCED rather than re-resolved. Forcing the lock across the
+  # whole matrix would pin versions never resolved on two of those interpreters.
+  # ---------------------------------------------------------------------------
+  locked:
+    name: Pinned dependency set (requirements.lock)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"     # the interpreter the lock was resolved on
+          cache: pip
+      - name: Install the pinned set
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock
+          pip install --no-deps -e .
+      - name: Run offline test suite
+        run: pytest -m "not live" -q
+
+  # ---------------------------------------------------------------------------
+  # §8: "The study store never ships in the wheel -- hatchling exclude plus a CI
+  # assert that the wheel is under 5 MB." The exclude is necessary and not
+  # sufficient: it is a list of names, and a new directory under panoscope/ ships
+  # by default. This is the assert that notices.
   #
-  # pytest.ini sets `pythonpath = .`, which puts the repo root on sys.path and so
-  # hides every "works because cwd happens to be the repo root" bug — imports that
-  # only resolve in-tree, and data/asset paths resolved relative to the working
-  # directory instead of the package. This job installs the package and runs the
-  # suite from a directory that is not the repo root, with the repo moved aside,
-  # so none of that is available.
+  # The margin is real rather than nominal -- the wheel measured 0.91 MB when this
+  # job was written, against data/ at 435 MB -- so a failure here means a study
+  # tree or a raw object has been pulled into the package, not that the code grew.
+  # ---------------------------------------------------------------------------
+  wheel:
+    name: Wheel builds and stays under 5 MB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build the wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel --outdir dist .
+      - name: Assert the wheel is under 5 MB and carries no study data
+        run: |
+          set -euo pipefail
+          whl=$(ls dist/*.whl)
+          bytes=$(wc -c < "$whl")
+          printf 'wheel: %s (%d bytes, %.2f MB)\n' "$whl" "$bytes" "$(echo "$bytes/1048576" | bc -l)"
+          if [ "$bytes" -gt 5242880 ]; then
+            echo "::error title=Wheel too large::$whl is $bytes bytes, over the 5 MB ceiling (IMPLEMENTATION.md §8). Something under panoscope/ is shipping that should not -- check [tool.hatch.build] exclude."
+            exit 1
+          fi
+          # The ceiling is a proxy; this is the thing it is a proxy FOR. One
+          # line, because an indented heredoc inside a YAML block scalar hands
+          # Python its own leading spaces.
+          python -c "import sys,zipfile; n=zipfile.ZipFile(sys.argv[1]).namelist(); bad=[x for x in n if '/studies/' in x or x.endswith('.Rds')]; print('::error title=Study data in the wheel::'+'; '.join(bad[:10])) if bad else print('no study tree or .Rds in the wheel'); sys.exit(1 if bad else 0)" "$whl"
+
+  # ---------------------------------------------------------------------------
+  # DO NOT DELETE THIS JOB WHEN IT IS RED. IT IS SUPPOSED TO BE RED RIGHT NOW,
+  # and the reason is no longer the one this comment used to give.
   #
-  # It CANNOT pass today: there is no pyproject.toml, so there is nothing to
-  # install and every test file dies at collection on `ModuleNotFoundError: No
-  # module named 'panoscope'`. That failure is the signal, which is why the job
-  # is continue-on-error and non-blocking.
+  # The old reason was "there is no pyproject.toml, so there is nothing to
+  # install". That became false when packaging landed, and the comment outlived
+  # it -- a job documented as expected-to-fail for a reason that had already been
+  # fixed is worse than no job, because nobody rechecks it.
   #
-  # It flips to required at the end of Phase C (IMPLEMENTATION.md §7), when
-  # pyproject.toml exists and the package is installable. Fix it by finishing the
-  # packaging work, never by deleting the job or by adding the repo root back to
-  # sys.path.
+  # MEASURED, not assumed. `pip install .` now works and `import panoscope`
+  # resolves to site-packages. Running the suite from outside the repo gives:
+  #
+  #   with no PANOSCOPE_DATA_ROOT   6 collection errors. layout.resolve_data_root()
+  #                                 falls back to parents[2] of layout.py, which
+  #                                 under site-packages is site-packages/ -- so it
+  #                                 looks for site-packages/data/jazzpanda/... .
+  #                                 §8's answer is that the small fixture study
+  #                                 ships INSIDE the wheel and the demo is fetched
+  #                                 (`panoscope fetch-demo`); neither exists yet.
+  #
+  #   with PANOSCOPE_DATA_ROOT set  1966 passed, 19 failed, 180 errors across 15
+  #                                 test modules. Those are the real "works
+  #                                 because cwd is the repo root" bugs this job
+  #                                 exists to find. Some are tests that audit
+  #                                 SOURCE text through repo-relative paths and
+  #                                 cannot meaningfully run against a wheel --
+  #                                 those want a skip, not a fix.
+  #
+  # So it stays non-blocking, with a number attached, and the number is what makes
+  # the claim checkable. Fix it by shipping the fixture study in the wheel and
+  # making the source-auditing tests skip out-of-tree -- never by deleting the job
+  # or by putting the repo root back on sys.path.
   # ---------------------------------------------------------------------------
   out-of-tree:
     name: Out-of-tree install + tests (canary, non-blocking)
@@ -83,15 +171,10 @@ jobs:
       - name: Install the package
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          if [ -f pyproject.toml ]; then
-            # Deliberately NOT `-e .`: an editable install drops the repo root
-            # back onto sys.path via a .pth file, which is exactly what this job
-            # exists to do without.
-            pip install .
-          else
-            echo "::notice title=Phase A canary::No pyproject.toml yet, so there is no package to install. The run below is expected to fail at import — see IMPLEMENTATION.md §7 Phase C."
-          fi
+          # Deliberately NOT `-e .`: an editable install drops the repo root back
+          # onto sys.path via a .pth file, which is exactly what this job exists to
+          # do without. Extras included so the UI and agent modules import.
+          pip install ".[app,agent,export,dev]"
 
       - name: Stage the tests outside the repo
         run: |

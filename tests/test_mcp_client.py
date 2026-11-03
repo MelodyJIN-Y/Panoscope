@@ -32,7 +32,8 @@ from panoscope.agent.mcp_client import (
     reset_mcp_client,
 )
 
-# The `live` marker is intentionally opt-in. pytest.ini does not use
+# The `live` marker is intentionally opt-in. The pytest config (now in
+# pyproject.toml's [tool.pytest.ini_options]) does not use
 # --strict-markers, so this only silences the benign "unknown mark" warning
 # and keeps `-m live` / `-m "not live"` selection working.
 warnings.filterwarnings("ignore", category=pytest.PytestUnknownMarkWarning)
