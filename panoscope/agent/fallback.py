@@ -423,8 +423,20 @@ def _names_type(q: str, hint: str) -> bool:
 # eval's pushbacks came back that way. Catching the contrasted term lets
 # ``discriminate`` say the honest thing instead: we do not recognise it.
 _CONTRAST_RE = re.compile(
-    r"\b(?:is|are|looks?\s+like|could\s+be|might\s+be|must\s+be)\s+"
-    r"(?:an?\s+|the\s+)?(?P<rival>[A-Za-z][A-Za-z0-9-]{3,}(?:\s+cells?)?)"
+    # One optional word between the modal and "be": a biologist writes "could
+    # THIS be X rather than Y", and requiring adjacency meant the rival was
+    # never captured -- so the answer fell through to the synonym branch, took
+    # the CALL as the alternative, and replied "the alternative equals the call;
+    # nothing to discriminate" to a question about a different cell type.
+    r"\b(?:is|are|looks?\s+like|(?:could|might|must)\s+(?:\w+\s+)?be)\s+"
+    # {2,} = a THREE-character minimum. At four, "CAF" could not match, so the
+    # demo's own signature pushback -- "c2 is a CAF, not Stromal" -- fell past
+    # this to the synonym branch, took the CALL as the alternative, and was
+    # answered "the alternative equals the call; nothing to discriminate".
+    # Three letters is the length of most cell-type abbreviations a biologist
+    # writes (CAF, DC, NK -- two-letter ones still miss, deliberately: the
+    # false-positive rate there is not worth it).
+    r"(?:an?\s+|the\s+)?(?P<rival>[A-Za-z][A-Za-z0-9-]{2,}(?:\s+cells?)?)"
     r"\s*,?\s+(?:not|rather\s+than|instead\s+of)\b",
     re.IGNORECASE,
 )
@@ -434,6 +446,9 @@ _NOT_A_TYPE: frozenset[str] = frozenset({
     "this", "that", "them", "they", "there", "here", "definitely", "clearly",
     "really", "probably", "actually", "just", "more", "very", "still", "also",
     "cell", "cells", "something", "anything", "likely", "certainly", "obviously",
+    # Three-letter words the looser rival pattern can now reach.
+    "not", "the", "one", "two", "its", "all", "any", "now", "too", "yet", "but",
+    "and", "for", "was", "are", "has", "had", "its", "our", "out", "off",
 })
 
 

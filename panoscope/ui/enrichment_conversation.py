@@ -214,9 +214,10 @@ def _render_ask_box(cluster: str) -> None:
         # turn runs on the next rerun (see _process_pending).
         key = _thread_key(cluster)
         q = query.strip()
-        thread = state.get_chat_thread(key)
-        if thread and thread[-1].get("role") == "user" and thread[-1].get("text") == q:
-            return  # ignore an immediate duplicate of an unanswered question
+        # See conversation._submit_query: the identical-text guard that used to
+        # sit here swallowed the re-ask of a question abandoned mid-turn, because
+        # the user turn persists and the pending marker does not. The in-flight
+        # check below is the one that can tell a turn is actually running.
         if st.session_state.get(f"pending_q_{key}"):
             return  # a turn is already queued
         state.append_message(key, {"role": "user", "text": q, "resp": None})

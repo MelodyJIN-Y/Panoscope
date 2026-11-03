@@ -49,6 +49,43 @@ def test_a_figure_with_no_conditionality_refuses_to_draw(cond):
         cnd.render_panel(object(), cond)
 
 
+def test_no_conditionality_clause_contradicts_another():
+    """A record whose clauses disagree is worse than one that says less.
+
+    The feature UMAP's scope read "all 166,363 cells drawn, every cluster
+    included" in the same caption whose next clause said "background thinned to
+    45,000 of 103,608" -- and the figure actually plotted 107,755 points. The
+    clause phrased as a SCOPE was the false one, and a scope is the field a reader
+    trusts to say what the panel covers.
+    """
+    c = cnd.feature_umap_cond(gene="ERBB2", n_expr_cells=32507, n_total=166363,
+                              n_bg_drawn=45000, n_bg_total=103608)
+    assert "all 166,363 cells drawn" not in c.unit_scope, (
+        f"the scope claims a draw count the figure did not draw: {c.unit_scope}"
+    )
+    assert "thinned" in c.rendering, "the thinning must still be declared somewhere"
+    # ...and what survives the thin is the SELECTED CLUSTER. The keep mask is
+    # ``umap['cluster'] == cluster``, so expressing cells elsewhere are thinned
+    # too: measured on c1/ERBB2, 17,140 of 32,507 positive cells were drawn under
+    # a caption promising they were drawn in full.
+    assert "expressing cells drawn in full" not in c.rendering, (
+        f"the record names the wrong thing as kept whole: {c.rendering}"
+    )
+
+
+def test_a_capped_figure_counts_what_was_selected_not_what_survived_the_cap():
+    """"N of M" exists to name what the figure left out, so M is the selection.
+
+    The small-multiples cap is 4. The dot plot was handed the already-capped list
+    and computed both numbers from it, so selecting six genes drew four and the
+    caption read "4 of 4 selected genes" while the other two appeared nowhere on
+    the stage -- the cap erasing its own evidence.
+    """
+    c = cnd.dotplot_cond(genes_drawn=4, genes_selected=6, n_clusters=9,
+                         n_expr_cells=50_000, n_total=166_363)
+    assert "4 of 6" in c.drawn, f"the cap is not declared: {c.drawn}"
+
+
 def test_a_lookalike_record_does_not_get_through():
     """Duck typing is not a conditionality: a stand-in carrying the four field
     names still refuses, because it was never validated by the landed type."""

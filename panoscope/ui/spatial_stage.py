@@ -155,14 +155,21 @@ div[class*="st-key-pano_binctl"] [data-testid="stRadio"] [role="radiogroup"] { a
 
 
 def _inject_stage_css() -> None:
-    """Inject stage-local CSS once per session (idempotent; reruns re-inject
-    harmlessly but the flag skips it). Import-safe: Streamlit imported lazily.
+    """Inject stage-local CSS on EVERY run. Import-safe: Streamlit imported lazily.
+
+    This used to set a ``_stage_css_done`` session flag and return early
+    afterwards, on the belief that "reruns re-inject harmlessly". They do not:
+    Streamlit rebuilds the element tree each run, so an element that is not
+    re-emitted is REMOVED. Measured in a browser -- a fresh load carries the style
+    block and ``.plegend`` computes to 11px IBM Plex Mono; after one rerun, from
+    any trigger (a gene button, the bin-size radio), the block count is 0 and the
+    caption falls back to 16px body copy, for the rest of the session.
+
+    What loses its styling is the conditionality caption -- the R4 record that is
+    the entire reason ``render_panel`` exists -- so from the biologist's first
+    click onward it reads as ordinary prose rather than as the plot's conditions.
     """
-    st = _st()
-    if st.session_state.get("_stage_css_done"):
-        return
-    st.markdown(f"<style>{_STAGE_CSS}</style>", unsafe_allow_html=True)
-    st.session_state["_stage_css_done"] = True
+    _st().markdown(f"<style>{_STAGE_CSS}</style>", unsafe_allow_html=True)
 
 
 def _go() -> Any:
@@ -841,7 +848,8 @@ def _render_density_frame(
 # --------------------------------------------------------------------------- #
 # View 4 — Grouped violin (per-cell expression across all nine clusters)
 # --------------------------------------------------------------------------- #
-def _render_dotplot(genes: list[str], cluster: str) -> None:
+def _render_dotplot(genes: list[str], cluster: str,
+                    n_selected: int | None = None) -> None:
     """Dot plot of each selected gene's expression across the nine clusters.
 
     The standard single-cell summary: for every (gene, cluster) a dot whose SIZE
@@ -975,7 +983,12 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
         fig,
         cnd.dotplot_cond(
             genes_drawn=len(gene_order),
-            genes_selected=len(genes),
+            # The UNCAPPED selection. ``active_markers`` caps the small-multiples
+            # at four, and this counted the capped list -- so selecting six genes
+            # drew four and the caption read "4 of 4 selected genes" while the
+            # other two appeared nowhere on the stage. The "N of M" field exists
+            # precisely to name what the figure left out.
+            genes_selected=(len(genes) if n_selected is None else n_selected),
             n_clusters=len(cfg.CLUSTER_ORDER),
             n_expr_cells=len(da.marker_expr_df()),
             n_total=len(da.cells_df()),
@@ -1090,7 +1103,8 @@ def render_spatial_stage(cluster: str) -> None:
 
     # Dot plot: expression of the selected genes across all nine clusters.
     _panel_title("Expression across clusters")
-    _render_dotplot(markers, cluster)
+    _render_dotplot(markers, cluster,
+                    n_selected=len(state.get_selected_markers(cluster)))
 
 
 __all__ = ["render_spatial_stage"]

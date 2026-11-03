@@ -57,7 +57,16 @@ _SRC_NAME: dict[str, str] = {
 _SRC_ORDER: tuple[str, ...] = ("jz", "panel", "lit", "mem")
 
 # Session key for the ask input (namespaced so no other pane collides).
-_K_ASK = "conv_ask_input"
+#
+# PER CLUSTER. One shared key made it literally the same widget on every
+# cluster -- Streamlit drops form_id from widget identity once a user key is
+# given, so the enclosing ``ask_form_{cluster}`` did not separate them. A
+# half-typed question followed the biologist across a cluster switch, and
+# pressing Ask sent a question written about one unit against another. The
+# pane's own contract is that switching clusters "never bleeds one cluster's
+# chat into another".
+def _ask_key(cluster: str) -> str:
+    return f"conv_ask_input_{cluster}"
 
 # Confirm-card toggles: (display label, stored enum value). Scope's cluster label
 # is filled with the active cluster id at render time.
@@ -555,7 +564,7 @@ def _render_ask_box(cluster: str) -> None:
             with c_in:
                 query = st.text_input(
                     "Ask",
-                    key=_K_ASK,
+                    key=_ask_key(cluster),
                     placeholder="Ask, suggest another cell type, or override this call…",
                     label_visibility="collapsed",
                 )
@@ -578,9 +587,18 @@ def _submit_query(cluster: str, query: str) -> None:
     the resend rather than stacking a second identical bubble + a second turn."""
     import streamlit as st
 
-    thread = state.get_chat_thread(cluster)
-    if thread and thread[-1].get("role") == _ROLE_USER and thread[-1].get("text") == query:
-        return
+    # The in-flight check BELOW is the whole guard. This used to also reject a
+    # question identical to the thread's last message -- but the user turn is
+    # persisted the moment it is submitted, while the work item lives only in
+    # session state. A page reload mid-turn therefore restored the thread without
+    # re-queueing the turn, leaving an unanswered user message as thread[-1] --
+    # and the natural recovery, asking the same thing again, was swallowed with no
+    # bubble, no spinner and no message, after the form had already cleared the
+    # box. The biologist's text simply vanished until they asked something else.
+    #
+    # The rationale it carried ("the user re-sent it because a slow turn looked
+    # stuck") is exactly what the pending check handles, and that is the only one
+    # of the two that can tell a turn is actually running.
     if st.session_state.get(_pending_key(cluster)):  # a turn is already queued
         return
     state.append_message(cluster, {"role": _ROLE_USER, "text": query, "resp": None})

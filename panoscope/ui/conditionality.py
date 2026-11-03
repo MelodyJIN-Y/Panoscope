@@ -193,9 +193,19 @@ def _unit_scope(cluster: str, n_selected: int, n_total: int) -> str:
 
 
 def _all_cells_scope(n_total: int) -> str:
-    """Scope for a panel coloured by a value rather than by the selected unit."""
+    """Scope for a panel coloured by a value rather than by the selected unit.
+
+    States the EMBEDDING size, not a draw count. It used to read "all {n} cells
+    drawn, every cluster included" from ``len(umap_df())``, in the same caption
+    whose next clause admitted the background had been thinned -- measured, 107,755
+    points plotted under a line claiming all 166,363. Two adjacent clauses of one
+    conditionality record contradicting each other, and the one phrased as a scope
+    was the false one. What the figure actually drew is the ``rendering`` field's
+    job, and it carries it.
+    """
     return (
-        f"{cfg.DATASET_ID} · all {n_total:,} cells drawn, every cluster included"
+        f"{cfg.DATASET_ID} · every cluster included · {n_total:,} cells in the "
+        f"embedding"
     )
 
 
@@ -267,7 +277,12 @@ def feature_umap_cond(
         ),
         unit_scope=_all_cells_scope(n_total),
         scale="independent scale · this gene's own maximum; panels are NOT comparable",
-        rendering=_thinning(n_bg_drawn, n_bg_total, "expressing cells"),
+        # "the selected cluster", not "expressing cells": the keep mask is
+        # ``umap['cluster'] == cluster`` (spatial_stage._render_umap), so
+        # expressing cells OUTSIDE it are thinned with everything else.
+        # Measured on c1/ERBB2: 17,140 of 32,507 positive cells drawn, under
+        # a caption promising they were drawn in full.
+        rendering=_thinning(n_bg_drawn, n_bg_total, "the selected cluster"),
         provenance=_sha("viz/expr.parquet"),
     )
 
@@ -353,7 +368,12 @@ def leading_edge_umap_cond(
         ),
         unit_scope=_all_cells_scope(n_total),
         scale="independent scale · this program's own maximum; panels are NOT comparable",
-        rendering=_thinning(n_bg_drawn, n_bg_total, "expressing cells"),
+        # "the selected cluster", not "expressing cells": the keep mask is
+        # ``umap['cluster'] == cluster`` (spatial_stage._render_umap), so
+        # expressing cells OUTSIDE it are thinned with everything else.
+        # Measured on c1/ERBB2: 17,140 of 32,507 positive cells drawn, under
+        # a caption promising they were drawn in full.
+        rendering=_thinning(n_bg_drawn, n_bg_total, "the selected cluster"),
         provenance=_sha("viz/expr.parquet"),
     )
 

@@ -324,6 +324,43 @@ def test_a_rival_is_not_confused_with_one_whose_name_contains_it():
     assert set(_alts_from_query("b-cells or t-cells")) == {"T_Cells", "B_Cells"}
 
 
+def test_a_rival_named_the_natural_way_is_actually_read():
+    """"X, not Y" and "could this be X rather than Y" are how the question is asked.
+
+    Two shapes defeated the rival pattern and both ended in the same wrong answer
+    -- "the alternative equals the call; nothing to discriminate" -- which asserts
+    the biologist asked about the call they were disputing.
+
+    * a three-letter rival: the pattern needed four characters, so the demo's own
+      signature pushback, c2 Stromal -> CAF, never matched;
+    * a word between the modal and "be": "could THIS be Hepatocytes rather than
+      Tumor" needed ``could be`` adjacent.
+    """
+    assert F._contrasted_rival("c2 is a CAF, not Stromal") == "CAF"
+    assert F._contrasted_rival("could this be Hepatocytes rather than Tumor?") \
+        == "Hepatocytes"
+    assert F._contrasted_rival("might it be Podocytes instead of Tumor") == "Podocytes"
+    # ...and ordinary prose still names no rival.
+    assert F._contrasted_rival("this could be important") is None
+    assert F._contrasted_rival("it is not the one") is None
+
+
+def test_an_unrecognised_rival_is_declined_by_name_not_mistaken_for_the_call():
+    """The honest answer exists in ``discriminate``; it just was not reachable.
+
+    ``discriminate`` already declines an unknown rival by name. It is reached only
+    when an alternative is supplied, and when the pattern missed, the synonym
+    branch supplied the CALL instead -- so a question about Hepatocytes was
+    answered "the alternative equals the call (Tumor); nothing to discriminate".
+    """
+    r = F.fallback_answer("could this be Hepatocytes rather than Tumor?", "c1")
+    assert r is not None, "the settle intent did not fire"
+    assert "equals the call" not in r.text, (
+        f"a rival the panel cannot test was read as the call: {r.text[:200]}"
+    )
+    assert "Hepatocytes" in r.text, f"the rival is not named: {r.text[:200]}"
+
+
 def test_verify_is_never_read_off_the_models_prose():
     """CLAUDE.md: verify comes from the deterministic rubric -- never offer the
     model the choice. loop._assemble used to OR in a substring test over model
