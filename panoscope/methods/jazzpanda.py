@@ -157,6 +157,10 @@ class JazzPandaSpatialGLM:
     """
 
     name: str = "jazzpanda_spatial_glm"
+    #: How the package names ITSELF, for anywhere a person reads it.
+    #: The registry id is an identifier, and the study chip was printing it
+    #: verbatim ("jazzpanda_spatial_glm markers").
+    display_name: str = "jazzPanda"
     workflow: str = "marker-interpretation"
     statistic_name: str = "glm_coef"
 

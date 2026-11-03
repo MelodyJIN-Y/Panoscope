@@ -207,6 +207,10 @@ class JazzPandaCGST:
     """The declaration. Every field is a sentence about the method, not about us."""
 
     name: str = "jazzpanda_cgst"
+    #: How the package names ITSELF, for anywhere a person reads it.
+    #: The registry id is an identifier, and the study chip was printing it
+    #: verbatim ("jazzpanda_spatial_glm markers").
+    display_name: str = "jazzPanda CGST"
     workflow: str = "enrichment-interpretation"
     statistic_name: str = "cgst_z"
 

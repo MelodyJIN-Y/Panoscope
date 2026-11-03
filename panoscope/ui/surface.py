@@ -554,7 +554,12 @@ _CSS = """
 .pano-sf-dim { color:var(--faint); }
 .pano-sf-cite { font-family:var(--mono); font-size:10px; color:var(--accent);
   text-decoration:none; white-space:nowrap; }
-.pano-sf-chip { display:inline-block; font-family:var(--mono); font-size:9px;
+/* max-width for the hatch's reason, one column over: an inline-block takes its
+   max-content width and PAINTS past the cell without extending its scroll box,
+   so the cell reports no overflow and a check on scrollWidth sees nothing.
+   "low spatial specificity" spilled 7.5px out of a 64px CAVEATS cell at 1024. */
+.pano-sf-chip { display:inline-block; max-width:100%; font-family:var(--mono);
+  font-size:9px;
   color:var(--muted); background:var(--hair2); border-radius:4px; padding:1px 6px;
   margin:0 4px 2px 0; }
 /* A never-measured cell is HATCHED, never blank and never a zero: a blank reads as

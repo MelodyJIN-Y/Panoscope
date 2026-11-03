@@ -312,7 +312,10 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict,
         described = str(note.get("cell_type") or "").strip().casefold()
         if described and cell_type and described != str(cell_type).strip().casefold():
             note = {}
-        bio = str(note.get("summary") or "").strip()
+        # The join below ends the whole line, so a bit must not end one too:
+        # "driving genes CCND1, CENPF, HMGA1.." is what the document printed for
+        # every program whose note carries no PMID to close the clause.
+        bio = str(note.get("summary") or "").strip().removesuffix(".").rstrip()
         pmid = note.get("pmid")
         cite = f" (PMID:{pmid})" if pmid else ""
         # The denominator travels with the program. The Pathways surface shows it

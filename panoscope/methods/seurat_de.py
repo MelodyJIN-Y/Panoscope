@@ -127,6 +127,10 @@ class SeuratDE:
     """
 
     name: str = "seurat_de"
+    #: How the package names ITSELF, for anywhere a person reads it.
+    #: The registry id is an identifier, and the study chip was printing it
+    #: verbatim ("jazzpanda_spatial_glm markers").
+    display_name: str = "Seurat"
     workflow: str = WORKFLOW_ID
     statistic_name: str = "avg_log2FC"
 

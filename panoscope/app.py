@@ -183,7 +183,7 @@ def _study_chip() -> tuple[str, str]:
     facts.append(f"{len(study.units)} clusters")
     reg = _methods.for_workflow(_MARKER_ID)
     if reg:
-        facts.append(f"{reg[0].name} markers")
+        facts.append(f"{getattr(reg[0], 'display_name', reg[0].name)} markers")
     return " · ".join(bits), " · ".join(facts)
 
 

@@ -125,6 +125,10 @@ class EdgeR:
     """The declaration. What edgeR's paper says it measures, and what it does not."""
 
     name: str = "edger"
+    #: How the package names ITSELF, for anywhere a person reads it.
+    #: The registry id is an identifier, and the study chip was printing it
+    #: verbatim ("jazzpanda_spatial_glm markers").
+    display_name: str = "edgeR"
     workflow: str = WORKFLOW_ID
     statistic_name: str = "logFC"
 

@@ -326,3 +326,46 @@ def test_no_horizontal_overflow(server, browser, width: int, tmp_path) -> None:
             bad.append(f"{p}: content {scroll}px > viewport {client}px")
     ctx.close()
     assert not bad, f"horizontal overflow at {width}px:\n  " + "\n  ".join(bad)
+
+
+@pytest.mark.parametrize("width", [1440, 1024])
+def test_no_inline_element_paints_outside_its_cell(server, browser, width: int) -> None:
+    """The overflow the cell itself cannot report.
+
+    ``test_the_column_headings_sit_over_their_columns`` checks each cell's
+    ``scrollWidth`` against its ``clientWidth``, which is how the hatch pill was
+    caught. It does not catch the same defect one column over: an inline-block
+    whose max-content width exceeds the track PAINTS past the cell without
+    extending its scroll box, so the cell reports no overflow at all and the
+    cheaper check passes. ``.pano-sf-chip`` spilled "low spatial specificity"
+    7.5px out of a 64px CAVEATS cell at 1024 while every existing geometry
+    assertion stayed green.
+
+    So this measures the CHILD against its cell, not the cell against itself.
+    """
+    ctx = browser.new_context(viewport={"width": width, "height": 1000})
+    page = ctx.new_page()
+    page.goto(f"{server}/?page=markers")
+    _settle(page)
+    spill = page.evaluate("""() => {
+      const bad = [];
+      const sels = ['.pano-sf-chip', '.pano-sf-prose', '.pano-sf-hatch',
+                    '.pano-sf-cite', '.pano-sf-num', '.pano-sf-text',
+                    '.pano-sf-dir', '.pano-sf-glyph'];
+      for (const sel of sels) {
+        for (const el of document.querySelectorAll(sel)) {
+          const cell = el.closest('.pano-sf-cell');
+          if (!cell) continue;
+          const e = el.getBoundingClientRect(), c = cell.getBoundingClientRect();
+          const over = Math.round((e.right - c.right) * 10) / 10;
+          if (over > 0.5) bad.push(
+            `${sel} +${over}px past a ${Math.round(c.width)}px cell: `
+            + JSON.stringify(el.innerText.slice(0, 32)));
+        }
+      }
+      return [...new Set(bad)];
+    }""")
+    ctx.close()
+    assert not spill, (
+        f"{len(spill)} element(s) paint outside their cell at {width}px:\n  "
+        + "\n  ".join(spill))
