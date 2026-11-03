@@ -120,6 +120,17 @@ def names() -> tuple[str, ...]:
 # --------------------------------------------------------------------------- #
 from panoscope.methods import jazzpanda as _jazzpanda  # noqa: E402  (registration order)
 from panoscope.methods import jazzpanda_cgst as _jazzpanda_cgst  # noqa: E402
+from panoscope.methods import edger as _edger  # noqa: E402
+from panoscope.methods import seurat_de as _seurat_de  # noqa: E402
 
 register(_jazzpanda.MODULE)
 register(_jazzpanda_cgst.MODULE)
+# TWO methods answering one question, which is what makes §4's extensibility claim
+# checkable rather than asserted: nothing in core/, in workflows/de.py or in the
+# composition root knows either of these exists, and the root picks between them by
+# asking each whether it can read the table
+# (``pipeline/stages/de.py::_method_for``). They differ where the METHODS differ --
+# edgeR's unit of replication is the sample, Seurat's is the cell -- and that
+# difference lives in their declared assumptions, not in a branch anywhere.
+register(_edger.MODULE)
+register(_seurat_de.MODULE)

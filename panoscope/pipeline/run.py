@@ -240,6 +240,30 @@ def run(
         return _run_scoped(dataset_id, ddir, root, notes)
 
 
+def _run_de(dataset_id: str, root: Optional[Path]) -> None:
+    """The COMPARISON slice (third workflow), built only when a DE result exists.
+
+    Same shape as the enrichment slice: a study with no DE table simply does not get
+    one, and ``run_de`` returns an empty dict rather than raising. What is NOT
+    swallowed is a DE table no registered method can read -- that reaches the caller,
+    because a build printing success over an unbuilt ``records/comparison/`` is the
+    failure the enrichment stage already learned not to have.
+
+    The marker evidence is passed in rather than rebuilt: ARCHITECTURE §9.7's check 4
+    joins the DE result against the spatial one for the SAME unit, and deriving the
+    spatial side twice would be two places it could differ.
+    """
+    from panoscope.agent import config as _cfg
+    from panoscope.pipeline import records
+    from panoscope.pipeline.stages.de import run_de
+
+    # ``cfg.current_study()`` for reading, exactly as run_verdicts does; ``root``
+    # names where the records are written and nothing else.
+    marker = {u: b.evidence
+              for u, b in records.build_all(_cfg.current_study()).items()}
+    run_de(marker, dataset_id, root)
+
+
 def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) -> Path:
     """The build itself, with ``dataset_id`` guaranteed to be the active study."""
     declared = _declared(dataset_id, root)  # read BEFORE the build rewrites the file
@@ -251,6 +275,7 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     _ensure_annotation(dataset_id, root)  # marker-skill cell types (no-op if present)
     verdicts = run_verdicts(dataset_id, root)
     _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
+    _run_de(dataset_id, root)  # COMPARISON slice, when this dataset HAS a DE result
     if notes:
         _run_notes(dataset_id, root)  # LIVE: cell-type + per-marker biology notes
 

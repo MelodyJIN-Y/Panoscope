@@ -238,8 +238,12 @@ def test_duplicate_workflow_registration_raises(isolated_registries):
 def test_a_method_cannot_register_into_a_workflow_nobody_declared(isolated_registries):
     """An orphan method is worse than a missing one: it produces evidence with no
     question to answer, which then surfaces under whichever surface a caller picks."""
-    orphan = MeanExpressionDE(name="orphan", workflow="de-interpretation")
-    with pytest.raises(workflows.UnregisteredWorkflow, match="de-interpretation"):
+    # The example used to be ``de-interpretation``, which is now registered. The id
+    # below answers no question anyone has declared and is not meant to: it exists
+    # in order to be absent, so a future registration cannot quietly make this test
+    # vacuous the way the last one did.
+    orphan = MeanExpressionDE(name="orphan", workflow="no-such-question")
+    with pytest.raises(workflows.UnregisteredWorkflow, match="no-such-question"):
         methods.register(orphan)
 
 

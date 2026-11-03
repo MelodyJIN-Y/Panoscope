@@ -29,12 +29,15 @@ behaviour -- a behavioural test only catches a band that is filled in, while the
 field guard fails the moment the field is declared, which is when it costs nothing
 to undo.
 
-**Nothing here is registered globally.** ``panoscope/workflows/__init__.py`` has no
-``register(de.WORKFLOW)`` line, so every test that needs the registry does it inside
-:func:`isolated_registries`, which snapshots and restores both. A leaked registration
-would make ``tests/test_registries.py``'s "a method cannot register into a workflow
-nobody declared" -- which uses ``de-interpretation`` as its unregistered example --
-pass or fail depending on file order, which is decided by nothing.
+**The pair IS registered globally now**, which it was not when this file was
+written: ``panoscope/workflows/__init__.py`` registers ``de.WORKFLOW`` and
+``panoscope/methods/__init__.py`` registers both ``edger`` and ``seurat_de``. That
+landed with the first DE artifact -- a declared-synthetic table in
+``synthetic_multisample_fixture`` -- and the composition root that runs it,
+``pipeline/stages/de.py``. Tests that need a registry WITHOUT the pair pop the
+entries inside :func:`isolated_registries`, which snapshots and restores both.
+``tests/test_registries.py`` no longer uses ``de-interpretation`` as its
+unregistered example, for the obvious reason.
 
 Run the printed demonstrations with ``pytest -s -k demonstration``.
 """
@@ -49,7 +52,7 @@ import pytest
 from panoscope import methods, workflows
 from panoscope.core.interpret import interpret
 from panoscope.core.reconcile import Agreement, Relationship, Side, reconcile
-from panoscope.methods import jazzpanda, seurat_de
+from panoscope.methods import edger, jazzpanda, seurat_de
 from panoscope.types.claim import Authority
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import MethodModule, UnrecognisedResult, Workflow
@@ -195,25 +198,39 @@ def _spatial_side() -> Side:
 # --------------------------------------------------------------------------- #
 # Registration: the third question, one entry, no type change
 # --------------------------------------------------------------------------- #
-def test_the_de_workflow_and_method_register_as_a_pair(isolated_registries):
-    workflows.register(de.WORKFLOW)
-    methods.register(seurat_de.MODULE)
+def test_the_de_workflow_and_two_methods_are_registered() -> None:
+    """Registered for real now, not inside a fixture.
+
+    The pair landed once there was an artifact to answer the question against
+    (``synthetic_multisample_fixture/inputs/de_edger.csv``, declared synthetic) and
+    a composition root to run it (``pipeline/stages/de.py``). TWO methods, which is
+    what makes §4's extensibility claim checkable rather than asserted: the root
+    picks between them by schema, and nothing in ``core/`` knows either exists.
+    """
     assert workflows.get(de.WORKFLOW_ID).task_kind is TaskKind.COMPARISON
-    assert seurat_de.MODULE in methods.for_workflow(de.WORKFLOW_ID)
+    registered = methods.for_workflow(de.WORKFLOW_ID)
+    assert seurat_de.MODULE in registered
+    assert edger.MODULE in registered
     assert isinstance(de.WORKFLOW, Workflow)
     assert isinstance(seurat_de.MODULE, MethodModule)
+    assert isinstance(edger.MODULE, MethodModule)
 
 
 def test_the_method_cannot_register_before_its_question_exists(isolated_registries):
     """Order is the point: a method with no question still produces evidence, and
-    that evidence would surface under whichever surface a caller happened to pick."""
+    that evidence would surface under whichever surface a caller happened to pick.
+
+    Both entries are popped first, because the pair is registered at import now.
+    The fixture puts them back.
+    """
+    workflows.WORKFLOWS.pop(de.WORKFLOW_ID, None)
+    methods.METHODS.pop(seurat_de.MODULE.name, None)
     with pytest.raises(workflows.UnregisteredWorkflow, match=de.WORKFLOW_ID):
         methods.register(seurat_de.MODULE)
 
 
 @pytest.mark.parametrize("field", ["does_not_measure", "assumptions"])
 def test_the_de_method_declares_its_limits(isolated_registries, field):
-    workflows.register(de.WORKFLOW)
     empty = "" if field == "does_not_measure" else ()
     with pytest.raises(methods.UndeclaredLimits, match=field):
         methods.register(dataclasses.replace(seurat_de.MODULE, name="broken",

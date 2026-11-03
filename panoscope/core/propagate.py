@@ -58,18 +58,36 @@ different order is how two callers come to disagree about what was missing.
 construction. That is the §6.3 line doing its job one layer down: the blocking fields
 block the study, the rest propagate.
 
-**Why it still has no caller, and which caller it is waiting for.** The one layer
-that emits a ``CheckResult`` is ``workflows/de.py``, whose four checks hand-roll the
-two steps above; ``de-interpretation`` has no registered method
-(``methods.for_workflow`` returns nothing for it), so those checks never run outside
-their tests and there is nowhere for this edge to attach. The marker workflow is not
-the alternative: its four declared checks read the measurement, the panel frame and a
-curated marker list, and not one ``Condition`` field. Giving one of them a condition
-dependency so that this module would have a caller would be inventing a dependency
-the check does not have -- and on the demo, where ``segmentation`` and ``fixation``
-are declared unknown, it would turn a settled check into CANNOT BE SETTLED on a
-fabricated ground. ``tests/test_core_unwired.py`` pins the registry emptiness that
-makes this the right answer, so it fails the day a DE method registers.
+**Why it still has no caller -- and the reason is no longer the one it was.** It
+used to be that nothing emitted a ``CheckResult`` at all: ``de-interpretation`` had
+no registered method, so ``workflows/de.py``'s four checks ran only in tests. That
+is over. The workflow and two methods are registered, and ``pipeline/stages/de.py``
+runs the checks on every build of a study with a DE result. The checks exist now;
+the dependency still does not.
+
+``requires`` is honest only for a check that genuinely reads a declared
+``Conditions`` field, and none of the seven across the two live workflows does.
+``panel_scoping`` reads the gene frame -- which ``types/conditions.py`` says is
+explicitly NOT a ``Condition`` -- and a curated list. ``replicate_confound`` reads a
+sample count, which ``Conditions`` deliberately cannot express: "inventing a sample
+count on an object that has no other use for one". ``composition_vs_expression`` is
+the plausible one and it does not hold -- ARCHITECTURE §9.7 calls it "answerable
+from cluster abundances", and the only two places in this repository pairing
+composition with ``segmentation`` are the example below and this module's own test,
+which is circular rather than evidence. ``cross_method_coherence`` takes the other
+method's ``Side`` and delegates to ``core/reconcile``.
+
+Giving one of them a condition dependency so that this module would have a caller
+would be inventing a dependency the check does not have -- and on the demo, where
+``segmentation`` and ``fixation`` are declared unknown, it would turn a settled
+check into CANNOT BE SETTLED on a fabricated ground.
+``tests/test_core_unwired.py`` no longer pins registry emptiness, which has expired;
+it pins that this function has no production caller, so failing it is the prompt to
+name the check and the field rather than to delete the assertion.
+
+**This does not mean the propagation rule is unimplemented.** ``claims/transfer.py``
+emits a CANNOT_BE_SETTLED delta per unknown condition field and runs in every build.
+What has no caller is the *check-side* half.
 """
 
 from __future__ import annotations

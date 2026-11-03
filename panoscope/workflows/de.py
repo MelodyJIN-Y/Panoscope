@@ -50,15 +50,20 @@ join (``core/reconcile.py``), not the effect-size ladder
 there is no unit band for it to feed). ``interpret`` is composition. If this file
 ever computes a statistic, the layering has inverted.
 
-**Not registered yet, deliberately.** ``panoscope/workflows/__init__.py`` has no
-``register(de.WORKFLOW)`` line and ``panoscope/methods/__init__.py`` has no
-``register(seurat_de.MODULE)``. Both are one line, and they land with the first real
-DE artifact -- there is none in this repo, and a workflow registered against nothing
-would show up in every listing as a question the study can be asked. Until then
-``tests/test_workflow_de.py`` registers the pair inside an isolated-registry fixture
-and exercises them against a declared synthetic fixture, which is also what keeps
-``tests/test_registries.py``'s "a method cannot register into a workflow nobody
-declared" supplied with ``de-interpretation`` as its unregistered example.
+**Registered.** ``panoscope/workflows/__init__.py`` registers this workflow and
+``panoscope/methods/__init__.py`` registers TWO methods into it -- ``edger`` and
+``seurat_de``. Those lines were deliberately absent until there was a DE artifact to
+answer the question against, because a workflow registered against nothing shows up
+in every listing as a question the study can be asked. What landed with them is a
+declared-synthetic table
+(``data/studies/synthetic_multisample_fixture/inputs/de_edger.csv``) and the
+composition root that runs these four checks on it, ``pipeline/stages/de.py``.
+
+Two methods rather than one, because that is what makes ARCHITECTURE §4's claim
+checkable rather than asserted: the root picks between them by asking each whether
+it can read the table, and nothing here or in ``core/`` knows either exists. Where
+they differ is in their DECLARATIONS -- edgeR's unit of replication is the sample,
+Seurat's is the cell -- and that difference reaches no branch in this file.
 """
 
 from __future__ import annotations

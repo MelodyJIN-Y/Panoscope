@@ -81,6 +81,14 @@ def names() -> tuple[str, ...]:
 # --------------------------------------------------------------------------- #
 from panoscope.workflows import marker as _marker  # noqa: E402  (registration order)
 from panoscope.workflows import enrichment as _enrichment  # noqa: E402
+from panoscope.workflows import de as _de  # noqa: E402
 
 register(_marker.WORKFLOW)
 register(_enrichment.WORKFLOW)
+# The third question. Registered now that there is a DE artifact to answer it
+# against (``data/studies/synthetic_multisample_fixture/inputs/de_edger.csv``, a
+# DECLARED synthetic fixture) and a composition root to run it
+# (``pipeline/stages/de.py``). Until both were true this line was deliberately
+# absent, because a workflow registered against nothing shows up in every listing
+# as a question the study can be asked.
+register(_de.WORKFLOW)

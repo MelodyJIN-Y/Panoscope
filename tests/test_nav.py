@@ -217,9 +217,16 @@ def test_every_page_name_the_app_shipped_with_still_resolves():
 
 def test_an_unregistered_page_name_is_not_valid():
     """Fail-closed, like the registries: an unknown id is never defaulted to another
-    workflow's surface, which would answer a question nobody asked."""
-    assert "contrasts" not in nav.pages(_strip())
-    assert nav.find(_strip(), "contrasts") is None
+    workflow's surface, which would answer a question nobody asked.
+
+    The example used to be ``contrasts``, which is now a real surface -- the DE
+    workflow registered once there was an artifact to answer it against and a root
+    to run it. Having to replace it is the nav working rather than breaking: a
+    registered workflow brings its page with it, and no page exists for a question
+    nobody declared.
+    """
+    assert "spatial-stats" not in nav.pages(_strip())
+    assert nav.find(_strip(), "spatial-stats") is None
 
 
 # --------------------------------------------------------------------------- #

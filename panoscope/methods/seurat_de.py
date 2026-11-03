@@ -367,8 +367,13 @@ def _edge(label: str) -> float:
 
 #: The registered instance. One object, built once, attributes frozen.
 #:
-#: NOT added to ``panoscope/methods/__init__.py`` yet, and the omission is
-#: deliberate: ``workflows/de.py``'s workflow is not registered either (see its
-#: module docstring for why), and a method whose workflow is unregistered is
-#: refused at import. Both lines land together.
+#: Registered in ``panoscope/methods/__init__.py`` alongside ``methods/edger.py``,
+#: which answers the same question from a pseudobulk design. Both landed with the
+#: first DE artifact and the composition root that reads one.
+#:
+#: No study in this repository carries a FindAllMarkers table, so on today's data
+#: this module is registered and never selected -- ``pipeline/stages/de.py`` picks
+#: by schema, and the only DE table present is edgeR's. That is the registry
+#: working rather than a gap: being able to read a shape nobody has yet is not the
+#: same as being absent, and a declaration costs nothing until a table matches it.
 MODULE = SeuratDE()
