@@ -307,5 +307,6 @@
   "claims_used": [],
   "undecidable": [],
   "spec_version": "0.1",
+  "failure_modes": [],
   "prose": null
 }

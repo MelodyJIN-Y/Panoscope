@@ -48,6 +48,7 @@ import json
 from pathlib import Path
 from typing import Any, Final
 
+from panoscope.core.failure_modes import detect
 from panoscope.types.evidence import NormalisedEvidence
 from panoscope.types.outputs import TaskKind
 from panoscope.types.record import GENERATED_FIELDS, InterpretationRecord, ReadingRecord
@@ -176,6 +177,14 @@ def build(evidence: NormalisedEvidence, reading: ReadingRecord,
         task_kind=task_kind,
         reading=reading,
         decisions=tuple(d for t in traced for d in t.decisions),
+        # §9.8's named modes, indexed off the SAME traces the decisions come from
+        # and off the evidence's own flags. Here rather than in each composition
+        # root because all three roots already hand ``build`` exactly what
+        # ``detect`` needs, and three call sites would be three chances for one to
+        # forget -- a record silently missing a mode reads as a unit that did not
+        # raise it. ``detect`` recomputes nothing and returns no decisions of its
+        # own, so this can neither add a line to the audit trail nor move a number.
+        failure_modes=tuple(m.id for m in detect(evidence, *traced).value),
         claims_used=tuple(claims_used),
         undecidable=tuple(undecidable),
         spec_version=SPEC_VERSION,

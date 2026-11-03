@@ -109,4 +109,23 @@ class InterpretationRecord:
     claims_used: tuple[tuple[str, str], ...]         # (claim_id, verdict), call order
     undecidable: tuple[str, ...]
     spec_version: str
+    #: ARCHITECTURE §9.8's named failure modes this unit's reading raised, as
+    #: REGISTERED ids in ``core/failure_modes.MODES`` declaration order.
+    #:
+    #: Ids and not prose, for the reason ``Verdict.demotions`` carries rule ids: a
+    #: mode's ``what`` and ``ask`` are human-readable and never matched on, so
+    #: copying them into every record would be a second copy of the registry that
+    #: drifts the first time a sentence is reworded. ``failure_modes.explain``
+    #: resolves one and raises if its detector has left ``RULES`` or ``FLAGS``.
+    #:
+    #: Nothing is DETECTED to fill this. Every id restates a decision already in
+    #: ``decisions``; what it adds is the naming -- a biologist reading
+    #: ``adjacency:bleed_candidate`` beside ``band:fragile_cap`` has no way to know
+    #: the first is transcript bleed and the second a thin profile. §9.8 asks for
+    #: the modes to be "named, computed, more actionable than a low band", and
+    #: computed they already were.
+    #:
+    #: Declared after ``spec_version`` only because a dataclass field with a default
+    #: cannot precede one without. It is record content, not metadata.
+    failure_modes: tuple[str, ...] = ()
     prose: str | None = None                         # GENERATED layer; gated separately

@@ -1,4 +1,4 @@
-"""The two ``core/`` modules that stay unwired on purpose -- and the facts that say so.
+"""The ``core/`` module that stays unwired on purpose -- and the fact that says so.
 
 An unwired module is indistinguishable from an absent one, so each of these carries
 its reason in its own docstring. A reason in prose outlives the fact it rests on;
@@ -22,14 +22,16 @@ the composition root, and ``tests/test_concordance_wired.py`` holds that gap clo
 from the record end. The DE workflow is now wired too -- ``pipeline/stages/de.py``
 runs its four checks against a declared-synthetic artifact -- which retired the
 proxy the propagate test used to assert; see that test for the condition that
-replaced it. ``core/failure_modes.py`` is still open, and it is a gap rather
-than a justification -- ``InterpretationRecord`` has no field a named mode could be
-written into, and ``types/record.py`` is where that would have to be added.
+replaced it. ``core/failure_modes.py`` is wired too: ``types/record.py`` gained the field a
+named mode goes in, and ``core/record.build`` indexes the modes off the same traces
+the decisions come from. So what is left in this file is ADJACENCY alone.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import re
 
 import pytest
 
@@ -78,55 +80,41 @@ def test_no_registered_method_reports_a_shared_localisation(study_id: str) -> No
     )
 
 
-def test_no_check_declares_a_dependency_on_a_declared_condition() -> None:
-    """``core/propagate.py`` stays unwired -- and the REASON changed, so the test did.
+def test_the_only_condition_dependency_is_one_a_check_really_has() -> None:
+    """``core/propagate.py`` is WIRED now, and this guards it from spreading.
 
-    It used to assert that ``de-interpretation`` had no registered method, reasoning
-    that only ``workflows/de.py`` builds a ``CheckResult`` and nothing ran it. The DE
-    workflow and two methods are registered now and the four checks run in
-    production, so that proxy has expired. The underlying condition has not.
+    The rule CLAUDE.md states twice -- a check reading an unknown field returns
+    *cannot be settled* and names what is missing -- had no implementation for
+    checks. ``workflows/de.composition_vs_expression`` now declares its dependency
+    on ``segmentation`` through ``requires``, which is the call ``propagate``'s own
+    module docstring gives as the example. It is a real dependency: abundance is a
+    count of CELLS per arm, and cells are what segmentation produces.
 
-    ``requires`` answers one question: which declared ``Conditions`` fields does this
-    check read, and which are UNKNOWN. A caller is honest only where the check
-    genuinely depends on such a field. None of the four does, and it is worth being
-    specific rather than hand-waving:
+    What this pins is that it stays the only one. The danger with a mechanism like
+    this is not that nobody calls it, it is that it becomes decoration -- a check
+    declaring a condition it does not read turns a settled answer into CANNOT BE
+    SETTLED on a fabricated ground, and on the demo, where segmentation and
+    fixation are both unknown, that silences real results.
 
-    * ``panel_scoping`` reads the gene frame and a curated list. ``Conditions.frames``
-      is explicitly NOT a ``Condition`` and is not in ``CONDITION_FIELDS``; ``tissue``
-      is a blocking field, which ``requires`` can only ever return OK for.
-    * ``replicate_confound`` reads a sample count, and ``types/conditions.py`` says in
-      terms that ``Conditions`` carries none -- "inventing a sample count on an object
-      that has no other use for one".
-    * ``composition_vs_expression`` is the plausible one, and it does not hold.
-      ARCHITECTURE §9.7 calls it "answerable from cluster abundances", and the only
-      two places in this repository pairing composition with ``segmentation`` are
-      ``propagate``'s own docstring example and ``propagate``'s own test -- which is
-      circular, not evidence. ``methods/seurat_de`` does name segmentation, as an
-      assumption about the per-cell MEAN; a different claim, already declared where
-      it belongs.
-    * ``cross_method_coherence`` takes the other method's ``Side`` and delegates to
-      ``core/reconcile``; it never reads ``Conditions.method``.
-
-    So the guard is now the thing that is actually true: ``requires`` has no
-    production caller. Wiring one means a check that honestly reads a declared
-    condition, and this failing is the prompt to say WHICH and WHY -- not to delete
-    the assertion.
-
-    This is NOT "the rule is unimplemented". ``claims/transfer.py`` emits a
-    CANNOT_BE_SETTLED delta per unknown condition field and runs in every build;
-    what has no caller is the *check-side* half.
+    So: adding a caller is allowed, and this failing is the prompt to say which
+    check reads which field and why -- not to widen the list.
     """
     root = Path(__file__).resolve().parents[1] / "panoscope"
-    callers = [
-        f"{p.relative_to(root.parent)}:{n}"
-        for p in sorted(root.rglob("*.py"))
-        if p.name != "propagate.py"
-        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
-        if "propagate.requires(" in line and not line.lstrip().startswith("#")
-    ]
-    assert not callers, (
-        f"core/propagate.requires now has production caller(s): {callers}. That is "
-        "allowed -- but only for a check that genuinely reads a declared Conditions "
-        "field. Name the check and the field here and say why the dependency is "
-        "real, rather than removing this assertion."
-    )
+    callers: list[str] = []
+    for src in sorted(root.rglob("*.py")):
+        if src.name == "propagate.py":
+            continue
+        for line in src.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("#") or "import" in line:
+                continue
+            # both spellings: the dotted call and the imported symbol
+            if re.search(r"(?<![\w.])(propagate\.)?requires\(", line):
+                callers.append(f"{src.relative_to(root.parent)} {line.strip()}")
+
+    # The file and the FIELD, never the line number: an edit above the call is not
+    # a change to which condition the check depends on.
+    assert len(callers) == 1, f"expected exactly one condition dependency: {callers}"
+    where, call = callers[0].split(" ", 1)
+    assert where == "panoscope/workflows/de.py", where
+    assert '"segmentation"' in call, call
+    assert "COMPOSITION" in call, call

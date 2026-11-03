@@ -3104,5 +3104,6 @@
     "replicate concordance (ARCHITECTURE 9.10) does not apply: the study holds one sample (xenium_hbreast_sample1), so there is no second reading for this unit's profile to be compared against"
   ],
   "spec_version": "0.1",
+  "failure_modes": [],
   "prose": null
 }

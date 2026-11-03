@@ -442,3 +442,56 @@ def test_explain_renders_from_the_record_not_from_the_committed_json(
     out = capsys.readouterr().out
     assert band in out
     assert "never measured (" in out and "absence is NOT evidence" in out
+
+
+# --------------------------------------------------------------------------- #
+# ARCHITECTURE §9.8's named modes reach the record
+# --------------------------------------------------------------------------- #
+def test_the_record_names_the_failure_modes_its_own_decisions_raised(
+        demo: Study) -> None:
+    """§9.8 asks for the modes to be "named, computed, more actionable than a low
+    band". Computed they already were, in six core modules; what was missing was
+    the naming, and ``InterpretationRecord`` had no field to put it in.
+
+    The assertion is CONSISTENCY, not a fixed list: every mode the record names
+    must be one whose detector ids actually appear among that record's own
+    decisions or its evidence's flags. A mode asserted without its detector would
+    be exactly the second, drifting copy the index was written to avoid.
+    """
+    from panoscope.core.failure_modes import MODES
+
+    built = cli._build_record(demo, UNIT)
+    rec = built.record
+    fired = {d.rule for d in rec.decisions} | {
+        f for i in built.evidence.items for f in i.flags}
+
+    for mode_id in rec.failure_modes:
+        assert mode_id in MODES, f"record names an unregistered mode {mode_id!r}"
+        assert any(d in fired for d in MODES[mode_id].detected_by), (
+            f"{mode_id} is named but none of its detectors "
+            f"{MODES[mode_id].detected_by} fired for this unit"
+        )
+    # ...and the converse: a mode whose detector DID fire must be named, or the
+    # record is quietly dropping one.
+    for mode_id, mode in MODES.items():
+        if any(d in fired for d in mode.detected_by):
+            assert mode_id in rec.failure_modes, (
+                f"{mode_id} fired ({mode.detected_by}) but the record does not "
+                "name it"
+            )
+
+
+def test_failure_modes_discriminate_between_units(demo: Study) -> None:
+    """A field that said the same thing everywhere would pass the test above and
+    be worth nothing. The demo's thinnest unit must differ from a rich one."""
+    from panoscope.pipeline import records
+
+    built = records.build_all(demo)
+    by_unit = {u: b.record.failure_modes for u, b in built.items()}
+    assert len(set(by_unit.values())) > 1, (
+        f"every unit raised the same modes ({by_unit}); the field is not reading "
+        "anything unit-specific"
+    )
+    # c9 is the demo's smallest cluster (167 cells) and its call rests on few
+    # markers, so the thin-profile mode is the one that must be there.
+    assert "unit:thin_profile" in by_unit["c9"], by_unit["c9"]

@@ -71,6 +71,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from panoscope.core.propagate import requires
 from panoscope.core.reconcile import Agreement, Relationship, Side, reconcile
 from panoscope.types.claim import Authority
 from panoscope.types.contracts import (
@@ -326,6 +327,24 @@ def composition_vs_expression(ev: NormalisedEvidence,
     """
     t = Trace()
     anchor = (ref(ev.unit_subject),)
+
+    # THE CONDITION GATE, before the abundance one. ``audit.abundance`` is this
+    # unit's share of CELLS per arm, and cells are what segmentation produces -- so
+    # with the segmentation version declared unknown, a difference in share between
+    # arms cannot be attributed: it is a mixture change, or it is two segmentations
+    # counting differently, and this result does not say which. That is a real
+    # dependency rather than one invented to give ``core/propagate.py`` a caller,
+    # and it is the one ``propagate``'s own module docstring names:
+    # ``requires(conditions, COMPOSITION, "segmentation")``.
+    #
+    # First, because ``CANNOT_BE_SETTLED`` from ``requires`` means the question
+    # could not be ASKED. Supplying abundance would not rescue it, so refusing for
+    # want of abundance underneath an unknown segmentation would name the smaller
+    # gap and hide the larger one.
+    gate = t.absorb(requires(ev.conditions, COMPOSITION, "segmentation"))
+    if not gate.settled:
+        return t.done(gate)
+
     shares = tuple(sorted(audit.abundance))
 
     if len(shares) < 2:

@@ -94,6 +94,22 @@ CONDITIONS = Conditions(
     frames=(PANEL.ref(), CLUSTERS.ref()),
 )
 
+#: The same study with its SEGMENTATION DECLARED. ``composition_vs_expression``
+#: now gates on that field before it looks at abundance -- this unit's share of
+#: cells is a count of cells, and cells are what segmentation produces -- so a
+#: test about the abundance branch has to get past the gate first. Kept as a
+#: separate constant rather than declaring it on CONDITIONS, because the demo
+#: study genuinely does not know its segmentation and the refusal that causes is
+#: itself under test (see the gate test below).
+CONDITIONS_SEGMENTED = dataclasses.replace(
+    CONDITIONS, segmentation=Condition("nucleus_expansion_15um", Provenance.READ))
+
+
+def _segmented(ev):
+    """The same evidence, under conditions whose segmentation is declared."""
+    return dataclasses.replace(ev, conditions=CONDITIONS_SEGMENTED)
+
+
 #: A Seurat ``FindAllMarkers`` table, by hand. CD3E is off this panel on purpose:
 #: the panel-absence rule has to reach from a CSV row all the way to a refusal.
 FINDALLMARKERS_CSV = (
@@ -470,7 +486,7 @@ def test_the_replicate_check_cannot_pass_from_a_result_table_alone(tmp_path):
 # Check 3: composition versus expression
 # --------------------------------------------------------------------------- #
 def test_composition_is_confounded_when_the_units_share_of_cells_moves(loaded):
-    ev = loaded.value["c1"]
+    ev = _segmented(loaded.value["c1"])
     moved = de.composition_vs_expression(ev, de.DEAudit(
         world=WORLD, abundance=(("treated", 0.31), ("untreated", 0.12)))).value
     assert moved.state is de.CheckState.FLAGGED
@@ -589,7 +605,7 @@ def test_the_rival_space_is_the_data_and_an_unknown_confound_is_reported_unasked
     assert "no confound check is registered" in unknown.undecidable[0]
     assert "come from the data" in unknown.undecidable[0]
 
-    settled = de.WORKFLOW.rival_test(ev, de.COMPOSITION, de.DEAudit(
+    settled = de.WORKFLOW.rival_test(_segmented(ev), de.COMPOSITION, de.DEAudit(
         world=WORLD, abundance=(("a", 0.1), ("b", 0.1)))).value
     assert settled.undecidable == ()
 
@@ -672,3 +688,45 @@ def test_coherence_demonstration(loaded, capsys):
     assert "AGREE" not in out
     assert Agreement.AGREE not in {p.outcome for p in joined.pairs}
     assert [p.subject.display() for p in joined.corroborated] == ["ERBB2"]
+
+
+# --------------------------------------------------------------------------- #
+# The condition gate: a declared unknown finally propagates into a check
+# --------------------------------------------------------------------------- #
+def test_an_unknown_segmentation_stops_the_composition_check(loaded):
+    """CLAUDE.md's rule, implemented at last: a check reading an unknown field
+    returns *cannot be settled* and NAMES what is missing.
+
+    ``core/propagate.py`` was written to be this edge and had no caller; its own
+    docstring gives this exact call as the example. The dependency is real rather
+    than manufactured to supply one: ``audit.abundance`` is this unit's share of
+    CELLS per arm, and cells are what segmentation produces, so with the
+    segmentation version unknown a difference in share cannot be attributed -- it
+    is a mixture change, or it is two segmentations counting differently.
+
+    It gates BEFORE the abundance branch, because this answer means the question
+    could not be ASKED. Supplying abundance would not rescue it.
+    """
+    ev = loaded.value["c1"]                      # CONDITIONS: segmentation UNKNOWN
+    r = de.composition_vs_expression(ev, de.DEAudit(
+        world=WORLD, abundance=(("treated", 0.31), ("untreated", 0.12)))).value
+
+    assert r.state is de.CheckState.CANNOT_BE_SETTLED
+    assert not r.settled
+    assert "segmentation" in " ".join(r.missing).lower(), r.missing
+    # The abundance WAS supplied and differs, so without the gate this would have
+    # come back CONFOUNDED -- a verdict resting on counts nobody can attribute.
+    assert "CONFOUNDED" not in r.headline
+
+
+def test_a_declared_segmentation_lets_the_composition_check_run(loaded):
+    """The other half. A gate that refused everything would be worse than none."""
+    ev = _segmented(loaded.value["c1"])
+    same = de.composition_vs_expression(ev, de.DEAudit(
+        world=WORLD, abundance=(("a", 0.2), ("b", 0.2)))).value
+    assert same.state is de.CheckState.OK
+
+    moved = de.composition_vs_expression(ev, de.DEAudit(
+        world=WORLD, abundance=(("a", 0.3), ("b", 0.1)))).value
+    assert moved.state is de.CheckState.FLAGGED
+    assert "CONFOUNDED" in moved.headline
