@@ -9,6 +9,11 @@ scripts/demo_second_opinion.py
 # ── Large input data (exceeds GitHub's 100 MB/file limit — never commit) ─────
 # Raw Xenium inputs (~1.4 GB, incl. transcripts.csv.gz 1.3 GB)
 Raw_data_Xenium_hbreast_sample1/
+# The Zenodo handover (4.3 GB): both samples' vendor bundles plus the processed
+# Seurat object. Same rule as the line above, and §12's "fetch
+# restrictively-licensed data, never bundle it" -- the bundle is fetched, never
+# committed. Panoscope reads it only through the prep step.
+data/xenium_human_breast_cancer/
 # jazzPanda outputs live here; xenium_hbreast_seu.Rds alone is 328 MB.
 # Whole dir ignored for now — small precomputed outputs get committed under
 # data/jazzpanda/ once the repo layout is set up.

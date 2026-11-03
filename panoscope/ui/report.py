@@ -74,6 +74,20 @@ class ClusterSection:
     undecidable: tuple[str, ...] = ()
     lineage: str = ""                # for the overview table
     key_markers: str = ""            # top gene names (no numbers), for the overview table
+    #: The panel-absence rule, carried into the document: ``(gene, message)`` for
+    #: every canonical marker of this call the panel never measured.
+    #:
+    #: It was missing, and it was the worst omission in the export. On screen c2
+    #: names COL1A1, COL1A2, DCN, VIM and FAP as never measured; the document a
+    #: biologist hands on named none of them, so a reader could not tell a call
+    #: resting on a complete canonical set from one where five of its markers were
+    #: never on the panel. ``ClusterVerdict.offpanel_notes`` had carried them the
+    #: whole time -- ``build_report`` simply never read the field.
+    #:
+    #: Pairs rather than the ``OffPanelNote`` object: this model is the boundary
+    #: between the v1 verdict and three renderers, and it holds plain data so a
+    #: renderer cannot reach past it for something it was not meant to expose.
+    off_panel: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -91,6 +105,28 @@ class ReportModel:
     tissue: str = ""                     # header context (from the manifest)
     platform: str = ""                   # header context (from the manifest)
     method: str = "jazzPanda spatial markers"
+    # ----------------------------------------------------------------------- #
+    # ARCHITECTURE §14's REPORT header: "study, dataset, platform, frames +
+    # hashes, reference releases, corpus version + staleness, generator model +
+    # version + access date, spec version". Everything after `platform` was
+    # missing, so the document carried no way to tell which panel produced it,
+    # whether reference data was consulted, or which spec version wrote it.
+    #
+    # Each field says what it IS or says plainly that it was not consulted. "No
+    # reference source registered" and "corpus not built" are answers; a blank
+    # line is not, and silence here reads as "checked and fine".
+    # ----------------------------------------------------------------------- #
+    #: ``(frame name, digest)`` for every capability frame the reading stood on.
+    frames: tuple[tuple[str, str], ...] = ()
+    #: One line per registered reference source, or empty -- rendered as "not
+    #: consulted" rather than omitted.
+    reference_releases: tuple[str, ...] = ()
+    #: Corpus version + staleness, or why there is none.
+    corpus_status: str = ""
+    #: Generator model + how it was reached. Deterministic builds say so.
+    generator: str = ""
+    #: ``core.record.SPEC_VERSION`` -- which contract wrote this document.
+    spec_version: str = ""
 
 
 # --------------------------------------------------------------------------- #
@@ -213,6 +249,13 @@ def build_report(
     tissue: str = "",
     platform: str = "",
     undecidable: dict | None = None,
+    # §14 provenance. Defaulted so every existing caller and test keeps working;
+    # `build_report_from_sources` fills them from what actually ran.
+    frames: tuple[tuple[str, str], ...] = (),
+    reference_releases: tuple[str, ...] = (),
+    corpus_status: str = "",
+    generator: str = "",
+    spec_version: str = "",
 ) -> ReportModel:
     """Assemble the interpretation report from durable, grounded inputs. Pure.
 
@@ -265,6 +308,11 @@ def build_report(
                 undecidable=tuple(undecidable.get(v.cluster) or ()),
                 lineage=getattr(v, "lineage", "") or "",
                 key_markers=", ".join(v.key_markers[:4]) if v.key_markers else "",
+                # Read off the verdict, never re-derived: the same objects the
+                # evidence table renders, so the document cannot disagree with the
+                # screen about which markers were never measured.
+                off_panel=tuple((o.gene, o.message)
+                                for o in getattr(v, "offpanel_notes", ()) or ()),
             )
         )
 
@@ -294,6 +342,11 @@ def build_report(
         dataset_notes=dataset_notes,
         tissue=tissue,
         platform=platform,
+        frames=frames,
+        reference_releases=reference_releases,
+        corpus_status=corpus_status,
+        generator=generator,
+        spec_version=spec_version,
     )
 
 
@@ -348,6 +401,58 @@ def _dataset_undecidables(dataset: str) -> dict:
         return {}
 
 
+def _provenance(dataset: str) -> dict:
+    """ARCHITECTURE §14's provenance header, read off what actually ran.
+
+    Fail-soft per field and never silent: a field that cannot be established says
+    so, because an omitted reference line reads as though reference data agreed.
+    Nothing here consults the network -- §14's REPORT block is explicit that the
+    document is assembled "from durable artifacts, no live network".
+    """
+    frames: tuple[tuple[str, str], ...] = ()
+    try:
+        from panoscope import platforms
+        from panoscope.data.study import Study
+
+        store = Study.open(dataset)
+        frames = tuple((f.name, f.digest)
+                       for f in platforms.for_study(store).frames(store))
+    except Exception:  # noqa: BLE001 - a thinner header, never a wrong one
+        frames = ()
+
+    releases: tuple[str, ...] = ()
+    try:
+        from panoscope.reference import sources as ref_sources
+        releases = tuple(f"{s.name} {s.release}" for s in ref_sources.SOURCES.values())
+    except Exception:  # noqa: BLE001
+        releases = ()
+
+    corpus = "not built; no literature was retrieved for this run"
+    try:
+        from panoscope.corpus import store as corpus_store
+
+        c = corpus_store.load(corpus_store.corpus_path(dataset))
+        corpus = f"{getattr(c, 'version', '?')} · {len(getattr(c, 'sources', ()))} source(s)"
+    except Exception:  # noqa: BLE001 - CorpusUnavailable is the ordinary case
+        pass
+
+    try:
+        from panoscope.core.record import SPEC_VERSION
+        spec = SPEC_VERSION
+    except Exception:  # noqa: BLE001
+        spec = ""
+
+    model = str(getattr(cfg, "PRIMARY_MODEL", "") or "")
+    import os as _os
+    reached = bool(_os.getenv("ANTHROPIC_API_KEY"))
+    generator = (f"{model}; reachable" if model and reached
+                 else f"{model}; no credential, deterministic fallback" if model
+                 else "deterministic; no model was called")
+
+    return {"frames": frames, "reference_releases": releases,
+            "corpus_status": corpus, "generator": generator, "spec_version": spec}
+
+
 def build_report_from_sources(generated_at: str = "") -> ReportModel:
     """Convenience: pull the durable artifacts from ``ui.data_access`` and assemble.
 
@@ -363,6 +468,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         enrichments, pathway_notes = {}, {}
 
     tissue, platform = _dataset_tissue_platform(cfg.DATASET_ID)
+    prov = _provenance(cfg.DATASET_ID)
     return build_report(
         verdicts=da.composed_verdicts(),  # reflect confirmed overrides/excludes in the report
         celltype_notes=da.celltype_notes(),
@@ -376,6 +482,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         tissue=tissue,
         platform=platform,
         undecidable=_dataset_undecidables(cfg.DATASET_ID),
+        **prov,
     )
 
 
@@ -387,13 +494,30 @@ _OVERVIEW_COLS = ("Cluster", "Cell type", "Lineage", "Confidence", "Top markers"
 
 
 def _header_meta(report: ReportModel) -> list[str]:
-    """Grounded header lines for the report (the skill Output 1 header)."""
+    """Grounded header lines for the report -- ARCHITECTURE §14's REPORT header.
+
+    Every provenance line is emitted even when the answer is "not consulted". A
+    document that simply omits the reference line reads as though reference data
+    agreed; one that says *no reference source was registered* cannot be misread.
+    """
     ctx = " · ".join(p for p in (report.tissue, report.platform) if p)
     lines = [report.dataset + (f" · {ctx}" if ctx else "")]
     lines.append(
         f"{report.n_clusters} clusters · {report.n_flagged} flagged for re-check · "
         f"{report.panel_size}-gene panel · marker method: {report.method}"
     )
+    if report.frames:
+        lines.append("frames: " + " · ".join(
+            f"{n} {d[:12]}" for n, d in report.frames))
+    lines.append("reference: " + (" · ".join(report.reference_releases)
+                                  if report.reference_releases
+                                  else "no source registered; not consulted"))
+    lines.append("corpus: " + (report.corpus_status or "not built; no literature "
+                                                       "was retrieved for this run"))
+    lines.append("generator: " + (report.generator or "deterministic; no model was "
+                                                      "called"))
+    if report.spec_version:
+        lines.append(f"spec version {report.spec_version}")
     if report.generated_at:
         lines.append(f"generated {report.generated_at}")
     return lines
@@ -514,6 +638,14 @@ def report_html(report: ReportModel) -> str:
             parts.append(
                 f'<div style="font-size:12px;margin-top:4px;color:var(--accent,#3b6fd4)">'
                 f'<em>What would settle it:</em> {_linkify(s.settle)}</div>'
+            )
+        if s.off_panel:
+            names = ", ".join(_html.escape(g) for g, _m in s.off_panel)
+            parts.append(
+                f'<div style="font-size:12px;margin-top:4px">'
+                f'<em>Never measured ({len(s.off_panel)} off panel):</em> {names}'
+                f' &mdash; absent from the capability frame, so their absence is '
+                f'not evidence against this call.</div>'
             )
         for u in s.undecidable:
             parts.append(
@@ -660,6 +792,12 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
             lines.append(("body", f"What would settle it: {s.settle}"))
         # One line per sentence, never joined: each is a different outcome of the
         # same check, and a reader skimming a paragraph reads the first clause.
+        if s.off_panel:
+            names = ", ".join(g for g, _m in s.off_panel)
+            lines.append(("body",
+                          f"Never measured ({len(s.off_panel)} off panel): {names}"
+                          " - absent from the capability frame, so their absence is"
+                          " not evidence against this call."))
         for u in s.undecidable:
             lines.append(("body", f"Not settled by this measurement: {u}"))
         for nl in s.notes:
@@ -827,6 +965,12 @@ def default_cluster_summary(s: ClusterSection) -> str:
     # Seeded into the EDITABLE space as well as the assembled report, because
     # ``working_docx`` exports this text and not ``_section_lines``. A caveat that
     # only reaches one of the two documents is the same defect one export out.
+    if s.off_panel:
+        names = ", ".join(g for g, _m in s.off_panel)
+        paras.append(
+            f"Never measured ({len(s.off_panel)} off panel) — {names}. Absent from "
+            "the capability frame, so their absence is not evidence against this "
+            "call.")
     for u in s.undecidable:
         paras.append(f"Not settled by this measurement — {u}")
     for nl in s.notes:

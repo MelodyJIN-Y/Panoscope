@@ -321,3 +321,66 @@ def test_the_undecidable_carry_follows_the_active_data_root(tmp_path, monkeypatc
     assert R._dataset_undecidables("s") == {}, (
         "a store with no records must carry no caveat, not another store's"
     )
+
+
+# --------------------------------------------------------------------------- #
+# The two things the export used to drop (found by the human-breast E2E run)
+# --------------------------------------------------------------------------- #
+def test_the_panel_absence_rule_reaches_the_document(report) -> None:
+    """The worst omission the export had, and the reason it mattered.
+
+    On screen, a Stromal call names COL1A1, COL1A2, DCN, VIM and FAP as never
+    measured. The exported document named none of them, so a reader could not tell
+    a call resting on a complete canonical set from one where five of its markers
+    were never on the panel -- and the panel-absence rule is the thing this project
+    is built around. ``ClusterVerdict.offpanel_notes`` had carried them the whole
+    time; ``build_report`` never read the field.
+
+    Asserted on the RENDERED text of all three outputs, not on the model: a field
+    that is populated and never rendered is the same defect one layer down.
+    """
+    with_off = [s for s in report.sections if s.off_panel]
+    assert with_off, "no section carries an off-panel marker; the fixture cannot show this"
+    s = with_off[0]
+    genes = [g for g, _m in s.off_panel]
+
+    html = R.report_html(report)
+    assert all(g in html for g in genes), f"{genes} missing from the HTML report"
+    assert "never measured" in html.lower()
+
+    text = R.default_cluster_summary(s)
+    assert all(g in text for g in genes), f"{genes} missing from the working document"
+
+    docx = bytes(R.report_to_docx(report))
+    assert docx[:2] == b"PK"
+    import zipfile
+    from io import BytesIO
+    body = zipfile.ZipFile(BytesIO(docx)).read("word/document.xml").decode("utf-8")
+    assert all(g in body for g in genes), f"{genes} missing from the .docx"
+
+
+def test_the_header_carries_the_provenance_section_14_asks_for() -> None:
+    """ARCHITECTURE §14: "header: study, dataset, platform, frames + hashes,
+    reference releases, corpus version + staleness, generator model + version +
+    access date, spec version".
+
+    Everything after ``platform`` was absent. Each line is emitted even when the
+    answer is *not consulted*, because a document that simply omits the reference
+    line reads as though reference data agreed -- which is the collapse the whole
+    four-state lattice exists to prevent, arriving in the artifact that leaves the
+    building.
+    """
+    rep = R.ReportModel(
+        dataset="d", generated_at="", n_clusters=0, n_flagged=0, panel_size=1,
+        sections=(), coherence_notes=(), refinements=(), set_is_coherent=True,
+        dataset_notes=(), tissue="t", platform="p",
+        frames=(("panel:d", "abc123def456"),), reference_releases=(),
+        corpus_status="", generator="", spec_version="0.1",
+    )
+    header = " ".join(R._header_meta(rep))
+    assert "panel:d" in header and "abc123def456"[:12] in header, "frames + hashes"
+    # The absent cases must SAY so rather than vanish.
+    assert "not consulted" in header, "reference line missing when nothing registered"
+    assert "not built" in header, "corpus line missing when nothing built"
+    assert "deterministic" in header, "generator line missing when no model ran"
+    assert "spec version 0.1" in header
