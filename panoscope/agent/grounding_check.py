@@ -188,12 +188,20 @@ _EDGE_REF_RE = re.compile(r"\[edge:\s*([^\]\s][^\]]*?)\s*\]")
 # abbreviation (a histology term, say) written in an absence-plus-inference
 # sentence -- it is off-panel too, so it fires. Upgrade path is a real symbol
 # universe to gate the token on; there is none in this repo today.
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.;!?])\s+")
+# A semicolon JOINS two clauses; it does not end a sentence. Splitting on one
+# cut "FOXP3 is absent; therefore Tregs are ruled out" into a half with the
+# absence and a half with the inference, so neither half satisfied the pair
+# and the sentence was never examined at all.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 _ABSENCE_RE = re.compile(
     r"\b(?:not\s+detected|undetected|not\s+expressed|no\s+expression"
     r"|absen(?:t|ce)|not\s+observed|not\s+seen|not\s+found|not\s+reported"
-    r"|no\s+signal|missing|lack(?:s|ing|ed)?|negative)\b",
+    r"|no\s+signal|missing|lack(?:s|ing|ed)?|negative"
+    # Negated SUBJECT, not negated verb: "neither X nor Y is detected" and
+    # "no CD3D is seen here" are the idiomatic ways to state a two-marker and
+    # a one-marker negative, and both walked straight through.
+    r"|neither\b|\bnor\b|\bno\s+[A-Z][A-Z0-9]{1,9}\b)\b",
     re.IGNORECASE,
 )
 
@@ -202,7 +210,13 @@ _INFERENCE_RE = re.compile(
     r"|rules?\s+against|weighs?\s+against|counts?\s+against|against\s+(?:a|an|the)"
     r"|supports?|supporting|confirms?|contradicts?|inconsistent\s+with"
     r"|consistent\s+with|unlikely|therefore|hence|which\s+is\s+why"
-    r"|so\s+(?:this|it|the|c\d))\b",
+    r"|so\s+(?:this|it|the|c\d)"
+    # Passive and past forms. The pattern had only active present tense, so
+    # "so Tregs ARE EXCLUDED" and "therefore Tregs are RULED OUT" -- at least
+    # as natural as "which argues against Tregs" -- carried no inference at
+    # all and the sentence was never examined.
+    r"|excluded|ruled\s+out|argued\s+against|weighed\s+against"
+    r"|counted\s+against|is\s+not\s+(?:a|an|the)|are\s+not\s+(?:a|an|the))\b",
     re.IGNORECASE,
 )
 
@@ -559,26 +573,43 @@ class Extractor:
                 continue
             if not _INFERENCE_RE.search(sentence):
                 continue
-            # Scope is a CLAUSE, not a sentence -- the rule the sibling frame-claim
-            # pass already states and follows. Dropping the whole sentence on the
-            # first never-measured phrase made the gate trivially avoidable: "KRT18
-            # was never measured, but CD3D is not detected here, so this is not T
-            # cells" obeys the rule in its first clause and breaks it in its second,
-            # and passed clean. Every true answer that correctly caveats ONE gene
-            # carried a free pass for every other gene in the same sentence.
+            # Every gene in the sentence is a candidate, MINUS the ones a clause
+            # has already excused by declaring them unmeasured.
+            #
+            # Clause scope was the wrong mechanism twice over. Requiring the gene
+            # and the absence verb in the same clause meant any separator between
+            # them was a bypass -- "T cell markers (CD3D, CD2) are not detected",
+            # "CD3D, which is canonical, is absent", "CD3D is absent -- so Tregs
+            # are excluded" all passed clean, because the splitter cuts on commas,
+            # parentheses, dashes and semicolons. And an earlier version dropped
+            # the whole sentence on its first never-measured phrase, so one true
+            # caveat bought a free pass for every other gene beside it.
+            #
+            # The caveat is a property of a GENE, not of a region of text: a gene
+            # named inside a never-measured clause is the rule being obeyed, and
+            # every other gene in an absence-plus-inference sentence is a claim.
+            # Who the caveat covers. A clause that states an absence of its
+            # own must carry its own caveat -- otherwise "KRT18 was never
+            # measured, but CD3D is not detected, so this is not T cells"
+            # excuses CD3D. A clause that merely NAMES genes is reached by the
+            # sentence's caveat, because the comma split fragments "COL1A1,
+            # COL1A2, DCN, VIM, FAP are off-panel" into one clause per gene and
+            # only the last one keeps the caveat. Eight of the app's own
+            # answers across c2, c7, c8 and c9 were refused by their own gate
+            # that way.
+            caveat = _NEVER_MEASURED_RE.search(sentence) is not None
+            excused: set[str] = set()
             for clause in _ABSENCE_CLAUSE_SPLIT_RE.split(sentence):
-                if _NEVER_MEASURED_RE.search(clause):
-                    # This clause names the absence as unmeasured, which is the
-                    # rule being obeyed, loudly. Nothing to flag HERE.
+                if _NEVER_MEASURED_RE.search(clause) or (
+                        caveat and not _ABSENCE_RE.search(clause)):
+                    excused.update(m.group(1)
+                                   for m in _GENE_TOKEN_RE.finditer(clause))
+            for m in _GENE_TOKEN_RE.finditer(sentence):
+                tok = m.group(1)
+                if tok in _STOPWORD_TOKENS or tok in seen or tok in excused:
                     continue
-                if not _ABSENCE_RE.search(clause):
-                    continue
-                for m in _GENE_TOKEN_RE.finditer(clause):
-                    tok = m.group(1)
-                    if tok in _STOPWORD_TOKENS or tok in seen:
-                        continue
-                    seen.add(tok)
-                    out.append(AbsenceClaim(entity=tok, sentence=sentence.strip()))
+                seen.add(tok)
+                out.append(AbsenceClaim(entity=tok, sentence=sentence.strip()))
         return out
 
     # -- clauses that put something OUTSIDE the capability frame ------------ #

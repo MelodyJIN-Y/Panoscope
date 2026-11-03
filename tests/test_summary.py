@@ -423,6 +423,66 @@ def _render_summary_headless(seed_edit: str = ""):
     return at
 
 
+def test_signing_off_does_not_freeze_the_stale_draft_as_the_biologists_prose() -> None:
+    """A draft that changes under an untouched region is not an edit.
+
+    The session seeds each region's text once; signing a flagged call off clears
+    its verify flag, so ``default_cluster_summary`` and ``caveats_text`` regenerate
+    WITHOUT "(flagged to re-check)" while the seeded value still carries it. The
+    autosave compared value against the new default, saw a difference, and wrote
+    the stale auto-draft into ``interp/summary_edits.json`` as the biologist's own
+    text -- which then wins forever, because saved edits beat the draft.
+
+    Four clicks produced a document saying "0 flagged for re-check" on page one and
+    "Flagged for re-check - c9 Mast_Cells" later in the same file, with the
+    contradiction persisted into the study tree and attributed to someone who never
+    typed it.
+    """
+    import json
+
+    import pytest
+
+    try:
+        from streamlit.testing.v1 import AppTest
+    except Exception:  # noqa: BLE001
+        pytest.skip("streamlit.testing.v1 unavailable")
+
+    p = _summary_edits_path()
+    if p.exists():
+        if (json.loads(p.read_text(encoding="utf-8")).get("edits") or {}):
+            pytest.skip("a real saved edit is on disk; not clobbering it")
+        p.unlink()
+
+    def _run() -> None:
+        from panoscope.ui import state as _state
+        from panoscope.ui import summary as _summary
+
+        _state.init_state()
+        _summary.render_summary_page()
+
+    try:
+        at = AppTest.from_function(_run)
+        at.run(timeout=90)
+        if at.exception and "keyword argument 'key'" in str(at.exception[0].value):
+            pytest.skip("Streamlit too old for st.container(key=...)")
+        # The board dispatches a sign-off as a query param; then it reruns.
+        at.query_params["sign"] = "c9"
+        at.run(timeout=90)
+        at.run(timeout=90)
+        assert not at.exception, [str(e.value) for e in at.exception]
+
+        assert not p.exists(), (
+            "signing off wrote the stale auto-draft into the study tree as an edit: "
+            + json.dumps(json.loads(p.read_text(encoding='utf-8')).get('edits', {}))[:300]
+        )
+    finally:
+        if p.exists():
+            p.unlink()
+        rs = p.parent / "review_state.json"
+        if rs.exists():
+            rs.unlink()
+
+
 def test_opening_the_summary_page_does_not_write_the_study_tree() -> None:
     """A read surface must not mutate the data tree. Opening the board used to write
     ``interp/summary_edits.json`` holding ``{"edits": {}}`` -- an empty write that says

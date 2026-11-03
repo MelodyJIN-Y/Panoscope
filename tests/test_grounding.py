@@ -423,6 +423,36 @@ def test_off_panel_absence_passes_when_the_sentence_says_it_was_never_measured(
         assert result.ok is True, f"{answer!r} -> {result.summary()}"
 
 
+def test_the_caveat_may_sit_in_a_different_clause_from_the_genes(
+    checker_real_lit,
+):
+    """The app's own prose, and the shape clause-level excusal could not see.
+
+    The deterministic fallback writes the caveat ONCE at the end of a sentence
+    whose subject is a list of genes. Gene-level excusal looks in the clause
+    the gene sits in, finds no caveat there, and refuses -- eight of the app's
+    own answers across c2, c7, c8 and c9 were refused by their own gate.
+
+    The discriminator is not where the caveat is, it is whether the sentence
+    concludes from the absence or declines to. The last case concludes, so it
+    must still be refused.
+    """
+    for answer in (
+        "COL1A1, COL1A2, DCN, VIM, FAP are canonical Stromal markers that are "
+        "off-panel, they were never measured in this panel, so their absence "
+        "is not evidence against the call.",
+        "CLDN5 and CDH5 were never measured on this panel; their absence "
+        "argues nothing.",
+    ):
+        assert checker_real_lit.check(answer, None, "c2").ok is True, answer
+
+    drawn = (
+        "COL1A1 was never measured, but CD3D is not detected here, so this "
+        "is not T cells."
+    )
+    assert checker_real_lit.check(drawn, None, "c2").ok is False
+
+
 def test_measured_absence_used_as_evidence_passes(checker_real_lit):
     """The PRODUCTIVE half. LUM is on the panel and was measured, so a sentence
     that reasons from where it did and did not peak is exactly what the tool is

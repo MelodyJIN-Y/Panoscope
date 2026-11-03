@@ -1415,6 +1415,29 @@ def render_summary_page() -> None:
         st.session_state[_skey("_sum_seeded")] = True
         for name in ws_defaults:
             st.session_state.setdefault(_skey(f"wsval_{name}"), _seed(name))
+            # Remember WHICH draft each region was seeded from. Without it a region
+            # the biologist never touched becomes an "edit" the moment the draft
+            # changes underneath it -- and the draft changes on the most ordinary
+            # action there is. Signing c9 off clears its verify flag, so
+            # default_cluster_summary and caveats_text regenerate without "(flagged
+            # to re-check)", the session value still carries it, and the comparison
+            # below reads the stale auto-draft as the biologist's own prose. Four
+            # clicks produced a document saying "0 flagged for re-check" on page one
+            # and "Flagged for re-check - c9" later in the same file, with the
+            # contradiction persisted into the study tree and attributed to them.
+            st.session_state.setdefault(_skey(f"wsseed_{name}"), _seed(name))
+
+    # A region still identical to the draft it was seeded from was never edited, so
+    # re-seed it from the current draft rather than freezing the stale one.
+    for name in ws_defaults:
+        vkey, skey_ = _skey(f"wsval_{name}"), _skey(f"wsseed_{name}")
+        if (skey_ in st.session_state
+                and st.session_state.get(vkey) == st.session_state[skey_]
+                and st.session_state[skey_] != ws_defaults[name]
+                and name not in saved):
+            st.session_state[vkey] = ws_defaults[name]
+            st.session_state[skey_] = ws_defaults[name]
+            st.session_state.pop(_skey(f"wsw_{name}"), None)
 
     # Reconcile canonical text from the (possibly just-edited) mounted widget BEFORE
     # exports/autosave, so both always reflect the latest keystrokes.
