@@ -731,8 +731,8 @@ def _render_signoff_card(st, cluster: str) -> None:
         st.markdown(convo._draft_tension_html(draft), unsafe_allow_html=True)
         c_ok, c_no = st.columns([0.6, 0.4])
         ok = c_ok.button("Confirm sign-off", key=f"sof_ok_{cluster}", type="primary",
-                         use_container_width=True)
-        no = c_no.button("Cancel", key=f"sof_no_{cluster}", use_container_width=True)
+                         width="stretch")
+        no = c_no.button("Cancel", key=f"sof_no_{cluster}", width="stretch")
     if no:
         state.clear_pending_draft(slot)
         _rerun(st)
@@ -1009,22 +1009,22 @@ def _render_drilldown_actions(st, v: ClusterVerdict, override, signed_rec, refin
     cols = st.columns([0.24, 0.18, 0.24, 0.34])
     with cols[0]:
         if signed_rec is not None:
-            st.button("✓ Signed — reopen", key=f"ddsign_{v.cluster}", use_container_width=True,
+            st.button("✓ Signed — reopen", key=f"ddsign_{v.cluster}", width="stretch",
                       on_click=_undo_sign_off, args=(v.cluster,))
         elif contested:
             st.button("Confirm & sign off", key=f"ddsign_{v.cluster}", type="primary",
-                      use_container_width=True, on_click=_begin_signoff,
+                      width="stretch", on_click=_begin_signoff,
                       args=(v.cluster, _signoff_claim(v, override)))
         else:
             st.button("Sign off", key=f"ddsign_{v.cluster}", type="primary",
-                      use_container_width=True, on_click=_sign_off_clean, args=(v.cluster,))
+                      width="stretch", on_click=_sign_off_clean, args=(v.cluster,))
     with cols[1]:
-        st.button("Chat", key=f"ddchat_{v.cluster}", use_container_width=True,
+        st.button("Chat", key=f"ddchat_{v.cluster}", width="stretch",
                   on_click=state.open_cluster_chat, args=(v.cluster,))
     if refinement is not None:
         with cols[2]:
             st.button(f"Accept {refinement.to_call}", key=f"ddrefine_{v.cluster}",
-                      use_container_width=True, on_click=_draft_refinement, args=(refinement,))
+                      width="stretch", on_click=_draft_refinement, args=(refinement,))
 
 
 def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -> str:
@@ -1440,12 +1440,12 @@ def render_summary_page() -> None:
         with b_doc:
             st.download_button(
                 _DOCX_LABEL, report.working_docx(export_sections, report_model=rep, **exp_kw),
-                _DOCX_NAME, _DOCX_MIME, key="dl_docx", use_container_width=True,
+                _DOCX_NAME, _DOCX_MIME, key="dl_docx", width="stretch",
                 help=_dl_help + " Editable Word.")
         with b_pdf:
             st.download_button(
                 _PDF_LABEL, report.working_pdf(export_sections, report_model=rep, **exp_kw),
-                _PDF_NAME, _PDF_MIME, key="dl_pdf", use_container_width=True,
+                _PDF_NAME, _PDF_MIME, key="dl_pdf", width="stretch",
                 help=_dl_help + " Locked PDF.")
 
     st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
@@ -1458,7 +1458,7 @@ def render_summary_page() -> None:
             ((_SEC_OVERALL, "Overall"), (_SEC_CAVEATS, "Caveats"), (_SEC_NOTES, "My notes")),
         ):
             with col:
-                st.button(label, key=f"snav_{sec}", use_container_width=True,
+                st.button(label, key=f"snav_{sec}", width="stretch",
                           type="primary" if active == sec else "secondary",
                           on_click=_set_active, args=(sec,))
 

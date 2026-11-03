@@ -90,7 +90,7 @@ def _render_header(cluster: str) -> None:
             st.button(
                 "Clear",
                 key=f"pwconv_clear_{cluster}",
-                use_container_width=True,
+                width="stretch",
                 on_click=_clear,
                 args=(cluster,),
                 help="Clear this cluster's pathway chat and re-post its opening summary",
@@ -207,7 +207,7 @@ def _render_ask_box(cluster: str) -> None:
                     label_visibility="collapsed",
                 )
             with c_send:
-                asked = st.form_submit_button("Ask", use_container_width=True, type="primary")
+                asked = st.form_submit_button("Ask", width="stretch", type="primary")
 
     if asked and query and query.strip():
         # Phase 1: show the message + a thinking indicator instantly; the live agent

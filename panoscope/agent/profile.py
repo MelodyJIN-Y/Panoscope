@@ -14,16 +14,38 @@ PMID to resolve to a real record.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-_PATH = Path(__file__).resolve().parent.parent / "context" / "profile.json"
 _MAX_CHARS = 400
+
+
+def _path() -> Path:
+    """Where the profile lives. Resolved at CALL time, never from ``__file__``.
+
+    This used to be ``Path(__file__).parent.parent / "context" / "profile.json"``,
+    which put it INSIDE the installed package. Three things were wrong with that,
+    and ``data/layout.py`` already documents all three: deriving a data path from
+    ``__file__`` couples the install layout to the data layout; a pip-installed
+    package directory is often read-only, so ``save()`` would fail exactly where
+    it matters; and ``.gitignore``'s ``context/profile.json`` is anchored to the
+    repo root, so the package copy was UNTRACKED rather than ignored -- a file
+    this module's docstring calls local-and-private was one ``git add`` from
+    being published.
+
+    ``PANOSCOPE_CONTEXT_DIR`` first, matching ``agent/tools.py``, which already
+    reads it for the memory notes that live beside this. Otherwise ``./context``,
+    the path the docstring, the .gitignore rule and the biologist's existing
+    profile all already agree on.
+    """
+    base = os.getenv("PANOSCOPE_CONTEXT_DIR")
+    return (Path(base) if base else Path.cwd() / "context") / "profile.json"
 
 
 def load() -> str:
     """Return the saved research interest (empty string if unset or unreadable)."""
     try:
-        data = json.loads(_PATH.read_text(encoding="utf-8"))
+        data = json.loads(_path().read_text(encoding="utf-8"))
         return str(data.get("research_interest", "")).strip()[:_MAX_CHARS]
     except (OSError, json.JSONDecodeError, ValueError):
         return ""
@@ -32,8 +54,8 @@ def load() -> str:
 def save(text: str) -> None:
     """Persist the research interest locally (trimmed, capped). Empty clears it."""
     clean = (text or "").strip()[:_MAX_CHARS]
-    _PATH.parent.mkdir(parents=True, exist_ok=True)
-    _PATH.write_text(
+    _path().parent.mkdir(parents=True, exist_ok=True)
+    _path().write_text(
         json.dumps({"research_interest": clean}, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )

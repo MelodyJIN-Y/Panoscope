@@ -66,7 +66,7 @@ def render_panel(fig: Any, cond: Conditionality, *, config: Optional[dict] = Non
 
     import streamlit as st
 
-    st.plotly_chart(fig, use_container_width=True, config=config)
+    st.plotly_chart(fig, width="stretch", config=config)
     line1, line2 = cond.caption()
     st.markdown(
         f'<div class="plegend" title="{html.escape(_full_record(cond))}">'

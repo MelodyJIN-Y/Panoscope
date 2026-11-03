@@ -313,7 +313,7 @@ def _render_header(cluster: str) -> None:
             st.button(
                 "Clear",
                 key=f"conv_clear_{cluster}",
-                use_container_width=True,
+                width="stretch",
                 on_click=_clear_conversation,
                 args=(cluster,),
                 help="Clear this cluster's conversation and re-post its opening interpretation",
@@ -530,7 +530,7 @@ def _render_ask_box(cluster: str) -> None:
                 )
             with c_send:
                 asked = st.form_submit_button(
-                    "Ask", use_container_width=True, type="primary"
+                    "Ask", width="stretch", type="primary"
                 )
 
     if asked and query and query.strip():
@@ -676,9 +676,9 @@ def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
         )
         c_save, c_disc = st.columns([0.6, 0.4])
         save = c_save.button(
-            "Save note", key=f"dsave_{cluster}_{nonce}", type="primary", use_container_width=True
+            "Save note", key=f"dsave_{cluster}_{nonce}", type="primary", width="stretch"
         )
-        disc = c_disc.button("Discard", key=f"ddisc_{cluster}_{nonce}", use_container_width=True)
+        disc = c_disc.button("Discard", key=f"ddisc_{cluster}_{nonce}", width="stretch")
 
     if disc:
         state.clear_pending_draft(key)
@@ -966,6 +966,13 @@ def _scroll_thread_to_bottom(nonce: Any) -> None:
     try:
         import streamlit.components.v1 as components
 
+        # DEPRECATED BY STREAMLIT, AND NOT MIGRATED ON PURPOSE. The warning says
+        # "replace st.components.v1.html with st.iframe", but st.iframe takes
+        # src= (a URL or Path) and this takes an HTML STRING. The script below
+        # reaches window.parent.document; served from a data: URL it would be
+        # cross-origin and the browser would block exactly that access. So the
+        # advice does not apply here -- migrating would break the feature, not
+        # fix it. Revisit when Streamlit offers a srcdoc-shaped replacement.
         components.html(
             f"<script>/*{nonce}*/setTimeout(function(){{"
             "var els=window.parent.document.querySelectorAll('[class*=\"st-key-conv_thread\"]');"

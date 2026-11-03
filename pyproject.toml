@@ -27,7 +27,11 @@ dependencies = [
 # this project has actually run; the exact set lives in requirements.lock. The one
 # exception is called out rather than hidden.
 [project.optional-dependencies]
-app     = ["streamlit>=1.59,<2", "plotly>=5.20,<8"]
+# Floor is 1.63, not 1.59: the UI now passes `width="stretch"` instead of the
+# deprecated `use_container_width=True` (removal announced for 2025-12-31,
+# already past), and 1.63.0 is the oldest release this was verified against.
+# Claiming 1.59 would be an untested bound, which is the thing §8 warns about.
+app     = ["streamlit>=1.63,<2", "plotly>=5.20,<8"]
 agent   = ["anthropic>=0.40,<2", "mcp>=1.2,<3", "python-dotenv>=1,<2"]
 export  = ["python-docx>=1.1,<2", "fpdf2>=2.7,<3"]
 # BUILD-side only, and that asymmetry is deliberate. ARCHITECTURE §5.1 makes a

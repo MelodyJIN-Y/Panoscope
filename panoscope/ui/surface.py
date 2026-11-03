@@ -619,7 +619,7 @@ def _render_pinnable_row(st, spec: UISpec, row: SurfaceRow, on_select, selected)
             if st.button(str(row.values.get(first.key, row.key)),
                          key=f"sfsel_{row.key}",
                          type="primary" if is_on else "secondary",
-                         use_container_width=True):
+                         width="stretch"):
                 on_select(row)
                 st.rerun()
         with c_rest:

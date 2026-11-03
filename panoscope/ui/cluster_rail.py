@@ -89,7 +89,7 @@ def render_rail() -> Optional[str]:
                 label,
                 key=f"rail_{cluster}",
                 type="primary" if is_sel else "secondary",
-                use_container_width=True,
+                width="stretch",
                 on_click=state.set_selected_cluster,
                 args=(cluster,),
             )

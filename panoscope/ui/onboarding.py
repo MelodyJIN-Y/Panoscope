@@ -304,7 +304,7 @@ def render_landing() -> None:
             cta, _sp = st.columns([1, 1.3])
             with cta:
                 with st.container(key="pano_ob_cta"):
-                    if st.button("Get started  →", use_container_width=True, key="ob_start"):
+                    if st.button("Get started  →", width="stretch", key="ob_start"):
                         _nav("upload")
         with right:
             st.markdown(_hero_visual_html(), unsafe_allow_html=True)
@@ -459,7 +459,7 @@ def render_upload() -> None:
         col, _sp = st.columns([1, 2])
         with col:
             with st.container(key="pano_ob_cta"):
-                analyze = st.button("Analyze my data  →", use_container_width=True, key="ob_analyze")
+                analyze = st.button("Analyze my data  →", width="stretch", key="ob_analyze")
         with st.container(key="pano_ob_skip"):
             skip = st.button("← back", key="ob_back")
 

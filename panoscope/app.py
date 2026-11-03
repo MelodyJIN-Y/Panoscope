@@ -184,7 +184,7 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
                             help=None if tab.available()
                             else f"No {tab.title.lower()} result for this study",
                             type="primary" if page == tab.page else "secondary",
-                            use_container_width=True,
+                            width="stretch",
                             on_click=_set_page,
                             args=(tab.page,),
                         )
@@ -234,6 +234,13 @@ def _kill_cross_page_bleed() -> None:
         "</style>",
         unsafe_allow_html=True,
     )
+    # DEPRECATED BY STREAMLIT, AND NOT MIGRATED ON PURPOSE. The warning says
+    # "replace st.components.v1.html with st.iframe", but st.iframe takes
+    # src= (a URL or Path) and this takes an HTML STRING. The script below
+    # reaches window.parent.document; served from a data: URL it would be
+    # cross-origin and the browser would block exactly that access. So the
+    # advice does not apply here -- migrating would break the feature, not
+    # fix it. Revisit when Streamlit offers a srcdoc-shaped replacement.
     components.html(
         """
 <script>
