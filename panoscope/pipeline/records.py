@@ -337,16 +337,15 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
 
     import pandas as pd
 
-    from panoscope import methods, workflows
+    from panoscope import methods, platforms, workflows
     from panoscope.core import compat, interpret as core_interpret, measure
     from panoscope.core import record as core_record
     from panoscope.core import verdict as core_verdict
-    from panoscope.workflows import marker as wf_marker
     from panoscope.platforms.tidy import read_tidy
-    from panoscope.platforms.xenium import XeniumAdapter
     from panoscope.types.measured import MeasuredWorld
     from panoscope.types.outputs import TaskKind
     from panoscope.types.subject import EntityKind, gene, subject
+    from panoscope.workflows import marker as wf_marker
 
     registered = methods.for_workflow(WORKFLOW_ID)
     if len(registered) != 1:
@@ -379,7 +378,12 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             f"one."
         )
     task_kind = wf.task_kind
-    adapter = XeniumAdapter()          # no platform registry exists yet; see report
+    # The study's manifest says which technology produced it, and the registry
+    # resolves the reader. Hardcoding ``XeniumAdapter()`` here made ARCHITECTURE
+    # §4's "the core does not change when a member is added" false for platforms:
+    # a MERSCOPE store would have been read through the Xenium adapter, which does
+    # not raise -- it answers, about a panel that was never run.
+    adapter = platforms.for_study(study)
     # Read once and used twice -- stamped into the ReadingRecord, and read by the
     # §9.10 gate below. Two calls could not disagree today, but the record and the
     # gate claiming different clustering modes is the one disagreement whose cost is

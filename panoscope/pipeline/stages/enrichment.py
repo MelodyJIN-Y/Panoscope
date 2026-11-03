@@ -112,10 +112,10 @@ def write_records(
     """
     import pandas as pd
 
-    from panoscope import methods, workflows
+    from panoscope import methods, platforms, workflows
+    from panoscope.core import interpret as core_interpret
     from panoscope.core import record as core_record
     from panoscope.platforms.tidy import read_tidy
-    from panoscope.platforms.xenium import XeniumAdapter
     from panoscope.types.measured import MeasuredWorld
     from panoscope.types.outputs import TaskKind
     from panoscope.types.subject import EntityKind
@@ -149,7 +149,9 @@ def write_records(
     # The SAME file the v1 engine read, resolved by the same function: two engines
     # being compared against each other must not be reading two files.
     path = agent_enrichment._jz_enrichment_csv()
-    adapter = XeniumAdapter()          # no platform registry exists yet; see report
+    # The manifest says which technology produced this store; the registry
+    # resolves the reader. Same reason as pipeline/records.py.
+    adapter = platforms.for_study(study)
     table = pd.read_csv(path)
     spec = method.detect_unit(table)
 
@@ -184,8 +186,14 @@ def write_records(
     written: dict[str, Path] = {}
     for unit in sorted(loaded.value):
         ev = loaded.value[unit]
-        finding = wf.interpret(
-            ev,
+        # Through ``core.interpret.interpret``, not ``wf.interpret`` directly: the
+        # guard comparing the RETURNED shape against the declared task kind lives
+        # there, and calling the workflow straight is what let it be skipped. A
+        # CHARACTERISATION workflow that returned an ``Assignment`` would put a
+        # unit-level band on a question with no label space -- well-formed, and
+        # nothing downstream asks what question the object answers.
+        finding = core_interpret.interpret(
+            ev, wf,
             wf_enrichment.EnrichmentReference(cell_type=cell_types.get(unit, "")),
         )
         record = core_record.build(
