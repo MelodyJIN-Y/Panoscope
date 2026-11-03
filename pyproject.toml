@@ -30,23 +30,23 @@ dependencies = [
 app     = ["streamlit>=1.59,<2", "plotly>=5.20,<8"]
 agent   = ["anthropic>=0.40,<2", "mcp>=1.2,<3", "python-dotenv>=1,<2"]
 export  = ["python-docx>=1.1,<2", "fpdf2>=2.7,<3"]
-# NOT STALE -- UNBUILT, and the difference matters. ARCHITECTURE §5.1 makes a
-# SpatialData (scverse) .zarr store THE on-disk format for spatial evidence,
-# replacing the tidy CSV/parquet layer: Shapes for cells, Points for transcripts,
-# table.obsm["X_umap"], and `table.var_names` as the measured set -- which is what
-# makes the panel-absence rule structural rather than a file we assemble. §5.1
-# puts it "behind a panoscope[spatial] extra with the legacy tidy reader
-# retained", which is why these two are declared here.
+# BUILD-side only, and that asymmetry is deliberate. ARCHITECTURE §5.1 makes a
+# SpatialData (scverse) .zarr store THE on-disk format for spatial evidence:
+# Shapes for cells, Points for transcripts, table.obsm["X_umap"], and
+# `table.var_names` as the measured set -- which is what makes the panel-absence
+# rule structural rather than a file we assemble.
 #
-# Nothing imports them because `panoscope/data/spatial.py` -- named in
-# IMPLEMENTATION.md §1's target layout -- has not been written. So these bounds
-# are the only ones here not read off a working install, and they stay bounded
-# because an unbounded pin is the hazard §8 names.
+# `panoscope/data/spatial.py` READS a Points element with pyarrow alone, because
+# a Points element is parquet underneath. pyarrow is a core dependency above, so
+# drawing from a store needs no extra at all. These two are needed to WRITE a
+# store and for scverse interop -- which is exactly where §5.1 puts them, "behind
+# a panoscope[spatial] extra with the legacy tidy reader retained".
 #
-# Do not read "no importer" as "drop it". §5.1's sequencing note is explicit that
-# the zarr reader comes AFTER the tidy adapter and is validated against it on the
-# same study; the tidy adapter exists, so this is owed work, not dead weight.
-spatial = ["spatialdata>=0.2,<1", "zarr>=2.17,<4"]
+# Bounds now read off a working install (spatialdata 0.8.0, zarr 3.4.2), like
+# every other line here. §5.1's sequencing note asked that the zarr reader be
+# validated against the tidy adapter on the same study; it is --
+# tests/test_spatial_points.py checks all 840 committed hexbin frames bin-for-bin.
+spatial = ["spatialdata>=0.8,<1", "zarr>=3,<4"]
 dev     = ["pytest>=8,<10", "pytest-cov>=5,<8", "ruff>=0.5,<1", "mypy>=1.10,<2"]
 
 [project.scripts]

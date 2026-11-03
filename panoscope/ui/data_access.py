@@ -29,6 +29,7 @@ import pandas as pd
 
 from panoscope.agent import data as agent_data
 from panoscope.agent.types import ClusterVerdict, Note
+from panoscope.data import spatial
 
 # --------------------------------------------------------------------------- #
 # File paths this module reads directly (marker_expr + density index; everything
@@ -175,14 +176,25 @@ def umap_df() -> pd.DataFrame:
 
 
 @_cache_data(show_spinner=False)
-def hexbins(gene: str, bin_um: int = 50) -> pd.DataFrame:
-    """Precomputed hex-bin density (hx, hy, count, density) for one marker/bin.
+def hexbins(gene: str, bin_um: float = 50) -> pd.DataFrame:
+    """Hex-bin density (hx, hy, count, density) for one marker at one bin size.
 
-    A different ``bin_um`` reads a DIFFERENT precomputed frame — it never
-    re-bins. Cached per (gene, bin_um). Raises the loader's ``FileNotFoundError``
-    if the frame was not precomputed, so the caller can fall back to the cell map.
+    Prefers the study's SpatialData Points store (ARCHITECTURE §5.1), which bins
+    at request time and so accepts ANY ``bin_um``; falls back to the precomputed
+    frames, which only hold the three sizes the one-time script baked. The two
+    agree bin-for-bin on all 840 committed frames, which is the validation §5.1's
+    sequencing note asks for.
+
+    Cached per (gene, bin_um). Raises the loader's ``FileNotFoundError`` when
+    neither path has the frame, so the caller can fall back to the cell map.
     """
-    return agent_data.get_density(gene, bin_um)
+    store = cfg.current_study().spatial
+    if store.is_dir():
+        try:
+            return spatial.density(gene, float(bin_um), store)
+        except spatial.StoreUnavailable:
+            pass  # a directory that is not a readable store -- use the frames
+    return agent_data.get_density(gene, int(bin_um))
 
 
 @_cache_data(show_spinner=False)

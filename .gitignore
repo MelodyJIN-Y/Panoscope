@@ -19,6 +19,15 @@ data/xenium_human_breast_cancer/
 # data/jazzpanda/ once the repo layout is set up.
 jazzPanda output/
 
+# SpatialData stores. ARCHITECTURE §5.1 makes the .zarr the on-disk format and
+# §12 says fetch restrictively-licensed data, never bundle it -- the human breast
+# store is 609 MB, well past GitHub's limit. A study tree carries the store only
+# on the machine that built it; a fresh clone draws from the committed
+# viz/hexbin/ frames instead (ui/data_access.hexbins prefers the store, falls
+# back to the frames). Unignored, this would also break the two journey checks
+# that assert `git status --porcelain data/studies/` is empty.
+data/studies/*/spatial.zarr/
+
 # Defensive: never let big bio-data blobs in even if relocated
 *.csv.gz
 *.mtx.gz

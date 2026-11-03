@@ -1,5 +1,14 @@
 """Precompute transcript-density hexbins for the demo markers (ONE-TIME).
 
+NOT retired, and not the primary path either. ``panoscope/data/spatial.py`` now
+bins from a SpatialData Points store at request time, at any bin size, and
+``ui/data_access.hexbins`` prefers it. But the store is 609 MB and cannot be
+committed (§12: fetch, never bundle), so the 841 frames this script wrote are
+the ONLY way a fresh clone draws a plot. They are also the oracle: all 840
+reproduce bin-for-bin from the store (tests/test_spatial_points.py), which is
+the validation §5.1's sequencing note asks for. Deleting either would cost a
+guarantee, so both stay.
+
 Streams the ~1.4 GB Xenium ``transcripts.csv.gz`` a SINGLE time (pandas
 ``chunksize`` — the file is never loaded whole), keeps only demo-marker rows that
 pass quality control, then bins each gene's transcript locations at 25 / 50 / 100
@@ -7,7 +16,10 @@ pass quality control, then bins each gene's transcript locations at 25 / 50 / 10
 
 Grounding discipline (CLAUDE.md):
   * The bin size is a *viewing* control: it changes the picture, never a value.
-    Each (gene, bin) is a distinct precomputed frame; nothing is recomputed live.
+    Each (gene, bin) is a distinct precomputed frame here. The store path bins
+    live instead -- which is the same rule, not an exception to it: it re-bins
+    raw transcript positions and derives no statistic. A plot renders, it does
+    not derive.
   * The density colour scale is AREA-NORMALIZED (``density = count / bin_area``,
     transcripts per µm²) so coarser bins are not falsely hotter.
   * DEMO_MARKERS is read from ``agent/config.py`` (itself derived from source),

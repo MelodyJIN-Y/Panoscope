@@ -92,6 +92,16 @@ def viz_dir(study_id: str, data_root: Optional[Path] = None) -> Path:
     return study_dir(study_id, data_root) / "viz"
 
 
+def spatial_zarr(study_id: str, data_root: Optional[Path] = None) -> Path:
+    """The study's SpatialData store (ARCHITECTURE §5.1).
+
+    A SIBLING of inputs/ and not a child, because §5.2 keeps the store ("what was
+    measured") separate from method results ("what someone computed from it"), and
+    that boundary is what makes the confidence assessment an audit.
+    """
+    return study_dir(study_id, data_root) / "spatial.zarr"
+
+
 def manifest_json(study_id: str, data_root: Optional[Path] = None) -> Path:
     return study_dir(study_id, data_root) / "manifest.json"
 

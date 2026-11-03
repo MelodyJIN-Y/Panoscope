@@ -69,6 +69,11 @@ class Study:
         return layout.viz_dir(self.id, self.data_root)
 
     @property
+    def spatial(self) -> Path:
+        """The SpatialData store. May not exist -- a study can be tidy-only."""
+        return layout.spatial_zarr(self.id, self.data_root)
+
+    @property
     def exists(self) -> bool:
         return layout.manifest_json(self.id, self.data_root).is_file()
 
