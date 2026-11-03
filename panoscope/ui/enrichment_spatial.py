@@ -211,7 +211,11 @@ def render_pathways_spatial(cluster: str, pathways: list) -> None:
     # Dot plot: the union of the selected programs' leading-edge genes across clusters.
     if all_genes:
         _panel_title("Leading-edge genes across clusters")
-        _render_dotplot(all_genes[:14], cluster)
+        # The UNCAPPED count, or the caption computes both halves of its
+        # "N of M" from the already-truncated list and reads "14 of 14 selected
+        # genes" while 24 were selected. ``spatial_stage._render_dotplot`` takes
+        # ``n_selected`` for exactly this; the markers path passes it.
+        _render_dotplot(all_genes[:14], cluster, n_selected=len(all_genes))
 
 
 __all__ = ["render_pathways_spatial"]

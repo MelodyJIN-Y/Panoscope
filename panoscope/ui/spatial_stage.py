@@ -687,6 +687,16 @@ def _umap_feature(
     off = merged[~is_pos]
     pos = merged[is_pos].sort_values("value", ascending=True)
 
+    # THE GENE'S maximum, not the drawn subset's. ``view`` is thinned -- all of
+    # the selected cluster plus a capped background sample -- so the brightest
+    # cell for this gene is often not in it, and the colourbar then printed a
+    # number that CHANGED when the biologist clicked a different cluster. On 38
+    # of the first 40 panel genes: ABCC11's maximum is 9.21 and the panel showed
+    # 7.42, 7.82 or 8.52 depending on the selection; ADIPOQ showed 6.34 against
+    # a true 9.21. The caption beside it says "this gene's own maximum", and a
+    # viewing control must change the picture, never a value.
+    gene_max = float(expr["value"].max()) if len(expr) else 0.0
+
     # Base: non-expressing cells, muted grey so they recede into the panel.
     fig.add_trace(
         go.Scattergl(
@@ -712,10 +722,10 @@ def _umap_feature(
                     color=pos_sqrt,
                     colorscale=_EXPR_COLORSCALE,
                     cmin=0.0,
-                    cmax=float(pos_sqrt.max()),
+                    cmax=float(gene_max ** 0.5) or float(pos_sqrt.max()),
                     opacity=0.92,
                     showscale=True,
-                    colorbar=_sqrt_colorbar(float(pos["value"].max()), "expr"),
+                    colorbar=_sqrt_colorbar(gene_max or float(pos["value"].max()), "expr"),
                 ),
                 hoverinfo="skip",
                 showlegend=False,

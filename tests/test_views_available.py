@@ -402,3 +402,118 @@ def test_the_spatial_hover_says_what_the_rail_says() -> None:
     assert labels["c2"] == _da.display_cell_type("c2") == "CAF", labels["c2"]
     assert labels["c1"] == "Tumor", "an unoverridden cluster must be untouched"
     assert labels[""] == "unassigned"
+
+
+def test_the_feature_colourbar_is_the_genes_maximum_not_the_drawn_subsets() -> None:
+    """A viewing control changes the picture, never a value.
+
+    The UMAP is thinned -- all of the selected cluster plus a capped background
+    sample -- and the colourbar maximum was read off that thinned frame. The
+    brightest cell for a gene is usually not in it, so the only number on the
+    panel CHANGED when the biologist clicked a different cluster, under a
+    caption reading "this gene's own maximum". On the first 40 panel genes, 38
+    drifted: ABCC11's maximum is 9.21 and the panel showed 7.42, 7.82 or 8.52.
+
+    The number is CAPTURED from the renderer, not recomputed here. Computing
+    the expectation in the test is how the first version of this passed with
+    the fix reverted.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.ui import data_access as _da
+    from panoscope.ui import spatial_stage as _ss
+
+    go = _ss._go()
+    umap = _da.umap_df()
+    drifted = checked = 0
+
+    for gene in list(_da.panel_names())[:12]:
+        expr = _da.marker_expr_col(gene)
+        if not len(expr):
+            continue
+        true_max = round(float(expr["value"].max()), 6)
+
+        shown: set[float] = set()
+        captured: list[float] = []
+        original = _ss._sqrt_colorbar
+        _ss._sqrt_colorbar = lambda v, kind, _o=original: (
+            captured.append(float(v)) or _o(v, kind)
+        )
+        try:
+            for c in cfg.CLUSTER_ORDER:
+                view = _ss._downsample_bg(umap, umap["cluster"] == c,
+                                          _ss._MAX_BG_POINTS)
+                captured.clear()
+                _ss._umap_feature(go.Figure(), go, view, expr, c)
+                if captured:
+                    shown.add(round(captured[-1], 6))
+        finally:
+            _ss._sqrt_colorbar = original
+
+        if not shown:
+            continue
+        checked += 1
+
+        # What it USED to show: the maximum among the cells that survived thinning.
+        thinned = set()
+        for c in cfg.CLUSTER_ORDER:
+            v = _ss._downsample_bg(umap, umap["cluster"] == c, _ss._MAX_BG_POINTS)
+            m = v.merge(expr, on="cell_id", how="left")
+            pos = m[m["value"] > 0]
+            if len(pos):
+                thinned.add(round(float(pos["value"].max()), 6))
+        if len(thinned) > 1:
+            drifted += 1
+
+        assert shown == {true_max}, (
+            f"{gene}: the colourbar printed {sorted(shown)}; the gene's own "
+            f"maximum is {true_max}"
+        )
+
+    assert checked >= 5, "too few genes carried expression to prove anything"
+    assert drifted, (
+        "no gene's thinned maximum varied by cluster, so this run could not "
+        "have detected the defect -- the fixture, not the code, is what passed"
+    )
+
+def test_the_pathways_dotplot_caption_counts_the_selection_not_the_cap() -> None:
+    """Both halves of "N of M" came from the already-truncated list.
+
+    ``render_pathways_spatial`` caps the dot plot at 14 genes and passed no
+    ``n_selected``, so the caption computed BOTH numbers from the capped list
+    and read "14 of 14 selected genes". On c4 the union of the selected
+    programs' leading edges is 47 genes: thirty-three of them appeared nowhere
+    on the stage and nothing said so. The "N of M" field exists precisely to
+    name what the figure left out, and the markers path already passes it.
+
+    This calls the real renderer and captures what it hands the dot plot,
+    rather than grepping the source for the fix.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.ui import data_access as _da
+    from panoscope.ui import enrichment_spatial as _es
+
+    seen: dict[str, tuple[int, int]] = {}
+
+    def capture(genes, cluster, n_selected=None, **kw):
+        seen[cluster] = (len(list(genes)), n_selected)
+
+    original = _es._render_dotplot
+    _es._render_dotplot = capture
+    try:
+        for c in cfg.CLUSTER_ORDER:
+            ce = _da.enrichment_for(c)
+            programs = list(ce.enriched) + list(ce.suggestive)
+            if programs:
+                _es.render_pathways_spatial(c, programs)
+    finally:
+        _es._render_dotplot = original
+
+    assert seen, "the renderer never reached the dot plot"
+    capped = {c: v for c, v in seen.items() if v[0] < v[1]}
+    assert capped, (
+        "no cluster's selection exceeded the cap, so this run could not have "
+        f"detected the defect: {seen}"
+    )
+    for c, (drawn, selected) in seen.items():
+        assert selected is not None, f"{c}: the caption was left to count the cap"
+        assert selected >= drawn, f"{c}: drew {drawn} but claims {selected} selected"
