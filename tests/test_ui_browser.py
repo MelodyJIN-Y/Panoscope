@@ -369,3 +369,86 @@ def test_no_inline_element_paints_outside_its_cell(server, browser, width: int) 
     assert not spill, (
         f"{len(spill)} element(s) paint outside their cell at {width}px:\n  "
         + "\n  ".join(spill))
+
+
+@pytest.fixture(scope="module")
+def server_with_override(tmp_path_factory, _studies_copy):
+    """The app, started against a context that ALREADY holds a c2 override.
+
+    The default ``server`` fixture points at an empty context dir, so every
+    browser test so far has exercised the un-overridden path only -- which is
+    exactly the path that was never broken. The composition that reaches the
+    chat pane had no end-to-end proof at all.
+    """
+    ctx = tmp_path_factory.mktemp("ctx_override")
+    env = {**os.environ,
+           "PANOSCOPE_DATA_ROOT": str(_studies_copy),
+           "PANOSCOPE_DATASET": "xenium_hbreast_sample1",
+           "PANOSCOPE_CONTEXT_DIR": str(ctx)}
+    subprocess.run(
+        [sys.executable, "-c",
+         "from panoscope.agent import memory;"
+         "memory.create_note(claim='c2 is CAF here', scope='cluster',"
+         " basis='own_validation', cluster='c2', subject_cell_type='CAF',"
+         " subject_lineage='Stromal', subject_category='Mesenchymal',"
+         " note_type='celltype_override', dataset='xenium_hbreast_sample1',"
+         " literature_search=lambda q: ())"],
+        env=env, check=True, capture_output=True)
+
+    port = _free_port()
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "streamlit", "run", str(APP),
+         "--server.port", str(port), "--server.headless", "true",
+         "--browser.gatherUsageStats", "false"],
+        env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(120):
+            if proc.poll() is not None:
+                pytest.fail("the app exited while starting")
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                    break
+            except OSError:
+                time.sleep(0.5)
+        else:
+            pytest.fail(f"the app never listened on {port}")
+        time.sleep(3)
+        yield base
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+def test_the_whole_page_agrees_about_an_overridden_call(
+    server_with_override, browser) -> None:
+    """One page, one call. Measured in a real browser, not inferred from units.
+
+    The board, the marker header and the exported overview read the composed
+    verdict; the chat pane and the cross-cluster check read the computed one. So
+    a biologist who overrode c2 Stromal -> CAF saw CAF in the header with
+    Stromal prose underneath it, in the same viewport.
+
+    "Stromal" is not banned from the page: it is c2's lineage, and the rival
+    check legitimately reports the computed call BY NAME. What is banned is the
+    call being stated as Stromal with nothing saying so.
+    """
+    ctx = browser.new_context(viewport={"width": 1440, "height": 1200})
+    page = ctx.new_page()
+    page.goto(f"{server_with_override}/?page=markers&cluster=c2")
+    _settle(page)
+    text = page.inner_text("body")
+    ctx.close()
+
+    assert "CAF" in text, "the override never reached the page at all"
+    assert "your call, replacing the computed Stromal" in text, (
+        "the chat pane adopted the call in silence, or not at all"
+    )
+    assert "reads as Stromal" not in text, (
+        "the opening still states the replaced call as the call"
+    )
+    for stale in ("c2 Stromal:", "c2 is called Stromal"):
+        assert stale not in text, f"a surface still calls c2 Stromal: {stale!r}"
