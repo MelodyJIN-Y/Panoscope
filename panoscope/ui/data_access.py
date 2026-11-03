@@ -488,6 +488,20 @@ def composed_verdicts() -> list[ClusterVerdict]:
                 changes["category"] = ov.subject_category.strip()
             if ov.tension.dissent:  # flag for re-check ONLY when the literature dissents
                 changes["verify"] = True
+            # The off-panel canonical set belongs to the CALL, so it moves with it.
+            # It was carried through untouched, and the document then printed
+            # "Never measured (1 off panel): CSF1R" -- the canonical MACROPHAGE
+            # marker -- under a heading the biologist had changed to Dendritic.
+            # That is the panel-absence rule, the project's headline rule, reported
+            # against a call that was replaced.
+            #
+            # Recomputed for the new call where this study's annotation knows it,
+            # and EMPTY where it does not: a call the annotation never names has no
+            # canonical set here, and inventing one would be the fabrication the
+            # rule exists to prevent. Empty is also what the block header renders
+            # as "every canonical marker for this label is on panel", which is why
+            # the rename is worth doing rather than leaving the old set in place.
+            changes["offpanel_notes"] = _offpanel_notes_for(new_call)
         # A signed-off call is adjudicated: clear its re-check flag (a contested
         # sign-off wrote a validation note recording the biologist's acceptance).
         # Applied last so it wins over an override's dissent flag.
@@ -495,6 +509,32 @@ def composed_verdicts() -> list[ClusterVerdict]:
             changes["verify"] = False
         out.append(dataclasses.replace(v, **changes) if changes else v)
     return out
+
+
+def _offpanel_notes_for(cell_type: str) -> tuple:
+    """The off-panel canonical markers for ONE call, as ``OffPanelNote``s.
+
+    Built the way ``core.compat`` phrases them so an overridden section reads
+    exactly like a computed one. Empty when this study's annotation does not name
+    the call -- which is the honest answer, not a gap: a cell type the study never
+    annotated has no canonical set here to be absent from.
+    """
+    from panoscope.agent import annotation
+    from panoscope.agent.types import OffPanelNote
+
+    ct = (cell_type or "").strip()
+    if not ct:
+        return ()
+    return tuple(
+        OffPanelNote(
+            gene=g,
+            cell_type=ct,
+            message=(f"{g} is off-panel (never measured); its absence is not "
+                     f"evidence against {ct}."),
+            source="panel:absence",
+        )
+        for g in annotation.offpanel_canonical(ct)
+    )
 
 
 def _override_call(cluster: str) -> Optional[str]:

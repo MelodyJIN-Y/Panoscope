@@ -18,7 +18,7 @@ directions are pinned, because a gate that drops everything passes the easy half
 * a note naming NO study fires nowhere (fail-closed), and ``withheld_notes`` is the
   sentence that says so instead of letting it disappear silently.
 
-Hermetic: notes are written under ``tmp_path`` via ``memory._DEFAULT_BASE``, and the
+Hermetic: notes are written under ``tmp_path`` via ``PANOSCOPE_CONTEXT_DIR``, and the
 two studies are only read.
 """
 
@@ -43,7 +43,9 @@ STUDY_B = "synthetic_multisample_fixture"  # the fixture: c1..c3, its own annota
 def notes_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Point the note store at a tmp dir. Nothing here may write into the repo."""
     base = tmp_path / "context"
-    monkeypatch.setattr(memory, "_DEFAULT_BASE", base)
+    # The env var, not a module attribute: ``memory._default_base()`` resolves it
+    # per call, which is what makes conftest's autouse isolation real.
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(base))
     return base
 
 

@@ -293,7 +293,9 @@ def test_my_notes_section_says_what_it_withheld(tmp_path, monkeypatch) -> None:
         "subject_cell_type": "CAF",
         "created_at": "2026-01-01T00:00:00+00:00",
     }), encoding="utf-8")
-    monkeypatch.setattr(memory, "_DEFAULT_BASE", base)
+    # The env var, not a module attribute: ``memory._default_base()`` resolves it
+    # per call, which is what makes conftest's autouse isolation real.
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(base))
 
     def _run() -> None:
         import streamlit as _st

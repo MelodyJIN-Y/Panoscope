@@ -212,8 +212,24 @@ def _fr(col: ColumnSpec) -> int:
 
 
 def _grid_style(cols: Sequence[ColumnSpec], *, skip_first: bool = False) -> str:
+    """The shared track list. ``minmax(0, Nfr)``, never a bare ``Nfr``.
+
+    A bare ``1fr`` is ``minmax(auto, 1fr)``, so a track never shrinks below its own
+    content and the SAME declaration resolves differently in every box it is
+    applied to. The header and the rows are separate grids carrying one string, and
+    measured in a browser that string produced three different track sets on one
+    page -- header ``101 103 117 51 101 152``, one row group ``117 78 78 59 117
+    176``, another ``125 63 63 63 125 188``. "observed" rendered under the SPATIAL
+    SPECIFICITY heading with no overlap of its own, and the cited biology under
+    CAVEATS.
+
+    ``minmax(0, ...)`` lets a track shrink below its content, so the fractions are
+    honoured identically everywhere and the columns line up. Verified in the same
+    browser: all six offsets go to 0.0px.
+    """
     used = cols[1:] if skip_first else cols
-    return "grid-template-columns:" + " ".join(f"{_fr(c)}fr" for c in used) + ";"
+    return ("grid-template-columns:"
+            + " ".join(f"minmax(0,{_fr(c)}fr)" for c in used) + ";")
 
 
 def row_html(spec: UISpec, row: SurfaceRow, *, skip_first: bool = False) -> str:

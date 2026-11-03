@@ -269,6 +269,34 @@ def test_off_panel_absence_used_as_evidence_fails(checker_real_lit):
     assert v and v[0].ref == "COL1A1", result.summary()
 
 
+def test_one_correct_caveat_is_not_a_pass_for_the_rest_of_the_sentence(checker_real_lit):
+    """Obeying the rule about ONE gene stopped the gate looking at the others.
+
+    The absence pass dropped a whole sentence on its first never-measured phrase,
+    so every answer that correctly caveated one gene carried a free pass for every
+    other gene beside it: "KRT18 was never measured, but CD3D is not detected here,
+    so this is not T cells" obeys the rule in its first clause, breaks it in its
+    second, and passed clean. Scope is a clause, which is what the sibling
+    frame-claim pass already says and does.
+    """
+    for answer, culprit in (
+        ("KRT18 was never measured, but CD3D is not detected here, "
+         "so this is not T cells.", "CD3D"),
+        ("Because CD3D is off-panel, and because FOXP3 is absent, "
+         "this is unlikely to be Tregs.", "FOXP3"),
+    ):
+        result = checker_real_lit.check(answer, None, "c1")
+        assert result.ok is False, f"the gate was bypassed by a caveat: {answer}"
+        refs = [v.ref for v in result.violations if v.kind == "panel_absence"]
+        assert culprit in refs, f"flagged {refs}, expected {culprit}: {answer}"
+
+    # ...and a sentence whose every clause obeys the rule still passes whole.
+    assert checker_real_lit.check(
+        "CD3D was never measured and KRT18 is off-panel, so neither absence "
+        "argues anything here.", None, "c1",
+    ).ok is True
+
+
 def test_a_cell_type_abbreviation_is_not_an_unmeasured_gene(checker_real_lit):
     """A true answer must not be refused for saying "TAM".
 

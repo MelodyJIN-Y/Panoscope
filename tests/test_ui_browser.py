@@ -195,6 +195,65 @@ def test_signing_off_in_a_real_browser_changes_the_board(server, browser) -> Non
 
 
 @pytest.mark.parametrize("width", [1440, 1024])
+def test_the_column_headings_sit_over_their_columns(server, browser, width: int) -> None:
+    """Measured geometry, because every cheaper check here has been wrong.
+
+    Three attempts at this bug shipped. The first dropped the gene name from
+    non-observed rows. The second gave the header one fewer track than the rows,
+    putting GLM_COEF over the gene names. The third emitted matching track COUNTS
+    whose identical declaration still resolved to different WIDTHS, because a bare
+    ``1fr`` is ``minmax(auto, 1fr)`` and never shrinks below its own content -- so
+    "observed" rendered under the SPATIAL SPECIFICITY heading with no overlap of
+    its own, and the cited biology under CAVEATS.
+
+    Each of those passed a test comparing the ``grid-template-columns`` STRING. The
+    strings were identical every time; the pixels were not. Only a browser can tell
+    the difference, so this asks one.
+
+    Tolerance is 12px. A full-width row matches the header exactly; the pin-button
+    row carries a structural 3-8px offset because ``st.columns`` gaps at 16px while
+    the grid gaps at 10px. 12px admits that and still catches a one-column slip,
+    which is never smaller than a whole track (~50px).
+    """
+    ctx = browser.new_context(viewport={"width": width, "height": 1000})
+    page = ctx.new_page()
+    page.goto(f"{server}/?page=markers")
+    _settle(page)
+    geom = page.evaluate("""() => {
+      const head = document.querySelector('.pano-sf-head');
+      if (!head) return {err: 'no column header rendered'};
+      const n = head.children.length;
+      const left = el => Math.round(el.getBoundingClientRect().left * 10) / 10;
+      const labels = [...head.children].map(c => c.innerText.trim().split('\\n')[0]);
+      const heads = [...head.children].map(left);
+      const rows = [...document.querySelectorAll('.pano-sf-row')];
+      const full = rows.find(r => r.children.length === n);
+      const inner = rows.find(r => r.children.length === n - 1);
+      return {labels, heads, nrows: rows.length,
+              full: full ? [...full.children].map(left) : null,
+              inner: inner ? [...inner.children].map(left) : null};
+    }""")
+    ctx.close()
+
+    assert not geom.get("err"), geom.get("err")
+    assert geom["nrows"] > 0, "the markers table rendered no rows"
+
+    bad: list[str] = []
+    if geom["full"]:
+        for label, h, c in zip(geom["labels"], geom["heads"], geom["full"]):
+            if abs(c - h) > 12:
+                bad.append(f"{label!r}: heading at {h}, content at {c} ({c - h:+.1f}px)")
+    if geom["inner"]:
+        for label, h, c in zip(geom["labels"][1:], geom["heads"][1:], geom["inner"]):
+            if abs(c - h) > 12:
+                bad.append(f"{label!r} (pin row): heading {h}, content {c} ({c - h:+.1f}px)")
+
+    assert not bad, (
+        f"column content is not under its heading at {width}px:\n  " + "\n  ".join(bad)
+    )
+
+
+@pytest.mark.parametrize("width", [1440, 1024])
 def test_no_horizontal_overflow(server, browser, width: int, tmp_path) -> None:
     """A page that scrolls sideways is broken in a way no assertion on text sees."""
     ctx = browser.new_context(viewport={"width": width, "height": 900})

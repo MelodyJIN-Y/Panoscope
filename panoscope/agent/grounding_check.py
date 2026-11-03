@@ -538,16 +538,26 @@ class Extractor:
                 continue
             if not _INFERENCE_RE.search(sentence):
                 continue
-            if _NEVER_MEASURED_RE.search(sentence):
-                # The sentence names the absence as unmeasured -- which is the
-                # rule being OBEYED, loudly. Nothing to flag.
-                continue
-            for m in _GENE_TOKEN_RE.finditer(sentence):
-                tok = m.group(1)
-                if tok in _STOPWORD_TOKENS or tok in seen:
+            # Scope is a CLAUSE, not a sentence -- the rule the sibling frame-claim
+            # pass already states and follows. Dropping the whole sentence on the
+            # first never-measured phrase made the gate trivially avoidable: "KRT18
+            # was never measured, but CD3D is not detected here, so this is not T
+            # cells" obeys the rule in its first clause and breaks it in its second,
+            # and passed clean. Every true answer that correctly caveats ONE gene
+            # carried a free pass for every other gene in the same sentence.
+            for clause in _CLAUSE_SPLIT_RE.split(sentence):
+                if _NEVER_MEASURED_RE.search(clause):
+                    # This clause names the absence as unmeasured, which is the
+                    # rule being obeyed, loudly. Nothing to flag HERE.
                     continue
-                seen.add(tok)
-                out.append(AbsenceClaim(entity=tok, sentence=sentence.strip()))
+                if not _ABSENCE_RE.search(clause):
+                    continue
+                for m in _GENE_TOKEN_RE.finditer(clause):
+                    tok = m.group(1)
+                    if tok in _STOPWORD_TOKENS or tok in seen:
+                        continue
+                    seen.add(tok)
+                    out.append(AbsenceClaim(entity=tok, sentence=sentence.strip()))
         return out
 
     # -- clauses that put something OUTSIDE the capability frame ------------ #

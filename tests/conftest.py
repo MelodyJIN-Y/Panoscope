@@ -98,6 +98,10 @@ def _isolate_context(tmp_path_factory, monkeypatch):
     """
     monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR",
                        str(tmp_path_factory.mktemp("context")))
+    # Injection beats the environment, and a previous test may have set one.
+    from panoscope.agent import tools as _tools
+
+    _tools.set_memory_base_dir(None)
 
 
 @pytest.fixture

@@ -75,8 +75,16 @@ def _fail(error: str, data_payload: Any = None) -> Envelope:
 # imports the MCP client so importing this module never spawns a server.
 _LITERATURE_SEARCH_FN: Optional[Callable[[str], list[Citation]]] = None
 
-# Where memory notes are written. Overridable (tests point it at a tmp dir).
-_MEMORY_BASE_DIR: Optional[str] = os.getenv("PANOSCOPE_CONTEXT_DIR")
+# An EXPLICIT override of where memory notes are written, or None to let
+# ``agent.memory`` resolve it. Overridable via :func:`set_memory_base_dir`.
+#
+# This used to read PANOSCOPE_CONTEXT_DIR here, at import. Two things were wrong
+# with that: the value froze at first import, so an environment set afterwards
+# (a pytest fixture, a Streamlit rerun) could never reach it; and it put the
+# resolution in a second place, which is how ``agent/memory`` came to ignore the
+# variable entirely while this module and ``agent/profile`` honoured it. One
+# module owns it now -- ``memory._default_base()`` -- and None means "ask it".
+_MEMORY_BASE_DIR: Optional[str] = None
 
 _LIT_SEARCH_DEFAULT_MAX = 5
 

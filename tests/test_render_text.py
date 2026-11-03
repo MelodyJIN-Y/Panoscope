@@ -78,7 +78,16 @@ def _rows() -> list[surface.SurfaceRow]:
         surface.SurfaceRow(
             key="gene|g=SLC1A3", state=MeasuredState.NEVER_MEASURED,
             values={"gene": "SLC1A3", "gene_set": "SLC1A3", "coverage": "0/200"},
-            reason="not on the 280-gene panel"),
+            frame="panel:test", reason="not on the panel"),
+        # The SECOND never-measured frame. Both renderers split NEVER_MEASURED on
+        # it (``BlockSpec.frame_prefix`` / ``frame_excludes``) in two hand-written
+        # copies of ``rows_for``, and every row here used to carry ``frame=""`` --
+        # so the ``undetected`` block held 0 rows and the clause that tells the two
+        # copies apart was never compared by the one test whose job that is.
+        surface.SurfaceRow(
+            key="gene|g=ADIPOQ", state=MeasuredState.NEVER_MEASURED,
+            values={"gene": "ADIPOQ", "gene_set": "ADIPOQ", "coverage": "0/200"},
+            frame="detect:test", reason="on panel, no usable signal"),
         surface.SurfaceRow(
             key="gene|g=ERBB2", state=MeasuredState.OBSERVED,
             values={"gene": "ERBB2", "gene_set": "ERBB2", "statistic": 4.21,
@@ -189,8 +198,11 @@ def test_both_renderers_sort_within_a_block_and_never_across_one():
     a never-measured row stays in its own block rather than sinking to the bottom
     of a top-N nobody scrolls."""
     rows = _rows()
+    # ADIPOQ last: it is NEVER_MEASURED like SLC1A3 but refused by a different
+    # frame, so the declaration puts it in the second never-measured block. Both
+    # renderers must agree on that, which is the clause this fixture exists to pin.
     expected = ["gene|g=ERBB2", "gene|g=ESR1", "gene|g=KRT14",
-                "gene|g=MKI67", "gene|g=SLC1A3"]
+                "gene|g=MKI67", "gene|g=SLC1A3", "gene|g=ADIPOQ"]
     assert [k for k, _, _ in
             _semantics_text("\n".join(text.table_text(MARKER, rows)))] == expected
     assert [k for k, _, _ in
@@ -201,7 +213,7 @@ def test_both_renderers_say_why_a_cell_has_no_number():
     """The same reason, in the place each medium has for it: a ``title`` attribute
     in HTML, its own line in the terminal. The fact is declared; the hover is not."""
     rows = _rows()
-    reason = "not on the 280-gene panel"
+    reason = "not on the panel"
     assert reason in surface.table_html(MARKER, rows)
     assert reason in "\n".join(text.table_text(MARKER, rows))
 
@@ -322,7 +334,7 @@ def test_the_never_measured_block_renders_its_header_at_zero():
 
 def test_the_coverage_ribbon_labels_every_count():
     out = "\n".join(text.ribbon_text(MARKER, _rows()))
-    assert "2 observed" in out and "1 never measured" in out and "of 5" in out
+    assert "2 observed" in out and "2 never measured" in out and "of 6" in out
 
 
 # --------------------------------------------------------------------------- #

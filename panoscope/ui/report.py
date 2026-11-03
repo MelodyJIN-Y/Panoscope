@@ -220,9 +220,24 @@ def _driver_line(v: ClusterVerdict) -> str:
     return ", ".join(v.key_markers) if v.key_markers else "no canonical driver"
 
 
-def _settle_for(cluster: str, verify: bool) -> str:
-    """The 'what would settle it' summary, only when there is a genuine rival."""
+def _settle_for(cluster: str, verify: bool, cell_type: str = "") -> str:
+    """The 'what would settle it' summary, only when there is a genuine rival.
+
+    Withheld when the section's call is not the one the discrimination was computed
+    for. ``discriminate`` reads ``data.cell_type_for(cluster)`` -- the deterministic
+    table, never an override -- so after the biologist overrode c3 to Dendritic the
+    document still printed "To tell Macrophages from T Cells in c3: Macrophages is
+    supported here by LYZ (glm_coef 11.84)...": a discrimination argued for a call
+    they had rejected, carrying real statistics.
+
+    Silence rather than a recomputation. Re-running the rival test against the new
+    call is a real answer and belongs in ``discriminate``, which would have to take
+    the call as an argument; inventing one here from the old result would not be.
+    """
     d = discriminate.discriminate(cluster)
+    computed_for = str(getattr(d, "call_A", "") or "").strip().casefold()
+    if cell_type and computed_for and computed_for != str(cell_type).strip().casefold():
+        return ""
     if d.alt_B is not None and (verify or d.b_here):
         return discriminate.settle_summary(d)
     return ""
@@ -270,7 +285,8 @@ def _celltype_note_for(celltype_notes: dict, v) -> dict:
     return note if (not described or described == showing) else {}
 
 
-def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
+def _enrichment_block(ce, pathway_notes_for_cluster: dict,
+                      cell_type: str = "") -> tuple[str, str]:
     """A plain-text block of the cluster's enriched programs + cited biology, and the
     enrichment CENSUS. ('' , '') when there is no enrichment for the cluster.
 
@@ -288,6 +304,14 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
     for p in ce.enriched[:4]:
         short = p.gene_set.replace("HALLMARK_", "").replace("_", " ").title()
         note = (pathway_notes_for_cluster or {}).get(p.gene_set) or {}
+        # The SAME guard the celltype note gets. A pathway note records the
+        # cell_type it was written about, and this block did not read it -- so
+        # overriding c3 from Macrophages to Dendritic kept four real PMIDs,
+        # argued for macrophage biology, under a Dendritic heading. Guarding one
+        # of a section's two cited-prose blocks fixes half the defect.
+        described = str(note.get("cell_type") or "").strip().casefold()
+        if described and cell_type and described != str(cell_type).strip().casefold():
+            note = {}
         bio = str(note.get("summary") or "").strip()
         pmid = note.get("pmid")
         cite = f" (PMID:{pmid})" if pmid else ""
@@ -361,7 +385,7 @@ def build_report(
             if n.scope == "cluster" and n.scope_ref.cluster == v.cluster
         )
         enr_text, enr_census = _enrichment_block(
-            enrichments.get(v.cluster), pathway_notes.get(v.cluster)
+            enrichments.get(v.cluster), pathway_notes.get(v.cluster), v.cell_type
         )
         sections.append(
             ClusterSection(
@@ -373,7 +397,7 @@ def build_report(
                 rationale=v.notes,
                 biology=str(ct_note.get("summary") or ""),
                 biology_pmid=str(ct_note.get("pmid") or ""),
-                settle=_settle_for(v.cluster, v.verify),
+                settle=_settle_for(v.cluster, v.verify, v.cell_type),
                 notes=cluster_notes,
                 enrichment=enr_text,
                 enrichment_census=enr_census,

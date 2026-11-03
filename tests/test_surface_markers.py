@@ -137,27 +137,35 @@ def test_the_header_and_the_rows_use_the_same_grid(rows):
     carried all 6, which put GLM_COEF over the gene names and left the gene column
     unlabelled on 196 of c1's 280 rows.
 
-    Compared as rendered strings rather than by reading ``render_surface``'s source.
-    The assertion this replaced was a substring grep, and a grep cannot see that two
-    grids disagree -- it certified the broken half as correct.
+    **What this canNOT check, and where that lives instead.** An earlier version
+    compared the two ``grid-template-columns`` STRINGS. Both sides are
+    ``_grid_style(spec.columns, skip_first=False)``, so it asserted a string equals
+    itself and could not fail -- and it passed on a page where the same declaration
+    resolved to three different track sets, because a bare ``1fr`` is
+    ``minmax(auto, 1fr)`` and never shrinks below its own content. Alignment is a
+    rendered property; only a browser settles it, and
+    ``tests/test_ui_browser.py::test_the_column_headings_sit_over_their_columns``
+    measures it at 1440 and 1024.
+
+    What IS checkable here is the shape the renderer asks for, and both halves of
+    it have shipped broken: the header skipping a column its rows did not, and the
+    tracks being written so they could resolve differently per box.
     """
     import re
 
-    def grid(html: str) -> str:
-        m = re.search(r"grid-template-columns:([^;\"]+)", html)
-        assert m, f"no grid in {html[:120]}"
-        return m.group(1).strip()
+    header = surface.column_header_html(MARKERS)
+    assert "minmax(0," in header, (
+        "the header declares bare fr tracks, which resolve to each box's own "
+        "min-content and so differ between the header and the rows"
+    )
+    for row in rows[:5]:
+        assert "minmax(0," in surface.row_html(MARKERS, row), row.values["gene"]
 
-    header = grid(surface.column_header_html(MARKERS))
-    for row in rows:
-        if row.state is MeasuredState.OBSERVED:
-            continue
-        assert grid(surface.row_html(MARKERS, row)) == header, (
-            f"{row.values['gene']} renders on a different grid than the header: "
-            f"row={grid(surface.row_html(MARKERS, row))} header={header}"
-        )
+    # The track COUNT must match too -- the 19ed6bd shape, where the header was one
+    # column narrower than every non-observed row.
+    n = len(re.findall(r"minmax\(", header))
+    assert n == len(MARKERS.columns), f"header declares {n} of {len(MARKERS.columns)}"
 
-    # And the header the live renderer actually emits is that same full-width one.
     src = inspect.getsource(surface.render_surface)
     assert "column_header_html(spec, skip_first=pinnable)" not in src, (
         "render_surface emits a header one column narrower than its own rows"

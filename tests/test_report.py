@@ -359,6 +359,54 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
     assert all(g in body for g in genes), f"{genes} missing from the .docx"
 
 
+def test_nothing_in_an_overridden_section_argues_the_replaced_call() -> None:
+    """The WHOLE section follows the override, not one paragraph of it.
+
+    Guarding only the celltype note left three other places arguing the call the
+    biologist rejected, in the document that leaves the lab:
+
+    * the enrichment paragraph, with four real PMIDs written about Macrophages;
+    * "Never measured (1 off panel): CSF1R" -- the canonical MACROPHAGE marker,
+      the panel-absence rule reported against a replaced call;
+    * "What would settle it: To tell Macrophages from T Cells in c3: Macrophages
+      is supported here by LYZ (glm_coef 11.84)...", carrying real statistics.
+
+    Driven through the real note writer, so it exercises the path the app uses.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import memory
+    from panoscope.ui import data_access as da
+
+    old, new = "Macrophages", "Dendritic"
+    memory.create_note(
+        claim=f"c3 is {new} here",
+        scope="cluster",
+        basis="own_validation",
+        cluster="c3",
+        subject_cell_type=new,
+        note_type="celltype_override",
+        dataset=cfg.DATASET_ID,
+        literature_search=lambda _q: (),   # no lookup; tension stays empty
+    )
+
+    rep = R.build_report_from_sources()
+    section = next(s for s in rep.sections if s.cluster == "c3")
+    assert section.cell_type == new, "the override did not reach the section"
+
+    body = " ".join(str(x) for x in (
+        section.biology, section.biology_pmid, section.enrichment,
+        section.settle, section.driver_line,
+    ))
+    assert old not in body, (
+        f"the replaced call is still argued in the c3 section: {body[:300]}"
+    )
+    for pmid in ("39223929", "38024532", "38342630", "38640930"):
+        assert pmid not in body, f"a Macrophages PMID ({pmid}) survived the override"
+    assert "CSF1R" not in " ".join(g for g, _ in (section.off_panel or ())), (
+        "the Macrophage canonical off-panel set followed the Dendritic call"
+    )
+
+
 def test_the_generator_line_describes_the_artifacts_not_the_shell(monkeypatch) -> None:
     """§14 provenance must not be a function of the exporting environment.
 

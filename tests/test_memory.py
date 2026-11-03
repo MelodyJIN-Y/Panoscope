@@ -75,6 +75,30 @@ def _make_cluster_note(base: Path, cluster: str = "c2") -> Note:
 # --------------------------------------------------------------------------- #
 # Scope enforcement (the headline invariant)
 # --------------------------------------------------------------------------- #
+def test_the_suite_cannot_see_the_developers_own_notes():
+    """The autouse isolation in conftest actually isolates. It did not.
+
+    ``conftest._isolate_context`` sets PANOSCOPE_CONTEXT_DIR, and for one commit
+    that achieved nothing: ``memory._DEFAULT_BASE`` was ``PROJECT_ROOT / "context"``
+    and never read the variable, while ``agent/profile`` and ``agent/tools`` did.
+    So every run still loaded a real ``celltype_override`` out of the developer's
+    ``context/decisions/`` and fed it to ``composed_verdicts()``, the Summary board
+    and both exported documents -- and a fresh clone, with no ``context/`` at all,
+    took a different path.
+
+    A fixture that silently does nothing is worse than no fixture: the commit
+    message says the leak is closed.
+    """
+    resolved = memory.decisions_dir()
+    assert "context" in str(resolved), resolved
+    assert not str(resolved).startswith(str(Path.cwd() / "context")), (
+        f"memory resolved the REAL context dir despite the fixture: {resolved}"
+    )
+    assert not list(memory.notes_in_study()), (
+        "the suite can see notes it did not create; isolation is not in effect"
+    )
+
+
 def test_cluster_note_fires_only_for_its_cluster(base: Path):
     # Arrange
     note = _make_cluster_note(base, cluster="c2")

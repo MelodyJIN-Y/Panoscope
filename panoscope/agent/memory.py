@@ -35,6 +35,7 @@ A note is a versioned, git-tracked file. The base directory is configurable
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -69,7 +70,23 @@ LiteratureSearch = Callable[[str], Iterable[Citation]]
 # --------------------------------------------------------------------------- #
 # Paths (configurable base dir; default context/)
 # --------------------------------------------------------------------------- #
-_DEFAULT_BASE: Path = cfg.PROJECT_ROOT / "context"
+def _default_base() -> Path:
+    """Where the local knowledge layer lives, resolved PER CALL.
+
+    ``PANOSCOPE_CONTEXT_DIR`` first, matching ``agent/profile.py`` and
+    ``agent/tools.py``, which already read it for the files sitting beside these.
+
+    This was a module constant, ``cfg.PROJECT_ROOT / "context"``, so three modules
+    disagreed about where context lives: profile honoured the variable and this did
+    not. The consequence was not hypothetical -- an autouse fixture added to
+    isolate the suite from the developer's own notes did nothing at all, and every
+    run still read a real ``celltype_override`` out of ``context/decisions/`` and
+    fed it to ``composed_verdicts``, the Summary board and both exported documents.
+    A constant also resolves at import, so even a correctly-set environment could
+    not reach it afterwards.
+    """
+    base = os.getenv("PANOSCOPE_CONTEXT_DIR")
+    return Path(base) if base else cfg.PROJECT_ROOT / "context"
 _CORRECTIONS_SUBDIR = "corrections"
 _DECISIONS_SUBDIR = "decisions"
 _DECISION_LOG_NAME = "decision_log.jsonl"
@@ -84,7 +101,7 @@ def _now_iso() -> str:
 
 def corrections_dir(base_dir: Path | str | None = None) -> Path:
     """Directory holding note JSON files. Created on demand."""
-    base = Path(base_dir) if base_dir is not None else _DEFAULT_BASE
+    base = Path(base_dir) if base_dir is not None else _default_base()
     d = base / _CORRECTIONS_SUBDIR
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -92,7 +109,7 @@ def corrections_dir(base_dir: Path | str | None = None) -> Path:
 
 def decisions_dir(base_dir: Path | str | None = None) -> Path:
     """Directory holding the append-only decision log. Created on demand."""
-    base = Path(base_dir) if base_dir is not None else _DEFAULT_BASE
+    base = Path(base_dir) if base_dir is not None else _default_base()
     d = base / _DECISIONS_SUBDIR
     d.mkdir(parents=True, exist_ok=True)
     return d
