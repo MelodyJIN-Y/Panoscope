@@ -351,3 +351,36 @@ def test_the_enrichment_records_are_written_and_hashed(tmp_path: Path) -> None:
     assert len(recorded) >= 9, recorded
     for c in cfg.CLUSTER_ORDER:
         assert any(k.endswith(f"/{c}.json") for k in recorded), c
+
+
+def test_every_file_that_can_move_a_band_is_hashed() -> None:
+    """Provenance that omits the input the band comes from records nothing.
+
+    ``interp/annotation.json`` is read-if-present -- ``_ensure_annotation``
+    regenerates it only when absent -- so on the bundled demo, and on every
+    rebuild after the first, it is an INPUT. ``records.build_all`` turns its
+    ``canonical_markers`` into the ``canonical`` set ``core_verdict.assess``
+    reads, and emptying one cluster's list moves c1 from Very High /
+    "glm_coef direct" / verify=False to Low / "no canonical driver" /
+    verify=True.
+
+    It was hashed in neither ``inputs`` nor ``artifacts``, while
+    ``inputs/cluster_key.json`` -- the FALLBACK source for the same labels --
+    was.
+    """
+    mf = json.loads(
+        (paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text()
+    )
+    recorded = set(mf.get("inputs", {})) | set(mf.get("artifacts", {}))
+
+    ann = paths.interp_dir(cfg.DATASET_ID) / "annotation.json"
+    assert ann.is_file(), "the demo study has no annotation.json to hash"
+    assert "interp/annotation.json" in recorded, (
+        "the file the band comes from is hashed nowhere in the manifest"
+    )
+
+    # ...and the hash is of the file that is actually there.
+    assert (mf["artifacts"]["interp/annotation.json"]["sha256"]
+            == manifest_mod.sha256_file(ann)), (
+        "the recorded hash does not match the annotation on disk"
+    )
