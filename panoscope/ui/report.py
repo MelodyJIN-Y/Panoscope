@@ -128,6 +128,12 @@ class ReportModel:
     #: ``core.record.SPEC_VERSION`` -- which contract wrote this document.
     spec_version: str = ""
 
+    #: How many of those panel genes produced no usable spatial signal. The
+    #: detectability frame as a NUMBER, not a digest: the header said "280-gene
+    #: panel" and the frame line carried only a truncated hash, so a reader
+    #: believed 280 genes informed every call when 231 did.
+    panel_no_signal: int = 0
+
 
 # --------------------------------------------------------------------------- #
 # Assembly (pure)
@@ -222,6 +228,25 @@ def _settle_for(cluster: str, verify: bool) -> str:
     return ""
 
 
+def _n_no_signal() -> int:
+    """How many panel genes produced no usable spatial signal. Derived, per study.
+
+    CLAUDE.md calls detectability a capability frame rather than a footnote, and on
+    this demo it is 49 of 280 -- 17.5% of the panel that could not inform any call.
+    Counted off the method table through the adapter's own predicate, so the demo's
+    49 is read and never asserted; a study with full detectability answers 0 and the
+    header simply does not mention it.
+    """
+    try:
+        from panoscope.agent import data as _data
+        from panoscope.platforms.xenium import is_no_signal
+
+        return sum(1 for t in _data.load_markers()["top_cluster"]
+                   if is_no_signal(str(t)))
+    except Exception:  # noqa: BLE001 - unreadable method table: say nothing
+        return 0
+
+
 def _celltype_note_for(celltype_notes: dict, v) -> dict:
     """This section's cell-type note, or ``{}`` when it describes another call.
 
@@ -266,7 +291,15 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
         bio = str(note.get("summary") or "").strip()
         pmid = note.get("pmid")
         cite = f" (PMID:{pmid})" if pmid else ""
-        bits.append(f"{short} — {bio}{cite}" if bio else short)
+        # The denominator travels with the program. The Pathways surface shows it
+        # per row ("5/100") and the stored artifact carries it, but the document
+        # printed the program name and its biology alone -- so a set scored on 5 of
+        # its 100 genes read exactly like one scored on 90. Every plot carries its
+        # conditionality (§R4); a paragraph is not exempt because it is prose.
+        hits = getattr(p, "panel_hits", None)
+        full = getattr(p, "set_size_full", None)
+        scope = f" [{hits}/{full} set genes on panel]" if hits and full else ""
+        bits.append(f"{short}{scope} — {bio}{cite}" if bio else f"{short}{scope}")
     return "; ".join(bits) + ".", ce.census_line
 
 
@@ -277,6 +310,7 @@ def build_report(
     notes: list[Note],
     holistic,
     panel_size: int,
+    panel_no_signal: int = 0,
     dataset: str | None = None,
     generated_at: str = "",
     enrichments: dict | None = None,
@@ -373,6 +407,7 @@ def build_report(
         n_clusters=len(sections),
         n_flagged=sum(1 for s in sections if s.verify),
         panel_size=panel_size,
+        panel_no_signal=panel_no_signal,
         sections=tuple(sections),
         coherence_notes=coherence_notes,
         refinements=refinements,
@@ -539,6 +574,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         notes=da.read_notes(),
         holistic=da.holistic(),
         panel_size=len(da.panel_names()),
+        panel_no_signal=_n_no_signal(),
         dataset=cfg.DATASET_ID,
         generated_at=generated_at,
         enrichments=enrichments,
@@ -568,7 +604,10 @@ def _header_meta(report: ReportModel) -> list[str]:
     lines = [report.dataset + (f" · {ctx}" if ctx else "")]
     lines.append(
         f"{report.n_clusters} clusters · {report.n_flagged} flagged for re-check · "
-        f"{report.panel_size}-gene panel · marker method: {report.method}"
+        f"{report.panel_size}-gene panel"
+        + (f" ({report.panel_no_signal} with no usable signal)"
+           if report.panel_no_signal else "")
+        + f" · marker method: {report.method}"
     )
     if report.frames:
         lines.append("frames: " + " · ".join(

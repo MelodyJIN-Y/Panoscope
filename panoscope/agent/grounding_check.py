@@ -292,6 +292,25 @@ _STOPWORD_TOKENS: frozenset[str] = frozenset(
         "THE", "FOR", "NOT", "BUT", "ALL", "ANY", "ARE", "WAS", "HAS", "CSV",
         "UMAP", "MCP", "NCBI", "TSV", "JSON", "URL", "API", "TRUE", "FALSE",
         "NOSIG", "HIGH", "LOW", "VERY", "P", "R", "N", "UM", "SE", "TME",
+        # Cell-type and assay abbreviations a biologist writes in ordinary prose.
+        # ``_GENE_TOKEN_RE`` is "any uppercase run", so each of these was extracted
+        # as an unmeasured ENTITY and a true sentence -- "myeloid markers are
+        # absent, so this is unlikely to be a TAM population" -- was rejected as
+        # reasoning from an out-of-frame absence. That burns a repair round the
+        # model cannot satisfy and drops a correct answer into the fallback, which
+        # the refusal eval scores as a refusal.
+        #
+        # APC and BCR are deliberately ABSENT from this list: both are real gene
+        # symbols. They are off THIS panel, but a sentence reasoning from their
+        # absence is a frame claim the rule should still catch on another study.
+        #
+        # ponytail: a fixed list against an open vocabulary, so the ceiling is an
+        # abbreviation nobody listed. It fails toward a MISS -- the same direction
+        # the clause splitter above chose, and the safe one: a missed violation is
+        # recoverable, a refused true answer is not.
+        "TAM", "TAMS", "NK", "NKT", "DC", "DCS", "CAF", "CAFS", "TIL", "TILS",
+        "ER", "PR", "TCR", "ILC", "MDSC", "EMT", "ECM", "MHC",
+        "IHC", "FFPE", "UMI", "RNA", "DNA", "PCR",
     }
 )
 

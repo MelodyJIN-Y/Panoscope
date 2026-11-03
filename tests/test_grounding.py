@@ -269,6 +269,34 @@ def test_off_panel_absence_used_as_evidence_fails(checker_real_lit):
     assert v and v[0].ref == "COL1A1", result.summary()
 
 
+def test_a_cell_type_abbreviation_is_not_an_unmeasured_gene(checker_real_lit):
+    """A true answer must not be refused for saying "TAM".
+
+    The token pattern is "any uppercase run", so every abbreviation a biologist
+    writes was extracted as an ENTITY and the sentence rejected as reasoning from
+    an out-of-frame absence. That costs a repair round the model cannot satisfy
+    and then drops a correct answer into the fallback -- a refusal, and the
+    refusal rate is reported next to accuracy precisely so this is visible.
+
+    An invariant that fires on correct behaviour is worse than no invariant.
+    """
+    for answer in (
+        "Myeloid markers are absent, so this is unlikely to be a TAM population.",
+        "NK markers are absent here, so an NK identity is unlikely.",
+        "ER and PR are not informative here, so that absence argues nothing.",
+    ):
+        result = checker_real_lit.check(answer, None, "c2")
+        assert result.ok is True, (
+            f"a true sentence was refused over an abbreviation: {result.summary()}"
+        )
+
+    # ...and the rule itself is untouched: a real gene still trips it.
+    assert checker_real_lit.check(
+        "COL1A1 is absent here, which argues against a fibroblast identity.",
+        None, "c2",
+    ).ok is False
+
+
 def test_an_undetectable_genes_absence_is_gated_too(checker_real_lit):
     """ON the panel and still never measured -- the half the gate used to exempt.
 

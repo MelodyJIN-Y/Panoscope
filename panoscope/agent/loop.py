@@ -404,7 +404,20 @@ def _enrichment_context(cluster: Optional[str]) -> str:
         f"{' — verify (re-check)' if ce.verify else ''}.",
     ]
     if ce.enriched:
-        lines.append("Enriched programs (panel-scoped — K of N set genes on the 280-gene panel):")
+        # Derived, like every sibling caveat. This block tells the model "every
+        # number above is the source of truth" a few lines down, and the one
+        # number it asserted rather than read was the panel size -- right for the
+        # demo and wrong for every other study, in the context the model is told
+        # to trust most.
+        from panoscope.agent.enrichment import _panel_size
+
+        try:
+            n_panel = f"{_panel_size()}-gene"
+        except Exception:  # noqa: BLE001 - unreadable panel: do not assert a size
+            n_panel = "targeted"
+        lines.append(
+            f"Enriched programs (panel-scoped — K of N set genes on the {n_panel} panel):"
+        )
         for p in ce.enriched:
             q = "n/a" if p.q_value is None else f"{p.q_value:.1e}"
             lines.append(

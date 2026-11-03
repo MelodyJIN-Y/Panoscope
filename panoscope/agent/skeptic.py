@@ -178,19 +178,33 @@ def second_opinion(cluster: str) -> SkepticReport:
             for m in d.b_elsewhere:
                 trace.append(f"jz:{m.gene}:top_cluster={m.top_cluster}")
         if d.offpanel_absent:
-            genes = ", ".join(m.gene for m in d.offpanel_absent)
-            challenges.append(
-                SkepticChallenge(
-                    kind="checked",
-                    effect="neutral",
-                    detail=(
-                        f"{B}'s canonical markers ({genes}) are off-panel and were never "
-                        f"measured, so the panel cannot weigh {B} here."
-                    ),
-                )
-            )
-            for m in d.offpanel_absent:
+            # Split by the frame that refused each marker. ``offpanel_absent`` is
+            # no longer only off-panel genes -- ``discriminate`` says so at its own
+            # definition -- so calling the whole set "off-panel" states a fact
+            # about the PANEL for a gene the panel carried and the measurement
+            # could not localize. Same collapse the marker table had one surface
+            # over, and ``discriminate`` already writes the two traces apart.
+            never_probed = [m for m in d.offpanel_absent if not m.on_panel]
+            no_signal = [m for m in d.offpanel_absent if m.on_panel]
+            if never_probed:
+                genes = ", ".join(m.gene for m in never_probed)
+                challenges.append(SkepticChallenge(
+                    kind="checked", effect="neutral",
+                    detail=(f"{B}'s canonical markers ({genes}) are off-panel and were "
+                            f"never measured, so the panel cannot weigh {B} here."),
+                ))
+            if no_signal:
+                genes = ", ".join(m.gene for m in no_signal)
+                challenges.append(SkepticChallenge(
+                    kind="checked", effect="neutral",
+                    detail=(f"{B}'s canonical markers ({genes}) are on the panel but "
+                            f"produced no usable signal here, so their absence cannot "
+                            f"weigh {B} either."),
+                ))
+            for m in never_probed:
                 trace.append(f"panel:{m.gene}:off_panel=True")
+            for m in no_signal:
+                trace.append(f"detect:{m.gene}:no_usable_signal=True")
 
     survives = not any(c.effect == "weakens" for c in challenges)
     verdict_line = _verdict_line(cluster, call, verdict.confidence, support, challenges, survives)
