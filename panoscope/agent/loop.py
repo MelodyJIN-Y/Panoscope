@@ -1238,7 +1238,8 @@ class PanoscopeAgent:
                 if text_now:
                     final_text = text_now
 
-        return self._finalize(final_text, ledger, cluster, query, client, system, messages)
+        return self._finalize(final_text, ledger, cluster, query, client, system,
+                              messages, skill)
 
     def _run_tools(
         self, tool_uses: list[dict[str, Any]], cluster: str, ledger: "_Ledger"
@@ -1268,6 +1269,7 @@ class PanoscopeAgent:
         client: Any,
         system: str,
         messages: list[dict[str, Any]],
+        skill: str = _DEFAULT_SKILL,
     ) -> AgentResponse:
         """Build the AgentResponse and run the grounding floor. Repair once, else fall back.
 
@@ -1288,7 +1290,8 @@ class PanoscopeAgent:
             return candidate
 
         # One repair attempt: tell the model exactly what failed, re-run once.
-        repaired = self._repair(result, ledger, cluster, query, client, system, messages)
+        repaired = self._repair(result, ledger, cluster, query, client, system,
+                                messages, skill)
         if repaired is not None:
             return repaired
 
@@ -1304,6 +1307,7 @@ class PanoscopeAgent:
         client: Any,
         system: str,
         messages: list[dict[str, Any]],
+        skill: str = _DEFAULT_SKILL,
     ) -> Optional[AgentResponse]:
         """One repair round: feed the grounding violations back, re-check once."""
         feedback = (
