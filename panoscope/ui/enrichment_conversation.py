@@ -108,11 +108,19 @@ def _clear(cluster: str) -> None:
 # --------------------------------------------------------------------------- #
 def _ensure_opening(cluster: str) -> None:
     key = _thread_key(cluster)
+    call = da.display_cell_type(cluster)
     if state.opening_was_posted(key):
-        return
+        # The same rule as the marker pane: an override after the opening was
+        # posted left this bubble reading "c2 Stromal: 3 supported ..." beside a
+        # header saying CAF. The transcript is not rewritten -- a fresh opening
+        # is appended and the old one stays above it. A thread restored from
+        # disk reports no call (None) and is left alone, being history.
+        posted_for = state.opening_posted_call(key)
+        if posted_for is None or posted_for == call:
+            return
     text, pmids, verify = _opening_text(cluster)
     state.append_message(key, {"role": "agent", "text": text, "resp": _opening_resp(pmids, verify)})
-    state.mark_opening_posted(key)
+    state.mark_opening_posted(key, call)
 
 
 def _opening_text(cluster: str) -> tuple[str, list[str], bool]:

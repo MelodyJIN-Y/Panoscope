@@ -95,3 +95,51 @@ def test_a_real_override_moves_the_pane_off_the_replaced_call(session):
         assert len(posted) == 2, "the pane kept the replaced call"
         assert posted[1].startswith("c2 reads as CAF"), posted[1]
         assert "replacing the computed Stromal" in posted[1]
+
+
+def test_the_pathways_pane_reposts_too(session):
+    """The sibling pane, which the first fix did not touch.
+
+    ``ui/conversation`` and ``ui/enrichment_conversation`` each keep their own
+    opening guard, and only the marker one learned to notice a changed call. The
+    Pathways bubble went on reading "c2 Stromal: 3 supported ..." under a header
+    saying CAF -- the same defect, one file over, which is how it survived the
+    commit that fixed it.
+    """
+    from panoscope.ui import data_access as dax
+    from panoscope.ui import enrichment_conversation as ec
+
+    posted: list[str] = []
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(state, "append_message", lambda k, m: posted.append(m["text"]))
+
+        ec._ensure_opening("c2")
+        assert posted and posted[0].startswith("c2 Stromal:"), posted[:1]
+
+        ec._ensure_opening("c2")
+        assert len(posted) == 1, "posted once per call, not once per rerun"
+
+        memory.create_note(
+            claim="c2 is CAF here", scope="cluster", basis="own_validation",
+            cluster="c2", subject_cell_type="CAF", note_type="celltype_override",
+            dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+        )
+        assert dax.display_cell_type("c2") == "CAF"
+
+        ec._ensure_opening("c2")
+        assert len(posted) == 2, "the Pathways pane kept the replaced call"
+        assert posted[1].startswith("c2 CAF:"), posted[1][:60]
+
+        ec._ensure_opening("c2")
+        assert len(posted) == 2, "and then it settles"
+
+
+def test_the_two_panes_keep_separate_threads(session):
+    """``pw::c2`` and ``c2``. A shared key would make one pane's opening suppress
+    the other's, which is the failure mode the prefix exists to prevent."""
+    from panoscope.ui import enrichment_conversation as ec
+
+    assert ec._thread_key("c2") == "pw::c2" != "c2"
+    state.mark_opening_posted("c2", "Stromal")
+    assert state.opening_was_posted("c2") is True
+    assert state.opening_was_posted(ec._thread_key("c2")) is False

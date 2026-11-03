@@ -458,27 +458,36 @@ def test_default_skill_contract_resolves():
 def test_a_pathways_answer_carries_the_enrichment_rubric_not_the_marker_one() -> None:
     """Two workflows, two rubrics, and ``_assemble`` knew about only one.
 
-    ``verify`` is deterministic and must come from the rubric of the workflow the
-    answer belongs to. Every chat turn read the marker/ASSIGNMENT rubric, so a
-    Pathways answer carried the marker call's re-check flag. The two disagree on
-    6 of the demo's 9 clusters, every one of them marker-False /
-    enrichment-True: the tab that should have said "re-check this" said nothing.
+    Asserting that ``_verify_default(c, skill)`` equals the function it
+    dispatches to proves nothing -- that IS its four-line body, so the test
+    passes however ``_assemble`` behaves. This builds the AgentResponse the way
+    a turn does and reads the flag off it.
     """
     from panoscope.agent import config as cfg
     from panoscope.agent import loop as _loop
 
+    agent = _loop.PanoscopeAgent.__new__(_loop.PanoscopeAgent)
+    ledger = _loop._Ledger()
+
     disagree = [c for c in cfg.CLUSTER_ORDER
-                if _loop._verify_default(c, "marker-interpretation")
-                != _loop._verify_default(c, "enrichment-interpretation")]
+                if _loop._cluster_verify_default(c)
+                != _loop._enrichment_verify_default(c)]
     assert disagree, (
         "this test is vacuous unless the two rubrics actually differ somewhere"
     )
-    for c in disagree:
-        assert _loop._verify_default(c, "enrichment-interpretation") == \
-            _loop._enrichment_verify_default(c)
-        assert _loop._verify_default(c, "marker-interpretation") == \
-            _loop._cluster_verify_default(c)
 
+    for c in disagree:
+        marker = agent._assemble("x", ledger, c, "marker-interpretation")
+        pathways = agent._assemble("x", ledger, c, "enrichment-interpretation")
+        assert marker.verify == _loop._cluster_verify_default(c)
+        assert pathways.verify == _loop._enrichment_verify_default(c)
+        assert marker.verify != pathways.verify, (
+            f"{c}: the two panes carry the same flag though the rubrics differ"
+        )
+
+    # ...and the default skill is the marker one, so nothing else moved.
+    c = disagree[0]
+    assert agent._assemble("x", ledger, c).verify == _loop._cluster_verify_default(c)
 
 def test_the_prompt_leads_with_the_biologists_call_not_the_replaced_one() -> None:
     """The block is headed "authoritative — every cluster's call", and it stated
