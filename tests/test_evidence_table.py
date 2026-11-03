@@ -349,3 +349,36 @@ def test_the_block_reaches_the_rendered_page_for_a_two_sample_study():
     for ln in expected:
         assert ln.claim in md, ln
     assert "read differently" in md and "replicate read" in md
+
+
+def test_the_header_chip_does_not_argue_the_replaced_call() -> None:
+    """A rival test computed for one call, printed under another.
+
+    ``discriminate`` reads the deterministic table, never an override, so after
+    the biologist overrode c3 to Dendritic this chip rendered "To settle
+    Macrophages vs T Cells: ... CD4 (glm_coef 4.02) also peak here" directly
+    under <h1>Dendritic</h1> -- a discrimination arguing for a call they had
+    rejected, carrying real statistics.
+
+    ``ui/report._settle_for`` already withholds exactly this in the exported
+    document. The screen did not, so the two disagreed about the same cluster.
+    """
+    from panoscope.agent import config as cfg, memory
+    from panoscope.ui import evidence_table as _et
+
+    before = _et._header_values("c3")
+    assert "Macrophages" in (before.get("runner_up") or ""), (
+        "this test needs c3 to start out with a Macrophages-based rival chip"
+    )
+
+    memory.create_note(
+        claim="c3 is Dendritic here", scope="cluster", basis="own_validation",
+        cluster="c3", subject_cell_type="Dendritic", note_type="celltype_override",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+    )
+
+    after = _et._header_values("c3")
+    assert after["label"] == "Dendritic"
+    assert after.get("runner_up") == "", (
+        f"the chip still argues the replaced call: {after.get('runner_up')!r}"
+    )

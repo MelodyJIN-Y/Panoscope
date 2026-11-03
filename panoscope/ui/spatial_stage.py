@@ -384,12 +384,16 @@ def _downsample_bg(df: pd.DataFrame, keep_mask: pd.Series, bg_cap: int) -> pd.Da
 def _cluster_celltype_map() -> dict:
     """Map each cluster id to its human cell-type label for hover tooltips.
 
-    Read straight from the authoritative ``cfg.CLUSTER_KEY``; unassigned cells (blank
-    cluster) read as ``unassigned``. Nothing is computed.
+    Read through ``data_access.display_cell_type``, so a hover says what the rail,
+    the header and the chat beside it say. Reading ``cfg.CLUSTER_KEY`` directly
+    left the map as the one label on the screen that did not follow an override:
+    the rail said CAF and the tissue tooltip said Stromal, in the same viewport.
+    Unassigned cells (blank cluster) read as ``unassigned``. Nothing is computed.
     """
+    from panoscope.ui import data_access as _da
 
     labels = {
-        c: cfg.CLUSTER_KEY.get(c, {}).get("cell_type", c).replace("_", " ")
+        c: _da.display_cell_type(c).replace("_", " ")
         for c in cfg.CLUSTER_ORDER
     }
     labels[""] = "unassigned"

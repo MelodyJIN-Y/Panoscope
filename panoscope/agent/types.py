@@ -271,6 +271,39 @@ class PathwayEvidence:                      # mirrors MarkerEvidence (per gene s
     caveats: tuple[str, ...] = ()
     source: str = "jazzpanda:enrichment"
 
+    @property
+    def measured_state(self) -> "MeasuredState":
+        """The four-state reading of this row. One spelling, for the usual reason.
+
+        ``tier`` cannot answer this and must not be asked to. Its ``untestable``
+        value catches three different facts -- below a capability floor, scored
+        but above the q bar, and no q returned at all -- and only the first is
+        "the panel could not test this".
+
+        * no ``q_value`` at all: the test reported nothing for this set, so
+          nothing was measured and the absence argues nothing. This is the
+          branch that was reading as TESTED_ABSENT, which told the biologist
+          "absence IS evidence here" about a test that never produced a result
+          -- the headline rule inverted.
+        * below ``MIN_PANEL_HITS`` or ``MIN_LEADING_EDGE``: in frame, under the
+          floor, UNDERPOWERED; argues nothing.
+        * scored, reported, above the q bar: TESTED_ABSENT, the productive half.
+
+        A property, not a field: a stored copy could disagree with the row under
+        it, and ``dataclasses.asdict`` would then persist the disagreement.
+        """
+        from panoscope.agent import config as _cfg
+        from panoscope.types.measured import MeasuredState as _MS
+
+        if self.tier in ("enriched", "suggestive"):
+            return _MS.OBSERVED
+        if (self.panel_hits < _cfg.MIN_PANEL_HITS
+                or self.n_leading_edge < _cfg.MIN_LEADING_EDGE):
+            return _MS.UNDERPOWERED
+        if self.q_value is None:
+            return _MS.NEVER_MEASURED
+        return _MS.TESTED_ABSENT
+
 
 @dataclass(frozen=True)
 class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster)
@@ -309,7 +342,19 @@ class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster
     # ``dataclasses.asdict`` would then persist the disagreement.
     @property
     def n_untestable(self) -> int:
-        """Programs the panel could not test: below the panel-hit or leading-edge floor."""
+        """Programs tiered ``untestable``.
+
+        Mostly those below the panel-hit or leading-edge floor, which is what the
+        panel could not test. The tier also catches a set scored above the q bar
+        (TESTED_ABSENT -- tested, and the productive half) and one for which the
+        test returned no q at all. Neither occurs in the bundled demo (0 of 20),
+        but the count is "tiered untestable", not "could not be tested", and the
+        two part company on a panel designed for a different question.
+
+        Whether a TESTED_ABSENT program deserves its own census term is a change
+        to the exported contract (``cluster_n_untestable``, IMPLEMENTATION.md
+        s10), not a bug fix, so it is not made here.
+        """
         return sum(1 for p in self.all_tested if p.tier == "untestable")
 
     @property

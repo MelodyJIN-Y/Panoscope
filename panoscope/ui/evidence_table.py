@@ -240,6 +240,16 @@ def _runner_up(cluster: str) -> str:
         d = discriminate.discriminate(cluster)
         if d.alt_B is None:
             return ""
+        # Withheld when the header's call is not the one the discrimination was
+        # computed for. ``discriminate`` reads the deterministic table, never an
+        # override, so after the biologist overrode c3 to Dendritic this chip
+        # rendered "To settle Macrophages vs T Cells: ... CD4 (glm_coef 4.02)"
+        # under <h1>Dendritic</h1> -- a rival test argued for a call they had
+        # rejected, carrying real statistics. ``ui/report._settle_for`` already
+        # withholds exactly this in the document; the screen did not.
+        shown = da.display_cell_type(cluster)
+        if shown and d.call_A and shown != d.call_A:
+            return ""
         return f"{d.alt_B.replace('_', ' ')} —{discriminate.settle_line(d)}"
     except Exception:  # noqa: BLE001 - no rival line is better than a broken page
         return ""

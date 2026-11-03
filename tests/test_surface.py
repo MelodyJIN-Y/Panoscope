@@ -323,6 +323,40 @@ def test_the_adapter_keeps_the_two_ways_of_failing_apart():
     assert states["HALLMARK_MYOGENESIS"] is MeasuredState.TESTED_ABSENT
 
 
+def test_a_set_the_test_never_scored_is_not_tested_absent():
+    """THREE ways to fail, not two, and only one of them argues.
+
+    ``tier == "untestable"`` catches a set below a capability floor, a set scored
+    above the q bar, AND a set for which the test returned no q at all. The
+    adapter read the floors and then fell through, so that last row -- never
+    scored -- resolved to TESTED_ABSENT and ``_reason`` told the biologist
+    "absence IS evidence here" about a test that produced no result. That is the
+    panel-absence rule inverted on the second workflow.
+
+    Neither branch occurs in the bundled demo (0 of 20 untestable rows), which is
+    why nothing caught it and why this fixture is synthetic.
+    """
+    from panoscope.agent import config as cfg
+
+    unscored = _pathway("HALLMARK_HYPOXIA", tier="untestable", q=None,
+                        panel_hits=40, leading=12)
+    assert unscored.panel_hits >= cfg.MIN_PANEL_HITS
+    assert unscored.n_leading_edge >= cfg.MIN_LEADING_EDGE, (
+        "the row must clear both floors, or it would be UNDERPOWERED for the "
+        "other reason and the test would prove nothing"
+    )
+
+    state = et._state_of(unscored)
+    assert state is MeasuredState.NEVER_MEASURED, state
+    assert "absence IS evidence" not in et._reason(unscored, state)
+
+    # ...and the row that WAS scored still argues, or the fix cost the productive half.
+    scored = _pathway("HALLMARK_MYOGENESIS", tier="untestable", q=0.9,
+                      panel_hits=40, leading=12)
+    assert et._state_of(scored) is MeasuredState.TESTED_ABSENT
+    assert "absence IS evidence" in et._reason(scored, et._state_of(scored))
+
+
 def test_the_adapter_withholds_a_number_where_the_state_forbids_one():
     rows = {p.gene_set: et._row("c1", p) for p in _ce().all_tested}
     assert rows["HALLMARK_E2F_TARGETS"].values["statistic"] == 5.1

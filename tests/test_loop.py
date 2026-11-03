@@ -454,3 +454,28 @@ def test_default_skill_contract_resolves():
     except hid it, so the interpretation contract was absent from every prompt."""
     text = agent_loop._skill_text()
     assert text.strip(), f"no SKILL.md under {agent_loop._SKILLS_DIR}"
+
+
+def test_a_pathways_answer_carries_the_enrichment_rubric_not_the_marker_one() -> None:
+    """Two workflows, two rubrics, and ``_assemble`` knew about only one.
+
+    ``verify`` is deterministic and must come from the rubric of the workflow the
+    answer belongs to. Every chat turn read the marker/ASSIGNMENT rubric, so a
+    Pathways answer carried the marker call's re-check flag. The two disagree on
+    6 of the demo's 9 clusters, every one of them marker-False /
+    enrichment-True: the tab that should have said "re-check this" said nothing.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import loop as _loop
+
+    disagree = [c for c in cfg.CLUSTER_ORDER
+                if _loop._verify_default(c, "marker-interpretation")
+                != _loop._verify_default(c, "enrichment-interpretation")]
+    assert disagree, (
+        "this test is vacuous unless the two rubrics actually differ somewhere"
+    )
+    for c in disagree:
+        assert _loop._verify_default(c, "enrichment-interpretation") == \
+            _loop._enrichment_verify_default(c)
+        assert _loop._verify_default(c, "marker-interpretation") == \
+            _loop._cluster_verify_default(c)

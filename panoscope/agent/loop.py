@@ -1248,7 +1248,7 @@ class PanoscopeAgent:
         if not text:
             return self._fallback.match(query, cluster)
 
-        candidate = self._assemble(text, ledger, cluster)
+        candidate = self._assemble(text, ledger, cluster, skill)
         result = self._checker.check(candidate.text, candidate.grounding, cluster)
         if result.ok:
             return candidate
@@ -1299,13 +1299,14 @@ class PanoscopeAgent:
             text_now = (text_now or "").strip()
             if not text_now:
                 return None
-            candidate = self._assemble(text_now, ledger, cluster)
+            candidate = self._assemble(text_now, ledger, cluster, skill)
             if self._checker.check(candidate.text, candidate.grounding, cluster).ok:
                 return candidate
             return None
         return None
 
-    def _assemble(self, text: str, ledger: _Ledger, cluster: str) -> AgentResponse:
+    def _assemble(self, text: str, ledger: _Ledger, cluster: str,
+                  skill: str = _DEFAULT_SKILL) -> AgentResponse:
         """Build the AgentResponse from the model text + the accumulated ledger."""
         # verify comes from the deterministic rubric ONLY. It used to be
         # `_text_asks_verify(text) or _cluster_verify_default(cluster)`, which
@@ -1314,7 +1315,7 @@ class PanoscopeAgent:
         # cannot see negation, so "The call is solid; no need to re-check this"
         # set verify TRUE. The generator-swap eval moved it on 16 of 45
         # observations, entirely from prose style.
-        verify = _cluster_verify_default(cluster)
+        verify = _verify_default(cluster, skill)
         return AgentResponse(
             text=text,
             sources=ledger.source_chips(),
@@ -1423,6 +1424,43 @@ def _cluster_verify_default(cluster: str) -> bool:
         print(f"[loop] verify rubric UNAVAILABLE for {cluster} ({exc}) — "
               f"failing closed to verify=True")
         return True
+
+
+def _enrichment_verify_default(cluster: str) -> bool:
+    """The ENRICHMENT rubric's verify flag for a cluster.
+
+    A Pathways answer carried ``_cluster_verify_default`` -- the marker/ASSIGNMENT
+    rubric -- because ``_assemble`` did not know which skill it was assembling for.
+    The two rubrics are about different questions and disagree on 6 of the demo's
+    9 clusters, every one of them marker-False / enrichment-True: the tab that
+    should have said "re-check this" said nothing, which is the direction that
+    looks safe.
+
+    Reads the persisted record first and falls back to computing it, the way
+    ``ui.data_access.enrichment_for`` does, and fails CLOSED for
+    ``_cluster_verify_default``'s reason: a rubric nobody could evaluate degrades
+    to "a human should look", never to "no re-check needed".
+    """
+    try:
+        from panoscope.pipeline import store
+
+        persisted = store.load_enrichment(cluster)
+        if persisted is not None:
+            return bool(persisted.verify)
+        from panoscope.agent import enrichment as _enrichment
+
+        return bool(_enrichment.enrichment_for_cluster(cluster).verify)
+    except Exception as exc:  # pragma: no cover
+        print(f"[loop] enrichment verify rubric UNAVAILABLE for {cluster} ({exc}) — "
+              f"failing closed to verify=True")
+        return True
+
+
+def _verify_default(cluster: str, skill: str) -> bool:
+    """The deterministic verify flag for the WORKFLOW this answer belongs to."""
+    if skill == "enrichment-interpretation":
+        return _enrichment_verify_default(cluster)
+    return _cluster_verify_default(cluster)
 
 
 # --------------------------------------------------------------------------- #

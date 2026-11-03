@@ -115,12 +115,13 @@ def _state_of(p: PathwayEvidence) -> MeasuredState:
     The two ways a set can fail are NOT the same fact and do not share a row:
     below the capability floor is UNDERPOWERED and argues nothing; scored, reported
     and above the q bar is TESTED_ABSENT and argues against the program running here.
+
+    A row for which the test returned NO q was reaching the last line and reading
+    as TESTED_ABSENT, so ``_reason`` told the biologist "absence IS evidence
+    here" about a set that was never scored. The split now has one spelling, on
+    the evidence object itself, so this surface and the census cannot drift.
     """
-    if p.tier in ("enriched", "suggestive"):
-        return MeasuredState.OBSERVED
-    if p.panel_hits < cfg.MIN_PANEL_HITS or p.n_leading_edge < cfg.MIN_LEADING_EDGE:
-        return MeasuredState.UNDERPOWERED
-    return MeasuredState.TESTED_ABSENT
+    return p.measured_state
 
 
 def _reason(p: PathwayEvidence, mstate: MeasuredState) -> str:

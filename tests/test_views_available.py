@@ -377,3 +377,28 @@ def test_the_expression_matrix_fails_with_the_study_tree_and_its_producer(tmp_pa
     message = str(excinfo.value)
     assert str(study.dir / "viz" / "expr.parquet") in message
     assert "scripts/prep_expr.py" in message
+
+
+def test_the_spatial_hover_says_what_the_rail_says() -> None:
+    """The one label on the screen that did not follow an override.
+
+    ``_cluster_celltype_map`` read ``cfg.CLUSTER_KEY`` directly while the rail,
+    the marker header, the chat header and the Pathways header all go through
+    ``display_cell_type``. So the rail said CAF and the tissue tooltip said
+    Stromal, in the same viewport, for the same cells.
+    """
+    from panoscope.agent import config as cfg, memory
+    from panoscope.ui import data_access as _da, spatial_stage as _ss
+
+    assert _ss._cluster_celltype_map()["c2"] == "Stromal", "c2 must start as Stromal"
+
+    memory.create_note(
+        claim="c2 is CAF here", scope="cluster", basis="own_validation",
+        cluster="c2", subject_cell_type="CAF", note_type="celltype_override",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+    )
+
+    labels = _ss._cluster_celltype_map()
+    assert labels["c2"] == _da.display_cell_type("c2") == "CAF", labels["c2"]
+    assert labels["c1"] == "Tumor", "an unoverridden cluster must be untouched"
+    assert labels[""] == "unassigned"

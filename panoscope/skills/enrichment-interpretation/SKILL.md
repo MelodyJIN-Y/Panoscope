@@ -16,7 +16,7 @@ It is built for a wet-lab biologist reading a **targeted spatial panel** (e.g. a
 - **Panel-coverage rule (the headline catch).** A Hallmark set has ~200 genes, but only the genes on the panel were ever measured. Enrichment is computed over that panel-scoped subset only. ALWAYS state how many of the set's genes were on the panel (`K` of `N`), and say plainly: **panel-scoped, not genome-wide**. A set with too few panel genes, or driven by too few genes, is untestable — do not call it enriched.
 - **Cite everything, with real references.** Every interpretive (biological) claim about a program must carry a citation to a real paper, looked up **live** through a literature connector (PubMed / bioRxiv). Never write a PMID from memory: a fabricated citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the literature is thin; do not invent a reference.
 - **Defer to the biologist, always.** The tool informs and preserves the decision; it never overrides the cell-type call. Enrichment that disagrees with the cell type is reported as a tension, not a correction.
-- **When evidence is thin, set `verify = TRUE` and say "re-check this."** A program driven by two genes on a curated panel is a hypothesis, not a finding.
+- **When evidence is thin the rubric sets `verify = TRUE`; say "re-check this."** A program driven by two genes on a curated panel is a hypothesis, not a finding. The flag arrives already decided — report it, never choose it.
 
 ## What the enrichment score means (read this before interpreting any number)
 
@@ -43,12 +43,25 @@ For each program, state `K` of `N` genes on the panel. If coverage is low (a few
 
 ### Step 3: Relate the program to the cell-type call
 The cluster already has a cell-type call from the marker workflow. Read each enriched program against it:
-- **Concordant** (proliferation in a tumor, cytotoxic/interferon programs in T cells) → the program reinforces the identity; say so.
+- **Concordant** (proliferation in a tumor, cytotoxic/interferon programs in T cells) → say that the program *sits well with* the call. It does not reinforce it: this test "does not re-derive, confirm or question the cluster's cell-type call" (`methods/jazzpanda_cgst.py`, `does_not_measure`), and treating a gene-set result as corroboration of a marker call is reference data supplying agreement with a measurement.
 - **Cross-lineage** (an immune program enriched in a stromal or epithelial cluster) → likely reflects infiltration, shared panel genes, or spatial admixture, not a mis-call. Flag it as a tension to check, never as a re-typing.
 - **Shared across many clusters** (an interferon or inflammatory program enriched in most clusters) → partly reflects the panel's design and shared genes; down-weight it as cluster-specific evidence.
 
-### Step 4: Confidence
-Confidence is anchored on the top enriched program's score (per method), then demoted one band for very low panel coverage or a tiny leading edge, and set to `verify = TRUE` when no program clears the enriched bar or the top program is shaky. Bands: **Very High, High, Medium-High, Medium, Low**. (Exact edges live in `config.py`; do not restate numbers you were not given.)
+### Step 4: There is no confidence band here — report the census
+This is a CHARACTERISATION task. It has no label space, so a unit-level band over
+it is **undefined**, not merely unhelpful: there is no alternative for the
+remaining probability mass to sit on. `ClusterEnrichment` has no `confidence`
+field to put one in and `JazzPandaCGST.rubric` raises `NoBandForThisTaskKind`
+rather than returning a number that does not exist.
+
+**Never write a confidence band, a confidence word, or a score-as-confidence for a
+cluster's enrichment.** The header is the census the result already carries —
+`7 supported · 3 suggestive · 12 untestable` — plus the top program with its
+panel coverage. Quote `census_line` as given; do not recount it.
+
+**`verify` is not yours to set.** It comes from the deterministic rubric in
+`agent/enrichment.py` and arrives already decided. Never announce it, argue for
+it, or offer to change it.
 
 ## Step 5: Holistic pathway themes (across clusters)
 After each cluster, read the whole set together: which programs recur across clusters, and do the enriched programs cohere with the compartment structure (epithelial / stromal / immune / endothelial). A program enriched in one cluster is cluster-specific; one enriched across many is a shared/atmospheric signal (or panel bias). State recurrence as a count, never as a stronger per-cluster claim.
@@ -70,4 +83,4 @@ One or two sentences naming the cluster's dominant program(s) and what they say 
 - [ ] Only gated (enriched/suggestive) programs are interpreted; untestable ones are not surfaced.
 - [ ] Cross-lineage programs are flagged as tensions, never as a re-typing of the cluster.
 - [ ] Every biological claim carries a real, connector-fetched citation; no PMID from memory.
-- [ ] Weak/low-coverage clusters flagged `verify = TRUE`.
+- [ ] The `verify` flag reported as the rubric set it, never argued with.
