@@ -524,6 +524,12 @@ _CSS = """
 .pano-sf-head { font-family:var(--mono); font-size:10px; text-transform:uppercase;
   letter-spacing:.05em; color:var(--faint); padding:0 0 5px;
   border-bottom:1px solid var(--hair); }
+/* Labels wrap between words, never inside one. The tracks are minmax(0,Nfr) so a
+   heading may be narrower than its own text -- that is what keeps the columns
+   aligned with the rows -- and without this "SPECIFICITY" split as SPECIFICI/TY
+   and "glm_coef" broke at its underscore. */
+.pano-sf-head .pano-sf-cell { word-break:keep-all; overflow-wrap:normal; }
+.pano-sf-unit { display:block; margin-left:0; }
 .pano-sf-row { padding:7px 0; border-bottom:1px solid var(--hair2); }
 .pano-sf-cell.a-right { text-align:right; }
 .pano-sf-unit { font-size:9px; opacity:.7; margin-left:4px; }
