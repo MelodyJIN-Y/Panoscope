@@ -977,7 +977,12 @@ def _scroll_thread_to_bottom(nonce: Any) -> None:
             f"<script>/*{nonce}*/setTimeout(function(){{"
             "var els=window.parent.document.querySelectorAll('[class*=\"st-key-conv_thread\"]');"
             "els.forEach(function(e){e.scrollTop=e.scrollHeight;});"
-            "}},60);</script>",
+            # ONE closing brace. This segment is a PLAIN string, not the f-string
+            # the first line is, so "}}" was never unescaped -- it emitted two
+            # literal braces and the browser answered "missing ) after argument
+            # list". The auto-scroll had never once run. Nothing caught it: the
+            # except below only sees Python, and the failure is in the browser.
+            "},60);</script>",
             height=0,
         )
     except Exception:  # noqa: BLE001 - auto-scroll is a nicety; never break the pane
