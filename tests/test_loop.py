@@ -373,7 +373,6 @@ def _units(study_id: str) -> tuple:
 
 
 def test_global_interpretation_lines_follow_the_active_study():
-    agent_loop._global_interpretation_lines.cache_clear()
     with cfg.use_study("xenium_hbreast_sample1"):
         breast = agent_loop._global_interpretation_lines()
     with cfg.use_study("demo_mini"):
@@ -479,3 +478,43 @@ def test_a_pathways_answer_carries_the_enrichment_rubric_not_the_marker_one() ->
             _loop._enrichment_verify_default(c)
         assert _loop._verify_default(c, "marker-interpretation") == \
             _loop._cluster_verify_default(c)
+
+
+def test_the_prompt_leads_with_the_biologists_call_not_the_replaced_one() -> None:
+    """The block is headed "authoritative — every cluster's call", and it stated
+    the computed one.
+
+    After an override the model was handed "c2: Stromal" twice as fact, with
+    "c2 is CAF here" further down as a note, and left to resolve the
+    contradiction itself -- while the board, the marker header, the chat and the
+    exported document all said CAF. Whatever it picked, the grounding gate then
+    graded.
+
+    Both directions are asserted: the call must lead, and the computed one must
+    stay visible, because a silent swap hides the disagreement the memory layer
+    exists to keep.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import loop as _loop
+    from panoscope.agent import memory
+
+    before = _loop.build_system_prompt("c2", skill="marker-interpretation")
+    assert "c2: Stromal — " in before, "c2 must start out called Stromal"
+
+    memory.create_note(
+        claim="c2 is CAF here", scope="cluster", basis="own_validation",
+        cluster="c2", subject_cell_type="CAF", note_type="celltype_override",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+    )
+
+    after = _loop.build_system_prompt("c2", skill="marker-interpretation")
+    assert "c2: CAF (the biologist's call; computed Stromal)" in after, after[:0] or (
+        "the global interpretation still states the replaced call"
+    )
+    assert "# ACTIVE CLUSTER: c2 — CAF (the biologist's call; computed Stromal)" in after
+    assert "c2: Stromal — " not in after
+
+    # Only the LABEL moves: the band and the drivers are still the computed ones.
+    assert "Very High confidence (drivers: LUM, POSTN, CCDC80)" in after
+    # ...and an unoverridden cluster is untouched.
+    assert "c1: Tumor — " in after

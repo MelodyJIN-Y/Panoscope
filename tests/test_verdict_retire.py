@@ -84,7 +84,6 @@ def test_prompt_bands_are_the_tables_bands(_no_v1, core_verdicts):
     """
     from panoscope.agent import loop
 
-    loop._global_interpretation_lines.cache_clear()
     text = loop._global_interpretation_lines()
     lines = text.splitlines()
     assert len(lines) == len(cfg.CLUSTER_ORDER) == 9
@@ -112,9 +111,7 @@ def test_prompt_never_shows_a_cluster_without_saying_it_has_no_band(monkeypatch)
         raise RuntimeError("no method output")
 
     monkeypatch.setattr(v1_verdicts, "verdicts", _broken)
-    loop._global_interpretation_lines.cache_clear()
     text = loop._global_interpretation_lines()
-    loop._global_interpretation_lines.cache_clear()
 
     assert len(text.splitlines()) == 9
     for line in text.splitlines():

@@ -252,9 +252,17 @@ def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
         return ""
 
 
-@_per_study
 def _global_interpretation_lines() -> str:
     """One grounded line per cluster: cell type + confidence + verify + drivers.
+
+    NOT cached per study, though it was. An override arrives at RUNTIME, so a
+    per-study cache made it unreachable here: the first prompt of a session won
+    the slot and every later one restated the replaced call, however many times
+    the biologist changed it. This is the reason ``composed_verdicts`` and
+    ``data_access.holistic`` say in their own docstrings that they are not
+    cached. The expensive half -- ``v1_verdicts.verdicts()`` -- is still cached
+    per study behind this (189ms first call, 0ms after), so what the decorator
+    was saving was string formatting.
 
     This is the whole annotation's interpretation result, read from the
     deterministic verdicts (never fabricated). It is injected on EVERY turn so the
@@ -298,10 +306,35 @@ def _global_interpretation_lines() -> str:
         flag = "  [VERIFY — re-check]" if v.verify else ""
         drivers = ", ".join(v.key_markers[:3])
         lines.append(
-            f"  {c}: {v.cell_type} — {v.confidence} confidence{flag}"
+            f"  {c}: {_called(c, v.cell_type)} — {v.confidence} confidence{flag}"
             f" (drivers: {drivers})"
         )
     return "\n".join(lines)
+
+
+def _called(cluster: str, computed: str) -> str:
+    """The call to STATE for a cluster, with an override's tension visible.
+
+    This block is headed "authoritative -- every cluster's call", and it was
+    stating the computed one. After the biologist overrode c2 the model was
+    handed "c2: Stromal" twice as fact, with "c2 is CAF here" further down as a
+    note, and left to resolve the contradiction itself -- while the board, the
+    header and the exported document all said CAF. The biologist decides, so
+    their call leads; the computed one stays beside it, because a silent swap
+    hides the disagreement the memory layer exists to keep visible.
+
+    Only the LABEL moves. The band, the drivers and every number on the line are
+    the computed ones, untouched.
+    """
+    from panoscope.agent import compose
+
+    try:
+        call = compose.override_call(cluster)
+    except Exception:  # noqa: BLE001 - a bad note never breaks prompt assembly
+        return computed
+    if not call or call == computed:
+        return computed
+    return f"{call} (the biologist's call; computed {computed})"
 
 
 def _inscope_notes_block(cluster: Optional[str]) -> str:
@@ -369,7 +402,8 @@ def _cluster_context(cluster: Optional[str]) -> str:
     if cluster and cluster in cfg.KNOWN_CLUSTERS:
         meta = cfg.CLUSTER_KEY[cluster]
         active = (
-            f"\n\n# ACTIVE CLUSTER: {cluster} — {meta['cell_type']} "
+            f"\n\n# ACTIVE CLUSTER: {cluster} — "
+            f"{_called(cluster, meta['cell_type'])} "
             f"({meta['category']} / {meta['lineage']}). "
             f"Answer about {cluster} unless the biologist names another."
         )
