@@ -299,8 +299,15 @@ def _render_header(cluster: str) -> None:
     """Title + active cluster/cell-type + a per-cluster 'Clear' control."""
     import streamlit as st
 
+    # ``display_cell_type`` reflects a confirmed override, which is what the rail
+    # and the verdict header three inches away already show. Reading the raw
+    # verdict here meant the one cluster the biologist had actually overridden was
+    # the one where the chat pane told them their call had not been taken -- and
+    # the sibling pathway pane (enrichment_conversation.py:80) does it correctly,
+    # with a comment saying so.
     verdict = _verdict_or_none(cluster)
-    cell_type = html.escape(verdict.cell_type.replace("_", " ")) if verdict else ""
+    cell_type = (html.escape(dax.display_cell_type(cluster).replace("_", " "))
+                 if verdict else "")
     with st.container(key="conv_head"):
         c_title, c_clear = st.columns([0.74, 0.26], vertical_alignment="center")
         with c_title:
@@ -350,7 +357,31 @@ def _safe_opening(cluster: str) -> AgentResponse:
     except Exception:  # noqa: BLE001 - the pane must never crash the app
         from panoscope.agent import loop as agent_loop
 
-        return agent_loop.opening_interpretation(cluster)
+        try:
+            return agent_loop.opening_interpretation(cluster)
+        except Exception as exc:  # noqa: BLE001 - the FALLBACK can fail too
+            # This handler promised "never raise into the render path" and then
+            # called a fallback that raises on the same inputs. A study with no
+            # inputs/panel.parquet, or a missing/corrupt manifest.json, put a
+            # traceback on the Markers page from inside the guard written to
+            # prevent exactly that.
+            #
+            # Nothing is invented here: an AgentResponse carrying the reason,
+            # which the pane renders as its opening bubble. Saying what is
+            # missing is an answer; a traceback is not. verify=True because an
+            # interpretation that could not be built is one a human must look at.
+            from panoscope.agent.types import GroundingSidecar
+
+            return AgentResponse(
+                text=(f"No opening interpretation for {cluster}: this study is "
+                      f"missing an input the interpretation needs ({exc})."),
+                sources=(),
+                verify=True,
+                grounding=GroundingSidecar(numbers=(), markers=(), pmids=(),
+                                           notes_used=()),
+                used_fallback=True,
+                opening=True,
+            )
 
 
 # --------------------------------------------------------------------------- #

@@ -46,7 +46,8 @@ _TRANSCRIPTOME_APPROX = "~20,000"
 # --------------------------------------------------------------------------- #
 # The gate
 # --------------------------------------------------------------------------- #
-def render_panel(fig: Any, cond: Conditionality, *, config: Optional[dict] = None) -> None:
+def render_panel(fig: Any, cond: Conditionality, *, config: Optional[dict] = None,
+                 key: Optional[str] = None) -> None:
     """Draw ``fig`` with its two-line conditionality caption, or refuse.
 
     The visual analogue of the grounding gate discarding an ungrounded sentence.
@@ -66,7 +67,18 @@ def render_panel(fig: Any, cond: Conditionality, *, config: Optional[dict] = Non
 
     import streamlit as st
 
-    st.plotly_chart(fig, width="stretch", config=config)
+    # ``key`` because Streamlit derives a chart's element id from its type and
+    # params, so two byte-identical figures on one page collide and the SECOND
+    # raises StreamlitDuplicateElementId -- which aborts the script, losing every
+    # element below it. Not hypothetical: the feature UMAP's honest fallback
+    # re-draws the cluster UMAP with the same data, layout, config and
+    # conditionality as Row 1, so selecting any gene with no exported expression
+    # column took out the rest of the Markers page, chat pane included.
+    #
+    # An explicit key per panel rather than a counter: a counter would change on
+    # every rerun and redraw every figure, and the collision is exactly the case
+    # where the content cannot tell the two apart.
+    st.plotly_chart(fig, width="stretch", config=config, key=key)
     line1, line2 = cond.caption()
     st.markdown(
         f'<div class="plegend" title="{html.escape(_full_record(cond))}">'

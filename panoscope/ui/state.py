@@ -50,8 +50,24 @@ def default_unit() -> str:
 
     Was a module-level ``DEFAULT_CLUSTER = CLUSTER_ORDER[0]``, which froze to
     whichever study was active when ui.state was first imported.
+
+    Returns ``""`` when the study has no units, instead of raising. This is read by
+    ``app._restore_selection_from_url`` BEFORE any body container exists, so a
+    study with no ``inputs/markers_top.csv`` -- an empty directory, a half-finished
+    ``panoscope build``, a method that produced nothing -- turned every page into a
+    bare traceback with no brand and no nav strip. A header-only marker table did
+    the same through ``IndexError``.
+
+    ``nav.Tab.available`` already states the rule this restores: "A missing or
+    unreadable result is *no data*, never a traceback in the nav bar." With an
+    empty unit the dispatch reaches that guard and renders the honest unavailable
+    page instead.
     """
-    return cfg.CLUSTER_ORDER[0]
+    try:
+        order = cfg.CLUSTER_ORDER
+    except Exception:  # noqa: BLE001 - no readable method output is "no units"
+        return ""
+    return order[0] if order else ""
 
 # Small-multiples cap: how many selected genes get a density + feature-UMAP pair.
 # Extras stay in ``selected_markers`` (and in the evidence table) but the spatial

@@ -115,6 +115,7 @@ def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
             n_genes=len(genes),
             n_drawn=_n_with_density(genes, bin_um),
         ),
+        key=f"pano_density_set_{program}_{bin_um}",
         empty="no precomputed density for the leading-edge genes",
     )
 
@@ -154,6 +155,7 @@ def _render_set_feature_umap(program: str, cluster: str, genes: tuple[str, ...])
             n_bg_total=int((~sel_mask).sum()),
         ),
         config=_plot_config(),
+        key=f"pano_le_umap_{cluster}_{program}",
     )
 
 

@@ -62,6 +62,67 @@ def _unprepped(root: Path, views: dict) -> Study:
 # --------------------------------------------------------------------------- #
 # 1. The guard only ever subtracts
 # --------------------------------------------------------------------------- #
+_DAMAGE = {
+    "no_markers": lambda d: (d / "inputs" / "markers_top.csv").unlink(),
+    "header_only_markers": lambda d: (d / "inputs" / "markers_top.csv").write_text(
+        "gene,top_cluster,glm_coef,pearson,max_gc_corr,max_gg_corr\n"),
+    "no_panel": lambda d: (d / "inputs" / "panel.parquet").unlink(),
+    "no_manifest": lambda d: (d / "manifest.json").unlink(),
+    "corrupt_manifest": lambda d: (d / "manifest.json").write_text("{ not json"),
+}
+
+
+@pytest.mark.parametrize("damage", sorted(_DAMAGE))
+@pytest.mark.parametrize("page", ["summary", "markers", "pathways"])
+def test_a_damaged_study_renders_a_message_not_a_traceback(tmp_path, monkeypatch,
+                                                           damage, page):
+    """A missing input is something to SAY, not something to crash on.
+
+    Measured before this was fixed: with no ``inputs/markers_top.csv`` every page
+    was 1075 characters whose entire content was a ``FileNotFoundError`` traceback
+    -- no brand, no nav strip, nothing. ``cfg.CLUSTER_ORDER`` raised inside
+    ``app._restore_selection_from_url``, which runs before any body container
+    exists. A header-only marker table did the same through ``IndexError``.
+    Separately, a missing ``panel.parquet`` or an absent/corrupt ``manifest.json``
+    killed Summary outright and put a traceback on Markers from inside the very
+    guard whose docstring says it "must never crash the app".
+
+    ``nav.Tab.available`` already states the contract: "A missing or unreadable
+    result is *no data*, never a traceback in the nav bar."
+
+    This is the shape a half-finished ``panoscope build`` leaves behind, so it is
+    also the first thing a new study hits.
+    """
+    from streamlit.testing.v1 import AppTest
+
+    src = Path(cfg.DATA_DIR_PATH) / "studies" / cfg.BUNDLED_DEMO_ID
+    if not src.is_dir():
+        pytest.skip("the bundled demo study is not on disk")
+
+    root = tmp_path / "root"
+    study = root / "studies" / cfg.BUNDLED_DEMO_ID
+    study.parent.mkdir(parents=True)
+    shutil.copytree(src, study)
+    _DAMAGE[damage](study)
+
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(root))
+    monkeypatch.setenv("PANOSCOPE_DATASET", cfg.BUNDLED_DEMO_ID)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    at = AppTest.from_file(
+        str(Path(panoscope.__file__).parent / "app.py"), default_timeout=300)
+    at.session_state["active_page"] = page
+    at.run()
+
+    assert not at.exception, (
+        f"{page} raised on a study with {damage}: "
+        f"{[str(e.value)[:160] for e in at.exception]}"
+    )
+    assert len(" ".join(m.value for m in at.markdown)) > 200, (
+        f"{page} rendered essentially nothing for {damage}; it must SAY what is missing"
+    )
+
+
 def test_a_view_declared_false_is_named_and_a_declared_true_one_draws(tmp_path):
     with cfg.use_study(_unprepped(tmp_path, {"cell_map": False, "umap": True})):
         assert stage._unavailable("cell_map") == "cell_map"

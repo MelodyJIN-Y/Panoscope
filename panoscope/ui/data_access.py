@@ -575,14 +575,24 @@ def display_cell_type(cluster: str) -> str:
 def display_verdict_for(cluster: str) -> ClusterVerdict:
     """``verdict_for`` with the confirmed override applied (cell type + lineage/category)
     for the marker header. Not cached (notes are runtime); the numbers are never mutated."""
+    import dataclasses
+
     v = verdict_for(cluster)
     ov = _override_notes().get(cluster)
     call = (getattr(ov, "subject_cell_type", "") or "").strip() if ov else ""
+
+    # A signed-off call is adjudicated, so its re-check flag clears -- the same
+    # rule ``composed_verdicts`` states and performs, and which the board and the
+    # exports consume. This applied only the override, so after signing a flagged
+    # call off the board said "done" while the marker header beside it went on
+    # showing "⚑ re-check this" for the same unit.
+    signed = cluster in _signed_off_clusters()
     if not call:
-        return v
-    import dataclasses
+        return dataclasses.replace(v, verify=False) if (signed and v.verify) else v
 
     changes = {"cell_type": call, "cell_type_short": call}
+    if signed:
+        changes["verify"] = False
     if getattr(ov, "subject_lineage", "").strip():
         changes["lineage"] = ov.subject_lineage.strip()
     if getattr(ov, "subject_category", "").strip():

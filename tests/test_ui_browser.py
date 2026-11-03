@@ -194,6 +194,40 @@ def test_signing_off_in_a_real_browser_changes_the_board(server, browser) -> Non
     ctx.close()
 
 
+@pytest.mark.parametrize("gene", ["CD8B", "NOTAGENE", "ADIPOQ", "ERBB2,CD8B,NOTAGENE"])
+def test_a_gene_in_the_url_never_takes_the_page_down(server, browser, gene: str) -> None:
+    """``?m=`` is restored from the URL with no validation, and one bad value used
+    to abort the whole script.
+
+    Streamlit derives a chart's element id from its params, and the feature UMAP's
+    honest fallback re-drew the cluster UMAP with the SAME figure, layout, config
+    and conditionality as Row 1. So any gene with no exported expression column
+    raised StreamlitDuplicateElementId -- which stops the script, losing the dot
+    plot and the entire chat pane below it. The documented fallback had never once
+    been able to execute.
+
+    CD8B is off-panel, ADIPOQ is on-panel with no usable signal, NOTAGENE does not
+    exist, and the list mixes a real gene with both.
+    """
+    ctx = browser.new_context(viewport={"width": 1440, "height": 1000})
+    page = ctx.new_page()
+    page.goto(f"{server}/?page=markers&cluster=c1&m={gene}")
+    _settle(page)
+    state = page.evaluate("""() => ({
+      exc: [...document.querySelectorAll("[data-testid='stException']")]
+             .map(e => e.innerText.split('\\n').slice(0, 2).join(' ')),
+      charts: document.querySelectorAll('.js-plotly-plot').length,
+      ask: !!document.querySelector("textarea, input[type='text']"),
+    })""")
+    ctx.close()
+
+    assert not state["exc"], f"?m={gene} raised: {state['exc']}"
+    assert state["charts"] > 0, f"?m={gene} rendered no figure at all"
+    # The chat pane sits BELOW the figures, so it is the thing an aborted script
+    # silently removes -- and its absence is how this defect stayed invisible.
+    assert state["ask"], f"?m={gene} lost the chat pane: the script stopped early"
+
+
 @pytest.mark.parametrize("width", [1440, 1024])
 def test_the_column_headings_sit_over_their_columns(server, browser, width: int) -> None:
     """Measured geometry, because every cheaper check here has been wrong.

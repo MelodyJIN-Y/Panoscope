@@ -522,6 +522,7 @@ def _render_cell_map(cluster: str) -> None:
             n_bg_total=int((~sel_mask).sum()),
         ),
         config=_plot_config(),
+        key=f"pano_cellmap_{cluster}",
     )
 
 
@@ -582,6 +583,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
                 n_bg_total=n_bg_total,
             ),
             config=_plot_config(),
+            key=f"pano_umap_feature_{cluster}_{gene}",
         )
         return
 
@@ -601,6 +603,12 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
             n_bg_total=n_bg_total,
         ),
         config=_plot_config(),
+        # Two different panels reach this draw: Row 1's cluster UMAP, and the
+        # honest fallback for a gene with no exported expression column. Same
+        # figure, same conditionality -- so without distinct keys the second one
+        # collided and took the rest of the page down with it.
+        key=(f"pano_umap_nofeature_{cluster}_{gene}" if feature and gene
+             else f"pano_umap_clusters_{cluster}"),
     )
     if feature and gene and expr is None:
         _legend_line(
@@ -741,12 +749,14 @@ def _render_density(gene: str) -> None:
         hb,
         bin_um,
         cond=cnd.gene_density_cond(gene=gene, hb=hb, bin_um=bin_um),
+        key=f"pano_density_gene_{gene}_{bin_um}",
         empty=f"{gene}: density not precomputed",
     )
 
 
 def _render_density_frame(
-    hb: Any, bin_um: int, *, cond: Any, empty: str = "density not precomputed"
+    hb: Any, bin_um: int, *, cond: Any, empty: str = "density not precomputed",
+    key: str | None = None,
 ) -> None:
     """Draw a precomputed (or aggregated) hex-density frame as an area-normalized,
     ratio-locked tissue image. Shared by the single-marker density and the
@@ -825,7 +835,7 @@ def _render_density_frame(
     # carries the ramp and the units once (see _render_density_controls). The
     # conditionality caption is per-panel — the bin µm and the colour maximum it
     # states are this panel's.
-    cnd.render_panel(fig, cond, config=_plot_config())
+    cnd.render_panel(fig, cond, config=_plot_config(), key=key)
 
 
 # --------------------------------------------------------------------------- #
@@ -971,6 +981,7 @@ def _render_dotplot(genes: list[str], cluster: str) -> None:
             n_total=len(da.cells_df()),
         ),
         config=_plot_config(),
+        key=f"pano_dotplot_{cluster}",
     )
     _legend_line("dot size = % of cells expressing · colour = mean expression")
 

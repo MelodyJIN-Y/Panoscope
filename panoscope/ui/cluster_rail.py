@@ -61,7 +61,14 @@ def render_rail() -> Optional[str]:
 
     st.markdown('<p class="pano-eyebrow">Clusters</p>', unsafe_allow_html=True)
 
-    verdicts = {v.cluster: v for v in data_access.all_verdicts()}
+    # COMPOSED, not raw. ``composed_verdicts`` clears ``verify`` on a signed-off
+    # unit -- it is adjudicated, and the board, the exports and the Summary header
+    # all consume that. The rail read the raw verdict, so the moment a call was
+    # signed off the board said done and the rail went on showing ⚑ beside it.
+    # Two surfaces in one app disagreeing about the same unit's review state is
+    # the defect this project keeps finding, and the rail already reaches for the
+    # override-aware ``display_cell_type`` a few lines below for the same reason.
+    verdicts = {v.cluster: v for v in data_access.composed_verdicts()}
     selected = state.get_selected_cluster()
 
     with st.container(key="pano_rail"):

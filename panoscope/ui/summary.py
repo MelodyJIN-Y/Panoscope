@@ -1327,7 +1327,18 @@ def render_summary_page() -> None:
 
     st.markdown(f"<style>{_SUMMARY_CSS}</style>", unsafe_allow_html=True)
 
-    verdicts = da.composed_verdicts()  # confirmed overrides/excludes reflected everywhere
+    # Guarded: this reaches cfg.CLUSTER_ORDER, which raises when the study has no
+    # readable inputs/markers_top.csv. Markers and Pathways both degrade to an
+    # honest "no result" page in that case; Summary was the one surface that put a
+    # traceback on screen instead, and it is the sign-off surface.
+    try:
+        verdicts = da.composed_verdicts()  # overrides/excludes reflected everywhere
+    except Exception as exc:  # noqa: BLE001 - no method output is a message, not a crash
+        st.warning(
+            "This study has no readable method output, so there is nothing to "
+            f"review or sign off here yet: {exc}"
+        )
+        return
     overrides = {v.cluster: da.override_info(v.cluster) for v in verdicts}
     overrides = {c: o for c, o in overrides.items() if o}
     sec_by_id = {v.cluster: v for v in verdicts}
@@ -1335,6 +1346,15 @@ def render_summary_page() -> None:
     # A table click arrives as a query param (the table is pure HTML) — dispatch it
     # BEFORE reading the sign-off state so this render reflects it immediately.
     _handle_table_actions(st, verdicts, overrides, refinements)
+    # RE-READ after the dispatch. ``composed_verdicts`` clears ``verify`` for a
+    # signed-off unit, so a sign or undo click changes the verdicts themselves --
+    # and these were read before the click was handled. Reopening a flagged call
+    # therefore rendered it CLEAN for one full render: no warning glyph, no
+    # "rests on 2 markers" reason, and a one-click sign-off link on a call the
+    # deterministic rubric says needs a second look. The flag is the whole point
+    # of the board.
+    verdicts = da.composed_verdicts()
+    sec_by_id = {v.cluster: v for v in verdicts}
     # Sign-off state drives the board triage AND the header finish line.
     signed = da.signed_off()
     n_signed = sum(1 for v in verdicts if v.cluster in signed)
@@ -1352,7 +1372,23 @@ def render_summary_page() -> None:
 
     # Latest per-section drafts (grounded). Computed up front so one button can
     # re-draft everything and the exports read the freshest text.
-    rep = report.build_report_from_sources(generated_at=datetime.date.today().isoformat())
+    # Guarded for the reason the ``n_panel`` block nine lines above is guarded, and
+    # it was not: ``build_report_from_sources`` reaches the SAME
+    # ``len(da.panel_names())`` through report.py, plus the manifest's platform.
+    # So one absent input file -- panel.parquet, or a missing/corrupt manifest.json
+    # -- turned the sign-off surface into a nav strip and a traceback, while
+    # Markers and Pathways carried on fine.
+    try:
+        rep = report.build_report_from_sources(
+            generated_at=datetime.date.today().isoformat())
+    except Exception as exc:  # noqa: BLE001 - say what is missing; do not die
+        st.warning(
+            "This study is missing an input the write-up needs, so the report and "
+            f"its exports are unavailable: {exc}"
+        )
+        st.markdown(_table_html(verdicts, overrides, signed, refinements),
+                    unsafe_allow_html=True)
+        return
     try:
         themes = da.pathway_themes()
     except Exception:  # noqa: BLE001
