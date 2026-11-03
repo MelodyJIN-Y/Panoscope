@@ -80,6 +80,11 @@ class Row(Protocol):
     state: MeasuredState
     values: Mapping[str, Any]
     reason: str
+    #: Which capability frame refused this row ("panel:<study>", "detect:<study>").
+    #: Needed here, not only in the HTML renderer, because blocks select on it: two
+    #: blocks can share a state and differ only by frame, and a renderer that
+    #: ignored it put the same row under both headers.
+    frame: str
 
 
 # ● measured  ◐ measured, not here  ◌ below the floor  ⊘ never measured.
@@ -240,7 +245,10 @@ def rows_for(block: BlockSpec, rows: Sequence[Row]) -> list[Row]:
     HTML renderer's: a text surface that sorted differently would be a second
     opinion about which result is the headline.
     """
-    got = [r for r in rows if r.state in block.statuses]
+    got = [r for r in rows
+           if r.state in block.statuses
+           and r.frame.startswith(block.frame_prefix)
+           and not any(r.frame.startswith(x) for x in block.frame_excludes)]
     if block.sort_by:
         got.sort(key=lambda r: (r.values.get(block.sort_by) is None,
                                 r.values.get(block.sort_by) or 0),

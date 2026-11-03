@@ -171,7 +171,7 @@ class Resolved:
     """What the corpus says about one URI, and what that is worth.
 
     ``record is not None`` **iff** ``state is RESOLVED``, enforced below. Same trick
-    as ``Measured``'s "statistic is None iff TESTED_ABSENT or NEVER_MEASURED":
+    as ``Measured``'s "statistic is None iff the state is not OBSERVED":
     quoting a title for a source nobody resolved is made structurally
     unrepresentable rather than forbidden in prose.
     """

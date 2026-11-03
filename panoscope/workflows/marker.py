@@ -250,9 +250,25 @@ class MarkerInterpretation:
                 BlockSpec("underpowered", "TOO LITTLE SIGNAL - {count}",
                           statuses=(MeasuredState.UNDERPOWERED,),
                           empty_text="every on-panel marker cleared the floor"),
+                # NEVER_MEASURED splits on the frame that refused the gene, because
+                # the two readings are not interchangeable and the biologist acts on
+                # the difference. Off panel: never probed, so nothing can be said of
+                # it. No usable signal: it WAS probed, and the reason there is no
+                # number is this sample's detectability, not the panel design. One
+                # header covering both is a false statement about whichever group it
+                # does not describe -- on this demo, about 49 genes out of 49.
+                # EXCLUDES rather than matching "panel:", so the two blocks partition
+                # the state instead of both selecting from it -- a row carrying an
+                # unrecognised frame falls here rather than off the table entirely.
                 BlockSpec("never_measured", "NEVER MEASURED - {count} off panel",
                           statuses=(MeasuredState.NEVER_MEASURED,),
+                          frame_excludes=("detect:",),
                           empty_text="every canonical marker for this label is on panel"),
+                BlockSpec("undetected",
+                          "NEVER MEASURED - {count} on panel, no usable signal",
+                          statuses=(MeasuredState.NEVER_MEASURED,),
+                          frame_prefix="detect:",
+                          empty_text="every on-panel gene produced usable signal"),
             ),
             coverage_ribbon=CoverageRibbonSpec(),
             pin_kinds=("gene", "cell_type"),

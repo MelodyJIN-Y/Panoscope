@@ -171,7 +171,8 @@ def _row(cluster: str, p: PathwayEvidence) -> surface.SurfaceRow:
     ``statistic`` and ``p_adj_bh`` are withheld on every state that does not carry a
     number, so those cells hatch. That is not politeness: ``cell_html`` refuses a
     number on such a row outright, which is the structural form of *statistic is
-    None iff the state is TESTED_ABSENT or NEVER_MEASURED*.
+    None iff the state is not OBSERVED* -- read off ``Measured.carries_number``,
+    so UNDERPOWERED withholds its number too.
     """
     mstate = _state_of(p)
     observed = mstate is MeasuredState.OBSERVED

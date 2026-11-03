@@ -17,6 +17,7 @@ selected cluster / markers / chat / notes carry over between tabs.
 from __future__ import annotations
 
 import base64
+import html
 from functools import lru_cache
 from pathlib import Path
 
@@ -146,6 +147,46 @@ def _sync_selection_to_url(page: str) -> None:
             del qp[key]
 
 
+def _study_chip() -> tuple[str, str]:
+    """The top-bar context chip, DERIVED from the open study.
+
+    Every value here used to be a literal reading "Xenium human breast · sample 1 /
+    280 genes · 9 clusters". It was correct for the demo and wrong for every other
+    study: ``demo_mini`` is a 9-gene panel over 3 clusters, and the multi-sample
+    fixture is 12 genes over 3 clusters of no tissue at all. CLAUDE.md is explicit
+    that panel size is dynamic across studies and derived from the file, never
+    asserted -- and a chip that names the wrong panel size sits two inches above a
+    table whose denominators come from the right one.
+
+    Each field degrades to silence rather than to a guess: an unstated tissue drops
+    out of the line instead of defaulting to the demo's.
+    """
+    from panoscope import methods as _methods
+    from panoscope.agent import config as _cfg
+    from panoscope.workflows.marker import WORKFLOW_ID as _MARKER_ID
+
+    study = _cfg.current_study()
+    bits = [b for b in (study.platform, study.tissue) if b]
+    samples = study.manifest.get("samples") or []
+    if len(samples) > 1:
+        bits.append(f"{len(samples)} samples")
+    elif len(samples) == 1:
+        bits.append(str(samples[0]))
+
+    try:
+        panel_n = len(da.panel_names())
+    except Exception:  # noqa: BLE001 - a study with no panel file still gets a chip
+        panel_n = 0
+    facts = []
+    if panel_n:
+        facts.append(f"{panel_n} genes")
+    facts.append(f"{len(study.units)} clusters")
+    reg = _methods.for_workflow(_MARKER_ID)
+    if reg:
+        facts.append(f"{reg[0].name} markers")
+    return " · ".join(bits), " · ".join(facts)
+
+
 def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
     """The single top bar: brand · one tab per registered workflow · study chip.
 
@@ -189,11 +230,12 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
                             args=(tab.page,),
                         )
         with ctx_col:
+            main, sub = _study_chip()
             st.markdown(
                 '<div class="pano-ctx-wrap"><div class="pano-ctx-chip">'
                 '<div class="pano-ctx-text">'
-                '<span class="pano-ctx-main">Xenium human breast · sample 1</span>'
-                '<span class="pano-ctx-sub">280 genes · 9 clusters · jazzPanda markers</span>'
+                f'<span class="pano-ctx-main">{html.escape(main)}</span>'
+                f'<span class="pano-ctx-sub">{html.escape(sub)}</span>'
                 "</div></div></div>",
                 unsafe_allow_html=True,
             )

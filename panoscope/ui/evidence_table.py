@@ -196,12 +196,14 @@ def _row(cluster: str, item: Any, canonical: frozenset[str],
     ``statistic`` and ``pearson`` are whatever the item carries, which is ``None`` on
     every state that forbids a number. That is not politeness: ``cell_html`` refuses
     a number on such a row outright, which is the structural form of *statistic is
-    None iff the state is TESTED_ABSENT or NEVER_MEASURED*.
+    None iff the state is not OBSERVED* -- read off ``Measured.carries_number``,
+    so UNDERPOWERED withholds its number too.
     """
     gene = item.subject.display()
     return surface.SurfaceRow(
         key=item.subject.key,          # the click-back anchor reconciliation joins on
         state=item.measured.state,
+        frame=item.measured.frame,     # which frame refused it; the block selects on this
         reason=_reason(item),
         values={
             "gene": gene,

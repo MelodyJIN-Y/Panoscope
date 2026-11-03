@@ -890,7 +890,15 @@ grounding gate.
 
 The four states of §9.5 must be distinguishable in the evidence table. A never-measured item is not a
 blank row and not a zero — it is rendered as structurally absent, with the reason, and it carries no
-number. This is the project's headline claim, and it currently has no pixel that demonstrates it.
+number. This is the project's headline claim, and it now has pixels: `ui/surface.py` declares a glyph and
+a CSS class per state, the coverage ribbon counts all four, and the Markers table renders three of them on
+the demo study — 84 observed, 147 measured-not-here and 49 never-measured on c1. `UNDERPOWERED` produces no
+row on any of that study's nine clusters, so the fourth glyph is exercised by the synthetic fixture and by
+`tests/test_surface.py`, not by the demo.
+
+A never-measured row carries its **name** as well as its reason. That is not decoration: a table of 196
+anonymous hatched rows answers "was ESR1 tested?" with silence, which is the blank row this section
+forbids, wearing a different costume.
 
 ### 13.5 Click-back
 

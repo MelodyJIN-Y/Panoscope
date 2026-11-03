@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/panoscope_logo_with_text.png" alt="Panoscope" width="300"/>
+  <img src="panoscope/assets/panoscope_logo_with_text.png" alt="Panoscope" width="300"/>
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@ jazzPanda is the engine. This is the interpretation layer.
 
 <p align="center">
   <a href="https://youtu.be/djmImgY6RU8">
-    <img src="assets/demo_thumbnail.jpg" alt="Watch the Panoscope demo" width="640"/>
+    <img src="panoscope/assets/demo_thumbnail.jpg" alt="Watch the Panoscope demo" width="640"/>
   </a>
   <br/>
   <em>▶&nbsp; Watch the 3-minute demo</em>
@@ -24,7 +24,7 @@ jazzPanda is the engine. This is the interpretation layer.
 - **The one catch to see (cluster c2).** Its textbook stromal markers COL1A1 and VIM are **off-panel**, never measured. A general reader (or a general LLM) counts that as evidence against stroma; Panoscope checks the panel first, marks them "not measured" rather than "absent", and holds the call on LUM (glm 18.00) and POSTN (glm 15.80). An absence you never measured is not evidence.
 - **Why trust it.** Nothing is fabricated: a grounding gate discards any answer whose number, marker, or PMID does not trace to source. Check it yourself from a fresh clone, no API key: `pytest -m "not live"` (230+ tests; a green run *is* the guarantee).
 - **Depth.** Two skill-driven workflows (marker cell-typing + gene-set enrichment), a scope-enforced memory layer that records the biologist's overrides with the literature tension visible, a live rival-test, and three linked spatial views. Built with Claude Code as a team of agents against one contract.
-- **Where to look.** the grounding gate [`agent/grounding_check.py`](agent/grounding_check.py), the deterministic verdict engine [`agent/verdict.py`](agent/verdict.py), the portable skill [`skills/marker-interpretation/SKILL.md`](skills/marker-interpretation/SKILL.md), and the calibration table (`python scripts/calibration_table.py`).
+- **Where to look.** the grounding gate [`agent/grounding_check.py`](panoscope/agent/grounding_check.py), the deterministic verdict engine [`agent/verdict.py`](panoscope/agent/verdict.py), the portable skill [`skills/marker-interpretation/SKILL.md`](panoscope/skills/marker-interpretation/SKILL.md), and the calibration table (`python scripts/calibration_table.py`).
 
 ## The honest framing
 
@@ -117,7 +117,7 @@ panoscope run                                    # launch the app
 pytest -m "not live"                             # run the grounding suite (deterministic, no network)
 
 panoscope build --study <id>                     # (re)build a study tree: verdicts + manifest (offline)
-panoscope explain <unit>                         # print the stored interpretation for one unit
+panoscope explain <unit> --study <id>            # print the stored interpretation for one unit
 panoscope doctor                                 # resolved paths, studies, versions, credentials
 
 python -m panoscope.pipeline.stages.notes --dataset <id>   # live: skill-grounded per-marker + cell-type notes (PubMed)
@@ -143,7 +143,7 @@ NCBI credentials are present. This is the fastest way to confirm the project doe
 
 ## Skill + MCP setup
 
-The interpretation logic ships as two installable, standalone skills. The marker workflow is **[`skills/marker-interpretation/`](skills/marker-interpretation/SKILL.md)**: the panel-absence rule, the `glm_coef`-anchored confidence rubric, the holistic cross-cluster review, and the no-fabrication / real-citation discipline; point any agent at jazzPanda `top_result` output plus a panel list and it works. The Pathways workflow is a second skill, **[`skills/enrichment-interpretation/`](skills/enrichment-interpretation/SKILL.md)**: the panel-coverage rule, the two-tier enrichment report, and the cross-cluster themes review. Both install and run independently of this app.
+The interpretation logic ships as two installable, standalone skills. The marker workflow is **[`skills/marker-interpretation/`](panoscope/skills/marker-interpretation/SKILL.md)**: the panel-absence rule, the `glm_coef`-anchored confidence rubric, the holistic cross-cluster review, and the no-fabrication / real-citation discipline; point any agent at jazzPanda `top_result` output plus a panel list and it works. The Pathways workflow is a second skill, **[`skills/enrichment-interpretation/`](panoscope/skills/enrichment-interpretation/SKILL.md)**: the panel-coverage rule, the two-tier enrichment report, and the cross-cluster themes review. Both install and run independently of this app.
 
 Live citations come from a PubMed MCP server declared in [`.mcp.json`](.mcp.json) (`@cyanheads/pubmed-mcp-server`). To enable it, copy `.env.example` to `.env` and set `NCBI_API_KEY` and `NCBI_ADMIN_EMAIL` (the email registered to that key). Get a key at <https://www.ncbi.nlm.nih.gov/account/settings/>. The `pytest -m "not live"` suite needs none of this; one optional live test (`-m live`) exercises a real lookup when credentials are present.
 
@@ -151,7 +151,7 @@ Live citations come from a PubMed MCP server declared in [`.mcp.json`](.mcp.json
 
 Panoscope was built the way it reasons: decomposed, contract-first, and verified. We used Claude Code as an orchestrated **team of agents**, not a single chat.
 
-1. **A planner/architect agent** turned the goal into [`BLUEPRINT.md`](BLUEPRINT.md): a file tree, the shared frozen dataclasses in [`agent/types.py`](agent/types.py) (the interface every module builds against), the verdict algorithm, and a **build DAG of parallel groups** (G0 contracts → G2 engine → G3 grounding → G4 loop → G5 UI).
+1. **A planner/architect agent** turned the goal into [`BLUEPRINT.md`](docs/archive/BLUEPRINT.md): a file tree, the shared frozen dataclasses in [`agent/types.py`](panoscope/agent/types.py) (the interface every module builds against), the verdict algorithm, and a **build DAG of parallel groups** (G0 contracts → G2 engine → G3 grounding → G4 loop → G5 UI).
 2. **Parallel builder agents** implemented each group against those frozen contracts: the deterministic verdict engine, the memory layer, the MCP tools, the grounding checker, and the UI panes independently. Because they shared one type contract, their work composed. The blueprint's **"Key reconciliations"** section is the honest record of it: where independent agents made divergent choices (tidy-data layout, note format, citation convention), we reconciled them into one contract before merging.
 3. **Isolated git worktrees** kept parallel streams from colliding (e.g. the Summary sign-off board).
 4. **A grounding gate + CI was the shared referee**: every agent's output had to trace to source or be discarded, so parallel speed never cost the confident floor.

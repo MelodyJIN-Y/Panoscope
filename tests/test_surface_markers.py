@@ -57,6 +57,78 @@ def test_a_never_measured_marker_is_a_row_not_a_blank_and_not_a_zero(rows):
         assert row.values["pearson"] is None
 
 
+def test_every_row_lands_in_exactly_one_block(rows):
+    """The blocks partition the rows. Nothing is shown twice, nothing disappears.
+
+    The second half is the one worth having. ``never_measured`` and ``undetected``
+    select the same STATE and are separated only by ``frame_prefix``, so a row whose
+    adapter forgot to set ``SurfaceRow.frame`` matches neither and silently vanishes
+    from the table while the coverage ribbon still counts it. A defect that leaves
+    the remaining numbers correct is the kind nobody finds.
+    """
+    counts = {b.key: len(surface.rows_for(b, rows)) for b in MARKERS.blocks}
+    assert sum(counts.values()) == len(rows), (
+        f"{len(rows)} rows but the blocks hold {sum(counts.values())}: {counts}"
+    )
+
+
+def test_off_panel_and_undetected_are_different_blocks_and_say_so(rows):
+    """NEVER_MEASURED is two different sentences, and one header must not pick one.
+
+    The marker table read "NEVER MEASURED - 49 off panel" for 49 genes that are all
+    ON the 280-gene panel: they were probed and produced no usable spatial signal.
+    Seven of the nine demo clusters showed it, and c1's genuinely off-panel count is
+    zero. ``platforms/xenium.py`` names that collapse as the four-states-into-a-
+    boolean mistake one layer down; this pins the split that prevents it.
+    """
+    by_key = {b.key: b for b in MARKERS.blocks}
+    assert {"never_measured", "undetected"} <= set(by_key), (
+        "the two NEVER_MEASURED frames must be separate blocks"
+    )
+
+    off_panel = surface.rows_for(by_key["never_measured"], rows)
+    undetected = surface.rows_for(by_key["undetected"], rows)
+
+    assert all(r.frame.startswith("panel:") for r in off_panel), (
+        "the 'off panel' block holds a row refused by some other frame"
+    )
+    assert all(r.frame.startswith("detect:") for r in undetected), (
+        "the 'no usable signal' block holds a row refused by some other frame"
+    )
+    assert "off panel" in by_key["never_measured"].label_template
+    assert "off panel" not in by_key["undetected"].label_template
+    assert undetected, "the demo study has undetectable genes; they must have a block"
+
+
+def test_a_non_observed_row_still_carries_its_name_when_the_table_is_pinnable(rows):
+    """A hatched row says WHICH entity was never measured, pin buttons or not.
+
+    ``render_surface`` draws column 0 as a button for OBSERVED rows only. It used to
+    pass ``skip_first=True`` for every other row, which dropped that column -- and
+    the gene name with it -- putting nothing in its place: 196 of c1's 280 rows
+    rendered as "never measured / never measured / --", the symbol surviving only
+    inside an invisible ``data-claim`` attribute. "Was ESR1 tested?" became
+    unanswerable on the surface whose whole job is to answer it.
+
+    ``table_html`` never passes ``skip_first``, so the existing assertion above
+    tested the one path the app does not take. This asserts the path it does.
+    """
+    # Targeted at the ROW call. ``column_header_html(spec, skip_first=pinnable)`` is
+    # correct and stays: the header omits the label over the button column.
+    src = inspect.getsource(surface.render_surface)
+    assert "row_html(spec, row, skip_first=pinnable)" not in src, (
+        "render_surface drops the first column -- the name -- on non-observed rows"
+    )
+
+    for row in rows:
+        if row.state is MeasuredState.OBSERVED:
+            continue
+        html = surface.row_html(MARKERS, row)
+        assert str(row.values["gene"]) in html, (
+            f"{row.values['gene']} ({row.state.value}) renders with no name"
+        )
+
+
 def test_the_never_measured_cells_hatch_and_name_the_frame_that_refused_them(rows):
     never = [r for r in rows if r.state is MeasuredState.NEVER_MEASURED]
     html = surface.table_html(MARKERS, rows)
@@ -174,8 +246,8 @@ def test_a_row_with_nothing_to_click_raises_rather_than_rendering_plain(rows):
 
 
 def test_a_statistic_on_a_never_measured_row_is_refused_outright(rows):
-    """Structural form of *statistic is None iff TESTED_ABSENT or NEVER_MEASURED*:
-    the renderer will not draw the number even if an adapter hands it one."""
+    """Structural form of *statistic is None iff the state is not OBSERVED*: the
+    renderer will not draw the number even if an adapter hands it one."""
     never = next(r for r in rows if r.state is MeasuredState.NEVER_MEASURED)
     forged = dataclasses.replace(never, values={**never.values, "statistic": 7.0})
     with pytest.raises(DegradedUpward):

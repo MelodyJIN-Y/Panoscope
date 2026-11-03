@@ -11,9 +11,14 @@ survived long enough to be found by hand against real data.
 1. Streamlit widgets: the rail (``rail_<unit>``), evidence rows
    (``sfsel_gene|g=gene:<SYMBOL>``), the Ask form.
 2. The review cockpit's table is **pure HTML**, and every action on it arrives as
-   a QUERY PARAMETER -- ``summary._handle_table_actions`` dispatches
-   ``?sign/undo/drill/confirm/accept=cN``. ``at.button`` can never see those, so a
-   widget-only test skips the whole cockpit while looking thorough.
+   a QUERY PARAMETER. ``at.button`` can never see those, so a widget-only test
+   skips the whole cockpit while looking thorough.
+
+   ``summary._handle_table_actions`` dispatches five names, but only THREE are
+   ever emitted: ``?sign=``, ``?undo=`` and ``?drill=``. No generator in
+   ``panoscope/ui/`` produces ``?confirm=`` or ``?accept=`` -- observed in a real
+   browser by ``tests/test_ui_browser.py``, not argued from reading the source.
+   Those two branches and their CSS are live code with no caller.
 
 Keys are read off the running app rather than hardcoded: a renamed key should fail
 here loudly, not quietly stop testing anything.
@@ -31,6 +36,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
+from panoscope.types.measured import MeasuredState
 
 APP = str(Path(__file__).resolve().parents[1] / "panoscope" / "app.py")
 REPO = Path(__file__).resolve().parents[1]
@@ -95,11 +102,53 @@ def test_pinning_a_marker_changes_the_view_and_no_value(app_tree) -> None:
     nums_before = _nums(before)
     pins[sorted(pins)[0]].click().run()
     after = _text(at)
+    nums_after = _nums(after)
 
     assert after != before, "pinning changed nothing"
-    survived = nums_before & _nums(after)
-    assert survived, "no number survived the pin; cannot tell whether values moved"
-    assert survived <= nums_before, "a value changed when only the view should have"
+    assert nums_before, "no number on screen before the pin; nothing to hold fixed"
+    # EVERY number that was on screen must still be on screen. Not an intersection:
+    # `nums_before & nums_after <= nums_before` holds for ANY two sets, which is what
+    # this assertion used to say -- it could not fail, and a mutation doubling every
+    # statistic on pin left the whole suite green. A pin may ADD numbers (the pinned
+    # marker's own panel appears), so this is a superset check, not equality.
+    moved = nums_before - nums_after
+    assert not moved, (
+        f"pinning moved {len(moved)} value(s) when only the view should have "
+        f"changed: {sorted(moved)[:8]}"
+    )
+
+
+def test_the_rendered_page_names_the_genes_it_never_measured(app_tree) -> None:
+    """End-to-end form of the rule: a hatched row is not an anonymous row.
+
+    ``tests/test_surface_markers.py`` pins the renderer. This pins the PAGE, through
+    the same ``render_surface`` path the biologist hits -- the path where the bug
+    actually lived, and the one ``surface.table_html`` silently does not exercise.
+    On the demo study 196 of c1's 280 rows are non-observed; every one of them must
+    still say which gene it is talking about.
+    """
+    from panoscope.ui import evidence_table as et
+
+    at = _at("markers")
+    unit = {k: v for k, v in _keys(at).items() if k.startswith("rail_")}
+    assert unit, "the rail offers no unit to read"
+    cluster = sorted(unit)[0].split("_", 1)[1]
+
+    built = et.unit_build(cluster)
+    if built is None:
+        pytest.skip(f"this study produces no record for {cluster}")
+    hidden = [r for r in et.rows_for(cluster, built)
+              if r.state is not MeasuredState.OBSERVED]
+    if not hidden:
+        pytest.skip(f"{cluster} has no non-observed row to check")
+
+    page = _text(at)
+    missing = [r.values["gene"] for r in hidden
+               if str(r.values["gene"]) not in page]
+    assert not missing, (
+        f"{len(missing)} of {len(hidden)} non-observed rows render with no name "
+        f"on {cluster}: {missing[:8]}"
+    )
 
 
 def test_sign_off_persists_reverses_and_survives_a_reload(app_tree) -> None:

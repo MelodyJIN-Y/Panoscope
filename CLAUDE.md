@@ -65,8 +65,10 @@ One capability frame per entity kind: the panel for genes, the annotation label 
 design's replicate counts for conditions, detectability for genes that produced no usable signal.
 Composite subjects take the **meet** over required roles and name what blocked them.
 
-`statistic is None` **iff** the state is `TESTED_ABSENT` or `NEVER_MEASURED`, so quoting a number for an
-unmeasured thing is structurally unrepresentable.
+`statistic is None` **iff** the state is not `OBSERVED`, so quoting a number for an unmeasured thing is
+structurally unrepresentable. `UNDERPOWERED` withholds the number too: in frame but below the floor is a
+state the measurement could not support a value from. Derived from `Measured.carries_number`, never from
+a re-listed set of states — the second list is the one nobody updates.
 
 ## Hard rules for the agent
 

@@ -254,8 +254,8 @@ def test_a_registered_workflow_cannot_degrade_to_the_provenance_header():
 
 
 def test_a_number_on_a_row_with_no_measurement_is_refused():
-    """``statistic is None`` iff TESTED_ABSENT or NEVER_MEASURED. The renderer does
-    not quietly drop the number -- a caller that produced one has a bug."""
+    """``statistic is None`` iff the state is not OBSERVED. The renderer does not
+    quietly drop the number -- a caller that produced one has a bug."""
     col = ColumnSpec("statistic", "z", ColumnKind.NUMBER)
     row = surface.SurfaceRow(key="gene|g=X", state=MeasuredState.NEVER_MEASURED,
                              values={"statistic": 4.2}, reason="off panel")

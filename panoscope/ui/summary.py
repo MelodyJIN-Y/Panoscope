@@ -861,8 +861,17 @@ def _overview_bullets_html(text: str) -> str:
 
 def _handle_table_actions(st, verdicts: list[ClusterVerdict], overrides: dict,
                           refinements: dict) -> None:
-    """Dispatch a table click that arrived as a query param (?sign/undo/drill/confirm/
-    accept=cN), then clear it. The table is pure HTML, so every action comes this way."""
+    """Dispatch a table click that arrived as a query param, then clear it. The table
+    is pure HTML, so every action comes this way.
+
+    Five names are handled; only ``sign``, ``undo`` and ``drill`` are ever SENT.
+    Nothing in ``panoscope/ui/`` emits ``?confirm=`` or ``?accept=`` -- observed in a
+    real browser (``tests/test_ui_browser.py``), not inferred from reading the
+    generator. Those two branches, and the ``a.act.confirm`` / ``a.act.accept`` CSS
+    above, are reachable code with no caller. Left in place rather than deleted:
+    both are landing points for the contested-sign-off card, so removing them is a
+    product decision, not a cleanup.
+    """
     qp = st.query_params
     vmap = {v.cluster: v for v in verdicts}
 

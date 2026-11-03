@@ -11,13 +11,13 @@ where the subject was actually observed::
     statistic is None  IFF  not measured.carries_number
 
 The check is derived from :attr:`Measured.carries_number` rather than from a
-re-listed set of states, because the two drift. ``IMPLEMENTATION.md`` §2.2 states
-the rule as ``{TESTED_ABSENT, NEVER_MEASURED}`` and omits ``UNDERPOWERED`` -- which
-is wrong: "in frame, below the floor" is a state where absence is not evidence
-either, and a number quoted from it is a number the measurement could not support.
-``measured.py`` already had it right. Spelling the states out a second time here
-would have made the spec bug permanent, and the second list is the one nobody
-updates.
+re-listed set of states, because the two drift. ``IMPLEMENTATION.md`` §2.2 and
+``CLAUDE.md`` both used to state the rule as ``{TESTED_ABSENT, NEVER_MEASURED}``,
+omitting ``UNDERPOWERED`` -- which was wrong: "in frame, below the floor" is a
+state where absence is not evidence either, and a number quoted from it is a
+number the measurement could not support. ``measured.py`` always had it right and
+both documents now say so. Spelling the states out a second time here would have
+made that spec bug permanent, and the second list is the one nobody updates.
 
 It is enforced in ``__post_init__`` and it *raises*. Quoting a number for a thing
 that was never measured is the single worst failure this project can produce, and

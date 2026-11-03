@@ -89,6 +89,13 @@ class SurfaceRow:
     state: MeasuredState
     values: Mapping[str, Any] = field(default_factory=dict)
     reason: str = ""          # why this state -- the hover on the hatch
+    #: The capability frame that produced ``state``, verbatim from
+    #: ``Measured.frame`` ("panel:<study>", "detect:<study>"). Carried as its own
+    #: field rather than parsed back out of ``reason``, because a block that
+    #: selects on it (``BlockSpec.frame_prefix``) must not break when that
+    #: sentence is copy-edited -- the defect this table already has a comment
+    #: about, one layer up.
+    frame: str = ""
 
 
 # ● measured  ◐ measured, not here  ◌ below the floor  ⊘ never measured.
@@ -226,7 +233,10 @@ def row_html(spec: UISpec, row: SurfaceRow, *, skip_first: bool = False) -> str:
 # --------------------------------------------------------------------------- #
 def rows_for(block: BlockSpec, rows: Sequence[SurfaceRow]) -> list[SurfaceRow]:
     """This block's rows, sorted WITHIN the block. Never truncated, never merged."""
-    got = [r for r in rows if r.state in block.statuses]
+    got = [r for r in rows
+           if r.state in block.statuses
+           and r.frame.startswith(block.frame_prefix)
+           and not any(r.frame.startswith(x) for x in block.frame_excludes)]
     if block.sort_by:
         got.sort(key=lambda r: (r.values.get(block.sort_by) is None,
                                 r.values.get(block.sort_by) or 0),
@@ -605,8 +615,14 @@ def render_surface(
             if pinnable and row.state is MeasuredState.OBSERVED:
                 _render_pinnable_row(st, spec, row, on_select, selected)
             else:
-                st.markdown(row_html(spec, row, skip_first=pinnable),
-                            unsafe_allow_html=True)
+                # NOT skip_first, even when the table is pinnable. A pinnable
+                # table draws the first column as a button, which only measured
+                # rows get -- but dropping the column from every other row drops
+                # the NAME with it, and a never-measured row that does not say
+                # WHICH entity was never measured is exactly the blank row the
+                # interface contract forbids. The button is withheld here; the
+                # identifier never is.
+                st.markdown(row_html(spec, row), unsafe_allow_html=True)
 
 
 def _render_pinnable_row(st, spec: UISpec, row: SurfaceRow, on_select, selected) -> None:

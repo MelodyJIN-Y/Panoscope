@@ -333,6 +333,30 @@ class BlockSpec:
     key: str
     label_template: str              # "NEVER MEASURED - {count} off panel"
     statuses: tuple[MeasuredState, ...] = ()
+    #: Narrow the block to rows refused by ONE capability frame, matched against
+    #: the prefix of ``Measured.frame`` ("panel:", "detect:"). Empty: every frame.
+    #:
+    #: One state is not always one sentence. A gene kept out by ``panel:`` was
+    #: never probed; a gene kept out by ``detect:`` WAS probed and produced no
+    #: usable signal. Both are NEVER_MEASURED -- correctly, since neither absence
+    #: is evidence -- but one block header has to assert one of them, and on a
+    #: 280-gene panel carrying 49 undetectable genes the wrong one is a false
+    #: statement about every row beneath it. So the block splits, rather than the
+    #: label hedging into "outside the frame" and telling the biologist nothing.
+    frame_prefix: str = ""
+    #: The complement of ``frame_prefix``, and the reason the two blocks PARTITION
+    #: rather than merely select.
+    #:
+    #: Two blocks sharing a state and each naming a prefix leave a hole: a row whose
+    #: adapter set no frame matches neither and silently disappears from the table
+    #: while the coverage ribbon still counts it. That is a defect that leaves every
+    #: remaining number correct, which is the kind nobody finds -- and it is exactly
+    #: what the first version of this split did to ``render/text.py``'s rows.
+    #:
+    #: So the specific block names its prefix and the general one EXCLUDES it. An
+    #: unknown frame then falls to the general block, which is both the conservative
+    #: reading and what the surface did before the split.
+    frame_excludes: tuple[str, ...] = ()
     sort_by: str = ""
     sort_desc: bool = True
     collapsed_by_default: bool = False

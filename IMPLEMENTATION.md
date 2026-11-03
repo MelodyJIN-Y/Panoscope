@@ -239,7 +239,8 @@ def resolve(subject, world, reported, statistic) -> Traced[Measured]:
         e in frame and reported               -> OBSERVED
     composite: state = min(constituents by _RANK); blocked_by = all at the minimum
     then: any failing Coverage over MEMBER roles demotes to UNDERPOWERED
-    finally: statistic is None IFF state in {TESTED_ABSENT, NEVER_MEASURED}
+    finally: statistic is None IFF state is not OBSERVED
+             (read off Measured.carries_number -- UNDERPOWERED withholds it too)
     """
 ```
 

@@ -48,6 +48,32 @@ def test_assignment_profile_is_byte_identical_on_the_demo_study():
     assert to_csv(TaskKind.ASSIGNMENT, verdicts).value == V.to_csv(verdicts)
 
 
+#: The CHARACTERISATION half of this module reads the jazzPanda enrichment input,
+#: which is gitignored on purpose -- its rows are MSigDB Hallmark sets scored on
+#: 10x's Xenium demo, and CLAUDE.md is explicit that restrictively-licensed data is
+#: fetched and never bundled. So on a fresh clone, which is to say on CI and for
+#: every reader of this repo, that input is absent.
+#:
+#: Guarded per-test rather than with a module-level ``pytestmark``: the ASSIGNMENT
+#: half and the synthetic-row tests below need no such file, and skipping those too
+#: would retire most of this module's coverage on exactly the machine the README
+#: asks a reviewer to verify on. Four sibling modules already guard this way
+#: (test_enrichment.py:36, test_enrichment_frame_count.py:45,
+#: test_pipeline_enrichment_records.py:48, test_pipeline.py:36); this module was the
+#: one that did not, which is what made ``pytest -m "not live"`` red on a fresh
+#: clone while staying green on a machine that happens to hold the file.
+_needs_enrichment_input = pytest.mark.skipif(
+    not E._jz_enrichment_csv().exists(),
+    reason=(
+        f"jazzPanda enrichment result not present (gitignored): "
+        f"{E._jz_enrichment_csv()}. The ASSIGNMENT half of the byte-identity "
+        f"contract still runs here, and the enrichment CSV itself stays pinned by "
+        f"tests/test_golden.py against the committed records."
+    ),
+)
+
+
+@_needs_enrichment_input
 def test_characterisation_profile_is_byte_identical_on_the_demo_study():
     enrichments = E.all_enrichments()
     assert to_csv(TaskKind.CHARACTERISATION, _pairs(enrichments)).value == E.to_csv(
@@ -62,6 +88,12 @@ def test_byte_identical_without_a_header_too():
     assert to_csv(TaskKind.ASSIGNMENT, verdicts, header=False).value == V.to_csv(
         verdicts, header=False
     )
+
+
+@_needs_enrichment_input
+def test_byte_identical_without_a_header_on_characterisation_too():
+    """The CHARACTERISATION half of the append path, split out so the ASSIGNMENT
+    half above still runs where the gitignored enrichment input is absent."""
     enrichments = E.all_enrichments()
     assert to_csv(
         TaskKind.CHARACTERISATION, _pairs(enrichments), header=False

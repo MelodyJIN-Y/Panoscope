@@ -329,6 +329,40 @@ def test_verify_is_never_read_off_the_models_prose():
     assert "_text_asks_verify" not in called, "the model's prose is back on the verify path"
 
 
+def test_verify_is_the_same_whatever_the_model_wrote():
+    """The BEHAVIOURAL half of the rule above, which the name scan cannot cover.
+
+    The scan asserts one removed function is not called back. It stays green under
+    the obvious regression: re-add the prose test under any other name and OR it in
+    (``verify = _prose_wants_recheck(text) or _cluster_verify_default(cluster)``).
+    That mutation was run against the whole suite and 2190 tests passed -- so the
+    proposition "``_assemble`` uses the rubric and NOTHING else" had no coverage at
+    all, on a rule CLAUDE.md states twice.
+
+    So: one unit, two prose strings a substring test would split on, and the flag
+    must not move. The second is the string that broke the original implementation
+    -- a substring test cannot see negation, so "no need to re-check this" set
+    verify TRUE.
+    """
+    from panoscope.agent import loop
+
+    agent = loop.PanoscopeAgent.__new__(loop.PanoscopeAgent)  # no client, no network
+    unit = "c1"
+    rubric = loop._cluster_verify_default(unit)
+
+    says_no = agent._assemble("The call is solid; no need to re-check this.",
+                              loop._Ledger(), unit)
+    says_yes = agent._assemble("Uncertain on this one. Please re-check this.",
+                               loop._Ledger(), unit)
+
+    assert says_no.verify == says_yes.verify, (
+        "verify moved with the model's prose; the rubric is no longer its only input"
+    )
+    assert says_no.verify == rubric, (
+        f"verify={says_no.verify} but the rubric says {rubric} for {unit}"
+    )
+
+
 def test_an_unrecognised_rival_is_declined_by_name_not_silently_replaced():
     """evals/sycophancy: nine pushbacks naming Hepatocytes / Podocytes /
     Cardiomyocytes were all answered "the alternative equals the call; nothing

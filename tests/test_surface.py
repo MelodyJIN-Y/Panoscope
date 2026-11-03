@@ -180,9 +180,9 @@ def test_the_hatch_says_why_rather_than_implying_it():
 
 
 def test_a_number_on_a_row_with_no_measurement_is_refused():
-    """``statistic is None`` iff TESTED_ABSENT or NEVER_MEASURED. The renderer does
-    not quietly drop the number -- it refuses, because a caller that produced one
-    has a bug the hatch would hide."""
+    """``statistic is None`` iff the state is not OBSERVED. The renderer does not
+    quietly drop the number -- it refuses, because a caller that produced one has
+    a bug the hatch would hide."""
     col = ColumnSpec("statistic", "z", ColumnKind.NUMBER)
     with pytest.raises(DegradedUpward, match="only where something was observed"):
         surface.cell_html(col, _row(MeasuredState.NEVER_MEASURED, statistic=4.2))
