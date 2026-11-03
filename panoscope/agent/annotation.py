@@ -155,12 +155,36 @@ def offpanel_canonical(cell_type: str, dataset_id: Optional[str] = None) -> tupl
     for the bundled demo. An off-panel note naming another tissue's genes would be a
     fabricated caveat.
     """
-    found = _by_cell_type("offpanel_canonical", dataset_id).get(cell_type)
-    if found:
-        return found
-    if _is_bundled_demo(dataset_id):
-        return OFF_PANEL_CANONICAL_FALLBACK.get(cell_type, ())
-    return ()
+    stored = _by_cell_type("offpanel_canonical", dataset_id).get(cell_type) or ()
+    if not stored and _is_bundled_demo(dataset_id):
+        stored = OFF_PANEL_CANONICAL_FALLBACK.get(cell_type, ())
+
+    # DERIVED as well as read. The stored field is written once and never
+    # recomputed (``pipeline/stages/annotate.py`` reads an existing
+    # annotation.json rather than regenerating it), and in the committed demo it
+    # is empty for eight of nine units while their canonical lists DO name
+    # off-panel genes -- KRT18 for Tumor, CD3D for T_Cells, CLDN5/CDH5/FLT1 for
+    # Endothelial. The panel-absence rule therefore demonstrated on one cluster.
+    #
+    # Membership is asked of the panel file, never asserted, so a study whose
+    # annotation names no such type still gets ``()`` and no other tissue's genes
+    # can leak in. Stored entries come first and win ties, because a study may
+    # curate absences its canonical list does not name (the demo's Stromal entry
+    # carries COL1A2, VIM and FAP, none of which are in its canonical set).
+    from panoscope.agent import data as _data
+
+    out: list[str] = []
+    for g in (*stored, *canonical_markers(cell_type, dataset_id)):
+        name = str(g)
+        if name in out:
+            continue
+        try:
+            if _data.panel_contains(name):
+                continue
+        except Exception:  # noqa: BLE001 - no readable panel: say nothing, not "off-panel"
+            return tuple(stored)
+        out.append(name)
+    return tuple(out)
 
 
 def all_canonical(dataset_id: Optional[str] = None) -> dict[str, tuple[str, ...]]:

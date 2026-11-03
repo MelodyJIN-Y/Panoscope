@@ -358,7 +358,26 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "CLDN5",
+      "cell_type": "Endothelial",
+      "message": "CLDN5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "CDH5",
+      "cell_type": "Endothelial",
+      "message": "CDH5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "FLT1",
+      "cell_type": "Endothelial",
+      "message": "FLT1 is off-panel (never measured); its absence is not evidence against Endothelial.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c7",
     "cell_type": "Endothelial",
@@ -426,7 +445,26 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "CLDN5",
+        "cell_type": "Endothelial",
+        "message": "CLDN5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "CDH5",
+        "cell_type": "Endothelial",
+        "message": "CDH5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "FLT1",
+        "cell_type": "Endothelial",
+        "message": "FLT1 is off-panel (never measured); its absence is not evidence against Endothelial.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "AQP1 marks Endothelial",
@@ -521,6 +559,9 @@
     "jz:SOX18:glm_coef=0.258022",
     "jz:SOX18:pearson=0.685971",
     "jz:SNAI1:glm_coef=0.241464",
-    "jz:SNAI1:pearson=0.536632"
+    "jz:SNAI1:pearson=0.536632",
+    "panel:CLDN5:off_panel=True",
+    "panel:CDH5:off_panel=True",
+    "panel:FLT1:off_panel=True"
   ]
 }

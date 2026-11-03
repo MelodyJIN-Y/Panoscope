@@ -490,7 +490,14 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "CD3D",
+      "cell_type": "T_Cells",
+      "message": "CD3D is off-panel (never measured); its absence is not evidence against T_Cells.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c5",
     "cell_type": "T_Cells",
@@ -577,7 +584,14 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "CD3D",
+        "cell_type": "T_Cells",
+        "message": "CD3D is off-panel (never measured); its absence is not evidence against T_Cells.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "IL7R marks T_Cells",
@@ -701,6 +715,7 @@
     "jz:CD27:glm_coef=0.245412",
     "jz:CD27:pearson=0.779172",
     "jz:DUSP2:glm_coef=0.200248",
-    "jz:DUSP2:pearson=0.749448"
+    "jz:DUSP2:pearson=0.749448",
+    "panel:CD3D:off_panel=True"
   ]
 }

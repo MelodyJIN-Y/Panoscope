@@ -567,13 +567,47 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # does measure comes back tested-absent, not never-measured.
         reported = frozenset().union(*(f.members for f in ev.reported)) \
             if ev.reported else frozenset()
+        # DERIVED from the canonical list, not read from a pre-filtered field.
+        #
+        # This used to iterate ``offpanel_canonical`` alone. That field is written
+        # once and never recomputed (``pipeline/stages/annotate.py`` reads an
+        # existing annotation.json rather than regenerating it), and in the
+        # committed demo it is empty for eight of nine units -- so the panel-absence
+        # rule, which is the headline claim, demonstrated on exactly one cluster.
+        # c5's call is T_Cells while canonical CD3D is off-panel and said nothing;
+        # c7 Endothelial rests on four of seven canonical markers with CLDN5, CDH5
+        # and FLT1 never measured, and its section read as a complete set.
+        #
+        # The canonical list is the honest input and the lattice is the right judge,
+        # which is what the comment above has always said. A canonical marker the
+        # panel DOES carry is already among ``ev.items`` (the method reports every
+        # panel gene), so the de-dup leaves exactly the off-panel ones -- no row is
+        # added twice and none is classified here. ``offpanel_canonical`` is still
+        # honoured first, because a study may curate absences its canonical list
+        # does not name.
+        # Identity is stripped and case-folded, the rule ``Frame.contains`` uses and
+        # for its reason: an exact comparison here is how the two band engines came
+        # to disagree about one gene (markers_top spelling CD68 as Cd68). Comparing
+        # subject keys exactly re-made it -- the canonical list says SYNG01, the
+        # method table says Syng01, and the gene was added a second time with no
+        # statistic although it was OBSERVED, which ``EvidenceItem`` rejects outright.
+        def _norm(name: object) -> str:
+            return str(name).strip().casefold()
+
+        seen = {_norm(i.subject.one("g").id) for i in ev.items}
+        wanted: list[str] = []
+        for g in (*meta.get("offpanel_canonical", ()),
+                  *meta.get("canonical_markers", ())):
+            if _norm(g) not in seen:
+                seen.add(_norm(g))
+                wanted.append(str(g))
         absences = tuple(
             measure.measure(
-                measure.Reading(subject=subject("gene", g=gene(str(g))),
+                measure.Reading(subject=subject("gene", g=gene(g)),
                                 statistic=None,
                                 statistic_name=method.statistic_name),
                 world, reported)
-            for g in meta.get("offpanel_canonical", ())
+            for g in wanted
         )
         ev = dataclasses.replace(ev, items=(
             tuple(i for i in ev.items if i.measured.carries_number)

@@ -1298,7 +1298,14 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "KRT18",
+      "cell_type": "Tumor",
+      "message": "KRT18 is off-panel (never measured); its absence is not evidence against Tumor.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c1",
     "cell_type": "Tumor",
@@ -1396,7 +1403,14 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "KRT18",
+        "cell_type": "Tumor",
+        "message": "KRT18 is off-panel (never measured); its absence is not evidence against Tumor.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "ERBB2 marks Tumor",
@@ -1637,6 +1651,7 @@
     "jz:PELI1:glm_coef=0.245126",
     "jz:PELI1:pearson=0.562444",
     "jz:TUBB2B:glm_coef=0.230432",
-    "jz:TUBB2B:pearson=0.737622"
+    "jz:TUBB2B:pearson=0.737622",
+    "panel:KRT18:off_panel=True"
   ]
 }

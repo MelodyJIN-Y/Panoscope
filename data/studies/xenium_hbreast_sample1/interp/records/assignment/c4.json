@@ -2910,6 +2910,16 @@
       ]
     },
     {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:TP63 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:TP63"
+      ]
+    },
+    {
       "rule": "band:from_coef",
       "outcome": "High",
       "because": [

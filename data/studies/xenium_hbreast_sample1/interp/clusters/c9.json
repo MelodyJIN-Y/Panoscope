@@ -51,7 +51,20 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "MS4A2",
+      "cell_type": "Mast_Cells",
+      "message": "MS4A2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "TPSB2",
+      "cell_type": "Mast_Cells",
+      "message": "TPSB2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c9",
     "cell_type": "Mast_Cells",
@@ -76,7 +89,20 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "MS4A2",
+        "cell_type": "Mast_Cells",
+        "message": "MS4A2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "TPSB2",
+        "cell_type": "Mast_Cells",
+        "message": "TPSB2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "CPA3 marks Mast_Cells",
@@ -101,6 +127,8 @@
     "jz:CPA3:glm_coef=1.950023",
     "jz:CPA3:pearson=0.416591",
     "jz:CTSG:glm_coef=0.746098",
-    "jz:CTSG:pearson=0.289284"
+    "jz:CTSG:pearson=0.289284",
+    "panel:MS4A2:off_panel=True",
+    "panel:TPSB2:off_panel=True"
   ]
 }

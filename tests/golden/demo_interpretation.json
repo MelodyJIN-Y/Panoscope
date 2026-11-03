@@ -5131,7 +5131,14 @@
       ],
       "lineage": "Epithelial",
       "notes": "Tumor call driven by ERBB2 glm_coef=21.44/pearson=0.91, KRT7 glm_coef=13.48/pearson=0.92, EPCAM glm_coef=9.52/pearson=0.93. Confidence Very High.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "Tumor",
+          "gene": "KRT18",
+          "message": "KRT18 is off-panel (never measured); its absence is not evidence against Tumor.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "Tumor",
         "cluster": "c1",
@@ -5297,7 +5304,14 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "Tumor",
+            "gene": "KRT18",
+            "message": "KRT18 is off-panel (never measured); its absence is not evidence against Tumor.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": false
       },
       "small_n": false,
@@ -5469,7 +5483,8 @@
         "jz:PELI1:glm_coef=0.245126",
         "jz:PELI1:pearson=0.562444",
         "jz:TUBB2B:glm_coef=0.230432",
-        "jz:TUBB2B:pearson=0.737622"
+        "jz:TUBB2B:pearson=0.737622",
+        "panel:KRT18:off_panel=True"
       ],
       "verify": false
     },
@@ -6617,7 +6632,14 @@
       ],
       "lineage": "Myeloid",
       "notes": "Macrophages call driven by LYZ glm_coef=11.84/pearson=0.84, FCER1G glm_coef=4.73/pearson=0.76, CD68 glm_coef=4.49/pearson=0.70. Confidence Very High.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "Macrophages",
+          "gene": "CSF1R",
+          "message": "CSF1R is off-panel (never measured); its absence is not evidence against Macrophages.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "Macrophages",
         "cluster": "c3",
@@ -6783,7 +6805,14 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "Macrophages",
+            "gene": "CSF1R",
+            "message": "CSF1R is off-panel (never measured); its absence is not evidence against Macrophages.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": false
       },
       "small_n": false,
@@ -6843,7 +6872,8 @@
         "jz:LY86:glm_coef=0.250370",
         "jz:LY86:pearson=0.696602",
         "jz:PDCD1LG2:glm_coef=0.248101",
-        "jz:PDCD1LG2:pearson=0.765511"
+        "jz:PDCD1LG2:pearson=0.765511",
+        "panel:CSF1R:off_panel=True"
       ],
       "verify": false
     },
@@ -7251,7 +7281,14 @@
       ],
       "lineage": "Epithelial",
       "notes": "Myoepithelial call driven by MYLK glm_coef=5.90/pearson=0.83, ACTA2 glm_coef=5.07/pearson=0.59, KRT14 glm_coef=4.65/pearson=0.83. Confidence High.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "Myoepithelial",
+          "gene": "TP63",
+          "message": "TP63 is off-panel (never measured); its absence is not evidence against Myoepithelial.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "Myoepithelial",
         "cluster": "c4",
@@ -7417,7 +7454,14 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "Myoepithelial",
+            "gene": "TP63",
+            "message": "TP63 is off-panel (never measured); its absence is not evidence against Myoepithelial.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": false
       },
       "small_n": false,
@@ -7471,7 +7515,8 @@
         "jz:CDC42EP1:glm_coef=0.251339",
         "jz:CDC42EP1:pearson=0.501394",
         "jz:CX3CR1:glm_coef=0.220266",
-        "jz:CX3CR1:pearson=0.495259"
+        "jz:CX3CR1:pearson=0.495259",
+        "panel:TP63:off_panel=True"
       ],
       "verify": false
     },
@@ -7967,7 +8012,14 @@
       ],
       "lineage": "Lymphoid",
       "notes": "T_Cells call driven by IL7R glm_coef=3.40/pearson=0.82, PTPRC glm_coef=3.26/pearson=0.93, TRAC glm_coef=2.81/pearson=0.92. Confidence Medium-High.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "T_Cells",
+          "gene": "CD3D",
+          "message": "CD3D is off-panel (never measured); its absence is not evidence against T_Cells.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "T_Cells",
         "cluster": "c5",
@@ -8111,7 +8163,14 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "T_Cells",
+            "gene": "CD3D",
+            "message": "CD3D is off-panel (never measured); its absence is not evidence against T_Cells.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": false
       },
       "small_n": false,
@@ -8177,7 +8236,8 @@
         "jz:CD27:glm_coef=0.245412",
         "jz:CD27:pearson=0.779172",
         "jz:DUSP2:glm_coef=0.200248",
-        "jz:DUSP2:pearson=0.749448"
+        "jz:DUSP2:pearson=0.749448",
+        "panel:CD3D:off_panel=True"
       ],
       "verify": false
     },
@@ -8832,7 +8892,26 @@
       ],
       "lineage": "Endothelial",
       "notes": "Endothelial call driven by AQP1 glm_coef=7.37/pearson=0.75, PECAM1 glm_coef=4.92/pearson=0.76, VWF glm_coef=4.89/pearson=0.70. Confidence High.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "Endothelial",
+          "gene": "CLDN5",
+          "message": "CLDN5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+          "source": "panel:absence"
+        },
+        {
+          "cell_type": "Endothelial",
+          "gene": "CDH5",
+          "message": "CDH5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+          "source": "panel:absence"
+        },
+        {
+          "cell_type": "Endothelial",
+          "gene": "FLT1",
+          "message": "FLT1 is off-panel (never measured); its absence is not evidence against Endothelial.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "Endothelial",
         "cluster": "c7",
@@ -8946,7 +9025,26 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "Endothelial",
+            "gene": "CLDN5",
+            "message": "CLDN5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+            "source": "panel:absence"
+          },
+          {
+            "cell_type": "Endothelial",
+            "gene": "CDH5",
+            "message": "CDH5 is off-panel (never measured); its absence is not evidence against Endothelial.",
+            "source": "panel:absence"
+          },
+          {
+            "cell_type": "Endothelial",
+            "gene": "FLT1",
+            "message": "FLT1 is off-panel (never measured); its absence is not evidence against Endothelial.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": false
       },
       "small_n": false,
@@ -8994,7 +9092,10 @@
         "jz:SOX18:glm_coef=0.258022",
         "jz:SOX18:pearson=0.685971",
         "jz:SNAI1:glm_coef=0.241464",
-        "jz:SNAI1:pearson=0.536632"
+        "jz:SNAI1:pearson=0.536632",
+        "panel:CLDN5:off_panel=True",
+        "panel:CDH5:off_panel=True",
+        "panel:FLT1:off_panel=True"
       ],
       "verify": false
     },
@@ -9080,7 +9181,20 @@
       ],
       "lineage": "Myeloid",
       "notes": "Dendritic call driven by TCL1A glm_coef=1.88/pearson=0.87, LILRA4 glm_coef=1.75/pearson=0.84, SPIB glm_coef=1.48/pearson=0.83. Confidence Medium-High. Adjustments: high pearson on driver (0.87) -> +1 band.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "Dendritic",
+          "gene": "CLEC4C",
+          "message": "CLEC4C is off-panel (never measured); its absence is not evidence against Dendritic.",
+          "source": "panel:absence"
+        },
+        {
+          "cell_type": "Dendritic",
+          "gene": "IRF7",
+          "message": "IRF7 is off-panel (never measured); its absence is not evidence against Dendritic.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "Dendritic",
         "cluster": "c8",
@@ -9194,7 +9308,20 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "Dendritic",
+            "gene": "CLEC4C",
+            "message": "CLEC4C is off-panel (never measured); its absence is not evidence against Dendritic.",
+            "source": "panel:absence"
+          },
+          {
+            "cell_type": "Dendritic",
+            "gene": "IRF7",
+            "message": "IRF7 is off-panel (never measured); its absence is not evidence against Dendritic.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": false
       },
       "small_n": false,
@@ -9206,7 +9333,9 @@
         "jz:SPIB:glm_coef=1.476220",
         "jz:SPIB:pearson=0.831790",
         "jz:PLD4:glm_coef=0.826414",
-        "jz:PLD4:pearson=0.776436"
+        "jz:PLD4:pearson=0.776436",
+        "panel:CLEC4C:off_panel=True",
+        "panel:IRF7:off_panel=True"
       ],
       "verify": false
     },
@@ -9266,7 +9395,20 @@
       ],
       "lineage": "Myeloid",
       "notes": "Mast_Cells call driven by CPA3 glm_coef=1.95/pearson=0.42. Confidence Medium. Adjustments: driver localizes better with another cluster -> -1 band; fragile cluster with canonical driver: floored at Medium. Fragile cluster (<=2 assigned markers): re-check this. verify=TRUE, re-check this call.",
-      "offpanel_notes": [],
+      "offpanel_notes": [
+        {
+          "cell_type": "Mast_Cells",
+          "gene": "MS4A2",
+          "message": "MS4A2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+          "source": "panel:absence"
+        },
+        {
+          "cell_type": "Mast_Cells",
+          "gene": "TPSB2",
+          "message": "TPSB2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+          "source": "panel:absence"
+        }
+      ],
       "opening": {
         "cell_type": "Mast_Cells",
         "cluster": "c9",
@@ -9304,7 +9446,20 @@
             "status": "unfilled"
           }
         ],
-        "offpanel_notes": [],
+        "offpanel_notes": [
+          {
+            "cell_type": "Mast_Cells",
+            "gene": "MS4A2",
+            "message": "MS4A2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+            "source": "panel:absence"
+          },
+          {
+            "cell_type": "Mast_Cells",
+            "gene": "TPSB2",
+            "message": "TPSB2 is off-panel (never measured); its absence is not evidence against Mast_Cells.",
+            "source": "panel:absence"
+          }
+        ],
         "verify": true
       },
       "small_n": true,
@@ -9312,7 +9467,9 @@
         "jz:CPA3:glm_coef=1.950023",
         "jz:CPA3:pearson=0.416591",
         "jz:CTSG:glm_coef=0.746098",
-        "jz:CTSG:pearson=0.289284"
+        "jz:CTSG:pearson=0.289284",
+        "panel:MS4A2:off_panel=True",
+        "panel:TPSB2:off_panel=True"
       ],
       "verify": true
     }

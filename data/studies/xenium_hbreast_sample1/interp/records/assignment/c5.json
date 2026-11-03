@@ -2910,6 +2910,16 @@
       ]
     },
     {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:CD3D never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:CD3D"
+      ]
+    },
+    {
       "rule": "band:from_coef",
       "outcome": "Medium-High",
       "because": [

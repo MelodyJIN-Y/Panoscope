@@ -78,7 +78,20 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "CLEC4C",
+      "cell_type": "Dendritic",
+      "message": "CLEC4C is off-panel (never measured); its absence is not evidence against Dendritic.",
+      "source": "panel:absence"
+    },
+    {
+      "gene": "IRF7",
+      "cell_type": "Dendritic",
+      "message": "IRF7 is off-panel (never measured); its absence is not evidence against Dendritic.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c8",
     "cell_type": "Dendritic",
@@ -146,7 +159,20 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "CLEC4C",
+        "cell_type": "Dendritic",
+        "message": "CLEC4C is off-panel (never measured); its absence is not evidence against Dendritic.",
+        "source": "panel:absence"
+      },
+      {
+        "gene": "IRF7",
+        "cell_type": "Dendritic",
+        "message": "IRF7 is off-panel (never measured); its absence is not evidence against Dendritic.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "TCL1A marks Dendritic",
@@ -207,6 +233,8 @@
     "jz:SPIB:glm_coef=1.476220",
     "jz:SPIB:pearson=0.831790",
     "jz:PLD4:glm_coef=0.826414",
-    "jz:PLD4:pearson=0.776436"
+    "jz:PLD4:pearson=0.776436",
+    "panel:CLEC4C:off_panel=True",
+    "panel:IRF7:off_panel=True"
   ]
 }

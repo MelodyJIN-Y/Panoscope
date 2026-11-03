@@ -113,8 +113,6 @@ def test_a_non_observed_row_still_carries_its_name_when_the_table_is_pinnable(ro
     ``table_html`` never passes ``skip_first``, so the existing assertion above
     tested the one path the app does not take. This asserts the path it does.
     """
-    # Targeted at the ROW call. ``column_header_html(spec, skip_first=pinnable)`` is
-    # correct and stays: the header omits the label over the button column.
     src = inspect.getsource(surface.render_surface)
     assert "row_html(spec, row, skip_first=pinnable)" not in src, (
         "render_surface drops the first column -- the name -- on non-observed rows"
@@ -127,6 +125,43 @@ def test_a_non_observed_row_still_carries_its_name_when_the_table_is_pinnable(ro
         assert str(row.values["gene"]) in html, (
             f"{row.values['gene']} ({row.state.value}) renders with no name"
         )
+
+
+def test_the_header_and_the_rows_use_the_same_grid(rows):
+    """The column headings sit over the columns they name.
+
+    Both are plain ``st.markdown`` into one container, styled by the same
+    ``.pano-sf-head, .pano-sf-row { display:grid }`` rule, so their
+    ``grid-template-columns`` must match track for track. They did not: the header
+    was emitted with ``skip_first=pinnable`` (5 tracks) while non-observed rows
+    carried all 6, which put GLM_COEF over the gene names and left the gene column
+    unlabelled on 196 of c1's 280 rows.
+
+    Compared as rendered strings rather than by reading ``render_surface``'s source.
+    The assertion this replaced was a substring grep, and a grep cannot see that two
+    grids disagree -- it certified the broken half as correct.
+    """
+    import re
+
+    def grid(html: str) -> str:
+        m = re.search(r"grid-template-columns:([^;\"]+)", html)
+        assert m, f"no grid in {html[:120]}"
+        return m.group(1).strip()
+
+    header = grid(surface.column_header_html(MARKERS))
+    for row in rows:
+        if row.state is MeasuredState.OBSERVED:
+            continue
+        assert grid(surface.row_html(MARKERS, row)) == header, (
+            f"{row.values['gene']} renders on a different grid than the header: "
+            f"row={grid(surface.row_html(MARKERS, row))} header={header}"
+        )
+
+    # And the header the live renderer actually emits is that same full-width one.
+    src = inspect.getsource(surface.render_surface)
+    assert "column_header_html(spec, skip_first=pinnable)" not in src, (
+        "render_surface emits a header one column narrower than its own rows"
+    )
 
 
 def test_the_never_measured_cells_hatch_and_name_the_frame_that_refused_them(rows):

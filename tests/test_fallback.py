@@ -176,9 +176,23 @@ def test_unrecognized_query_returns_none():
 
 def test_offpanel_intent_on_cluster_without_notes_returns_none():
     """The off-panel intent has nothing to say for a cluster with no off-panel
-    canonical markers (e.g. c1), so it defers to the generic fallback."""
-    # c1 has no off-panel notes; the off-panel intent yields None.
-    assert F.fallback_answer("what about the missing marker?", "c1") is None
+    canonical markers, so it defers to the generic fallback.
+
+    Anchored on **c6** and read off the record rather than hardcoded. It used to
+    name c1, on the premise that c1 had no off-panel notes -- which was true only
+    because ``offpanel_canonical`` was empty for eight of nine units in the
+    committed annotation. Deriving it gave c1 its real note (canonical KRT18 is
+    off-panel), and this test went red for the right reason. c6 B_Cells is the one
+    unit whose canonical set really is entirely on-panel.
+    """
+    from panoscope.agent import verdict as V
+
+    empty = [v.cluster for v in V.all_verdicts() if not v.offpanel_notes]
+    assert "c6" in empty, (
+        f"c6 was the unit with no off-panel canonical markers; now {empty}. "
+        "Re-anchor on one that is, rather than relaxing the assertion."
+    )
+    assert F.fallback_answer("what about the missing marker?", "c6") is None
 
 
 # --------------------------------------------------------------------------- #

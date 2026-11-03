@@ -390,6 +390,13 @@ class SourceIndex:
         row = data.get_marker(gene)
         if row is None:
             return None
+        # A no-signal row still carries glm_coef 0.0 and pearson 0.0, and serving
+        # those made a number for an unmeasured gene representable HERE while the
+        # evidence layer refuses it outright (``EvidenceItem`` raises
+        # ``UngroundedStatistic`` unless the state is OBSERVED). The gate and the
+        # table must not disagree about the same gene, so the frame decides in both.
+        if is_no_signal(row.get("top_cluster", "")):
+            return None
         if stat not in row.index:
             return None
         try:
@@ -1014,15 +1021,31 @@ class GroundingChecker:
             return []
         out: list[Violation] = []
         for a in claims.absences:
-            if self._src.is_on_panel(a.entity) or self._src.is_modeled(a.entity):
+            # IN THE FRAME, which means detectable -- not merely "the method has a
+            # row for it". This read ``is_on_panel(x) or is_modeled(x)``, and
+            # ``is_modeled`` is true for every one of the 49 genes that produced no
+            # usable spatial signal, because markers_top.csv carries a NoSig row for
+            # each. So all 49 were exempt from the headline rule -- FOXP3, PDCD1 and
+            # LAG3 among them -- and "PDCD1 is absent here, therefore not exhausted
+            # T cells" passed as grounded.
+            #
+            # ``is_detectable`` subsumes both old tests: it requires a marker row AND
+            # usable signal, so a measured gene still passes and nothing outside
+            # either gene frame does. The sibling pass ``_check_fabricated_absence``
+            # keeps its own exemption for these genes, and must -- CALLING a NoSig
+            # gene unmeasured is a true sentence. Reasoning FROM its absence is not.
+            if self._src.is_detectable(a.entity):
                 continue
+            why = ("is on the panel but produced no usable signal here"
+                   if self._src.is_on_panel(a.entity)
+                   else "is not on the panel")
             out.append(Violation(
                 kind="panel_absence",
                 severity="CRITICAL",
                 detail=(
-                    f"{a.entity} is not in the capability frame (never measured "
-                    f"here), so its absence is not evidence for or against "
-                    f"anything; the sentence reasons from it anyway"
+                    f"{a.entity} {why}, so it is not in the capability frame "
+                    f"(never measured here) and its absence is not evidence for "
+                    f"or against anything; the sentence reasons from it anyway"
                 ),
                 ref=a.entity,
                 claimed=a.sentence,

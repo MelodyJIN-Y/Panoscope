@@ -2910,6 +2910,36 @@
       ]
     },
     {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:CLDN5 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:CLDN5"
+      ]
+    },
+    {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:CDH5 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:CDH5"
+      ]
+    },
+    {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:FLT1 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:FLT1"
+      ]
+    },
+    {
       "rule": "band:from_coef",
       "outcome": "High",
       "because": [

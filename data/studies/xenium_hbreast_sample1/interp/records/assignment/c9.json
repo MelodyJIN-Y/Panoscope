@@ -2910,6 +2910,26 @@
       ]
     },
     {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:MS4A2 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:MS4A2"
+      ]
+    },
+    {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:TPSB2 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:TPSB2"
+      ]
+    },
+    {
       "rule": "band:from_coef",
       "outcome": "Medium",
       "because": [

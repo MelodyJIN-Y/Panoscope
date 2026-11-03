@@ -600,8 +600,14 @@ def render_surface(
 
     pinnable = on_select is not None and bool(spec.pin_kinds)
     st.markdown(ribbon_html(spec, rows), unsafe_allow_html=True)
-    st.markdown(column_header_html(spec, skip_first=pinnable),
-                unsafe_allow_html=True)
+    # The header keeps ALL its columns, pinnable or not, because all three row
+    # shapes now put the first column in the same place: a non-observed row spans
+    # the full grid, and a pinnable row's button sits in an ``st.columns`` split
+    # using the SAME fraction (first / sum-of-rest). A header that skipped the
+    # first column matched the rows only while those rows also skipped it -- and
+    # once they stopped, it labelled every remaining column one place to the left,
+    # putting "glm_coef" over the gene names.
+    st.markdown(column_header_html(spec), unsafe_allow_html=True)
 
     for block in spec.blocks:
         got = rows_for(block, rows)

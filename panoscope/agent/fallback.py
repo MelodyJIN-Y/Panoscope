@@ -134,10 +134,16 @@ def _offpanel_line(notes: tuple[OffPanelNote, ...], cell_type: str) -> str:
     if not notes:
         return ""
     genes = ", ".join(n.gene for n in notes)
+    # Number agreement. Most units carry ONE off-panel canonical marker (KRT18 for
+    # Tumor, CD3D for T_Cells), and the plural-only template read "KRT18 are
+    # canonical Tumor markers". The sentence states the headline rule, so it should
+    # not be the one that reads like a mail merge.
+    one = len(notes) == 1
     return (
-        f" Note on absence: {genes} are canonical {cell_type.replace('_', ' ')} "
-        f"markers that are off-panel (never measured here), so their absence is "
-        f"not evidence against the call."
+        f" Note on absence: {genes} {'is a' if one else 'are'} canonical "
+        f"{cell_type.replace('_', ' ')} {'marker' if one else 'markers'} that "
+        f"{'is' if one else 'are'} off-panel (never measured here), so "
+        f"{'its' if one else 'their'} absence is not evidence against the call."
     )
 
 
@@ -328,11 +334,15 @@ def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
         return None
     genes = ", ".join(n.gene for n in notes)
     drivers = v.opening.driving_markers
+    one = len(notes) == 1          # see _absence_note: most units carry exactly one
     body = (
-        f"{genes} are canonical {v.cell_type.replace('_', ' ')} markers that are "
-        f"off-panel, they were never measured in this panel, so their absence is "
-        f"not evidence against the {v.cell_type} call. The call stands on the "
-        f"on-panel markers: {_driver_phrase(drivers)}."
+        f"{genes} {'is a' if one else 'are'} canonical "
+        f"{v.cell_type.replace('_', ' ')} {'marker' if one else 'markers'} that "
+        f"{'is' if one else 'are'} off-panel, "
+        f"{'it was' if one else 'they were'} never measured in this panel, so "
+        f"{'its' if one else 'their'} absence is not evidence against the "
+        f"{v.cell_type} call. The call stands on the on-panel markers: "
+        f"{_driver_phrase(drivers)}."
     )
     return AgentResponse(
         text=body,

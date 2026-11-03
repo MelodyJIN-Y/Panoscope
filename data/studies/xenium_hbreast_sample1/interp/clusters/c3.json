@@ -448,7 +448,14 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "CSF1R",
+      "cell_type": "Macrophages",
+      "message": "CSF1R is off-panel (never measured); its absence is not evidence against Macrophages.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c3",
     "cell_type": "Macrophages",
@@ -546,7 +553,14 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "CSF1R",
+        "cell_type": "Macrophages",
+        "message": "CSF1R is off-panel (never measured); its absence is not evidence against Macrophages.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "LYZ marks Macrophages",
@@ -675,6 +689,7 @@
     "jz:LY86:glm_coef=0.250370",
     "jz:LY86:pearson=0.696602",
     "jz:PDCD1LG2:glm_coef=0.248101",
-    "jz:PDCD1LG2:pearson=0.765511"
+    "jz:PDCD1LG2:pearson=0.765511",
+    "panel:CSF1R:off_panel=True"
   ]
 }

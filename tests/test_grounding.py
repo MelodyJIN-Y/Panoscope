@@ -269,6 +269,53 @@ def test_off_panel_absence_used_as_evidence_fails(checker_real_lit):
     assert v and v[0].ref == "COL1A1", result.summary()
 
 
+def test_an_undetectable_genes_absence_is_gated_too(checker_real_lit):
+    """ON the panel and still never measured -- the half the gate used to exempt.
+
+    The pass asked ``is_on_panel`` alone, so all 49 genes that produced no usable
+    spatial signal walked through: they ARE on the panel, and the detectability
+    frame is the one that refused them. 17.5% of this study's panel sat outside
+    the headline rule, including genes a biologist actually asks about in a
+    breast tumour.
+
+    ADIPOQ is the anchor because it is unambiguously both: on the 280-gene panel,
+    and in the 49-row no-signal set.
+    """
+    src = SourceIndex()
+    assert src.is_on_panel("ADIPOQ"), "anchor must be ON the panel"
+    assert not src.is_detectable("ADIPOQ"), "anchor must have no usable signal"
+
+    answer = "ADIPOQ is absent here, which argues against an adipocyte component."
+    result = checker_real_lit.check(answer, None, "c1")
+    assert result.ok is False, (
+        "an on-panel gene that produced NO SIGNAL was reasoned from as if its "
+        "absence were evidence, and the gate accepted it"
+    )
+    v = [x for x in result.violations if x.kind == "panel_absence"]
+    assert v and v[0].ref == "ADIPOQ", result.summary()
+    assert "no usable signal" in v[0].detail, (
+        f"the violation must name the frame that refused it: {v[0].detail}"
+    )
+
+
+def test_no_statistic_is_served_for_a_gene_that_produced_no_signal():
+    """The gate and the evidence layer must not disagree about the same gene.
+
+    ``markers_top.csv`` carries a row for every panel gene, so a no-signal gene
+    still has ``glm_coef`` 0.0 in the file. Serving that made a number for an
+    unmeasured gene groundable here while ``EvidenceItem`` raises
+    ``UngroundedStatistic`` for the same gene -- the representability hole the
+    four-state lattice exists to close.
+    """
+    src = SourceIndex()
+    assert src.is_on_panel("ADIPOQ") and not src.is_detectable("ADIPOQ")
+    assert src.stat_value("ADIPOQ", "glm_coef") is None, (
+        "a statistic was served for a gene that produced no usable signal"
+    )
+    # ...and a real, observed gene still resolves, so this is not a blanket None.
+    assert src.stat_value("ERBB2", "glm_coef") is not None
+
+
 def test_off_panel_absence_passes_when_the_sentence_says_it_was_never_measured(
     checker_real_lit,
 ):

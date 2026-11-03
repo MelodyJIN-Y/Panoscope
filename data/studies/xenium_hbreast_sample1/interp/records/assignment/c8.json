@@ -2910,6 +2910,26 @@
       ]
     },
     {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:CLEC4C never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:CLEC4C"
+      ]
+    },
+    {
+      "rule": "measure:never_measured",
+      "outcome": "never_measured",
+      "because": [
+        "gene:IRF7 never_measured in panel:xenium_hbreast_sample1"
+      ],
+      "refs": [
+        "gene|g=gene:IRF7"
+      ]
+    },
+    {
       "rule": "band:from_coef",
       "outcome": "Medium",
       "because": [

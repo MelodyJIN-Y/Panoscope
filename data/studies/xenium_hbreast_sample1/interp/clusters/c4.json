@@ -402,7 +402,14 @@
       "source": "jazzpanda:top_result"
     }
   ],
-  "offpanel_notes": [],
+  "offpanel_notes": [
+    {
+      "gene": "TP63",
+      "cell_type": "Myoepithelial",
+      "message": "TP63 is off-panel (never measured); its absence is not evidence against Myoepithelial.",
+      "source": "panel:absence"
+    }
+  ],
   "opening": {
     "cluster": "c4",
     "cell_type": "Myoepithelial",
@@ -500,7 +507,14 @@
         "source": "jazzpanda:top_result"
       }
     ],
-    "offpanel_notes": [],
+    "offpanel_notes": [
+      {
+        "gene": "TP63",
+        "cell_type": "Myoepithelial",
+        "message": "TP63 is off-panel (never measured); its absence is not evidence against Myoepithelial.",
+        "source": "panel:absence"
+      }
+    ],
     "literature_hooks": [
       {
         "claim": "MYLK marks Myoepithelial",
@@ -623,6 +637,7 @@
     "jz:CDC42EP1:glm_coef=0.251339",
     "jz:CDC42EP1:pearson=0.501394",
     "jz:CX3CR1:glm_coef=0.220266",
-    "jz:CX3CR1:pearson=0.495259"
+    "jz:CX3CR1:pearson=0.495259",
+    "panel:TP63:off_panel=True"
   ]
 }

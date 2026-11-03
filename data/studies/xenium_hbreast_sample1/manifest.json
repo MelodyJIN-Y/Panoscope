@@ -1,6 +1,6 @@
 {
   "dataset_id": "xenium_hbreast_sample1",
-  "generated_at": "2026-11-03T02:58:40Z",
+  "generated_at": "2026-11-03T12:38:49Z",
   "pipeline_version": "0.1.0",
   "tissue": "human breast cancer",
   "platform": "Xenium",
@@ -39,58 +39,58 @@
   },
   "artifacts": {
     "interp/clusters/c1.json": {
-      "sha256": "5fadd1fb45f69ec93f3fe5949ee69f79874726cbeb5805d1fea79209ef2f48e9"
+      "sha256": "781ae8cb622be0b853f22e6d87fca801ad19c9247143abb1f1ea7f9477512aca"
     },
     "interp/clusters/c2.json": {
       "sha256": "f5a1808955cc74fb29f8e994734e9a1205cec0216ce1f1678fa114b3f5588a9b"
     },
     "interp/clusters/c3.json": {
-      "sha256": "b03d6f43291aaab994409b89753ba8a6b45bb7583d7a9f633e7a8b32a069dafd"
+      "sha256": "97fbf6a5ba76729611131339ee571243384e258a5f76ebbde8d2a816fc8983e1"
     },
     "interp/clusters/c4.json": {
-      "sha256": "7a491da5a644dc4ab92431dadb543fcfd40340658478cf68767a79cd75f19d51"
+      "sha256": "b027a4559ee9744624c97d42adda006f0c3f427fe53421a86cbb447fe44eb936"
     },
     "interp/clusters/c5.json": {
-      "sha256": "ae2097ac31decbdaed9fefd4b5b5c030bd7f14033e29f871df3230a975fe8391"
+      "sha256": "3f2e23b639e1a8540ac014e1e530c4f21bc57e87c86f5f3385ff7b68a4a5d687"
     },
     "interp/clusters/c6.json": {
       "sha256": "9d352531c27a2e56a06be0f41285718b39e29ebd633795c2ca9dea71987adda7"
     },
     "interp/clusters/c7.json": {
-      "sha256": "da0cf3f1ca670de45cd9466e93943c5dc38a3b1633cc5d4f7eeaec0f5c0b1900"
+      "sha256": "0b4658c74a3177a4ad5bc92ae8368b4523ade78f7103ffe72ee970d636e111dd"
     },
     "interp/clusters/c8.json": {
-      "sha256": "33399904a45b219fb9fe9713b23db5362789661f48b0bb2599758b2ee16b646b"
+      "sha256": "566cfd4250250b9e6dd4f7c870cfabc675d6594eb78f823c977ae58a3a911509"
     },
     "interp/clusters/c9.json": {
-      "sha256": "0b156f5990bb81ffa8e1e13bd32c17c2c9d3e870e36897b33b97dacaa78e4384"
+      "sha256": "76dce79fd4f46a407236e77f033a201c673de75a00ff854c5e9d6e28edaaaa72"
     },
     "interp/records/assignment/c1.json": {
-      "sha256": "315353ed67110d6c98f082ae9b20c734edd7e89ca6ce2ea6a06faff028a04128"
+      "sha256": "d3f5092909ac013aae678a834a03a38f99c0627b4712caad6b894f9eedeaf3ce"
     },
     "interp/records/assignment/c2.json": {
       "sha256": "eff5ff29c92411184a3450cb63f769918079506cdf76ecf2805d9cddc509dfe3"
     },
     "interp/records/assignment/c3.json": {
-      "sha256": "7ceadc7786e1323b5def11e83ef0a3b1b75e5ffd0ac751ab99a4fec3e2d4a435"
+      "sha256": "1dd0bc361ce7a528f259167a8542c9cfba1ce8b48903bfb2b443561740d18616"
     },
     "interp/records/assignment/c4.json": {
-      "sha256": "02e67c88d8925c6d486386fe72ad1045f691afd5d0dfbd66c14a455f14cb704a"
+      "sha256": "3b840d47be2f94db33cc6170090ac17a7f002631ef25b9c9a6bd5bc329684c6e"
     },
     "interp/records/assignment/c5.json": {
-      "sha256": "1bb4014dc5fda6ce31348ecbf91687de2f7cbecb9cb5d832869f43d11bd65ec3"
+      "sha256": "84a1d61eb89cbf3760f326089a7e3714aa3b4b8d29e5826541903ef1f8a786d9"
     },
     "interp/records/assignment/c6.json": {
       "sha256": "a103709d12307d1d1a6b7437b91fb0b685e4d704b09fda2520e322ddb34ea4da"
     },
     "interp/records/assignment/c7.json": {
-      "sha256": "0db4335f9d413d6224ee4e349610f141012bc05c12c84c67b94b1fd48dba203d"
+      "sha256": "4f1a0a164ce459756660d297a4d1a1674861a2bd83bbe1625bedd29c9f07d680"
     },
     "interp/records/assignment/c8.json": {
-      "sha256": "cc5360cbb66b87a52f0541958fdbd906fc38bf99dbeba8a68accfa27e89bb44c"
+      "sha256": "a279a29dd3d7992c3e59300424cea71d28d6c96a27698a849ba9a261dae1481f"
     },
     "interp/records/assignment/c9.json": {
-      "sha256": "165710543c7f78dd5393e6e5d19d90bc04f086d15e7ed7dc8a549395de1f37cc"
+      "sha256": "8d50729851a169f123c0c0749956a6a558987695d7fc00566f858a6633c275da"
     },
     "interp/records/characterisation/c1.json": {
       "sha256": "e661ccbdf1590c492ed67b6d3d040594251b6bbd4b78ff22d7e064d74c035aaf"
