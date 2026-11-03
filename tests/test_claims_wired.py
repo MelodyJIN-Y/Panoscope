@@ -49,7 +49,8 @@ def demo_built() -> dict:
 
 def test_the_curated_store_loads_and_is_not_empty() -> None:
     """If the seed stops loading, every assertion below passes vacuously."""
-    store = records._claim_store(Study.open(DEMO))
+    store, absent = records._claim_store(Study.open(DEMO))
+    assert not absent, f"the committed seed did not load: {absent}"
     assert len(store) > 0, (
         "no curated claims loaded; the tests below would pass by finding nothing"
     )
@@ -63,7 +64,7 @@ def test_every_claim_in_a_record_resolves_to_a_real_claim(demo_built: dict) -> N
     to click, which §13.5 forbids -- and it is the shape a stale or hand-edited
     record would take.
     """
-    known = {c.id for c in records._claim_store(Study.open(DEMO))}
+    known = {c.id for c in records._claim_store(Study.open(DEMO))[0]}
     seen = 0
     for unit, b in demo_built.items():
         for cid, verdict in b.record.claims_used:
@@ -113,12 +114,14 @@ def test_the_claim_layer_cannot_move_a_number(
     # rather than a dropped lookup. What makes the second arm meaningful is a claim
     # whose object is one of THIS study's labels.
     labels = {str(m.get("cell_type", "")) for m in study.unit_labels.values()}
-    had_claims = any(c.object in labels for c in records._claim_store(study))
+    had_claims = any(c.object in labels
+                     for c in records._claim_store(study)[0])
 
     with_claims = records.build_all(study)
     v1_with = {u: records.to_v1_dict(b) for u, b in with_claims.items()}
 
-    monkeypatch.setattr(records, "_claim_store", lambda _study: ClaimStore())
+    monkeypatch.setattr(records, "_claim_store",
+                        lambda _study: (ClaimStore(), ""))
     without = records.build_all(study)
     v1_without = {u: records.to_v1_dict(b) for u, b in without.items()}
 
@@ -138,6 +141,47 @@ def test_the_claim_layer_cannot_move_a_number(
             f"{study_id} loaded claims but used none; the narrowing dropped "
             "everything and the comparison above is vacuous"
         )
+
+
+def test_no_store_and_nothing_to_say_are_different_records(
+        tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The collapse this project exists to prevent, in the claim layer.
+
+    ``claims_used == ()`` is produced by two different facts: the curated store had
+    nothing about this label, and there was no curated store at all. Only the second
+    is something the biologist can fix, and before ``claims:no_store`` the two
+    records were byte-identical -- a silence standing in for a negative result,
+    which is the failure the four-state lattice is built around.
+    """
+    import shutil
+
+    from panoscope.data import layout
+
+    # A data root holding the studies and NO claims/ seed.
+    root = tmp_path / "no_seed"  # type: ignore[operator]
+    shutil.copytree(layout.studies_root(), root / "studies")
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(root))
+    layout.clear_cache()
+    try:
+        study = Study.open("synthetic_multisample_fixture")
+        store, absent = records._claim_store(study)
+        assert len(store) == 0 and absent, "this arm must have no seed to read"
+        rec = records.build_all(study)["c1"].record
+        rules = [d.rule for d in rec.decisions if d.rule.startswith("claims")]
+        assert rec.claims_used == ()
+        assert "claims:no_store" in rules, (
+            "a build with no claim store must say so; an empty claims_used alone "
+            "is indistinguishable from a store that had nothing to say"
+        )
+    finally:
+        monkeypatch.delenv("PANOSCOPE_DATA_ROOT", raising=False)
+        layout.clear_cache()
+
+    # The other arm: the real root, whose seed loads but holds nothing for this
+    # study's synthetic labels. Same empty tuple, and NO no_store decision.
+    rec = records.build_all(Study.open("synthetic_multisample_fixture"))["c1"].record
+    assert rec.claims_used == ()
+    assert "claims:no_store" not in [d.rule for d in rec.decisions]
 
 
 @pytest.mark.parametrize("study_id", _studies())

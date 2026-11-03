@@ -129,6 +129,10 @@ RULES: dict[str, Rule] = _rules(
          "the detectability frame refused it (§7.5, the one gate that varies)"),
     Rule("claims:no_frame", "claims",
          "no capability frame was declared for an entity kind the claim rests on"),
+    Rule("claims:no_store", "claims",
+         "no curated claim store was found under this data root, so no claim was "
+         "consulted -- distinct from a store that held nothing about this label, "
+         "which is a fact about the knowledge rather than about the install"),
     # -- step: transfer (panoscope.claims.transfer) --
     Rule("transfer:no_verdict", "transfer",
          "database-curated and literature claims get a PROVENANCE STAMP, never a "

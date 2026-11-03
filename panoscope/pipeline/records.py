@@ -333,19 +333,27 @@ def _claim_store(study: Study) -> Any:
     ``BadSeed`` is caught for the same reason and nothing else is: a malformed seed
     must not take the build down, because the band does not depend on it. Every
     other failure is left to raise.
+
+    Returns ``(store, why_absent)``, and the second half is the point. An empty
+    store and a store with nothing to say about this label produce the same empty
+    ``claims_used``, so without a reason carried alongside it the record cannot
+    distinguish *the lab's curated knowledge has nothing about this cell type* from
+    *there is no curated knowledge base here at all*. Those are different facts and
+    only the second is something the biologist can fix. Collapsing them is the
+    failure the four-state lattice exists to prevent, arriving in the claim layer.
     """
     from panoscope.claims import store as claims_store
     from panoscope.data import layout
 
+    path = layout.resolve_data_root() / claims_store.SEED_RELPATH
     try:
-        return claims_store.load_canonical_markers(
-            layout.resolve_data_root() / claims_store.SEED_RELPATH)
-    except claims_store.BadSeed:
-        return claims_store.ClaimStore()
+        return claims_store.load_canonical_markers(path), ""
+    except claims_store.BadSeed as exc:
+        return claims_store.ClaimStore(), str(exc)
 
 
-def _claims_used(store: Any, label: str,
-                 world: Any, conditions: Any, context: str) -> Any:
+def _claims_used(store: Any, label: str, world: Any, conditions: Any,
+                 context: str, no_store: str, anchor: str) -> Any:
     """ARCHITECTURE §14's *evaluability + transfer*, for one unit.
 
     Returns ``Traced[tuple[(claim_id, verdict), ...]]``. The decisions travel with
@@ -380,9 +388,16 @@ def _claims_used(store: Any, label: str,
     reimplemented here -- without writing the same refusal once per gene.
     """
     from panoscope.claims.store import ClaimStore, assess
-    from panoscope.types.trace import Trace
+    from panoscope.types.trace import Trace, ref
 
     t = Trace()
+    if no_store:
+        # Said out loud, once per unit, rather than left to an empty tuple. "No
+        # curated knowledge base was found" and "the curated knowledge base has
+        # nothing about this cell type" are different facts, and only the first is
+        # something the biologist can act on.
+        t.note("claims:no_store", "not consulted", (no_store,), (ref(anchor),))
+        return t.done(())
     relevant = ClaimStore(tuple(c for c in store if c.object == label))
     used: list[tuple[str, str]] = []
     # Sorted: dict and set iteration order is not a fact about the study, and this
@@ -531,7 +546,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     # against -- and the context is keyed on the dataset so a claim scoped to
     # another one cannot be seen here. Scope is fail-closed and the gate is
     # ``ClaimStore.about``'s, not this module's.
-    claims = _claim_store(study)
+    claims, claims_absent = _claim_store(study)
     conditions = adapter.standing_conditions(study)
     claim_context = f"dataset:{study.id}"
 
@@ -592,7 +607,8 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # label are the unit's. ``claims`` and ``conditions`` are read once above.
         claims_t = _claims_used(
             claims, str(meta.get("cell_type", "Unknown")),
-            world, conditions, claim_context)
+            world, conditions, claim_context, claims_absent,
+            ev.unit_subject.key)
         record = core_record.build(
             ev, reading,
             core_record.unit_decisions(ev, loaded, *absences),
