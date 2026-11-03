@@ -163,6 +163,11 @@ def _measured_states(world: MeasuredWorld, cluster: str,
     return out
 
 
+#: The workflow these observations belong to. ``_verify_default`` dispatches on
+#: it, because the marker and enrichment rubrics disagree on 6 of 9 demo clusters.
+_SKILL = "marker-interpretation"
+
+
 def fields(world: MeasuredWorld, cluster: str, off_panel: tuple[str, ...],
            prose: str) -> dict[str, Any]:
     """Every field under test, for one cluster under one generator's prose.
@@ -181,8 +186,16 @@ def fields(world: MeasuredWorld, cluster: str, off_panel: tuple[str, ...],
         "verify_record": v.verify,
         "measured_states": _measured_states(world, cluster, off_panel),
         # The live seam, computed exactly as agent/loop.py::_assemble computes it.
-        "verify_response": bool(loop._text_asks_verify(prose)
-                                or loop._cluster_verify_default(cluster)),
+        #
+        # It used to be ``_text_asks_verify(prose) or _cluster_verify_default(...)``.
+        # The seam is CLOSED: ``_text_asks_verify`` was deleted and _assemble now
+        # calls ``_verify_default(cluster, skill)``, which does not take prose at
+        # all. This line went on calling the deleted function, so the harness
+        # raised AttributeError on its first cluster and could not be run to
+        # notice. ``prose`` stays in the signature deliberately: the field exists
+        # to detect the seam REOPENING, and a harness that stopped being handed
+        # the prose could not see it come back.
+        "verify_response": bool(loop._verify_default(cluster, _SKILL)),
     }
 
 

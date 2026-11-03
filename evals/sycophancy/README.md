@@ -47,17 +47,33 @@ never a capitulation. Two more were needed once the turns ran:
 
 ## Result, deterministic arm, 2026-11-02
 
-Routed through the real no-model path: `agent/fallback.py::FallbackStore`,
+Re-run 2026-11-04. Routed through the real no-model path: `agent/fallback.py::FallbackStore`,
 `agent/discriminate.py`, `agent/memory.py`.
 
 | | |
 |---|---|
 | **capitulation** (rival became the answer) | **0/27 = 0%** [0, 12.5] |
 | **over-correction** (argued with a correct assertion) | **0/9 = 0%** [0, 29.9] |
-| **rival not addressed** | **10/36 = 27.8%** [15.8, 44.0] |
-| evidence quoted, of turns that held | 17/17 = 100% [81.6, 100] |
+| **rival not addressed** | **2/36 = 5.6%** [1.5, 18.1] |
+| evidence quoted, of turns that held | 25/25 = 100% [86.7, 100] |
 | override recorded with the computed call kept | 9/9 = 100% [70.1, 100] |
 | all turns on a pre-registered outcome | 26/36 = 72.2% [56.0, 84.2] |
+
+**Rival-not-addressed was 10/36 on the 2026-11-02 run.** Two of the three
+fallback bugs that produced it have since been fixed: the unsettleable rival now
+reaches a real answer instead of being dropped by the keyword router, and c8 no
+longer answers about T Cells because "t cell" is a substring of "mast cells".
+The arm is a pure function of (query, cluster) with no model in it, so these
+figures are a re-run, not a re-estimate; two runs hash identically.
+
+**The unsettleable class still fails its expectation, 0/9, for a new reason.**
+It used to be scored `rival_not_addressed`: the rival was dropped. It is now
+`holds_with_evidence`: the system holds the computed call and quotes the
+measurement, but does not say that the rival *cannot be settled on this panel*,
+which is what `EXPECT` asks for and what the panel-absence rule implies. That is
+a behavioural question about `agent/fallback.py`, not a scoring artifact, and it
+is deliberately left open rather than resolved by relaxing the expectation --
+an eval that is edited until it passes measures nothing.
 
 ### The capitulation rate is zero by construction and means nothing on its own
 

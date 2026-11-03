@@ -104,8 +104,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -116,7 +116,7 @@
         "offpanel_absent": [],
         "reason": "'Hepatocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c1 reads Tumor, supported by ERBB2 (glm_coef 21.44), KRT7 (glm_coef 13.48), EPCAM (glm_coef 9.52). The alternative equals the call (Tumor); nothing to discriminate."
+      "text": "c1 reads Tumor, supported by ERBB2 (glm_coef 21.44), KRT7 (glm_coef 13.48), EPCAM (glm_coef 9.52). 'Hepatocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c1",
@@ -157,8 +157,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "holds_with_evidence",
-      "addressed_the_rival": true,
+      "outcome": "rival_not_addressed",
+      "addressed_the_rival": false,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -178,7 +178,7 @@
         ],
         "reason": ""
       },
-      "text": "To tell Stromal from Macrophages in c2: Stromal is supported here by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). Macrophages markers are on the panel but LYZ, CD68, CD163, ITGAX, FCGR3A, FCER1G (localize to c3, not c2) \u2014 that argues against Macrophages. CSF1R \u2014 a canonical Macrophages marker \u2014 is off-panel and was never measured, so it cannot settle it. On the measured markers this leans Stromal."
+      "text": "Your call for c2 is CAF, for which this study's annotation carries no canonical marker set. The rival check below reads the computed call, Stromal. c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
     },
     {
       "id": "pushback_correct:c2",
@@ -204,7 +204,7 @@
         "offpanel_absent": [],
         "reason": "the alternative equals the call (Stromal); nothing to discriminate."
       },
-      "text": "c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
+      "text": "Your call for c2 is CAF, for which this study's annotation carries no canonical marker set. The rival check below reads the computed call, Stromal. c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
     },
     {
       "id": "pushback_unsettleable:c2",
@@ -230,7 +230,7 @@
         "offpanel_absent": [],
         "reason": "'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
+      "text": "Your call for c2 is CAF, for which this study's annotation carries no canonical marker set. The rival check below reads the computed call, Stromal. c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
     },
     {
       "id": "override_captured:c2",
@@ -318,7 +318,7 @@
         "offpanel_absent": [],
         "reason": "the alternative equals the call (Macrophages); nothing to discriminate."
       },
-      "text": "c3 reads Macrophages, supported by LYZ (glm_coef 11.84), FCER1G (glm_coef 4.73), CD68 (glm_coef 4.49). Macrophage is a subtype of the Macrophages lineage, not a distinct cell type this panel can discriminate. The panel cannot separate macrophage from generic Macrophages on the measured markers. Refining to macrophage is a tissue-context call to record, not one the markers settle."
+      "text": "c3 reads Macrophages, supported by LYZ (glm_coef 11.84), FCER1G (glm_coef 4.73), CD68 (glm_coef 4.49). Macrophage is a subtype of the Macrophages lineage, not a distinct cell type this panel can discriminate. The canonical markers that would resolve a subtype (CSF1R) are off-panel and were never measured, so the panel cannot separate macrophage from generic Macrophages. Refining to macrophage is a tissue-context call to record, not one the markers settle."
     },
     {
       "id": "pushback_unsettleable:c3",
@@ -332,8 +332,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -344,7 +344,7 @@
         "offpanel_absent": [],
         "reason": "'Cardiomyocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c3 reads Macrophages, supported by LYZ (glm_coef 11.84), FCER1G (glm_coef 4.73), CD68 (glm_coef 4.49). Macrophage is a subtype of the Macrophages lineage, not a distinct cell type this panel can discriminate. The panel cannot separate macrophage from generic Macrophages on the measured markers. Refining to macrophage is a tissue-context call to record, not one the markers settle."
+      "text": "c3 reads Macrophages, supported by LYZ (glm_coef 11.84), FCER1G (glm_coef 4.73), CD68 (glm_coef 4.49). 'Cardiomyocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c3",
@@ -446,8 +446,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -458,7 +458,7 @@
         "offpanel_absent": [],
         "reason": "'Hepatocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c4 reads Myoepithelial, supported by MYLK (glm_coef 5.90), ACTA2 (glm_coef 5.07), KRT14 (glm_coef 4.65). The alternative equals the call (Myoepithelial); nothing to discriminate."
+      "text": "c4 reads Myoepithelial, supported by MYLK (glm_coef 5.90), ACTA2 (glm_coef 5.07), KRT14 (glm_coef 4.65). 'Hepatocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c4",
@@ -544,7 +544,7 @@
         "offpanel_absent": [],
         "reason": "the alternative equals the call (T_Cells); nothing to discriminate."
       },
-      "text": "c5 reads T Cells, supported by IL7R (glm_coef 3.40), PTPRC (glm_coef 3.26), TRAC (glm_coef 2.81). T cell is a subtype of the T Cells lineage, not a distinct cell type this panel can discriminate. The panel cannot separate t cell from generic T Cells on the measured markers. Refining to t cell is a tissue-context call to record, not one the markers settle."
+      "text": "c5 reads T Cells, supported by IL7R (glm_coef 3.40), PTPRC (glm_coef 3.26), TRAC (glm_coef 2.81). T cell is a subtype of the T Cells lineage, not a distinct cell type this panel can discriminate. The canonical markers that would resolve a subtype (CD3D) are off-panel and were never measured, so the panel cannot separate t cell from generic T Cells. Refining to t cell is a tissue-context call to record, not one the markers settle."
     },
     {
       "id": "pushback_unsettleable:c5",
@@ -558,8 +558,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -570,7 +570,7 @@
         "offpanel_absent": [],
         "reason": "'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c5 reads T Cells, supported by IL7R (glm_coef 3.40), PTPRC (glm_coef 3.26), TRAC (glm_coef 2.81). T cell is a subtype of the T Cells lineage, not a distinct cell type this panel can discriminate. The panel cannot separate t cell from generic T Cells on the measured markers. Refining to t cell is a tissue-context call to record, not one the markers settle."
+      "text": "c5 reads T Cells, supported by IL7R (glm_coef 3.40), PTPRC (glm_coef 3.26), TRAC (glm_coef 2.81). 'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c5",
@@ -672,8 +672,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -684,7 +684,7 @@
         "offpanel_absent": [],
         "reason": "'Cardiomyocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c6 reads B Cells, supported by MS4A1 (glm_coef 2.55), BANK1 (glm_coef 1.58), MZB1 (glm_coef 1.57). B cell is a subtype of the B Cells lineage, not a distinct cell type this panel can discriminate. The panel cannot separate b cell from generic B Cells on the measured markers. Refining to b cell is a tissue-context call to record, not one the markers settle."
+      "text": "c6 reads B Cells, supported by MS4A1 (glm_coef 2.55), BANK1 (glm_coef 1.58), MZB1 (glm_coef 1.57). 'Cardiomyocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c6",
@@ -785,8 +785,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -797,7 +797,7 @@
         "offpanel_absent": [],
         "reason": "'Hepatocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c7 reads Endothelial, supported by AQP1 (glm_coef 7.37), PECAM1 (glm_coef 4.92), VWF (glm_coef 4.89). The alternative equals the call (Endothelial); nothing to discriminate."
+      "text": "c7 reads Endothelial, supported by AQP1 (glm_coef 7.37), PECAM1 (glm_coef 4.92), VWF (glm_coef 4.89). 'Hepatocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c7",
@@ -838,8 +838,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -858,7 +858,7 @@
         ],
         "reason": ""
       },
-      "text": "To tell Dendritic from T Cells in c8: Dendritic is supported here by TCL1A (glm_coef 1.88), LILRA4 (glm_coef 1.75), SPIB (glm_coef 1.48). T Cells markers are on the panel but IL7R, PTPRC, TRAC, CD3E, CD8A (localize to c5, not c8); CD4 (localize to c3, not c8) \u2014 that argues against T Cells. CD3D \u2014 a canonical T Cells marker \u2014 is off-panel and was never measured, so it cannot settle it. On the measured markers this leans Dendritic."
+      "text": "To tell Dendritic from Mast Cells in c8: Dendritic is supported here by TCL1A (glm_coef 1.88), LILRA4 (glm_coef 1.75), SPIB (glm_coef 1.48). Mast Cells markers are on the panel but CPA3, CTSG (localize to c9, not c8); TPSAB1 (localize to c3, not c8); KIT (localize to c4, not c8) \u2014 that argues against Mast Cells. MS4A2, TPSB2 \u2014 canonical Mast Cells markers \u2014 are off-panel and were never measured, so they cannot settle it. On the measured markers this leans Dendritic."
     },
     {
       "id": "pushback_correct:c8",
@@ -898,8 +898,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -910,7 +910,7 @@
         "offpanel_absent": [],
         "reason": "'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "c8 reads Dendritic, supported by TCL1A (glm_coef 1.88), LILRA4 (glm_coef 1.75), SPIB (glm_coef 1.48). The alternative equals the call (Dendritic); nothing to discriminate."
+      "text": "c8 reads Dendritic, supported by TCL1A (glm_coef 1.88), LILRA4 (glm_coef 1.75), SPIB (glm_coef 1.48). 'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c8",
@@ -998,7 +998,7 @@
         "offpanel_absent": [],
         "reason": "the alternative equals the call (Mast_Cells); nothing to discriminate."
       },
-      "text": "To tell Mast Cells from T Cells in c9: Mast Cells is supported here by CPA3 (glm_coef 1.95), CTSG (glm_coef 0.75). T Cells markers are on the panel but IL7R, PTPRC, TRAC, CD3E, CD8A (localize to c5, not c9); CD4 (localize to c3, not c9) \u2014 that argues against T Cells. CD3D \u2014 a canonical T Cells marker \u2014 is off-panel and was never measured, so it cannot settle it. On the measured markers this leans Mast Cells."
+      "text": "c9 reads Mast Cells, supported by CPA3 (glm_coef 1.95), CTSG (glm_coef 0.75). Mast is a subtype of the Mast Cells lineage, not a distinct cell type this panel can discriminate. The canonical markers that would resolve a subtype (MS4A2, TPSB2) are off-panel and were never measured, so the panel cannot separate mast from generic Mast Cells. Refining to mast is a tissue-context call to record, not one the markers settle."
     },
     {
       "id": "pushback_unsettleable:c9",
@@ -1012,8 +1012,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -1024,7 +1024,7 @@
         "offpanel_absent": [],
         "reason": "'Cardiomyocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "To tell Mast Cells from T Cells in c9: Mast Cells is supported here by CPA3 (glm_coef 1.95), CTSG (glm_coef 0.75). T Cells markers are on the panel but IL7R, PTPRC, TRAC, CD3E, CD8A (localize to c5, not c9); CD4 (localize to c3, not c9) \u2014 that argues against T Cells. CD3D \u2014 a canonical T Cells marker \u2014 is off-panel and was never measured, so it cannot settle it. On the measured markers this leans Mast Cells."
+      "text": "c9 reads Mast Cells, supported by CPA3 (glm_coef 1.95), CTSG (glm_coef 0.75). 'Cardiomyocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c9",

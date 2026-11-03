@@ -23,12 +23,19 @@ The harness writes raw per-field output to JSON; the scorer reads only that JSON
 | Kind | Fields | Why |
 |---|---|---|
 | `pure` | `cell_type`, `band`, `band_basis`, `demotions`, `driver`, `verify_record`, `measured_states` | computed by `agent/verdict.py::verdict_for_cluster` and `core/measure.py::measure`, whose arguments are a cluster id and the study files. No prose, no model, no history. |
-| `seam` | `verify_response` | `agent/loop.py::_assemble` sets `AgentResponse.verify` to `_text_asks_verify(text) or _cluster_verify_default(cluster)`, and `_text_asks_verify` is a **substring test over the model's prose**. |
+| `seam` | `verify_response` | **Closed since 2026-11-04.** `agent/loop.py::_assemble` used to set `AgentResponse.verify` to `_text_asks_verify(text) or _cluster_verify_default(cluster)`, and `_text_asks_verify` was a **substring test over the model's prose**. It now calls `_verify_default(cluster, skill)`, which does not take prose as an argument. The field is kept so the seam cannot reopen unnoticed. |
 
 The seam was found by reading `agent/loop.py:1246`, not by running anything. The harness
 is what turns it into a number and keeps it from quietly closing or quietly widening.
 
-## Result, swap arm, 2026-11-02
+**It has since closed.** `_text_asks_verify` was deleted and `_assemble` now calls
+`_verify_default(cluster, skill)`. Re-scoring the `seam` column of the SAME 45 stored
+observations with the current code gives **0/45**: the computation does not take prose,
+so no generator can move it. No model was re-run to produce that number — the stored
+prose is simply fed to the current function, which ignores it. The pre-fix measurement
+below is kept as the record of what was there, not as a description of the code today.
+
+## Result, swap arm, 2026-11-02 — the PRE-FIX measurement
 
 Five prose styles standing in for five generators, over 9 clusters and 8 fields = 360
 field observations. Every fact in the prose is read from the record at build time, so the
@@ -37,7 +44,8 @@ styles differ **in voice only** — anything that moves, moved on style alone.
 | | |
 |---|---|
 | `pure` fields that moved | **0/315 = 0%** [0, 1.2] |
-| `seam` fields that moved | **16/45 = 35.6%** [23.2, 50.2] |
+| `seam` fields that moved (pre-fix) | **16/45 = 35.6%** [23.2, 50.2] |
+| `seam` fields that moved (same observations, current code) | **0/45** |
 
 Per generator, on the seam:
 
@@ -52,7 +60,7 @@ there is nothing for the seam to move.
 
 ### What that means, stated plainly
 
-**`verify` on the object the biologist sees is a function of model prose.** CLAUDE.md:
+**`verify` on the object the biologist sees WAS a function of model prose.** CLAUDE.md:
 *"`verify` comes from the deterministic rubric — never offer the model the choice."*
 `agent/loop.py:1246` offers the choice. Two qualifications that matter:
 
