@@ -359,6 +359,54 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
     assert all(g in body for g in genes), f"{genes} missing from the .docx"
 
 
+def test_an_override_to_an_unannotated_call_keeps_the_panel_absence_block() -> None:
+    """Renaming a call must not delete a true never-measured statement.
+
+    Moving the off-panel set with the call was right; returning EMPTY when this
+    study's annotation does not name the new one was not. Overriding c2 Stromal ->
+    CAF -- a real override on the demo data -- emptied COL1A1, COL1A2, DCN, VIM and
+    FAP out of the exported document while the markers table beside it still showed
+    all five, because the table builds rows from the record's own evidence and not
+    from the composed verdict. The headline rule vanished from the handed-on
+    artifact for exactly the cluster the biologist had curated.
+
+    Being off-panel is a fact about the PANEL, not the call, so the genes stay and
+    only the sentence is re-worded.
+    """
+    from panoscope.agent import annotation, config as cfg
+    from panoscope.agent import memory
+    from panoscope.ui import data_access as da
+
+    before = {v.cluster: v for v in da.all_verdicts()}["c2"]
+    genes = [n.gene for n in before.offpanel_notes]
+    assert genes, "c2 must carry off-panel canonical markers to begin with"
+    assert annotation.offpanel_canonical("CAF") == (), (
+        "this test needs a call the annotation does NOT name; pick another"
+    )
+
+    memory.create_note(
+        claim="c2 is CAF here", scope="cluster", basis="own_validation",
+        cluster="c2", subject_cell_type="CAF", note_type="celltype_override",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+    )
+
+    after = {v.cluster: v for v in da.composed_verdicts()}["c2"]
+    assert after.cell_type == "CAF", "the override did not reach the verdict"
+    assert [n.gene for n in after.offpanel_notes] == genes, (
+        f"the override deleted the panel-absence block: {genes} -> "
+        f"{[n.gene for n in after.offpanel_notes]}"
+    )
+    assert all("CAF" in n.message for n in after.offpanel_notes), (
+        "the notes still argue against the replaced call"
+    )
+
+    section = next(s for s in R.build_report_from_sources().sections
+                   if s.cluster == "c2")
+    assert [g for g, _ in (section.off_panel or ())] == genes, (
+        "the document and the screen disagree about which markers were never measured"
+    )
+
+
 def test_nothing_in_an_overridden_section_argues_the_replaced_call() -> None:
     """The WHOLE section follows the override, not one paragraph of it.
 

@@ -501,7 +501,8 @@ def composed_verdicts() -> list[ClusterVerdict]:
             # rule exists to prevent. Empty is also what the block header renders
             # as "every canonical marker for this label is on panel", which is why
             # the rename is worth doing rather than leaving the old set in place.
-            changes["offpanel_notes"] = _offpanel_notes_for(new_call)
+            changes["offpanel_notes"] = _offpanel_notes_for(
+                new_call, v.offpanel_notes)
         # A signed-off call is adjudicated: clear its re-check flag (a contested
         # sign-off wrote a validation note recording the biologist's acceptance).
         # Applied last so it wins over an override's dissent flag.
@@ -511,30 +512,49 @@ def composed_verdicts() -> list[ClusterVerdict]:
     return out
 
 
-def _offpanel_notes_for(cell_type: str) -> tuple:
+def _offpanel_notes_for(cell_type: str, existing: tuple = ()) -> tuple:
     """The off-panel canonical markers for ONE call, as ``OffPanelNote``s.
 
     Built the way ``core.compat`` phrases them so an overridden section reads
-    exactly like a computed one. Empty when this study's annotation does not name
-    the call -- which is the honest answer, not a gap: a cell type the study never
-    annotated has no canonical set here to be absent from.
+    exactly like a computed one.
+
+    **Falls back to the genes already on the verdict, re-worded.** The first
+    version returned empty whenever this study's annotation did not name the new
+    call, on the reasoning that an unannotated cell type has no canonical set to
+    be absent from. That deleted a true statement: overriding c2 Stromal -> CAF
+    emptied COL1A1, COL1A2, DCN, VIM and FAP out of the exported document, while
+    the markers table beside it still showed all five -- because the table builds
+    rows from the record's own evidence, not from the composed verdict. Screen and
+    document disagreed about which markers were never measured, which
+    ``ui/report.py`` states as the one thing that must not happen. And it failed
+    on exactly the cluster the biologist had curated.
+
+    Being off-panel is a fact about the PANEL, not about the call, so those genes
+    stay and only the sentence changes: "COL1A1 is off-panel (never measured); its
+    absence is not evidence against CAF" is true whatever the call is renamed to.
+    An annotation that DOES know the new call still wins, because then there is a
+    real canonical set for it.
     """
     from panoscope.agent import annotation
     from panoscope.agent.types import OffPanelNote
 
     ct = (cell_type or "").strip()
     if not ct:
-        return ()
-    return tuple(
-        OffPanelNote(
-            gene=g,
+        return tuple(existing)
+
+    def _note(gene: str) -> OffPanelNote:
+        return OffPanelNote(
+            gene=gene,
             cell_type=ct,
-            message=(f"{g} is off-panel (never measured); its absence is not "
+            message=(f"{gene} is off-panel (never measured); its absence is not "
                      f"evidence against {ct}."),
             source="panel:absence",
         )
-        for g in annotation.offpanel_canonical(ct)
-    )
+
+    derived = annotation.offpanel_canonical(ct)
+    if derived:
+        return tuple(_note(g) for g in derived)
+    return tuple(_note(n.gene) for n in existing)
 
 
 def _override_call(cluster: str) -> Optional[str]:

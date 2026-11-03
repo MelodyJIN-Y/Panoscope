@@ -114,6 +114,21 @@ _DEFAULT_FR: dict[ColumnKind, int] = {
     ColumnKind.CITATION: 3,
     ColumnKind.NOTE_CHIP: 2,
     ColumnKind.TEXT: 2,
+    # A numeric column is not narrow, because on a non-observed row it does not
+    # hold a number -- it holds the hatch, "◐&nbsp;measured, not here", whose
+    # non-breaking space binds the glyph to its label so the whole run cannot
+    # wrap. Measured in a browser: it wants 78px and a 1fr track gave it 42 at
+    # 1024 and 63 at 1440, so the text spilled into the next column. The header
+    # "SPECIFICITY" wants 72 and got 42.
+    #
+    # This only became visible once the tracks started honouring their fractions
+    # (``minmax(0, Nfr)``). Before that each box sized to its own content, which
+    # is exactly why the header and the rows disagreed and the headings sat over
+    # the wrong columns. The fractions are the fix; they just have to be big
+    # enough for what the cells actually carry.
+    ColumnKind.NUMBER: 2,
+    ColumnKind.SPECIFICITY_PAIR: 2,
+    ColumnKind.GLYPH: 2,
 }
 
 
@@ -528,7 +543,8 @@ _CSS = """
    heading may be narrower than its own text -- that is what keeps the columns
    aligned with the rows -- and without this "SPECIFICITY" split as SPECIFICI/TY
    and "glm_coef" broke at its underscore. */
-.pano-sf-head .pano-sf-cell { word-break:keep-all; overflow-wrap:normal; }
+.pano-sf-head .pano-sf-cell, .pano-sf-row .pano-sf-cell {
+  word-break:normal; overflow-wrap:break-word; }
 .pano-sf-unit { display:block; margin-left:0; }
 .pano-sf-row { padding:7px 0; border-bottom:1px solid var(--hair2); }
 .pano-sf-cell.a-right { text-align:right; }
@@ -543,7 +559,12 @@ _CSS = """
   margin:0 4px 2px 0; }
 /* A never-measured cell is HATCHED, never blank and never a zero: a blank reads as
    "we looked and found nothing", a hatch reads as "we could not look". */
-.pano-sf-hatch { display:inline-block; font-family:var(--mono); font-size:10px;
+/* max-width so the pill cannot exceed its own column. An inline-block with no
+   constraint takes its max-content width, and the glyph is bound to its label by
+   a non-breaking space -- so "◐ measured, not here" spilled 13px into the next
+   column at 1024 while the cell around it reported no overflow at all. */
+.pano-sf-hatch { display:inline-block; max-width:100%; font-family:var(--mono);
+  font-size:10px;
   color:var(--faint); border-radius:4px; padding:1px 6px; cursor:help;
   background:repeating-linear-gradient(45deg,var(--hair2),var(--hair2) 3px,
     transparent 3px,transparent 6px); }

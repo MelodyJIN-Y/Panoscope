@@ -269,6 +269,37 @@ def test_off_panel_absence_used_as_evidence_fails(checker_real_lit):
     assert v and v[0].ref == "COL1A1", result.summary()
 
 
+def test_every_gene_in_a_list_is_checked_not_just_the_last(checker_real_lit):
+    """A marker list is the ordinary phrasing, and it defeated the gate.
+
+    Clause-scoping this pass closed the "one true caveat buys a free pass" hole
+    and opened a bigger one: ``_CLAUSE_SPLIT_RE`` splits on "and", so
+    "KRT18 and ERBB2 are not detected here" becomes "KRT18 " plus
+    " ERBB2 are not detected here" -- the absence verb lands once, at the end, and
+    a per-clause absence test discards every gene but the last. Measured on the
+    real frame, that sentence went from CRITICAL to clean.
+
+    The two passes fail in opposite directions on a dropped clause, which is why
+    they cannot share a splitter: a dropped FRAME claim fails closed (the absence
+    is still flagged); a dropped ABSENCE clause fails open.
+    """
+    for answer, must_flag in (
+        ("KRT18 and ERBB2 are not detected here, so this rules out Tumor.", "KRT18"),
+        ("CD3D and CD2 are not detected here, so this is not T cells.", "CD3D"),
+        ("KRT18, CD3D and CD2 are not detected here, so this rules out T cells.", "CD2"),
+    ):
+        result = checker_real_lit.check(answer, None, "c1")
+        assert result.ok is False, f"a marker list walked through the gate: {answer}"
+        refs = [v.ref for v in result.violations if v.kind == "panel_absence"]
+        assert must_flag in refs, f"flagged {refs}, expected {must_flag}: {answer}"
+
+    # ...and a list whose every member is correctly caveated still passes whole.
+    assert checker_real_lit.check(
+        "KRT18 and CD3D were never measured, so neither absence argues anything.",
+        None, "c1",
+    ).ok is True
+
+
 def test_one_correct_caveat_is_not_a_pass_for_the_rest_of_the_sentence(checker_real_lit):
     """Obeying the rule about ONE gene stopped the gate looking at the others.
 

@@ -254,6 +254,27 @@ _CLAUSE_SPLIT_RE = re.compile(
     re.IGNORECASE,
 )
 
+#: The same split for the ABSENCE pass, minus "and"/"or".
+#:
+#: Those two coordinate SUBJECTS as often as they separate clauses, and the
+#: absence verb lands once, at the end: "KRT18 and ERBB2 are not detected here"
+#: splits into "KRT18 " and " ERBB2 are not detected here", so a per-clause
+#: absence test drops every gene but the last. That is how clause-scoping this
+#: pass closed one hole and opened a bigger one -- measured on the real frame,
+#: "KRT18 and ERBB2 are not detected here, so this rules out Tumor" went from
+#: CRITICAL to clean, and a marker list is the ordinary way to write it.
+#:
+#: The two passes also fail in OPPOSITE directions on a dropped clause, which is
+#: why they cannot share a splitter. ``_extract_frame_claims`` dropping one fails
+#: closed: the absence is still flagged. ``_extract_absences`` dropping one fails
+#: OPEN: the violation is never raised. The ponytail note above reasons about the
+#: first and does not license the second.
+_ABSENCE_CLAUSE_SPLIT_RE = re.compile(
+    r"[,;:()\u2014\u2013]|--|\b(?:but|while|whereas|although|however|though"
+    r"|yet)\b",
+    re.IGNORECASE,
+)
+
 # A clause that asserts an entity is OUTSIDE the capability frame. Deliberately
 # narrower than _NEVER_MEASURED_RE above, which also matches "uninformative",
 # "no evidence", "underpowered" -- none of which claim the frame excluded the
@@ -545,7 +566,7 @@ class Extractor:
             # cells" obeys the rule in its first clause and breaks it in its second,
             # and passed clean. Every true answer that correctly caveats ONE gene
             # carried a free pass for every other gene in the same sentence.
-            for clause in _CLAUSE_SPLIT_RE.split(sentence):
+            for clause in _ABSENCE_CLAUSE_SPLIT_RE.split(sentence):
                 if _NEVER_MEASURED_RE.search(clause):
                     # This clause names the absence as unmeasured, which is the
                     # rule being obeyed, loudly. Nothing to flag HERE.

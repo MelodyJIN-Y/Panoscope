@@ -229,7 +229,17 @@ def test_the_column_headings_sit_over_their_columns(server, browser, width: int)
       const rows = [...document.querySelectorAll('.pano-sf-row')];
       const full = rows.find(r => r.children.length === n);
       const inner = rows.find(r => r.children.length === n - 1);
-      return {labels, heads, nrows: rows.length,
+      // Worst overflow per column, over the header and every full-width row.
+      const box = el => ({w: Math.round(el.clientWidth), sw: Math.round(el.scrollWidth)});
+      const cells = [...head.children].map(box);
+      for (const r of rows) {
+        if (r.children.length !== n) continue;
+        [...r.children].forEach((c, i) => {
+          const b = box(c);
+          if (b.sw - b.w > cells[i].sw - cells[i].w) cells[i] = b;
+        });
+      }
+      return {labels, heads, cells, nrows: rows.length,
               full: full ? [...full.children].map(left) : null,
               inner: inner ? [...inner.children].map(left) : null};
     }""")
@@ -250,6 +260,18 @@ def test_the_column_headings_sit_over_their_columns(server, browser, width: int)
 
     assert not bad, (
         f"column content is not under its heading at {width}px:\n  " + "\n  ".join(bad)
+    )
+
+    # ...and no cell spills INTO the next column. Checking left edges alone was not
+    # enough: the first alignment fix made every track honour its fraction, which
+    # aligned the origins and then let the content overflow them -- headings drawn
+    # on top of the next heading, measured at 13-36px. A column that starts in the
+    # right place and paints over its neighbour is not a fixed column.
+    spill = [f"{label!r}: content {c['sw']}px in a {c['w']}px track"
+             for label, c in zip(geom["labels"], geom["cells"])
+             if c["sw"] - c["w"] > 1]
+    assert not spill, (
+        f"cell content overflows its column at {width}px:\n  " + "\n  ".join(spill)
     )
 
 
