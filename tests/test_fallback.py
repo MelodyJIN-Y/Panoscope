@@ -452,3 +452,71 @@ def test_the_settle_builder_shares_the_word_boundary_test():
     assert "hint in q" not in inspect.getsource(_f._settle_answer)
     r = F.fallback_answer("could c9 be Mast Cells or Dendritic", "c9")
     assert r is not None and "T Cells" not in r.text, r.text
+
+
+# --------------------------------------------------------------------------- #
+# The biologist's override reaches the chat pane
+# --------------------------------------------------------------------------- #
+def test_the_chat_pane_speaks_the_biologists_call_not_the_replaced_one() -> None:
+    """The composition happened in ``ui/data_access``; the prose is built below it.
+
+    So the board, the marker header and the exported overview all said CAF while
+    five of c2's seven chat answers went on saying Stromal -- the opening
+    interpretation, the rivals answer, the panel-absence answer, the
+    what-would-settle-it answer and the confidence answer. That is the silent
+    overrule the memory rule forbids, committed by the layering.
+
+    Both directions are asserted: the call must be adopted, and it must not be
+    adopted SILENTLY -- an answer that simply swapped the label would hide the
+    same disagreement from the other side.
+    """
+    from panoscope.agent import annotation, config as cfg
+    from panoscope.agent import memory
+
+    before = F.fallback_opening("c2").text
+    assert "Stromal" in before, "this test needs c2 to start out called Stromal"
+    assert annotation.canonical_markers("CAF") == (), (
+        "this test needs a call the annotation does NOT name; pick another"
+    )
+
+    memory.create_note(
+        claim="c2 is CAF here", scope="cluster", basis="own_validation",
+        cluster="c2", subject_cell_type="CAF", subject_lineage="Stromal",
+        subject_category="Mesenchymal", note_type="celltype_override",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+    )
+
+    opening = F.fallback_opening("c2").text
+    assert opening.startswith("c2 reads as CAF"), opening
+    assert "replacing the computed Stromal" in opening, (
+        f"the call was adopted in silence: {opening}"
+    )
+
+    answers = {
+        q: F.fallback_answer(q, "c2")
+        for q in ("could this be something else?", "what about the missing marker?",
+                  "what would settle it?", "how confident are you?")
+    }
+    for q, r in answers.items():
+        assert r is not None, q
+        # Canonicity is an ANNOTATION claim and the annotation does not name CAF,
+        # so naming these genes canonical CAF markers would be the fabrication
+        # the panel-absence rule exists to prevent.
+        assert "canonical CAF" not in r.text, f"{q}: {r.text}"
+        if "Stromal" in r.text:
+            assert "the computed call" in r.text, (
+                f"{q} argues the replaced call without saying so: {r.text}"
+            )
+
+    assert "c2 CAF: Very High confidence" in answers["how confident are you?"].text
+
+
+def test_a_cluster_with_no_override_reads_exactly_as_before() -> None:
+    """The composition costs an unedited cluster nothing. c5's canonical T_Cells
+    phrasing is the one the annotation CAN source, and it has to survive the
+    branch added for the one it cannot."""
+    text = F.fallback_opening("c5").text
+    assert "c5 reads as T_Cells, Medium-High confidence" in text, text
+    assert "your call" not in text
+    assert ("CD3D is a canonical T Cells marker that is off-panel "
+            "(never measured here)") in text, text

@@ -419,29 +419,16 @@ def _excluded_clusters() -> set:
 
 
 def _override_notes() -> dict:
-    """The most-recent firing ``celltype_override`` note per cluster (one that carries a
-    new call). Applied at COMPOSITION only — the deterministic verdict is never mutated.
+    """The most-recent firing ``celltype_override`` note per cluster.
 
-    Study-gated for the reason in ``_excluded_clusters``, and this is the half that
-    reached the Summary board, the exports and the sign-off: an override is the
-    biologist's own call, so applying it to a study they never made it in attributes
-    their judgement somewhere they never gave it, with click-back intact."""
-    from panoscope.agent import memory
+    Kept as a module-level name because the composition reads it through this
+    module's globals and the suite patches it here. The implementation moved to
+    ``agent.compose``, so the prose generated below the UI composes against the
+    same notes this board does.
+    """
+    from panoscope.agent import compose
 
-    out: dict = {}
-    try:
-        for n in memory.notes_in_study():  # sorted by created_at -> last write wins
-            if (
-                getattr(n, "type", "") == "celltype_override"
-                and n.scope == "cluster"
-                and n.scope_ref.cluster
-                and (getattr(n, "subject_cell_type", "") or "").strip()
-            ):
-                out[n.scope_ref.cluster] = n
-    except Exception:  # noqa: BLE001 - a malformed note never breaks the composition
-        return {}
-    return out
-
+    return compose.override_notes()
 
 def _signed_off_clusters() -> set:
     """Clusters the biologist has reviewed and accepted on the Summary board.
@@ -513,49 +500,10 @@ def composed_verdicts() -> list[ClusterVerdict]:
 
 
 def _offpanel_notes_for(cell_type: str, existing: tuple = ()) -> tuple:
-    """The off-panel canonical markers for ONE call, as ``OffPanelNote``s.
+    """The off-panel canonical markers for ONE call. See ``agent.compose``."""
+    from panoscope.agent import compose
 
-    Built the way ``core.compat`` phrases them so an overridden section reads
-    exactly like a computed one.
-
-    **Falls back to the genes already on the verdict, re-worded.** The first
-    version returned empty whenever this study's annotation did not name the new
-    call, on the reasoning that an unannotated cell type has no canonical set to
-    be absent from. That deleted a true statement: overriding c2 Stromal -> CAF
-    emptied COL1A1, COL1A2, DCN, VIM and FAP out of the exported document, while
-    the markers table beside it still showed all five -- because the table builds
-    rows from the record's own evidence, not from the composed verdict. Screen and
-    document disagreed about which markers were never measured, which
-    ``ui/report.py`` states as the one thing that must not happen. And it failed
-    on exactly the cluster the biologist had curated.
-
-    Being off-panel is a fact about the PANEL, not about the call, so those genes
-    stay and only the sentence changes: "COL1A1 is off-panel (never measured); its
-    absence is not evidence against CAF" is true whatever the call is renamed to.
-    An annotation that DOES know the new call still wins, because then there is a
-    real canonical set for it.
-    """
-    from panoscope.agent import annotation
-    from panoscope.agent.types import OffPanelNote
-
-    ct = (cell_type or "").strip()
-    if not ct:
-        return tuple(existing)
-
-    def _note(gene: str) -> OffPanelNote:
-        return OffPanelNote(
-            gene=gene,
-            cell_type=ct,
-            message=(f"{gene} is off-panel (never measured); its absence is not "
-                     f"evidence against {ct}."),
-            source="panel:absence",
-        )
-
-    derived = annotation.offpanel_canonical(ct)
-    if derived:
-        return tuple(_note(g) for g in derived)
-    return tuple(_note(n.gene) for n in existing)
-
+    return compose.offpanel_notes_for(cell_type, existing)
 
 def _override_call(cluster: str) -> Optional[str]:
     """The biologist's confirmed NEW cell-type call for a cluster (from a firing
@@ -722,9 +670,57 @@ def celltype_summary(cluster: str) -> str:
     return str(note.get("summary") or "")
 
 
-@_cache_data(show_spinner=False)
 def holistic():
-    """The cross-cluster holistic review (Step 4), cached once per session.
+    """The cross-cluster holistic review (Step 4), with confirmed overrides applied.
+
+    NOT cached, for ``composed_verdicts``' reason: an override arrives at runtime.
+    The computed review underneath it still is, so the common path (no overrides)
+    returns the cached artifact untouched and recomputes nothing.
+
+    The review reads this study's CALLS, and it read them from the annotation --
+    which is no longer where they live once the biologist has overridden one. The
+    exported document carried an overview calling c2 CAF and, under
+    "Cross-cluster global check" on the same page, "Stromal (Stromal)" and "all 9
+    called clusters carry distinct cell types (Tumor, Stromal, ...)". One document,
+    two incompatible claims about one cluster, and the wrong one was the
+    biologist's own call being overruled in silence.
+    """
+    overrides = _override_notes()
+    if not overrides:
+        return _holistic_computed()
+    from panoscope.agent import holistic as agent_holistic
+
+    # Calls only. ``exclude`` is deliberately NOT applied: an excluded cluster is
+    # still one of this study's clusters, and dropping it would change the cell
+    # counts and the "N called clusters" denominators the notes state.
+    metas = {
+        c: {"cell_type": (ov.subject_cell_type or "").strip(),
+            "category": (ov.subject_category or "").strip()
+            or annotation_category(c)}
+        for c, ov in overrides.items()
+        if (getattr(ov, "subject_cell_type", "") or "").strip()
+    }
+    return agent_holistic.holistic_review(metas)
+
+
+def annotation_category(cluster: str) -> str:
+    """This study's annotated category for ``cluster`` ("" if it names none).
+
+    An override that changes only the call keeps the compartment it was grouped
+    under, rather than falling into "Unknown" and inventing a compartment move
+    the biologist never made.
+    """
+    from panoscope.agent import annotation
+
+    try:
+        return str(annotation.meta_for(cluster).get("category") or "")
+    except Exception:  # noqa: BLE001 - an unknown cluster simply has no category
+        return ""
+
+
+@_cache_data(show_spinner=False)
+def _holistic_computed():
+    """The cross-cluster holistic review as COMPUTED, cached once per session.
 
     Prefers the review PERSISTED by the pipeline (``interp/holistic.json``); falls
     back to computing it live when the tree is absent. The review is deterministic,

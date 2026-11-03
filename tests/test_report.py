@@ -407,6 +407,42 @@ def test_an_override_to_an_unannotated_call_keeps_the_panel_absence_block() -> N
     )
 
 
+def test_the_cross_cluster_check_does_not_contradict_the_override() -> None:
+    """One document, one claim per cluster.
+
+    The overview section follows the override; the "Cross-cluster global check"
+    read its calls straight off the annotation, so the SAME exported page said
+    c2 is CAF and, a few paragraphs down, listed "Stromal (Stromal)" among the
+    compartments and "distinct cell types (Tumor, Stromal, ...)" among the
+    calls. The biologist's own call was being overruled in silence, in the
+    document that leaves the lab.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import memory
+    from panoscope.ui import data_access as da
+
+    before = R.global_check_text(da.holistic(), None)
+    assert "Stromal" in before, "this test needs c2 to start out called Stromal"
+
+    memory.create_note(
+        claim="c2 is CAF here", scope="cluster", basis="own_validation",
+        cluster="c2", subject_cell_type="CAF", subject_category="Mesenchymal",
+        note_type="celltype_override", dataset=cfg.DATASET_ID,
+        literature_search=lambda _q: (),
+    )
+
+    after = R.global_check_text(da.holistic(), None)
+    board_call = {v.cluster: v for v in da.composed_verdicts()}["c2"].cell_type
+    assert board_call == "CAF"
+    assert "CAF" in after, f"the cross-cluster check never adopted the call: {after}"
+    assert "Stromal (Stromal)" not in after, (
+        f"the cross-cluster check still groups c2 under the replaced call: {after}"
+    )
+    assert "Tumor, Stromal," not in after, (
+        f"the cross-cluster check still lists the replaced call: {after}"
+    )
+
+
 def test_nothing_in_an_overridden_section_argues_the_replaced_call() -> None:
     """The WHOLE section follows the override, not one paragraph of it.
 

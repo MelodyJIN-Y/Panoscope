@@ -33,6 +33,7 @@ Grounding discipline (Confident floor):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Mapping
 
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
@@ -101,7 +102,28 @@ class HolisticReview:
 # --------------------------------------------------------------------------- #
 # Grounded coherence notes (every number computed from source at runtime)
 # --------------------------------------------------------------------------- #
-def _compartment_note() -> str:
+def _metas(metas: Mapping[str, Mapping[str, str]] | None) -> dict[str, Mapping[str, str]]:
+    """Per-cluster ``{"cell_type", "category"}``, defaulting to this study's annotation.
+
+    The review reads CALLS, and after the biologist overrides one, the study's
+    annotation is no longer where this study's calls live. Left unparameterised,
+    the cross-cluster check printed "Stromal (Stromal)" and "all 9 called
+    clusters carry distinct cell types (Tumor, Stromal, ...)" into the Summary
+    board and the exported document, directly beside an overview that said CAF --
+    one document making two incompatible claims about the same cluster.
+
+    The DEFAULT is still the annotation, so the artifact ``panoscope build``
+    writes and the golden projection reads stay byte-identical: the composition
+    happens where every other composition happens, at display.
+    """
+    out = {c: annotation.meta_for(c) for c in cfg.CLUSTER_ORDER}
+    for c, meta in (metas or {}).items():
+        if c in out:
+            out[c] = meta
+    return out
+
+
+def _compartment_note(metas: Mapping[str, Mapping[str, str]]) -> str:
     """(a) Which compartments this study's own annotation groups its clusters into.
 
     A pure grouping of the annotation's ``category`` field. It states what IS
@@ -112,7 +134,7 @@ def _compartment_note() -> str:
     """
     by_cat: dict[str, list[str]] = {}
     for c in cfg.CLUSTER_ORDER:
-        meta = annotation.meta_for(c)
+        meta = metas[c]
         by_cat.setdefault(str(meta.get("category") or "Unknown"), []).append(meta["cell_type"])
     if not by_cat or set(by_cat) <= _UNCALLED:
         return (
@@ -124,7 +146,7 @@ def _compartment_note() -> str:
     return "Compartments represented across the dataset: " + "; ".join(parts) + "."
 
 
-def _proportions_note() -> str:
+def _proportions_note(metas: Mapping[str, Mapping[str, str]]) -> str:
     """(b) Proportions: largest and rarest cluster by REAL cell count.
 
     Cell counts come from ``data.get_cluster_cells`` at runtime — never hard-coded.
@@ -141,8 +163,8 @@ def _proportions_note() -> str:
                 "(no per-cell coordinates provided).")
     largest = max(counts, key=counts.__getitem__)
     rarest = min(counts, key=counts.__getitem__)
-    largest_type = annotation.cell_type_for(largest)
-    rarest_type = annotation.cell_type_for(rarest)
+    largest_type = metas[largest]["cell_type"]
+    rarest_type = metas[rarest]["cell_type"]
     # Counts only. The sentence used to open "Proportions are plausible for a breast
     # tumour" and close "(a rare, small population as expected)" -- a tissue claim and
     # an expectation, neither of which has a source, written into a HASHED artifact
@@ -156,7 +178,7 @@ def _proportions_note() -> str:
     )
 
 
-def _redundancy_note() -> tuple[str, bool]:
+def _redundancy_note(metas: Mapping[str, Mapping[str, str]]) -> tuple[str, bool]:
     """(c) Redundancy: do two clusters carry the same call, and is any cluster uncalled?
 
     Returns the note and whether the set is internally coherent.
@@ -171,7 +193,7 @@ def _redundancy_note() -> tuple[str, bool]:
     it is counted separately: two Unknowns are not two clusters collapsing onto
     the same cell type, and nothing is claimed about either.
     """
-    calls = {c: str(annotation.cell_type_for(c)) for c in cfg.CLUSTER_ORDER}
+    calls = {c: str(metas[c]["cell_type"]) for c in cfg.CLUSTER_ORDER}
     if not calls:
         return ("This study declares no clusters, so there is no set to review.", False)
 
@@ -203,10 +225,12 @@ def _redundancy_note() -> tuple[str, bool]:
     return "; ".join(parts) + ".", not shared and not uncalled
 
 
-def _coherence_notes() -> tuple[tuple[str, ...], bool]:
+def _coherence_notes(
+    metas: Mapping[str, Mapping[str, str]],
+) -> tuple[tuple[str, ...], bool]:
     """The three grounded coherence observations, and whether the set is coherent."""
-    redundancy, coherent = _redundancy_note()
-    return (_compartment_note(), _proportions_note(), redundancy), coherent
+    redundancy, coherent = _redundancy_note(metas)
+    return (_compartment_note(metas), _proportions_note(metas), redundancy), coherent
 
 
 # --------------------------------------------------------------------------- #
@@ -254,7 +278,9 @@ def _c8_refinement() -> Refinement:
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
-def holistic_review() -> HolisticReview:
+def holistic_review(
+    metas: Mapping[str, Mapping[str, str]] | None = None,
+) -> HolisticReview:
     """Re-check this study's calls together and surface any grounded refinement.
 
     Coherence notes: the compartments this study's own annotation names, the
@@ -273,11 +299,14 @@ def holistic_review() -> HolisticReview:
     # this breast-specific pDC refinement -- a fabricated finding attributed to the
     # wrong tissue. The refinement itself is demo content and leaves when the
     # reference layer can derive subtype sharpenings from an ontology.
+    resolved = _metas(metas)
+    # The refinement is gated on the CURRENT call, so a biologist who has already
+    # made this sharpening is not shown it again as something to consider.
     if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and \
             _REFINE_CLUSTER in cfg.KNOWN_CLUSTERS and \
-            annotation.cell_type_for(_REFINE_CLUSTER) == _REFINE_FROM:
+            resolved[_REFINE_CLUSTER]["cell_type"] == _REFINE_FROM:
         refinements = (_c8_refinement(),)
-    notes, coherent = _coherence_notes()
+    notes, coherent = _coherence_notes(resolved)
     return HolisticReview(
         coherence_notes=notes,
         refinements=refinements,

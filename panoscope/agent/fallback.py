@@ -47,7 +47,7 @@ from panoscope.agent.types import (
     OffPanelNote,
     Source,
 )
-from panoscope.agent.verdict import opening_interpretation, verdict_for_cluster
+from panoscope.agent.compose import composed_verdict_for, computed_call
 
 # Number formatting: two decimals is inside the grounding checker's absolute
 # tolerance (1e-2) for these stats, so a rendered "18.00" grounds to LUM's real
@@ -140,11 +140,45 @@ def _offpanel_line(notes: tuple[OffPanelNote, ...], cell_type: str) -> str:
     # not be the one that reads like a mail merge.
     one = len(notes) == 1
     return (
-        f" Note on absence: {genes} {'is a' if one else 'are'} canonical "
-        f"{cell_type.replace('_', ' ')} {'marker' if one else 'markers'} that "
-        f"{'is' if one else 'are'} off-panel (never measured here), so "
+        f" Note on absence: {genes} {_canonical_clause(cell_type, one)} "
+        f"off-panel (never measured here), so "
         f"{'its' if one else 'their'} absence is not evidence against the call."
     )
+
+
+def _computed_call_prefix(cluster: str, shown: str) -> str:
+    """One sentence saying the rival check reads the COMPUTED call, when it does.
+
+    ``agent.discriminate`` weighs rivals by their canonical marker sets, which
+    this study's annotation indexes by its own call -- so after an override it
+    still answers about the computed one. It said "c2 reads Stromal, supported
+    by LUM (glm_coef 18.00)..." under a pane titled CAF, with no hint that the
+    two sentences were about different calls. Naming it keeps the answer usable
+    instead of quietly wrong; the alternative, relabelling the output CAF, would
+    attribute a Stromal canonical set to a call the annotation never defines.
+    """
+    from panoscope.agent import annotation
+
+    computed = computed_call(cluster)
+    if not shown or shown == computed:
+        return ""
+    why = ("" if annotation.canonical_markers(shown)
+           else f", for which this study's annotation carries no canonical "
+                f"marker set")
+    return (f"Your call for {cluster} is {shown}{why}. The rival check below "
+            f"reads the computed call, {computed}. ")
+
+
+def _whose_call(cluster: str, shown: str) -> str:
+    """" -- your call, replacing the computed X" when the biologist overrode it.
+
+    Empty when the shown call IS the computed one, so an unedited cluster reads
+    exactly as it always did.
+    """
+    computed = computed_call(cluster)
+    if not shown or shown == computed:
+        return ""
+    return f" (your call, replacing the computed {computed})"
 
 
 # --------------------------------------------------------------------------- #
@@ -153,27 +187,32 @@ def _offpanel_line(notes: tuple[OffPanelNote, ...], cell_type: str) -> str:
 def fallback_opening(cluster: str) -> AgentResponse:
     """Pre-baked opening interpretation for ``cluster`` (call, confidence, drivers).
 
-    Built from :func:`agent.verdict.opening_interpretation` +
-    :func:`agent.verdict.verdict_for_cluster`. States the cell-type call, the
+    Built from :func:`agent.compose.composed_verdict_for` -- the computed verdict
+    with the biologist's confirmed override applied. States the cell-type call, the
     confidence band, the driving canonical markers with their real glm_coef /
     pearson, and, where present, the panel-absence context (c2 Stromal). Cites no
     live literature (the fallback path has no network); the live loop fills PMIDs.
 
     KeyError if ``cluster`` is unknown (propagated from the verdict engine).
     """
-    op = opening_interpretation(cluster)
+    op = composed_verdict_for(cluster).opening
     drivers = op.driving_markers
     notes = op.offpanel_notes
+    # The biologist's call, WITH the tension visible. Swapping the label in
+    # silently would be the same overrule as ignoring it, in the other
+    # direction: the chat has to say whose call this is and what the method
+    # produced, so the sentence can still be argued with.
+    whose = _whose_call(cluster, op.cell_type)
 
     if drivers:
         lead = (
-            f"{op.cluster} reads as {op.cell_type}, {op.confidence} confidence, "
-            f"driven by {_driver_phrase(drivers)}."
+            f"{op.cluster} reads as {op.cell_type}{whose}, {op.confidence} "
+            f"confidence, driven by {_driver_phrase(drivers)}."
         )
     else:
         lead = (
-            f"{op.cluster} reads as {op.cell_type}, {op.confidence} confidence; "
-            f"no canonical marker drives the call, so re-check this."
+            f"{op.cluster} reads as {op.cell_type}{whose}, {op.confidence} "
+            f"confidence; no canonical marker drives the call, so re-check this."
         )
 
     verify_line = (
@@ -323,6 +362,25 @@ def _confidence_answer(v: ClusterVerdict) -> AgentResponse:
     )
 
 
+def _canonical_clause(cell_type: str, one: bool) -> str:
+    """"are canonical Stromal markers that are" -- or just "are" when it cannot.
+
+    Canonicity is an ANNOTATION claim, and after an override the annotation may
+    not name the call at all: overriding c2 Stromal -> CAF made both panel-absence
+    sentences call COL1A1, COL1A2, DCN, VIM and FAP "canonical CAF markers" while
+    ``annotation.canonical_markers("CAF")`` is empty. Being off-panel is a fact
+    about the PANEL and stays true either way, so only the canonicity goes.
+    """
+    from panoscope.agent import annotation
+
+    verb = "is" if one else "are"
+    if not annotation.canonical_markers(cell_type):
+        return verb
+    return (f"{verb}{' a' if one else ''} canonical "
+            f"{cell_type.replace('_', ' ')} {'marker' if one else 'markers'} "
+            f"that {verb}")
+
+
 def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
     """'What about <missing canonical>', the panel-absence explanation.
 
@@ -336,9 +394,7 @@ def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
     drivers = v.opening.driving_markers
     one = len(notes) == 1          # see _absence_note: most units carry exactly one
     body = (
-        f"{genes} {'is a' if one else 'are'} canonical "
-        f"{v.cell_type.replace('_', ' ')} {'marker' if one else 'markers'} that "
-        f"{'is' if one else 'are'} off-panel, "
+        f"{genes} {_canonical_clause(v.cell_type, one)} off-panel, "
         f"{'it was' if one else 'they were'} never measured in this panel, so "
         f"{'its' if one else 'their'} absence is not evidence against the "
         f"{v.cell_type} call. The call stands on the on-panel markers: "
@@ -531,7 +587,8 @@ def _settle_answer(v: ClusterVerdict, query: str) -> AgentResponse:
     sidecar = GroundingSidecar(numbers=numbers, markers=marker_names, pmids=(), notes_used=())
     pin = d.supporting_A[0].gene if d.supporting_A else None
     return AgentResponse(
-        text=discriminate.settle_summary(d),
+        text=_computed_call_prefix(v.cluster, v.cell_type)
+             + discriminate.settle_summary(d),
         sources=sources,
         verify=v.verify,
         grounding=sidecar,
@@ -613,7 +670,7 @@ def fallback_answer(query: str, cluster: str) -> Optional[AgentResponse]:
     intent = _classify(query)
     if intent is None:
         return None
-    v = verdict_for_cluster(cluster)
+    v = composed_verdict_for(cluster)
     if intent == "settle":
         # The settle answer needs the query text (to pick up a named alternative),
         # so it is built here rather than through the ClusterVerdict-only table.
@@ -634,7 +691,7 @@ def generic_fallback(cluster: str) -> AgentResponse:
 
     KeyError if ``cluster`` is unknown (propagated from the verdict engine).
     """
-    v = verdict_for_cluster(cluster)
+    v = composed_verdict_for(cluster)
     drivers = v.opening.driving_markers
     notes = v.offpanel_notes
 
