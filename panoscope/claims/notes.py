@@ -171,7 +171,22 @@ def _subjects(note: Note) -> tuple[Subject, ...]:
 
 
 def _scope(note: Note) -> str:
-    """Note scope -> claim scope. The cluster rung lives in the subject, not here."""
+    """Note scope -> claim scope. The cluster rung lives in the subject, not here.
+
+    Refuses anything outside the closed vocabulary rather than falling through to
+    ``dataset:``. The else-branch was a fail-OPEN on a scope nobody recognised: a
+    note reading ``"cluster "`` lost its cluster pin in ``_subjects`` AND got a
+    dataset-wide scope here, so a one-cluster judgement became a claim about the
+    whole study. ``agent.memory._note_from_dict`` now refuses such a note on read;
+    this is the second lock, because ``note_to_claims`` is also called with notes
+    built in memory.
+    """
+    if note.scope not in ("cluster", "dataset", "lab"):
+        raise UnanchoredNote(
+            f"note {note.id}: scope {note.scope!r} is not one of cluster/dataset/"
+            "lab, so there is no rung to place this claim on. Refusing rather than "
+            "widening it to the dataset."
+        )
     return "lab" if note.scope == "lab" else f"dataset:{note.scope_ref.dataset}"
 
 

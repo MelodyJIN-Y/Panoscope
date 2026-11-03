@@ -357,7 +357,17 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     for name in _CREDENTIAL_ENV:
         print(f"  {name:<20} {'present' if os.getenv(name) else 'absent'}")
     dotenv = Path.cwd() / ".env"
-    print(f"  {'.env in cwd':<20} {'present' if dotenv.is_file() else 'absent'}")
+    print(f"  {'.env in cwd':<20} {'present' if dotenv.is_file() else 'absent'}"
+          f"  ({dotenv})")
+    # What this answer is ABOUT, said rather than implied. doctor reads the shell
+    # plus THIS file; the agent and the MCP client call bare ``load_dotenv()``,
+    # which resolves from the installed package and walks up. Run from anywhere
+    # but the repo the two can disagree, and a bare "absent" then sends the
+    # reader hunting for a key the app will find. doctor does not adopt the
+    # agent's resolution, because reading whatever .env happens to sit above the
+    # cwd is how this command came to report the developer's own credentials.
+    print("  (shell + the .env above; the agent resolves its own, "
+          "relative to the installed package)")
     return 0
 
 

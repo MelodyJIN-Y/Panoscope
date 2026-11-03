@@ -149,7 +149,22 @@ def _note_to_dict(note: Note) -> dict:
 
 
 def _note_from_dict(d: dict) -> Note:
-    """Rebuild a frozen Note (and its nested frozen objects) from a JSON dict."""
+    """Rebuild a frozen Note (and its nested frozen objects) from a JSON dict.
+
+    The closed vocabularies are checked HERE, not only on the write path. Note
+    files are git-tracked and hand-editable by design, which is precisely where a
+    value outside the vocabulary enters, and ``Note`` has no ``__post_init__`` to
+    catch it. The two gates then disagreed about the same file: a note whose scope
+    read ``"cluster "`` fired nowhere through ``note_in_scope`` -- fail-closed,
+    correct -- while ``claims.notes._scope`` fell through its else-branch and
+    turned the biologist's ONE-CLUSTER note into a dataset-wide claim about a cell
+    type. Widening is the one direction a scope migration must never go.
+
+    Raises ValueError, which ``read_notes`` and ``get_note`` already catch and
+    skip, so a malformed note fires nowhere instead of firing everywhere.
+    """
+    _validate_note_fields(str(d.get("claim", "")), str(d.get("scope", "")),
+                          str(d.get("basis", "")), str(d.get("status", "")))
     scope_ref_d = d.get("scope_ref") or {}
     # A note that names no dataset belongs to NO study, not to whichever one happens
     # to be open. Defaulting to ``cfg.DATASET_ID`` here read the current study at LOAD

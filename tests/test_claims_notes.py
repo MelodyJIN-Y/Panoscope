@@ -355,3 +355,47 @@ def test_the_derived_state_ignores_a_wrong_stored_boolean():
     lying = Tension(agree=(_cite("30000001", "agree"),), dissent=(), thin=True,
                     query="q", looked_up_at="2026-07-13T10:00:00+00:00")
     assert lookup_state(lying) is Resolution.RESOLVED
+
+
+# --------------------------------------------------------------------------- #
+# 6. Scope fails CLOSED on a value outside the vocabulary
+# --------------------------------------------------------------------------- #
+def test_an_unrecognised_scope_fires_nowhere_rather_than_everywhere(tmp_path,
+                                                                    monkeypatch):
+    """The two gates disagreed about the same file, in opposite directions.
+
+    Note files are git-tracked and hand-editable by design, ``Note`` has no
+    ``__post_init__``, and ``_note_from_dict`` did not check the closed
+    vocabularies the write path enforces. So a note whose scope read
+    ``"cluster "`` fired NOWHERE through ``memory.note_in_scope`` -- fail-closed,
+    correct -- while ``claims.notes._scope`` fell through its else-branch and
+    ``_subjects`` lost the cluster pin, turning one cluster's judgement into a
+    dataset-wide claim about a cell type.
+    """
+    import json
+
+    from panoscope.agent import memory
+    from panoscope.claims import notes as cn
+
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(tmp_path))
+    d = tmp_path / "corrections"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "bad.json").write_text(json.dumps({
+        "id": "n_bad", "type": "celltype_override", "scope": "cluster ",
+        "scope_ref": {"cluster": "c2", "dataset": "xenium_hbreast_sample1"},
+        "claim": "c2 is CAF here", "basis": "own_validation", "status": "firm",
+        "subject_cell_type": "CAF", "created_at": "2026-11-04T00:00:00+00:00",
+    }))
+    assert memory.read_notes() == [], (
+        "a note outside the closed vocabulary must not load at all"
+    )
+
+    # ...and the bridge refuses it even when handed one built in memory.
+    bad = _note(scope="cluster ")
+    with pytest.raises(cn.UnanchoredNote):
+        cn._scope(bad)
+
+    # The valid note is untouched: its cluster still rides in the SUBJECT.
+    ok = _note(scope="cluster")
+    assert cn._scope(ok).startswith("dataset:")
+    assert cn._subjects(ok)[0].shape == "unit"

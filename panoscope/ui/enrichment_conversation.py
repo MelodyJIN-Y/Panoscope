@@ -143,10 +143,18 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
         if pmid and str(pmid).strip().isdigit():
             pmids.append(str(pmid).strip())
         cite = f" PMID:{pmid}" if pmid else ""
+        # The denominator travels with the program. ``ui/report.py`` carries it in
+        # the exported paragraph for this reason -- a set scored on 5 of its 100
+        # genes reads exactly like one scored on 90 without it -- and this bubble
+        # makes the same claim about the same program with the same authority.
+        # Every plot carries its conditionality; a chat sentence is not exempt.
+        scope = (f" [{p.panel_hits}/{p.set_size_full} set genes on panel]"
+                 if p.panel_hits and p.set_size_full else "")
         if summ:
-            progs.append(f"{_short(p.gene_set)}: {summ}{cite}")
+            progs.append(f"{_short(p.gene_set)}{scope}: {summ}{cite}")
         else:
-            progs.append(f"{_short(p.gene_set)} (leading edge {', '.join(p.leading_edge[:4])})")
+            progs.append(f"{_short(p.gene_set)}{scope} "
+                         f"(leading edge {', '.join(p.leading_edge[:4])})")
     if progs:
         parts.append("Top programs — " + "  ".join(progs))
     parts.append(

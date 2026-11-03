@@ -181,6 +181,13 @@ def _canon_key(s: str) -> str:
 
 
 # Common wet-lab synonyms -> canonical map key. Kept small and unambiguous.
+#
+# BREAST-DEMO LABELS. Every target here is a key of this study's annotation and of
+# ``annotation.CANONICAL_MARKERS_FALLBACK``, which ``annotation._is_bundled_demo``
+# already gates for exactly that reason. This table was not gated, so on any other
+# study the biologist's "CAF" was silently translated into a label that study does
+# not use -- the demo's label space reaching into a dataset it knows nothing about,
+# which is the failure the annotation gate exists to prevent one file over.
 _ALIASES: dict[str, str] = {
     "CAF": "Stromal",
     "FIBROBLAST": "Stromal",
@@ -209,7 +216,13 @@ def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
     kmap = _key_by_canon()
     if key in kmap:
         return kmap[key]
-    return _ALIASES.get(key)
+    # The study's own annotated types are always tried first and are never gated.
+    # The synonym table is demo content: off the demo an unrecognised word stays
+    # unrecognised, and ``discriminate`` declines it BY NAME -- which is a true
+    # answer, where a translated label is a quiet substitution.
+    if annotation._is_bundled_demo():
+        return _ALIASES.get(key)
+    return None
 
 
 def _canonical_types_for(gene: str) -> tuple[str, ...]:

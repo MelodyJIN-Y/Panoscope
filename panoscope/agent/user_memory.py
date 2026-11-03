@@ -39,6 +39,22 @@ from panoscope.agent import config as cfg
 # is the failure a portable memory can least afford.
 _PATH = cfg.PROJECT_ROOT / "context" / "user_memory.jsonl"
 
+
+def _path():
+    """Where the user memory lives, resolved PER CALL.
+
+    Through ``memory._default_base``, so the three modules that read ``context/``
+    agree. A module constant resolved at import is exactly the bug that file
+    documents fixing for the note store beside this one, and it was still live
+    here: with ``PANOSCOPE_CONTEXT_DIR`` pointed at an empty directory this
+    module went on reading the developer's real ``context/user_memory.jsonl``
+    and injecting it into every system prompt -- 383 characters of one person's
+    saved judgement in front of every answer the suite graded.
+    """
+    from panoscope.agent.memory import _default_base
+
+    return _default_base() / "user_memory.jsonl"
+
 # How much prior knowledge to inject into the system prompt: recent entries only,
 # hard-capped so a long history can never crowd out the skill or the contract.
 _MAX_ENTRIES_IN_PROMPT = 12
@@ -48,8 +64,9 @@ _MAX_PROMPT_CHARS = 1800
 def record(entry: dict[str, Any]) -> dict[str, Any]:
     """Append one distilled decision to the local store. Best-effort, never raises."""
     try:
-        _PATH.parent.mkdir(parents=True, exist_ok=True)
-        with _PATH.open("a", encoding="utf-8") as fh:
+        path = _path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except OSError:
         pass
@@ -60,7 +77,7 @@ def load() -> list[dict[str, Any]]:
     """Return all saved entries, oldest first (empty if unset or unreadable)."""
     out: list[dict[str, Any]] = []
     try:
-        raw = _PATH.read_text(encoding="utf-8")
+        raw = _path().read_text(encoding="utf-8")
     except OSError:
         return []
     for line in raw.splitlines():

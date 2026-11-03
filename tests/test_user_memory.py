@@ -24,13 +24,13 @@ def test_distill_is_deterministic_and_tissue_tagged():
 
 
 def test_as_prompt_context_empty_when_unset(monkeypatch, tmp_path):
-    monkeypatch.setattr(user_memory, "_PATH", tmp_path / "user_memory.jsonl")
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(tmp_path))
     assert user_memory.load() == []
     assert user_memory.as_prompt_context() == ""
 
 
 def test_record_then_load_round_trips(monkeypatch, tmp_path):
-    monkeypatch.setattr(user_memory, "_PATH", tmp_path / "user_memory.jsonl")
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(tmp_path))
     entry = {
         "id": "um_test1", "date": "2026-07-12", "from": "xenium_hbreast_sample1",
         "cluster": "c2", "cell_type": "Stromal", "markers": ["LUM", "POSTN"],
@@ -43,7 +43,7 @@ def test_record_then_load_round_trips(monkeypatch, tmp_path):
 
 
 def test_prompt_context_labels_and_attributes(monkeypatch, tmp_path):
-    monkeypatch.setattr(user_memory, "_PATH", tmp_path / "user_memory.jsonl")
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(tmp_path))
     user_memory.record({
         "summary": "Stromal in human breast · Xenium, driven by LUM, POSTN",
         "basis": "paper", "status": "firm", "from": "xenium_hbreast_sample1",
@@ -57,8 +57,29 @@ def test_prompt_context_labels_and_attributes(monkeypatch, tmp_path):
 
 
 def test_malformed_lines_are_skipped(monkeypatch, tmp_path):
-    path = tmp_path / "user_memory.jsonl"
-    path.write_text('{"summary": "ok"}\nnot json\n\n', encoding="utf-8")
-    monkeypatch.setattr(user_memory, "_PATH", path)
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(tmp_path))
+    (tmp_path / "user_memory.jsonl").write_text(
+        '{"summary": "ok"}\nnot json\n\n', encoding="utf-8")
     loaded = user_memory.load()
     assert loaded == [{"summary": "ok"}]
+
+
+def test_the_store_follows_PANOSCOPE_CONTEXT_DIR(monkeypatch, tmp_path):
+    """The isolation these tests rely on, asserted rather than assumed.
+
+    ``_PATH`` was a module constant resolved at import, so every test above
+    patched a name nothing read and passed only because the autouse fixture
+    happened to point ``context/`` somewhere empty -- while the product injected
+    the developer's real saved decisions into every system prompt. A test that
+    cannot fail is how that survived.
+    """
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR", str(tmp_path))
+    assert user_memory._path().parent == tmp_path
+    assert user_memory.as_prompt_context() == ""
+
+    user_memory.record({"summary": "S", "basis": "paper", "status": "firm",
+                        "from": "xenium_hbreast_sample1"})
+    assert (tmp_path / "user_memory.jsonl").exists(), (
+        "the write did not land in the directory the variable names"
+    )
+    assert "S" in user_memory.as_prompt_context()

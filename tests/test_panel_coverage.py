@@ -327,3 +327,27 @@ def test_frame_rejection_can_push_a_set_under_the_leading_edge_floor():
     # ...and nothing about it reads as a measured absence: the row the surface draws
     # for this state is UNDERPOWERED, which argues nothing.
     assert "tiny leading edge" in pe.caveats
+
+
+def test_the_denominator_travels_into_the_chat_bubble_too() -> None:
+    """The same claim, the same authority, one surface carrying its conditionality.
+
+    ``ui/report.py`` names K of N for every program in the exported paragraph,
+    because a set scored on 5 of its 100 genes reads exactly like one scored on
+    90 without it. The Pathways chat opened with "Top programs — Androgen
+    Response: ..." and no denominator at all -- and that program is scored on 5
+    of 100. Every plot carries its conditionality; a sentence is not exempt
+    because it is prose.
+    """
+    from panoscope.ui import enrichment_conversation as ec
+
+    text, _pmids, _verify = ec._opening_text("c1")
+    assert "Top programs" in text, text
+
+    ce = E.enrichment_for_cluster("c1")
+    for p in ce.enriched[:3]:
+        if not (p.panel_hits and p.set_size_full):
+            continue
+        assert f"[{p.panel_hits}/{p.set_size_full} set genes on panel]" in text, (
+            f"{p.gene_set} is named with no denominator:\n{text}"
+        )

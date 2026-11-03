@@ -159,3 +159,34 @@ def test_normalize_cell_type_variants():
     assert dsc._normalize_cell_type("t_cells") == "T_Cells"
     assert dsc._normalize_cell_type("Mast cells") == "Mast_Cells"
     assert dsc._normalize_cell_type("nonsense") is None
+
+
+def test_the_synonym_table_does_not_follow_the_demo_into_another_study():
+    """Demo labels, reaching into a dataset that does not use them.
+
+    Every target in ``_ALIASES`` is a key of the bundled breast demo's annotation,
+    which is why ``annotation._is_bundled_demo`` gates the curated marker tables
+    one file over. This table was not gated, so on any other study "CAF" was
+    silently translated to "Stromal" -- a label that study may never have had --
+    and the rival test then ran against a name the biologist did not say.
+
+    Off the demo an unrecognised word stays unrecognised, and ``discriminate``
+    declines it by name, which is a true answer rather than a quiet substitution.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import discriminate as D
+
+    assert cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID, "this test starts on the demo"
+    assert D._normalize_cell_type("CAF") == "Stromal"
+    assert D._normalize_cell_type("TAM") == "Macrophages"
+
+    # ``cfg.use_study`` and not a bare DATASET_ID patch: the switch clears the
+    # per-study caches with it. Setting the id alone left annotation state built
+    # for one study answering for another, and took 15 study-switching tests
+    # elsewhere in the suite down with it.
+    with cfg.use_study("demo_mini"):
+        assert D._normalize_cell_type("CAF") is None, (
+            "the demo's label space followed us into another study"
+        )
+    # ...and a study's OWN annotated type is never gated, on any study.
+    assert D._normalize_cell_type("Stromal") == "Stromal"
