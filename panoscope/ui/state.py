@@ -390,12 +390,28 @@ def opening_was_posted(cluster: str) -> bool:
     return bool(_ss().get(K_OPENING_POSTED, {}).get(cluster))
 
 
-def mark_opening_posted(cluster: str) -> None:
-    """Record that ``cluster``'s opening interpretation has been posted once."""
+def mark_opening_posted(cluster: str, call: str = "") -> None:
+    """Record that ``cluster``'s opening interpretation has been posted once.
+
+    ``call`` is the cell-type call the opening was WRITTEN for, so a later
+    override can be noticed. ``True`` (the old value, and what ``_hydrate_threads``
+    still writes for a restored transcript) means "posted, call unknown".
+    """
     ss = _ss()
     posted = dict(ss.get(K_OPENING_POSTED, {}))  # new dict (immutable update)
-    posted[cluster] = True
+    posted[cluster] = call or True
     ss[K_OPENING_POSTED] = posted
+
+
+def opening_posted_call(cluster: str):
+    """The call ``cluster``'s posted opening was written for, or None if unknown.
+
+    None for a thread restored from disk: ``chat_store`` persists role, text,
+    source kinds and verify, so the call is not recoverable, and a RESTORED
+    transcript is history rather than something to correct.
+    """
+    v = _ss().get(K_OPENING_POSTED, {}).get(cluster)
+    return v if isinstance(v, str) else None
 
 
 def reset_opening_posted(cluster: str) -> None:

@@ -372,17 +372,32 @@ def test_no_inline_element_paints_outside_its_cell(server, browser, width: int) 
 
 
 @pytest.fixture(scope="module")
-def server_with_override(tmp_path_factory, _studies_copy):
+def server_with_override(tmp_path_factory):
     """The app, started against a context that ALREADY holds a c2 override.
 
     The default ``server`` fixture points at an empty context dir, so every
     browser test so far has exercised the un-overridden path only -- which is
     exactly the path that was never broken. The composition that reaches the
     chat pane had no end-to-end proof at all.
+
+    Its OWN copy of the study tree, not the shared one. The app persists as it
+    renders, and a restored ``chat_threads.json`` marks its opening as already
+    posted -- so sharing the tree with the other server made this test pass
+    alone and fail in a full run, reading a transcript written before the
+    override existed.
     """
+    import shutil
+
+    from tests.conftest import DATASETS_ROOT
+
+    # The data ROOT is the parent that CONTAINS ``studies/``, exactly as
+    # ``conftest._studies_copy`` builds it. Pointing at the studies directory
+    # itself leaves the app with no study to resolve.
+    data_root = tmp_path_factory.mktemp("data_root_override")
+    shutil.copytree(DATASETS_ROOT, data_root / "studies")
     ctx = tmp_path_factory.mktemp("ctx_override")
     env = {**os.environ,
-           "PANOSCOPE_DATA_ROOT": str(_studies_copy),
+           "PANOSCOPE_DATA_ROOT": str(data_root),
            "PANOSCOPE_DATASET": "xenium_hbreast_sample1",
            "PANOSCOPE_CONTEXT_DIR": str(ctx)}
     subprocess.run(

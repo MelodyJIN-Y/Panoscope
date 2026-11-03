@@ -352,11 +352,19 @@ def _ensure_opening(cluster: str) -> None:
     a cluster opens with NO genes selected (marker selection is per-cluster and
     driven by the evidence table).
     """
+    call = dax.display_cell_type(cluster)
     if state.opening_was_posted(cluster):
-        return
+        posted_for = state.opening_posted_call(cluster)
+        # An override after the opening was posted left the pane reading "c2 reads
+        # as Stromal" beside a header saying CAF, for the rest of the session. The
+        # transcript is not rewritten -- that would be editing what was said -- so
+        # a fresh opening is APPENDED and the old one stays above it, carrying its
+        # own "(your call, replacing the computed ...)".
+        if posted_for is None or posted_for == call:
+            return
     resp = _safe_opening(cluster)
     state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
-    state.mark_opening_posted(cluster)
+    state.mark_opening_posted(cluster, call)
 
 
 def _safe_opening(cluster: str) -> AgentResponse:
