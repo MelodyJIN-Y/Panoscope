@@ -27,6 +27,67 @@ def _cite(pmid: str = "12345"):
     return SimpleNamespace(pmid=pmid, title="A real paper", authors="Doe J", year=2021)
 
 
+def test_first_person_process_prose_is_meta_not_a_finding():
+    """The model narrating what it is about to do is never a note.
+
+    All five of these were written into the committed pathway notes and two
+    reached the exported document, where "Let me try one more targeted search."
+    appeared as the cited biology of an enriched program with a PMID attached --
+    on a sentence that says the papers do not support the claim.
+    """
+    for prose in (
+        "I'll look up the literature on hypoxia in myoepithelial cells.",
+        "Let me try one more targeted search.",
+        "None of the resolved papers directly support a claim about this program.",
+        "The fetched paper is about ROS, not directly about allograft rejection.",
+        "I will search more specifically.",
+    ):
+        assert _looks_meta(prose), f"process prose accepted as a finding: {prose!r}"
+
+    # ...and the guard stays narrow: a real negative finding is not meta.
+    for finding in (
+        "None of the driving genes are canonical myoepithelial markers.",
+        "The Angiogenesis signal here is driven by stromal genes, not endothelial.",
+    ):
+        assert not _looks_meta(finding), f"a true finding was rejected: {finding!r}"
+
+
+def test_no_committed_note_reads_as_process_prose():
+    """The artifact, not just the guard. ``_looks_meta`` existed and these got in.
+
+    The notes stage is a LIVE pass; it cannot be re-run offline, so a note that
+    slips through is frozen into a committed artifact and exported from there.
+    This reads the files a reviewer actually gets.
+    """
+    import json
+
+    from panoscope.agent import config as cfg
+    from panoscope.data.study import Study
+
+    study = Study.open(cfg.BUNDLED_DEMO_ID)
+    bad: list[str] = []
+
+    pn = study.interp / "pathway_notes.json"
+    if pn.is_file():
+        for cl, sets in json.loads(pn.read_text()).items():
+            if not isinstance(sets, dict):
+                continue
+            for s, n in sets.items():
+                if isinstance(n, dict) and _looks_meta(str(n.get("summary") or "")):
+                    bad.append(f"pathway_notes {cl}/{s}: {n.get('summary')!r}")
+
+    cn = study.interp / "celltype_notes.json"
+    if cn.is_file():
+        for cl, n in json.loads(cn.read_text()).items():
+            if isinstance(n, dict) and _looks_meta(str(n.get("summary") or "")):
+                bad.append(f"celltype_notes {cl}: {n.get('summary')!r}")
+
+    assert not bad, (
+        "committed notes carry model meta-commentary, which the export renders as "
+        "cited biology:\n  " + "\n  ".join(bad)
+    )
+
+
 def test_keeps_citation_when_model_text_survives():
     summary, pmid, citation, used_fb = _resolve_note(
         "KRT7 is a luminal epithelial keratin marking glandular identity.",

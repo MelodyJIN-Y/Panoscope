@@ -587,15 +587,63 @@ def verdict_csv() -> str:
 
 
 @_cache_data(show_spinner=False)
-def celltype_notes() -> dict:
-    """Per-cluster cell-type summary notes from the pipeline tree (cached).
-
-    Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
-    the pipeline notes stage has not run. Each summary is a short, grounded,
-    live-cited description of the cell type (never fabricated)."""
+def _celltype_notes_on_disk() -> dict:
+    """The raw file read, cached. Filtering happens in :func:`celltype_notes`."""
     from panoscope.pipeline import store
 
     return store.load_celltype_notes()
+
+
+def celltype_notes() -> dict:
+    """Per-cluster cell-type summary notes, DROPPED where the call has moved.
+
+    Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
+    the pipeline notes stage has not run. Each summary is a short, grounded,
+    live-cited description of the cell type (never fabricated).
+
+    **Why the filter.** Each note records the ``cell_type`` it describes, and
+    nothing read it. When the biologist overrode c3 from Macrophages to Dendritic,
+    the Summary table and both exported documents kept the macrophage paragraph and
+    its PMID under a heading that now read Dendritic -- a real citation attributed
+    to a call it was never about, which is worse than no citation. The guard data
+    was sitting in the note the whole time.
+
+    Dropped rather than relabelled: the honest state after an override is that this
+    study has no cited biology for the new call yet. Writing one would be inventing
+    it, and the interface contract says a sentence with nothing behind it should not
+    render at all.
+
+    NOT cached, for ``composed_verdicts``' reason: overrides arrive at runtime, and
+    a cached answer here would serve the pre-override note for the rest of the
+    session.
+    """
+    return _celltype_notes_on_disk()
+
+
+def celltype_note_for(verdict: Any) -> dict:
+    """This verdict's cell-type note, or ``{}`` when the note describes another call.
+
+    Every note records the ``cell_type`` it was written about, and nothing read it.
+    Override c3 from Macrophages to Dendritic and the Summary table and both
+    exported documents kept the macrophage paragraph and its PMID under a heading
+    that now read Dendritic -- a real citation attributed to a call it was never
+    about, which is worse than no citation. The guard data was in the note already.
+
+    Matched against the verdict BEING RENDERED rather than against the override
+    note, because the two are not the same question: ``_table_html`` can be handed
+    either composed or uncomposed verdicts, and filtering on the override alone
+    blanks the biology for a row whose heading still shows the original call.
+
+    Returns ``{}`` rather than a relabelled note: the honest state after an override
+    is that this study has no cited biology for the new call yet, and writing one
+    would be inventing it.
+    """
+    note = (_celltype_notes_on_disk().get(getattr(verdict, "cluster", "")) or {})
+    if not note:
+        return {}
+    described = str(note.get("cell_type") or "").strip().casefold()
+    showing = str(getattr(verdict, "cell_type", "") or "").strip().casefold()
+    return note if (not described or described == showing) else {}
 
 
 def celltype_summary(cluster: str) -> str:
@@ -823,6 +871,7 @@ __all__ = [
     "all_verdicts",
     "verdict_csv",
     "celltype_notes",
+    "celltype_note_for",
     "celltype_summary",
     "holistic",
     "enrichment_for",

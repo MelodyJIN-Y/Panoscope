@@ -79,6 +79,27 @@ def _isolate_caches():
     clear_all_caches()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_context(tmp_path_factory, monkeypatch):
+    """Point the local knowledge layer at a tmp dir for every test.
+
+    ``context/`` holds the biologist's own decisions, corrections, research profile
+    and user memory. It is gitignored and local-only, and nothing was redirecting
+    it: the suite read the REAL one. On this machine that meant every run saw a
+    genuine ``celltype_override`` note, so ``composed_verdicts`` and the Summary
+    table were tested against one person's saved judgement -- while a fresh clone,
+    which has no ``context/`` at all, exercised a different path. That is the same
+    shape as the gitignored input that made the suite red on a clone, and it fails
+    in the direction that looks green.
+
+    A per-test directory rather than a session one: a test that writes a note must
+    not change what the next test sees. Nothing is deleted -- the real directory is
+    simply not addressed.
+    """
+    monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR",
+                       str(tmp_path_factory.mktemp("context")))
+
+
 @pytest.fixture
 def datasets_root() -> Path:
     return DATASETS_ROOT

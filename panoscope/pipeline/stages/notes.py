@@ -33,6 +33,25 @@ _TRAIL_AUTHOR = re.compile(r",\s*[A-Z][a-z]+ [A-Z]{1,3}\.?\s*$")
 # Phrases that mean the model wrote META-commentary (about the connector, the
 # literature search, or the verdict) instead of a cell-type description.
 _META_MARKERS = (
+    # The model narrating its own PROCESS rather than stating a finding. These
+    # five phrasings got past the list and were written into the committed
+    # pathway notes, so the exported document carried "Mitotic Spindle - None of
+    # the resolved papers directly support a claim about mitotic spindle programs
+    # in myoepithelial cells. Let me try one more targeted search. (PMID:11499843)"
+    # -- a real identifier stapled to a sentence saying the papers do not support
+    # the claim, which is the mismatched citation this guard exists to stop.
+    #
+    # Deliberately narrow. "none of the" alone would also reject a true finding
+    # ("none of the driving genes are canonical"), so the marker names the
+    # PAPERS. Measured against the committed store: these catch 5 of 53 pathway
+    # notes and 0 cell-type notes.
+    "let me",
+    "i'll ",
+    "i will ",
+    "i'm going to",
+    "let's ",
+    "none of the resolved papers",
+    "the fetched paper",
     "connector",
     "pubmed",
     "no hits",

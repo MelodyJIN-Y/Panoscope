@@ -146,8 +146,20 @@ def _tension_text(note: Note) -> str:
         if t.dissent:
             bits.append(f"dissents ({len(t.dissent)}): {_pmids(t.dissent)}")
         return "literature tension: " + " · ".join(bits)
-    if t.thin:
-        return "literature thin: no supporting reference on file"
+    # Asked of ``lookup_state``, not of the stored ``thin`` boolean. The export was
+    # the one reader still trusting that flag, and it collapsed two different facts
+    # into one sentence: a search that RAN and found nothing (thin literature -- a
+    # finding, and sayable) and a search that never completed (which says nothing
+    # about the literature at all). Both printed "literature thin: no supporting
+    # reference on file" in the document that leaves the lab. ``claims/notes.py``
+    # derives this from ``looked_up_at`` for exactly that reason.
+    from panoscope.claims.notes import Resolution, lookup_state
+
+    state = lookup_state(t)
+    if state is Resolution.NOT_FOUND:
+        return "literature thin: searched, no supporting reference found"
+    if state is Resolution.NOT_LOOKED_UP:
+        return "literature not checked: no lookup completed for this note"
     return ""
 
 
@@ -208,6 +220,29 @@ def _settle_for(cluster: str, verify: bool) -> str:
     if d.alt_B is not None and (verify or d.b_here):
         return discriminate.settle_summary(d)
     return ""
+
+
+def _celltype_note_for(celltype_notes: dict, v) -> dict:
+    """This section's cell-type note, or ``{}`` when it describes another call.
+
+    Every note records the ``cell_type`` it was written about, and nothing read it.
+    Override c3 from Macrophages to Dendritic and the exported document kept the
+    macrophage paragraph and its PMID under a heading that now read Dendritic -- a
+    real citation attributed to a call it was never about, which is worse than
+    carrying no citation at all. The guard data was in the note the whole time.
+
+    Empty rather than relabelled: after an override this study has no cited biology
+    for the new call yet, and writing one would be inventing it. ``ui.data_access``
+    carries the same guard for the on-screen table; the check is duplicated rather
+    than imported because this module builds documents from plain dicts and must
+    stay usable without the cached UI layer.
+    """
+    note = celltype_notes.get(getattr(v, "cluster", "")) or {}
+    if not note:
+        return {}
+    described = str(note.get("cell_type") or "").strip().casefold()
+    showing = str(getattr(v, "cell_type", "") or "").strip().casefold()
+    return note if (not described or described == showing) else {}
 
 
 def _enrichment_block(ce, pathway_notes_for_cluster: dict) -> tuple[str, str]:
@@ -282,7 +317,10 @@ def build_report(
     undecidable = undecidable or {}
     sections: list[ClusterSection] = []
     for v in verdicts:
-        ct_note = celltype_notes.get(v.cluster) or {}
+        # Through the guard: an overridden call must not inherit the previous
+        # call's cited biology. ``verdicts`` here are the COMPOSED ones, so
+        # ``v.cell_type`` is the call this section is actually headed with.
+        ct_note = _celltype_note_for(celltype_notes, v)
         cluster_notes = tuple(
             _note_line(n)
             for n in notes
@@ -442,12 +480,38 @@ def _provenance(dataset: str) -> dict:
     except Exception:  # noqa: BLE001
         spec = ""
 
-    model = str(getattr(cfg, "PRIMARY_MODEL", "") or "")
-    import os as _os
-    reached = bool(_os.getenv("ANTHROPIC_API_KEY"))
-    generator = (f"{model}; reachable" if model and reached
-                 else f"{model}; no credential, deterministic fallback" if model
-                 else "deterministic; no model was called")
+    # §14 asks for generator model + version + access date. What this said instead
+    # was ``cfg.PRIMARY_MODEL`` -- which is ``os.getenv("PANOSCOPE_MODEL",
+    # "claude-sonnet-4-6")``, a DEFAULT and not a record of anything -- plus
+    # "reachable", inferred from an env var being set in whatever shell ran the
+    # export. Nothing is called here: this module assembles from durable artifacts
+    # with no network. So the header named a model that never ran and a
+    # reachability nobody tested, and emitted no date at all; exporting with a
+    # deliberately invalid key still printed "reachable".
+    #
+    # What is true: every number, band and absence in this document is
+    # deterministic, and the only model-written content is the cited note prose,
+    # whose generator the notes stage does not record. Both halves are now stated,
+    # and the access date is the study build's own timestamp.
+    built = version = ""
+    try:
+        manifest = cfg.current_study().manifest
+        built = str(manifest.get("generated_at") or "")
+        version = str(manifest.get("pipeline_version") or "")
+    except Exception:  # noqa: BLE001 - no manifest: say nothing rather than guess
+        pass
+
+    generator = "deterministic engine" + (f" (pipeline {version})" if version else "")
+    try:
+        from panoscope.ui import data_access as _da
+
+        if _da.celltype_notes() or _da.pathway_notes():
+            generator += ("; cited note prose written by a live model pass whose "
+                          "generator is not recorded in the study tree")
+    except Exception:  # noqa: BLE001 - no notes stage: the deterministic half stands
+        pass
+    if built:
+        generator += f"; study built {built}"
 
     return {"frames": frames, "reference_releases": releases,
             "corpus_status": corpus, "generator": generator, "spec_version": spec}

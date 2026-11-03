@@ -359,6 +359,69 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
     assert all(g in body for g in genes), f"{genes} missing from the .docx"
 
 
+def test_the_generator_line_describes_the_artifacts_not_the_shell(monkeypatch) -> None:
+    """§14 provenance must not be a function of the exporting environment.
+
+    It read ``cfg.PRIMARY_MODEL`` -- itself ``getenv("PANOSCOPE_MODEL",
+    "claude-sonnet-4-6")``, a default -- and appended "reachable" whenever
+    ANTHROPIC_API_KEY was merely SET. Nothing is called when a report is built, so
+    the header named a model that never ran and a reachability nobody tested, from
+    a credential in whatever shell ran the export. A deliberately invalid key
+    still printed "reachable".
+    """
+    def _generator() -> str:
+        rep = R.build_report_from_sources()
+        return next(ln for ln in R._header_meta(rep) if ln.lower().startswith("generator"))
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-definitely-not-a-real-key")
+    monkeypatch.setenv("PANOSCOPE_MODEL", "some-model-that-never-ran-v9")
+    with_junk = _generator()
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("PANOSCOPE_MODEL", raising=False)
+    without = _generator()
+
+    assert with_junk == without, (
+        f"the provenance header moved with the environment:\n  {with_junk}\n  {without}"
+    )
+    assert "reachable" not in with_junk, "reachability asserted without reaching anything"
+    assert "some-model-that-never-ran-v9" not in with_junk, (
+        "a model that never ran is named as the generator"
+    )
+    # §14 asks for a version and an access date; both come off the manifest.
+    assert "pipeline" in with_junk and "built" in with_junk, with_junk
+
+
+def test_an_overridden_call_does_not_inherit_the_old_calls_cited_biology() -> None:
+    """A real PMID under the wrong cell type is worse than no PMID.
+
+    ``celltype_notes`` records which ``cell_type`` each summary was written about,
+    and nothing read it. Overriding c3 from Macrophages to Dendritic left the
+    macrophage paragraph and its citation under a heading that said Dendritic --
+    in the Summary table and in both exported documents. Sections come from
+    ``composed_verdicts()``, which applies the override; the note did not.
+    """
+    from types import SimpleNamespace as NS
+
+    notes = {"c3": {"cell_type": "Macrophages",
+                    "summary": "Innate immune phagocytes infiltrating the tumour.",
+                    "pmid": "38553005"}}
+
+    # The call still reads Macrophages: the note is its own, and renders.
+    same = R._celltype_note_for(notes, NS(cluster="c3", cell_type="Macrophages"))
+    assert same.get("pmid") == "38553005"
+    # Case and spacing are not a difference.
+    assert R._celltype_note_for(notes, NS(cluster="c3", cell_type=" macrophages "))
+
+    # The biologist overrode it: the macrophage biology must NOT follow the heading.
+    moved = R._celltype_note_for(notes, NS(cluster="c3", cell_type="Dendritic"))
+    assert moved == {}, f"stale biology followed the override: {moved}"
+
+    # A note with no recorded cell_type is not retroactively suspect.
+    legacy = {"c3": {"summary": "...", "pmid": "1"}}
+    assert R._celltype_note_for(legacy, NS(cluster="c3", cell_type="Dendritic"))
+
+
 def test_the_header_carries_the_provenance_section_14_asks_for() -> None:
     """ARCHITECTURE §14: "header: study, dataset, platform, frames + hashes,
     reference releases, corpus version + staleness, generator model + version +

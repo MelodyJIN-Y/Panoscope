@@ -109,23 +109,50 @@ def _citation_from_mcp(rec: dict[str, Any]) -> Citation:
     )
 
 
+class LiteratureUnavailable(RuntimeError):
+    """The literature lookup did not happen -- as distinct from finding nothing.
+
+    A distinct type because the caller's answer differs and the difference is the
+    whole point: "searched and found nothing" is thin literature and may be said
+    out loud; "the connector was down" supports no claim about the literature at
+    all. ``memory.reconcile`` turns this into ``looked_up_at=""``, which
+    ``claims.notes.lookup_state`` reads back as *no lookup*.
+    """
+
+
 def _live_literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_MAX) -> list[Citation]:
     """Default reconciler: real PubMed search via the warm MCP client.
 
-    Returns real :class:`Citation` objects (possibly empty). On any connector
-    failure returns ``[]`` — memory reconcile then records thin literature rather
-    than inventing a reference. Lazily imported so module import is side-effect
-    free.
+    Returns real :class:`Citation` objects, and ``[]`` ONLY for a search the
+    server actually ran and answered with nothing -- the one state that honestly
+    means thin literature. Lazily imported so module import is side-effect free.
+
+    **Raises on connector failure**, which is the point. This used to swallow
+    every exception and return ``[]``. ``memory.reconcile`` distinguishes "no
+    lookup at all" from "looked and found nothing" by whether this callable RAISES
+    (memory.py:236) -- so with the live callable the first state was unreachable,
+    and a dead or unconfigured connector was recorded as a completed search:
+    ``looked_up_at`` stamped, and every surface saying "the literature was
+    searched and is thin; no reference found". That is a claim about the world
+    made from a request that never arrived.
+
+    The sibling :func:`literature_search` envelope already drew this line and says
+    so in its own docstring; the two now agree.
     """
     try:
         from panoscope.agent import mcp_client
-    except Exception:  # pragma: no cover - mcp module import guard
-        return []
+    except Exception as exc:  # pragma: no cover - mcp module import guard
+        raise LiteratureUnavailable(f"literature connector unavailable: {exc!r}") from exc
     try:
         client = mcp_client.get_mcp_client()
+    except Exception as exc:  # pragma: no cover - connector construction
+        raise LiteratureUnavailable(f"literature connector unavailable: {exc!r}") from exc
+    if not getattr(client, "available", True):
+        raise LiteratureUnavailable("literature connector is not available")
+    try:
         hits = client.search_articles(query, max_results=max_results)
-    except Exception:  # pragma: no cover - never raise into reconcile
-        return []
+    except Exception as exc:  # pragma: no cover - the lookup itself failed
+        raise LiteratureUnavailable(f"literature lookup failed: {exc!r}") from exc
     return [_citation_from_mcp(h) for h in hits if str(h.get("pmid", "")).strip()]
 
 
@@ -1143,6 +1170,7 @@ __all__ = [
     "memory_draft",
     "discriminate_call",
     "set_literature_search",
+    "LiteratureUnavailable",
     "set_memory_base_dir",
     "memory_base_dir",
 ]

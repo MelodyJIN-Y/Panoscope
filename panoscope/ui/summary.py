@@ -785,7 +785,9 @@ def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
     when the note is a single sentence — then a caveat pill for a cluster that needs a
     closer look. No glm/pearson. Every word/PMID/marker is projected from the pipeline's
     cited celltype_notes + the jazzPanda verdict; nothing invented."""
-    note = ct_notes.get(v.cluster) or {}
+    # Read through the guard, not out of the dict: a note written about the call the
+    # biologist has since replaced must not render under the new call's name.
+    note = da.celltype_note_for(v) if ct_notes else {}
     summary = str(note.get("summary") or "")
     pmid = note.get("pmid")
     body: list[str] = []
