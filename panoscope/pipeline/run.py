@@ -299,6 +299,16 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     # the two notes files are hashed when a --notes run produced them (or a prior
     # one left them in the tree).
     for name in (
+        # The file the BAND comes from, and it was hashed nowhere. ``annotation.json``
+        # is read-if-present: ``_ensure_annotation`` regenerates it only when absent,
+        # so for the bundled demo -- and for every rebuild after the first -- it is a
+        # provenance input that ``records.build_all`` turns into the ``canonical`` set
+        # ``core_verdict.assess`` reads. Emptying one cluster's canonical_markers moves
+        # c1 from Very High / "glm_coef direct" / verify=False to Low / "no canonical
+        # driver" / verify=True, and nothing in the manifest recorded that the file had
+        # changed. inputs/cluster_key.json, the FALLBACK for the same labels, was hashed;
+        # the primary source was not.
+        "annotation.json",
         "holistic.json",
         "calibration.md",
         "celltype_notes.json",

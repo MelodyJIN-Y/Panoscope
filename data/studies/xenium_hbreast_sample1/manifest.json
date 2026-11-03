@@ -1,6 +1,6 @@
 {
   "dataset_id": "xenium_hbreast_sample1",
-  "generated_at": "2026-11-03T13:00:14Z",
+  "generated_at": "2026-11-03T21:41:50Z",
   "pipeline_version": "0.1.0",
   "tissue": "human breast cancer",
   "platform": "Xenium",
@@ -122,6 +122,9 @@
     "interp/verdicts.csv": {
       "sha256": "054bd6c6c8b5f5e1b25da9dab04b8236a8bd33224354e472c4b6d38534fc32f3",
       "rows": 9
+    },
+    "interp/annotation.json": {
+      "sha256": "249994529dbbcd817ee4ffa961d946cfc572b8981d7d3badfd90bc192834a9d1"
     },
     "interp/holistic.json": {
       "sha256": "acbcb409a682c5d859b1275c6601237044566b69f9cfdd3f9c7626673fe44e63"
