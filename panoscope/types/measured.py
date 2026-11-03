@@ -214,7 +214,21 @@ def _state_for(entity: Entity, world: MeasuredWorld,
     # frame above IS singular and is named singly, which is the case that
     # actually explains something.
     admitted = "+".join(f.name for f in frames)
-    if entity.id in reported:
+    # Normalised on BOTH sides, exactly as ``Frame.contains`` is -- and for a
+    # sharper reason. The frame admitted this entity after case-folding; comparing
+    # the reported set EXACTLY meant a gene the method DID report could still fall
+    # through to TESTED_ABSENT, whose contract is that absence IS evidence. A
+    # spelling difference then manufactures a measured absence.
+    #
+    # It bites wherever the entity and the reported set come from different files,
+    # which is every place a curated list meets a method's table: ``core/rival.py``
+    # resolving a canonical marker, and ``core/reconcile.py`` resolving one method's
+    # subject against another's. With a curated rival list spelling it ``Cd3e`` and
+    # the table spelling it ``CD3E``, an OBSERVED gene came back as the measured
+    # absence that SEPARATES the call from that rival -- evidence against a rival,
+    # produced by a capitalisation. ``Frame.contains`` was normalised earlier and
+    # this half was left exact, which is the worse half to leave.
+    if str(entity.id).strip().upper() in _normalised(reported):
         return MeasuredState.OBSERVED, admitted
     return MeasuredState.TESTED_ABSENT, admitted
 

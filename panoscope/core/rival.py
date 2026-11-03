@@ -104,6 +104,17 @@ class Rivalry:
         return self.coverage.ok
 
 
+def _norm(text: str) -> str:
+    """Identity, case- and whitespace-insensitive -- the one spelling rule.
+
+    The same rule ``Frame.contains`` and ``types.measured._state_for`` apply, kept
+    here rather than imported so this module states the rule it depends on. A
+    vendor who writes erbb2 means ERBB2, and a curated list that writes Cd3e means
+    the gene the table calls CD3E.
+    """
+    return str(text).strip().upper()
+
+
 def _names(items: tuple[EvidenceItem, ...] | list[EvidenceItem]) -> str:
     return ", ".join(i.subject.display() for i in items)
 
@@ -154,19 +165,29 @@ def rival_test(ev: NormalisedEvidence, call: str, alternative: str,
     reported = frozenset(
         e.id for i in ev.items if i.measured.carries_number for e in i.subject.entities()
     )
-    by_key = {i.subject.key: i for i in ev.items}
+    # Keyed case- and whitespace-insensitively, because the two sides come from
+    # different files: the items are spelled as the METHOD'S TABLE spells them, the
+    # canonical lists as the REFERENCE spells them. An exact lookup missed on a case
+    # variant and sent an observed gene down the ``_unreported`` path, where
+    # ``resolve`` -- which does normalise -- returns OBSERVED for a statistic of
+    # None, and ``EvidenceItem`` refuses the contradiction. Before ``resolve`` was
+    # normalised it did not refuse: it returned TESTED_ABSENT, and the gene became a
+    # measured absence SEPARATING the call from that rival. Evidence against a
+    # rival, produced by a capitalisation.
+    by_key = {_norm(i.subject.key): i for i in ev.items}
 
-    wanted = frozenset(canonical_call)
+    wanted = frozenset(_norm(c) for c in canonical_call)
     supports_call = tuple(
         i for i in ev.items
-        if i.measured.carries_number and any(e.id in wanted for e in i.subject.entities())
+        if i.measured.carries_number
+        and any(_norm(e.id) in wanted for e in i.subject.entities())
     )
 
     supports_rival: list[EvidenceItem] = []
     against_rival: list[EvidenceItem] = []
     undecidable: list[EvidenceItem] = []
     for symbol in canonical_rival:
-        item = by_key.get(subject("gene", g=gene(symbol)).key)
+        item = by_key.get(_norm(subject("gene", g=gene(symbol)).key))
         if item is None:
             item = t.absorb(_unreported(symbol, stat_name, world, reported))
         if item.measured.carries_number:

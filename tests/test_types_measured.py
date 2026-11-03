@@ -278,3 +278,73 @@ def test_no_mutable_fields_in_contracts():
                 if any(x in t for x in ("dict[", "list[", "set[")) and "frozenset" not in t:
                     bad.append(f"{obj.__name__}.{f.name}: {f.type}")
     assert not bad, "mutable/unordered fields in frozen contracts: " + "; ".join(bad)
+
+
+# --------------------------------------------------------------------------- #
+# Identity is case- and whitespace-insensitive on BOTH gates, not just the frame
+# --------------------------------------------------------------------------- #
+def test_a_reported_gene_stays_observed_whatever_case_the_caller_spells_it() -> None:
+    """The second half of a fix whose first half shipped alone, and the worse half.
+
+    ``Frame.contains`` normalises, so the panel ADMITS a case variant. The reported
+    set was compared exactly, so the same variant then fell through to
+    TESTED_ABSENT -- whose contract is that absence IS evidence. A gene the method
+    reported was being turned into a measured absence by a capitalisation.
+
+    It is reachable wherever the entity and the reported set come from different
+    files, which is every place a curated list meets a method's table:
+    ``core/rival.py`` resolving a canonical marker and ``core/reconcile.py``
+    resolving one method's subject against another's. The rival case is the sharp
+    one -- see the test below, where it manufactures evidence against a rival.
+    """
+    panel = Frame(EntityKind.GENE, "panel:p", frozenset({"SYNG01"}))
+    world = MeasuredWorld((panel,))
+    reported = frozenset({"SYNG01"})          # the method's own spelling
+
+    for spelling in ("SYNG01", "Syng01", "syng01", " SYNG01 "):
+        m = resolve(subject("gene", g=gene(spelling)), world, reported, ())
+        assert m.state is MeasuredState.OBSERVED, (
+            f"{spelling!r}: the panel admitted it but the reported set did not, so "
+            f"it resolved {m.state.value} -- a measured absence invented by case"
+        )
+        assert m.absence_is_evidence is False
+
+
+def test_a_case_variant_cannot_manufacture_evidence_against_a_rival() -> None:
+    """The consequence, at the layer a biologist reads.
+
+    ``rival_test`` separates a call from an alternative on the rival's canonical
+    markers that were MEASURED AND ABSENT. With the reported set compared exactly,
+    a curated list spelling CD3E as ``Cd3e`` made an observed CD3E separate the
+    call from T_Cells -- the productive half of the lattice, pointed the wrong way.
+    """
+    from panoscope.core.measure import Reading, measure
+    from panoscope.core.rival import rival_test
+    from panoscope.types.conditions import Condition, Conditions, Provenance
+    from panoscope.types.evidence import NormalisedEvidence
+    from panoscope.types.subject import unit as unit_entity
+
+    panel = Frame(EntityKind.GENE, "panel:p", frozenset({"CD3E", "ERBB2"}))
+    world = MeasuredWorld((panel,))
+    seen = frozenset({"CD3E", "ERBB2"})
+    items = tuple(
+        measure(Reading(subject=subject("gene", g=gene(g)), statistic=s,
+                        statistic_name="glm_coef"), world, seen).value
+        for g, s in (("CD3E", 4.0), ("ERBB2", 5.0))
+    )
+    ev = NormalisedEvidence(
+        unit="c1", unit_kind="cluster", unit_subject=subject("unit", u=unit_entity("c1")),
+        unit_measured=items[0].measured, module="m", items=items,
+        reported=(Frame(EntityKind.GENE, "reported:m:c1", seen),),
+        conditions=Conditions(*[Condition("x", Provenance.STATED)] * 6,
+                              frames=(panel.ref(),)),
+    )
+    for spelling in ("CD3E", "Cd3e"):
+        r = rival_test(ev, call="Tumor", alternative="T_Cells",
+                       canonical_call=("ERBB2",), canonical_rival=(spelling,),
+                       world=world, floor=1).value
+        assert not r.against_rival, (
+            f"curated list spelling {spelling!r} separated the call from T_Cells on "
+            f"{[i.subject.display() for i in r.against_rival]}, which was OBSERVED "
+            "here -- evidence against a rival produced by capitalisation"
+        )
