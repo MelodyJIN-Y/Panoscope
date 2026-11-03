@@ -45,7 +45,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-from panoscope.types.measured import FrameRef
+from panoscope.types.measured import EntityKind, FrameRef
 
 
 class Provenance(StrEnum):
@@ -133,11 +133,25 @@ class Conditions:
     frames: tuple[FrameRef, ...]   # replaces panel_hash + panel_genes
 
     def __post_init__(self) -> None:
-        if not self.frames:
+        # The GENE frames, not the tuple's truthiness. A store declaring any
+        # ``clusters:`` frame made the tuple non-empty, so this passed even when the
+        # gene capability frame was absent or admitted nothing -- a controls-only
+        # panel.parquet gives ``panel:`` size 0 beside a populated ``clusters:``,
+        # and §6.3's structural blocker could never fire.
+        #
+        # EVERY gene frame must admit something, because a gene is in frame only
+        # when all of them admit it (``measured._state_for``): one empty gene frame
+        # empties the measured set, and then every absence is NEVER_MEASURED and the
+        # panel-absence rule discriminates nothing -- which is what this refuses.
+        genes = [f for f in self.frames if f.kind is EntityKind.GENE]
+        if not genes or not all(f.size for f in genes):
+            empty = [f.name for f in genes if not f.size]
             raise Blocked(
-                "the measured set is structural (§6.3): Conditions with no FrameRef "
-                "declares no capability frame, so every absence under it resolves to "
-                "NEVER_MEASURED and the panel-absence rule discriminates nothing"
+                "the measured set is structural (§6.3): "
+                + (f"the gene frame(s) {', '.join(empty)} admit nothing"
+                   if empty else "Conditions declares no gene capability frame")
+                + ", so every absence under it resolves to NEVER_MEASURED and the "
+                  "panel-absence rule discriminates nothing"
             )
         missing = [n for n in BLOCKS_THE_STUDY if not getattr(self, n).known]
         if missing:

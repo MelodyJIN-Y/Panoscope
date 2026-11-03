@@ -80,6 +80,10 @@ def _cmd_build(args: argparse.Namespace) -> int:
     from panoscope.pipeline.run import run as run_pipeline
 
     study_id = _resolve_study_id(args.study)
+    # Before the pipeline, because ``run()`` creates the dataset directory as its
+    # first act: an unknown id left an empty directory in the store and then died
+    # with a raw traceback.
+    Study.open(study_id).require()
     out = run_pipeline(study_id, notes=args.notes)
     print(f"[panoscope] built {out}" + (" (+ live notes)" if args.notes else ""))
     return 0
@@ -105,7 +109,10 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     which is the v1 *compatibility view* (``core/compat.py``) and a different
     artifact from the record; ``--record`` emits the record itself.
     """
-    study = Study.open(_resolve_study_id(args.study))
+    # ``require`` names the typo and lists the real studies. ``Study.open``
+    # deliberately never validates, so a mistyped --study was reported as an
+    # existing study with no units -- blaming the unit for a study-id error.
+    study = Study.open(_resolve_study_id(args.study)).require()
     unit = args.unit
     if unit not in study.units:
         raise SystemExit(
@@ -244,10 +251,21 @@ def _render_record(study: Study, built: Any) -> list[str]:
         out.append(f"  - {i.subject.display()}: outside {i.measured.frame}")
     if not never:
         out.append("  (none among this label's canonical markers)")
-    # The second never-measured fact, which is about the READ rather than the label:
-    # a reader who saw only the line above would take "(0)" for "nothing was missed".
-    out.append(f"  and {len(r.entities_outside_frame)} entity(s) in this read lie "
-               "outside a capability frame — their absence argues nothing either")
+    # The read-level fact, which is about the READ rather than this label's canon:
+    # a reader who saw only the list above would take "(0)" for "nothing was missed".
+    #
+    # Only the names this list did NOT already print. ``entities_outside_frame`` is
+    # a superset of the rows enumerated above, so appending its full count read as
+    # a SECOND set -- on c6, 49 named genes plus "49 more", which totals 98 when
+    # the answer is 49. The sentence exists to stop an undercount; it must not
+    # create an overcount.
+    shown = {i.subject.display() for i in never}
+    extra = [e for e in r.entities_outside_frame if str(e) not in shown]
+    if extra:
+        out.append(f"  and {len(extra)} further entity(s) in this read lie outside "
+                   "a capability frame — their absence argues nothing either")
+    elif not never:
+        out.append("  (and nothing in this read lies outside a capability frame)")
 
     if verdict.demotions:
         out.append("")

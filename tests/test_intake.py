@@ -85,6 +85,53 @@ def test_the_demo_study_asks_nothing_and_resolves(demo: Study) -> None:
     assert conditions.frames, "the panel IS the capability frame"
 
 
+@pytest.mark.parametrize("damage", ["absent", "controls_only"])
+def test_a_study_with_no_measured_set_is_blocked_not_ticked(tmp_path, demo, damage):
+    """§6.3's structural blocker has to be able to fire.
+
+    ``Draft.status`` tested the truthiness of the whole ``frames`` tuple, which
+    mixes GENE, CELL_TYPE and UNIT refs -- so any store whose manifest declares
+    ``clusters`` kept it non-empty and the blocker was unreachable on every
+    readable store. A panel holding only control probes ticked "measured_set ...
+    (read from the store)" under "nothing to ask", directly above a problem line
+    saying the store declares no capability for any gene, and ``resolve()``
+    returned a ``Conditions`` whose gene frame admits nothing.
+
+    Two shapes, because they fail differently: a controls-only panel leaves an
+    EMPTY ``panel:`` frame, while an absent file leaves no gene frame of that name
+    at all and ``detect:`` alone would otherwise satisfy a size test.
+    """
+    import shutil
+
+    root = tmp_path / "root"
+    study_dir = root / "studies" / demo.id
+    study_dir.parent.mkdir(parents=True)
+    shutil.copytree(demo.dir, study_dir)
+    pq = study_dir / "inputs" / "panel.parquet"
+    if damage == "absent":
+        pq.unlink()
+    else:
+        df = pd.read_parquet(pq).head(3).copy()
+        df["gene"] = ["NegControlProbe_00001", "NegControlCodeword_0500",
+                      "BLANK_0001"]
+        df.to_parquet(pq, index=False)
+
+    draft = derive(XeniumAdapter(), Study.open(demo.id, data_root=root))
+    assert draft.status(MEASURED_SET) is Status.BLOCKING, (
+        f"a study with no measured set ({damage}) ticked "
+        f"{draft.status(MEASURED_SET).name}; frames="
+        f"{[(f.name, f.size) for f in draft.frames]}"
+    )
+    assert MEASURED_SET in draft.missing, draft.missing
+    with pytest.raises(Exception):
+        draft.resolve()
+
+    # ...and the healthy study is untouched by the stricter test.
+    healthy = derive(XeniumAdapter(), demo)
+    assert healthy.status(MEASURED_SET) is Status.KNOWN
+    assert MEASURED_SET not in healthy.missing
+
+
 def test_everything_derived_is_read_never_inferred(demo: Study) -> None:
     """Step 1 may only write ``READ``: nobody has proposed or confirmed anything yet.
 

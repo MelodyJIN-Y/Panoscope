@@ -461,8 +461,20 @@ def load_canonical_markers(path: Path | str, *, scope: str = "lab") -> ClaimStor
     # Content-addressed over the bytes actually read, so the source of an uncited
     # pair resolves to this exact file and not to "a file by that name".
     summary = raw.get("summary")
-    if isinstance(summary, dict) and "total" in summary \
-            and int(summary["total"]) != len(pairs):
+    if isinstance(summary, dict) and "total" in summary:
+        # int() on file content, so a non-numeric total escaped as a bare
+        # TypeError/ValueError. ``BadSeed`` is the one error this loader documents
+        # raising, and the only one its caller catches -- so a hand-edited seed
+        # took the build down instead of degrading the way the contract says.
+        try:
+            declared = int(summary["total"])
+        except (TypeError, ValueError) as exc:
+            raise BadSeed(
+                f"{p}: summary.total is {summary['total']!r}, which is not a count"
+            ) from exc
+    else:
+        declared = len(pairs)
+    if declared != len(pairs):
         raise BadSeed(
             f"{p}: summary says {summary['total']} pairs, the array holds "
             f"{len(pairs)}. A half-written seed silently shrinks the canonical set."
