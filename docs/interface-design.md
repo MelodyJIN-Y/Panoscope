@@ -69,7 +69,7 @@ GET /api/view/{workflow_id}/{unit_id}  ->  { "spec": UISpec, "model": ViewModel 
 
 | Tier | Endpoint | Payload |
 |---|---|---|
-| A bootstrap | `GET /api/dataset` | `manifest.json` (already carries `dataset_id, tissue, platform, panel_gene_count, n_cells, clusters, views_available, inputs{sha256}, artifacts`) + cluster key + `CLUSTER_ORDER` + `CONFIDENCE_BANDS` + cluster colour map. **`panel_contains` derives from the file — never hardcode 280 client-side**, even though `agent/config.py:PANEL_GENE_COUNT` exists (it is marked "informational only"). |
+| A bootstrap | `GET /api/dataset` | `manifest.json` (already carries `dataset_id, tissue, platform, panel_gene_count, n_cells, clusters, views_available, inputs{sha256}, artifacts`) + cluster key + `CLUSTER_ORDER` + `CONFIDENCE_BANDS` + cluster colour map. **`panel_contains` derives from the file — never hardcode 280 client-side.** (An earlier draft of this row cited `agent/config.py:PANEL_GENE_COUNT` as an existing informational constant. No such name exists, here or anywhere in the package; the rule stands, the example was wrong.) |
 | B interpretation | `GET /api/view/{workflow}/{unit}` | the spec+model pair above. One call renders a whole page. |
 | B′ set-level | `GET /api/units/{workflow}` | rail + summary board in one payload: `composed_verdicts()` + enrichment counts + review state + `override_info` + `pathway_themes`. |
 | C viz frames | `GET /api/viz/{kind}/...` | **binary, not JSON** — Arrow IPC or raw little-endian Float32/Uint8 with a JSON header. 158K × (2×f32 + u8) ≈ 1.4 MB. Served with `ETag: <sha256 from manifest.artifacts>` and `Cache-Control: immutable`. |
@@ -84,7 +84,7 @@ One pipeline change is worth calling out as the highest-value item in tier C: **
 - `ui/data_access.py` → `panoscope/core/read.py`, re-export shim left behind.
 - `panoscope` console entry point (pointing at Streamlit for now).
 - Surface `manifest.json` artifact sha256s in a UI footer and in the exported `.docx`/PDF: *"drawn from frame `sha256:ab3f…`"*. One line, stack-independent, materially strengthens the claim.
-- Fix `ui/state.py:53` `DEFAULT_BIN_UM = 25` → `50`. See §4.3 — 25 µm renders at ~1 px/hex in the current 310 px panel, which is sub-legibility, and CLAUDE.md already says 50 µm is the default.
+- Fix `ui/state.py` `DEFAULT_BIN_UM = 25` → `50`. See §4.3 — 25 µm renders at ~1 px/hex in the current 310 px panel, which is sub-legibility. (The constant is at line 46, not 53, and is still 25. An earlier draft attributed the 50 µm default to CLAUDE.md; CLAUDE.md says nothing about bin size, and the only claim it makes about the control is that it must never change a value.)
 
 **Weeks 1–4 (the one-month window).** Build the UISpec contract and the Streamlit renderer, in the build order of §7. Streamlit stays the demo throughout.
 
@@ -173,7 +173,7 @@ neg-control / qv<20 probe       → measured · QC-failed
 
 Ranking sorts *within* blocks. **A never-measured row can never be scrolled or filtered away by a top-N**, and it must be reachable by search — a biologist typing `COL1A1` or `HYPOXIA` must land on its row with its reason. Returning an empty search result is precisely the failure being fixed, and it is a testable interface requirement. Above the blocks sits the **coverage ribbon**: one 100%-width stacked bar with the four counts labelled — the table's own conditionality.
 
-Today the data model already knows this (`MarkerEvidence.is_on_panel`, `MarkerEvidence.role`, `OffPanelNote`) but `ui/evidence_table.py` renders no row for an off-panel gene. **The headline claim is currently invisible in the headline surface.** That is the single highest-value fix in this document.
+**Done.** When this was written, `ui/evidence_table.py` rendered no row for an off-panel gene and the headline claim was invisible in the headline surface — the single highest-value fix in this document. The surface rewrite shipped it: a never-measured row now renders with its gene, its reason and its frame, and on c1 the table carries 84 observed, 147 measured-not-here and 50 never-measured. The requirement above (never scrolled or filtered away, reachable by search) is what keeps it there.
 
 ### 2.4 Conditionality (R4)
 

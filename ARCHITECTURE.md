@@ -170,7 +170,9 @@ question can be asked of.
 ```
 skills/marker-interpretation/SKILL.md        <- the question: what IS this unit?
     methods/jazzpanda.py                     <- spatial GLM
-    methods/seurat_de.py                     <- cluster-vs-rest mean expression
+                                                (seurat_de registers into
+                                                 de-interpretation, not here:
+                                                 task kind belongs to the METHOD)
 
 skills/enrichment-interpretation/SKILL.md    <- the question: what is RUNNING here?
     methods/jazzpanda_cgst.py
@@ -892,7 +894,7 @@ The four states of §9.5 must be distinguishable in the evidence table. A never-
 blank row and not a zero — it is rendered as structurally absent, with the reason, and it carries no
 number. This is the project's headline claim, and it now has pixels: `ui/surface.py` declares a glyph and
 a CSS class per state, the coverage ribbon counts all four, and the Markers table renders three of them on
-the demo study — 84 observed, 147 measured-not-here and 49 never-measured on c1. `UNDERPOWERED` produces no
+the demo study — 84 observed, 147 measured-not-here and 50 never-measured on c1. `UNDERPOWERED` produces no
 row on any of that study's nine clusters, so the fourth glyph is exercised by the synthetic fixture and by
 `tests/test_surface.py`, not by the demo.
 

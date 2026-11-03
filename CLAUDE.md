@@ -38,11 +38,13 @@ A **workflow** owns an interpretive question and its review surface. A **method*
 workflow and declares its own statistics. Platform adapters and reference sources register the same way.
 
 ```
-skills/marker-interpretation/     the question: what IS this unit?
-    methods/jazzpanda.py          spatial GLM
-    methods/seurat_de.py          cluster-vs-rest mean expression
-skills/enrichment-interpretation/ the question: what is RUNNING here?
-skills/de-interpretation/         the question: does this result MAKE SENSE?
+skills/<workflow>/SKILL.md        the interpretive question + its review surface
+workflows/<workflow>.py           the workflow module
+methods/<method>.py               a declaration; each names the workflow it joins
+
+marker-interpretation      what IS this unit?            jazzpanda
+enrichment-interpretation  what is RUNNING here?         jazzpanda_cgst
+de-interpretation          does this result MAKE SENSE?  edger, seurat_de
 ```
 
 A method module is **a machine-readable declaration of what a method's paper says it measures and does
