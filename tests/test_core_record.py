@@ -392,10 +392,22 @@ def test_the_record_carries_the_read_and_the_measurement_status(demo: Study) -> 
 
 
 def test_every_decision_in_the_record_resolves_to_this_unit(demo: Study) -> None:
-    """Click-back: "a sentence with nothing to click should not have been rendered"."""
+    """Click-back: "a sentence with nothing to click should not have been rendered".
+
+    A claim the record USED is a legitimate anchor, and ``claims/`` has anchored its
+    decisions on ``claim:<id>`` since it was written (``evaluability.py:135``,
+    ``transfer.py:158``, ``store.about``). So the anchor set is the unit's subjects
+    plus the claims the record itself lists in ``claims_used`` -- which keeps the
+    invariant exact rather than merely widening it: a decision anchored on a claim
+    the record does not carry still fails, and that is precisely the unclickable
+    sentence. It is also why the scope-refused claims are in ``claims_used``.
+    """
     built = cli._build_record(demo, UNIT)
-    anchors = {built.evidence.unit_subject.key} | {
-        i.subject.key for i in built.evidence.items}
+    anchors = (
+        {built.evidence.unit_subject.key}
+        | {i.subject.key for i in built.evidence.items}
+        | {f"claim:{cid}" for cid, _verdict in built.record.claims_used}
+    )
     for d in built.record.decisions:
         for r in d.refs:
             assert r.split("#", 1)[0] in anchors, f"{d.rule} anchors outside the unit"

@@ -321,6 +321,99 @@ def _replicate_coverage(unit: str, n_subjects: int, conc: dict[str, Any],
                     _coverage_floor(n_subjects, REPLICATE_COVERAGE_FLOOR))
 
 
+def _claim_store(study: Study) -> Any:
+    """The curated claim store under this study's data root, or an empty one.
+
+    ``claims.store.SEED_RELPATH`` is relative to the data root and not to the
+    repository, so a study tree copied elsewhere resolves its own seed or none --
+    which is the honest outcome and not an error. An absent seed yields an empty
+    store, and the record then carries no ``claims_used`` at all rather than a claim
+    borrowed from whichever checkout happened to be on disk.
+
+    ``BadSeed`` is caught for the same reason and nothing else is: a malformed seed
+    must not take the build down, because the band does not depend on it. Every
+    other failure is left to raise.
+    """
+    from panoscope.claims import store as claims_store
+    from panoscope.data import layout
+
+    try:
+        return claims_store.load_canonical_markers(
+            layout.resolve_data_root() / claims_store.SEED_RELPATH)
+    except claims_store.BadSeed:
+        return claims_store.ClaimStore()
+
+
+def _claims_used(store: Any, label: str,
+                 world: Any, conditions: Any, context: str) -> Any:
+    """ARCHITECTURE §14's *evaluability + transfer*, for one unit.
+
+    Returns ``Traced[tuple[(claim_id, verdict), ...]]``. The decisions travel with
+    it so the reasoning lands in the record rather than only the conclusion, and the
+    refusals are kept: ``InterpretationRecord.claims_used`` carries considered-and-
+    withheld claims on purpose, because a record listing only the applied ones reads
+    as though the evidence all pointed one way.
+
+    **Nothing here can move a band, and that is the point.** A curated claim is
+    reference data: it may select and order evidence and carry a citation, and it
+    may never supply a value or count as agreement. So this runs AFTER ``assess``
+    and feeds only the record. The claim layer's job is to say which knowledge was
+    brought to bear and what the measurement did with it -- on the kidney panel,
+    where almost no canonical marker is on-panel, that answer is mostly
+    *never measured here*, and reporting that is the panel-absence rule doing its
+    work rather than a gap.
+
+    **Narrowed by the unit's LABEL and by nothing else.** Filtering also on the
+    subjects the method reported would have been the obvious next line and it would
+    have been wrong in the one direction that matters: a curated marker for this
+    label that the panel never carried produces no evidence item, so it would have
+    been dropped silently -- and on an off-target panel, where almost no canonical
+    marker is on-panel, that is most of them. The frame can answer without an
+    evidence item. ``evaluability`` asks the world directly and returns
+    NEVER_MEASURED, which is the productive half of the lattice and the kidney
+    study's whole shape. Dropping those rows would turn the panel-absence rule into
+    a shorter list.
+
+    Narrowed BEFORE ``about`` rather than filtered after, because ``about`` emits a
+    decision per out-of-scope claim per subject; asking it only about the claims
+    that name this unit's label keeps the scope gate -- which is ``about``'s, not
+    reimplemented here -- without writing the same refusal once per gene.
+    """
+    from panoscope.claims.store import ClaimStore, assess
+    from panoscope.types.trace import Trace
+
+    t = Trace()
+    relevant = ClaimStore(tuple(c for c in store if c.object == label))
+    used: list[tuple[str, str]] = []
+    # Sorted: dict and set iteration order is not a fact about the study, and this
+    # tuple is serialised into a record whose bytes are hashed into the manifest.
+    for key in sorted({c.subject.key for c in relevant}):
+        kept = t.absorb(relevant.about(key, context))
+        # Scope-refused claims are carried too, with the verdict ``out_of_scope``.
+        # ``about`` filters them before the result is formed and notes each one, so
+        # without this the record would hold a decision anchored on a claim it does
+        # not list -- a sentence with nothing to click, which §13.5 forbids. They
+        # are also refusals, and the record carries refusals on purpose.
+        kept_ids = {c.id for c in kept}
+        for claim in kept:
+            a = t.absorb(assess(claim, world, conditions, context))
+            if a.usable:
+                verdict = "applied"
+            elif not a.evaluable.usable:
+                # The frame refused it. Name the state, not a generic "no": the
+                # difference between never-measured and undetectable is the whole
+                # lattice, and a reader must be able to act on it.
+                verdict = f"withheld:{a.evaluable.state.value}"
+            else:
+                verdict = f"withheld:{a.transfer.action}"
+            used.append((claim.id, verdict))
+        used.extend((c.id, "out_of_scope") for c in
+                    sorted((c for c in relevant
+                            if c.subject.key == key and c.id not in kept_ids),
+                           key=lambda c: c.id))
+    return t.done(tuple(used))
+
+
 def build_all(study: Study) -> dict[str, UnitBuild]:
     """Every unit the method found, built once off one read of its table.
 
@@ -433,6 +526,15 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     conc, conc_because, conc_uncomparable = _concordance(
         study, adapter, method, clustering_mode, tuple(loaded.value))
 
+    # The claim layer, read once for the whole build. ``conditions`` is the study's
+    # OWN standing conditions -- what a claim's formation conditions are compared
+    # against -- and the context is keyed on the dataset so a claim scoped to
+    # another one cannot be seen here. Scope is fail-closed and the gate is
+    # ``ClaimStore.about``'s, not this module's.
+    claims = _claim_store(study)
+    conditions = adapter.standing_conditions(study)
+    claim_context = f"dataset:{study.id}"
+
     out: dict[str, UnitBuild] = {}
     for unit, ev in loaded.value.items():
         meta = study.unit_labels.get(unit, {})
@@ -486,10 +588,16 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
                 ev.unit_measured,
                 coverage=ev.unit_measured.coverage + (replicate,)))
         verdict = core_verdict.assess(ev.items, canonical, replicate)
+        # §14's *evaluability + transfer*, run per unit because the frames and the
+        # label are the unit's. ``claims`` and ``conditions`` are read once above.
+        claims_t = _claims_used(
+            claims, str(meta.get("cell_type", "Unknown")),
+            world, conditions, claim_context)
         record = core_record.build(
             ev, reading,
             core_record.unit_decisions(ev, loaded, *absences),
             verdict,
+            claims_t,
             # Already one unit's, because ``concordance`` is called per unit -- so it
             # goes in whole rather than through ``unit_decisions``. Narrowing it
             # would re-run the anchor join over gene subjects that the POOLED table
@@ -497,6 +605,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             # show.
             *((conc[unit],) if unit in conc else ()),
             task_kind=task_kind,
+            claims_used=claims_t.value,
             undecidable=conc_because.get(unit, ()),
         ).value
         # The workflow answers its own question. ``core.interpret.interpret``

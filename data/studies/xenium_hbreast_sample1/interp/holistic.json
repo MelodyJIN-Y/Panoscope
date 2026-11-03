@@ -1,8 +1,8 @@
 {
   "coherence_notes": [
     "Compartments represented across the dataset: Epithelial (Tumor, Myoepithelial); Stromal (Stromal); Immune (Macrophages, T_Cells, B_Cells, Dendritic, Mast_Cells); Endothelial (Endothelial).",
-    "Proportions are plausible for a breast tumour: the largest cluster is c1 Tumor at 62,755 cells, and the rarest is c9 Mast_Cells at 167 cells (a rare, small population as expected).",
-    "No redundancy: all 9 clusters carry distinct cell types (Tumor, Stromal, Macrophages, Myoepithelial, T_Cells, B_Cells, Endothelial, Dendritic, Mast_Cells); no two clusters collapse onto the same call."
+    "Cluster sizes: the largest is c1 Tumor at 62,755 cells, the smallest c9 Mast_Cells at 167 cells. Whether that spread is expected is a question for the tissue, and this review has no grounded basis to answer it.",
+    "No redundancy: all 9 called clusters carry distinct cell types (Tumor, Stromal, Macrophages, Myoepithelial, T_Cells, B_Cells, Endothelial, Dendritic, Mast_Cells); no two clusters collapse onto the same call."
   ],
   "refinements": [
     {
