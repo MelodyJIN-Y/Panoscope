@@ -645,3 +645,45 @@ def test_a_pmid_is_never_split_across_a_pdf_line_break() -> None:
     assert pdf.cramped == 0, (
         f"{pdf.cramped} of {pdf.tokens} citations start with too little room and "
         f"are split across the wrap")
+
+
+def test_an_excluded_unit_says_so_in_the_document() -> None:
+    """A call the biologist withdrew was exported as a confirmed one.
+
+    ``composed_verdicts`` has carried ``exclude`` all along -- the Summary board
+    reads it -- and the report builder never did, so a cluster the biologist had
+    marked as an artifact kept a full section asserting its call, with nothing
+    saying it had been set aside.
+
+    The section is NOT dropped. A unit that silently vanishes from the document
+    cannot be argued with, and the measurement is part of the record; the
+    withdrawal is stated instead, before anything that describes the unit.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import memory
+    from panoscope.ui import data_access as _da
+
+    before = R.build_report_from_sources()
+    assert not any(s.excluded for s in before.sections), "nothing starts excluded"
+
+    memory.create_note(
+        claim="c5 is an artifact, exclude it", scope="cluster",
+        basis="own_validation", cluster="c5", note_type="exclude",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (),
+    )
+    assert {v.cluster: v for v in _da.composed_verdicts()}["c5"].exclude is True
+
+    rep = R.build_report_from_sources()
+    c5 = next(s for s in rep.sections if s.cluster == "c5")
+    assert c5.excluded is True
+    assert next(s for s in rep.sections if s.cluster == "c1").excluded is False
+
+    lines = R._section_lines(rep)
+    heads = [t for style, t in lines if style == "h2" and t.startswith("c5 ")]
+    assert heads and "EXCLUDED" in heads[0], heads
+    assert any("Excluded by the biologist" in t for _s, t in lines)
+
+    # ...and no OTHER cluster picked up the banner.
+    other_heads = [t for style, t in lines
+                   if style == "h2" and not t.startswith("c5 ")]
+    assert other_heads and not any("EXCLUDED" in t for t in other_heads)

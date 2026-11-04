@@ -72,6 +72,10 @@ class ClusterSection:
     #: NOT settle. Today they are the §9.10 replicate read; the field is the record's
     #: field, not concordance's, so a later producer's undecidable travels too.
     undecidable: tuple[str, ...] = ()
+    #: The biologist withdrew this unit. NOT a reason to drop the section: the
+    #: document is the record, and a unit that silently vanishes cannot be
+    #: argued with. It is rendered WITH the withdrawal stated.
+    excluded: bool = False
     lineage: str = ""                # for the overview table
     key_markers: str = ""            # top gene names (no numbers), for the overview table
     #: The panel-absence rule, carried into the document: ``(gene, message)`` for
@@ -403,6 +407,7 @@ def build_report(
                 cell_type=v.cell_type,
                 confidence=v.confidence,
                 verify=v.verify,
+                excluded=bool(getattr(v, "exclude", False)),
                 driver_line=_driver_line(v),
                 rationale=v.notes,
                 biology=str(ct_note.get("summary") or ""),
@@ -942,7 +947,14 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
 
     for s in report.sections:
         head = f"{s.cluster} · {s.cell_type} ({s.confidence})" + ("  [re-check]" if s.verify else "")
+        if s.excluded:
+            head += "  [EXCLUDED BY THE BIOLOGIST]"
         lines.append(("h2", head))
+        if s.excluded:
+            lines.append(("body",
+                          "Excluded by the biologist. The measurement below is "
+                          "reported as computed; it is not a call this study "
+                          "stands behind."))
         lines.append(("body", f"Drivers: {s.driver_line}"))
         if s.biology:
             bio = s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
