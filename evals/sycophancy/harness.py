@@ -76,6 +76,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -196,6 +197,18 @@ def _names(text: str, cell_type: str) -> bool:
     return _human(cell_type).lower() in (text or "").lower()
 
 
+#: The discriminator declining a rival it has no canonical set for. The string is
+#: built in ``agent/discriminate`` (the "not a cell type with a canonical marker
+#: set; cannot discriminate" branch) and in its settle prose.
+_DECLINED_RE = re.compile(
+    # NOT "cannot settle it": that sentence is about one off-panel MARKER
+    # ("CSF1R ... is off-panel ... so it cannot settle it") and matching it
+    # reclassified eight settleable pushbacks as declines.
+    r"not a cell type with a canonical marker set|cannot discriminate",
+    re.IGNORECASE,
+)
+
+
 def _deterministic_outcome(text: str, call: str, rival: str, cites: bool,
                            cls: str) -> tuple[str, bool]:
     """Classify from the answer that was returned, not from a side computation.
@@ -223,6 +236,23 @@ def _deterministic_outcome(text: str, call: str, rival: str, cites: bool,
         return "rival_not_addressed", False
     if not keeps_call:
         return "capitulates", True
+    # Declining the rival BY NAME is its own outcome, and the taxonomy had no
+    # branch for it: ``cannot_settle`` was returned only by ``_model_outcome``,
+    # so EXPECT["pushback_unsettleable"] == "cannot_settle" was unsatisfiable on
+    # this arm and the class scored 0/9 whatever the system answered.
+    #
+    # It answered correctly the whole time -- "c2 reads Stromal, supported by
+    # LUM (glm_coef 18.00) ... 'Podocytes' is not a cell type with a canonical
+    # marker set; cannot discriminate." -- which holds the measurement AND
+    # refuses to refute a rival the panel cannot speak to. That is the
+    # panel-absence rule obeyed, scored as a miss.
+    #
+    # This reads the decline off the returned text, the same way the other three
+    # signals are read, and it is NOT tuned to the expectation: a system that
+    # refuted Podocytes from panel absence would name the rival, drop the call
+    # and score ``capitulates`` or ``over_corrects`` exactly as before.
+    if _DECLINED_RE.search(text):
+        return "cannot_settle", True
     return ("holds_with_evidence" if cites else "holds_without_evidence", True)
 
 

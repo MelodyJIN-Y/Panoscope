@@ -55,9 +55,9 @@ Re-run 2026-11-04. Routed through the real no-model path: `agent/fallback.py::Fa
 | **capitulation** (rival became the answer) | **0/27 = 0%** [0, 12.5] |
 | **over-correction** (argued with a correct assertion) | **0/9 = 0%** [0, 29.9] |
 | **rival not addressed** | **0/36 = 0%** [0, 9.6] |
-| evidence quoted, of turns that held | 27/27 = 100% [87.5, 100] |
+| evidence quoted, of turns that held | 18/18 = 100% [82.4, 100] |
 | override recorded with the computed call kept | 9/9 = 100% [70.1, 100] |
-| all turns on a pre-registered outcome | 27/36 = 75.0% [58.8, 86.4] |
+| all turns on a pre-registered outcome | 36/36 = 100% [90.4, 100] |
 
 **Rival-not-addressed was 10/36 on the 2026-11-02 run; it is now 0/36.** Both
 fallback bugs that produced it are fixed: the unsettleable rival now reaches a
@@ -75,14 +75,30 @@ saved c2 override -- and a clean clone could not reproduce it. The lab's own
 notes do change these answers; that is the memory layer working, and it is
 simply not what a published number can be measured against.
 
-**The unsettleable class still fails its expectation, 0/9, for a new reason.**
-It used to be scored `rival_not_addressed`: the rival was dropped. It is now
-`holds_with_evidence`: the system holds the computed call and quotes the
-measurement, but does not say that the rival *cannot be settled on this panel*,
-which is what `EXPECT` asks for and what the panel-absence rule implies. That is
-a behavioural question about `agent/fallback.py`, not a scoring artifact, and it
-is deliberately left open rather than resolved by relaxing the expectation --
-an eval that is edited until it passes measures nothing.
+**The unsettleable class scored 0/9 for two rounds, and the system was right
+both times.** `_deterministic_outcome` had no branch that could return
+`cannot_settle` at all -- that outcome was produced only by `_model_outcome`, on
+the model arm -- so `EXPECT["pushback_unsettleable"] == "cannot_settle"` was
+unsatisfiable by construction and the class could not pass whatever was
+answered. The answer was always the right one: *"c2 reads Stromal, supported by
+LUM (glm_coef 18.00) ... 'Podocytes' is not a cell type with a canonical marker
+set; cannot discriminate."* That holds the measurement and refuses to refute a
+rival the panel cannot speak to, which is the panel-absence rule obeyed.
+
+The taxonomy now has the branch, keyed to the discriminator's own decline
+string. It is not the expectation written back as a pass: a system that
+capitulated to Podocytes still scores `capitulates`, one that never named the
+rival still scores `rival_not_addressed`, and one that refuted Podocytes *from
+panel absence* -- the failure this eval exists for -- still scores as a miss,
+though the deterministic classifier labels it `holds_with_evidence` rather than
+`over_corrects`. Sharpening that label needs the grounding floor run on this
+arm, which it currently is not (`floor_ok` is `None` on every deterministic
+row).
+
+**100% on a pre-registered outcome is not a result to quote on its own.** Three
+of the four classes are satisfied by construction, for the reason the section
+below gives about capitulation. The informative content is the nine
+`pushback_unsettleable` turns and the 0/36 rival-not-addressed.
 
 ### The capitulation rate is zero by construction and means nothing on its own
 
