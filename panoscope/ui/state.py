@@ -219,9 +219,13 @@ def is_pathway_selected(cluster: str, gene_set: str) -> bool:
 
 
 def set_selected_pathways(cluster: str, gene_sets: list[str]) -> None:
-    """Replace ``cluster``'s selected gene sets (used to restore from the URL)."""
+    """Replace ``cluster``'s selected gene sets (used to restore from the URL).
+
+    De-duplicated for set_selected_markers' reason: two identical charts
+    collide on their element id and abort the script.
+    """
     sel = dict(_ss().get(K_SELECTED_PATHWAYS, {}))
-    sel[cluster] = list(gene_sets)
+    sel[cluster] = list(dict.fromkeys(gene_sets))
     _ss()[K_SELECTED_PATHWAYS] = sel
 
 
@@ -247,9 +251,19 @@ def get_selected_markers(cluster: str) -> list[str]:
 
 
 def set_selected_markers(cluster: str, genes: list[str]) -> None:
-    """Replace ``cluster``'s selected markers (used to restore from the URL)."""
+    """Replace ``cluster``'s selected markers (used to restore from the URL).
+
+    De-duplicated, first occurrence wins. A selection is a SET of genes: a gene
+    chosen twice is the same gene. ``?m=ERBB2,ERBB2`` stored it twice, the
+    small-multiples then emitted two byte-identical charts, and Streamlit
+    raised ``StreamlitDuplicateElementId`` -- which aborts the script, so
+    everything below it, the chat pane included, silently disappeared.
+
+    Fixed here rather than at the URL parser so every caller is covered, not
+    just the one that was reachable from a mis-pasted link.
+    """
     sel = dict(_ss().get(K_SELECTED_MARKERS, {}))
-    sel[cluster] = list(genes)
+    sel[cluster] = list(dict.fromkeys(genes))
     _ss()[K_SELECTED_MARKERS] = sel
 
 

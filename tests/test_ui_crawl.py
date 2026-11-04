@@ -251,3 +251,25 @@ def test_click_sequences_hold_the_invariants(page: str, app_tree) -> None:
                 broken.append(f"seed={seed} chain={path}: {bad[0]}")
                 break
     assert not broken, f"{page}:\n  " + "\n  ".join(broken)
+
+
+def test_a_repeated_gene_in_the_url_does_not_abort_the_page(app_tree):
+    """A selection is a SET: a gene chosen twice is the same gene.
+
+    ``?m=ERBB2,ERBB2`` was stored verbatim, the small-multiples emitted two
+    charts with the same element key, and Streamlit raised
+    ``StreamlitDuplicateElementKey`` -- which aborts the script, so everything
+    below it, the chat pane included, silently disappeared. Reproduced:
+    ``key='pano_density_gene_ERBB2_25'``.
+    """
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_file(str(APP), default_timeout=120)
+    at.query_params["page"] = "markers"
+    at.query_params["cluster"] = "c1"
+    at.query_params["m"] = "ERBB2,ERBB2,KRT7"
+    at.run()
+
+    assert not at.exception, [str(e.value)[:160] for e in at.exception]
+    # ...and the page is whole, not truncated at the abort point.
+    assert len(at.markdown) > 300, len(at.markdown)
