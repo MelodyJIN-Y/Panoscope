@@ -85,7 +85,7 @@ _STAT_SYNONYMS: tuple[tuple[str, str], ...] = (
     (r"glm[\s_-]*coef(?:ficient)?", "glm_coef"),
     (r"glm", "glm_coef"),
     (r"coef(?:ficient)?", "glm_coef"),
-    (r"pearson", "pearson"),
+    (r"pearson(?:[\s_-]*corr(?:elation)?)?", "pearson"),
 )
 _STAT_KEYWORD_RE = re.compile(
     "|".join(f"(?:{pat})" for pat, _ in _STAT_SYNONYMS), re.IGNORECASE
@@ -116,16 +116,12 @@ _NUMBER = r"[-+]?\d+(?:\.\d+)?"
 _GENE_SHAPE = r"[A-Z][A-Z0-9]{1,9}"
 
 # The stat keyword alternation, reused inside the stat-claim pattern.
-_STAT_ALT = "|".join(f"(?:{pat})" for pat, _ in (
-    (r"max[\s_-]*gg[\s_-]*corr", "max_gg_corr"),
-    (r"max[\s_-]*gc[\s_-]*corr", "max_gc_corr"),
-    (r"gene[\s_-]*gene\s+corr(?:elation)?", "max_gg_corr"),
-    (r"gene[\s_-]*cluster\s+corr(?:elation)?", "max_gc_corr"),
-    (r"glm[\s_-]*coef(?:ficient)?", "glm_coef"),
-    (r"glm", "glm_coef"),
-    (r"coef(?:ficient)?", "glm_coef"),
-    (r"pearson", "pearson"),
-))
+#
+# DERIVED from ``_STAT_SYNONYMS``, not repeated. This was a verbatim copy of
+# that table, and the copy is what "the second list is the one nobody updates"
+# names: adding the prose form of pearson to one of them left ``_canonical_stat``
+# returning None for a keyword the extractor had just matched.
+_STAT_ALT = "|".join(f"(?:{pat})" for pat, _ in _STAT_SYNONYMS)
 
 # The stat-claim pattern: a gene token, then (within a short gap of connective
 # words like "at"/"of"/"="/":") a stat keyword, then (within a short gap) a
@@ -144,6 +140,36 @@ _STAT_CLAIM_RE = re.compile(
     rf"(?P<value>{_NUMBER})\b",
     re.IGNORECASE,
 )
+
+# A bare "<stat> <number>" pair, with NO gene in the pattern. The gene is bound
+# afterwards, by position, in ``_extract_stat_claims``.
+#
+# ``_STAT_CLAIM_RE`` above required gene -> stat -> number in one match, and
+# ``finditer`` consumes the gene, so in the app's OWN opening format --
+# "LUM (glm_coef 18.00, pearson 0.91)" -- only the glm_coef was ever extracted.
+# The pearson was checked against nothing. Every stat after the first, for every
+# gene, in every answer, was ungrounded: a fabricated "pearson 0.99" and even
+# "pearson 42.0" (outside the coefficient's possible range) both passed.
+#
+# It also could not see a stat stated in ordinary English. The gap allowed only
+# punctuation and of/at/is/was, so "ERBB2 has a glm coefficient of 99.9"
+# extracted NOTHING -- fabricated number and fabricated gene together -- and
+# that is the register the skill contract tells the model to write in.
+_STAT_VALUE_RE = re.compile(
+    rf"(?P<stat>{_STAT_ALT})[\s:=,()\-]*(?:of|at|is|was|=)?[\s:=,()\-]*"
+    rf"(?P<value>{_NUMBER})\b",
+    re.IGNORECASE,
+)
+
+#: A gene-shaped token anywhere in the text, case-SENSITIVE.
+_GENE_AT_RE = re.compile(rf"(?-i:\b({_GENE_SHAPE})\b)")
+
+#: How far back a stat will look for the gene it belongs to. Wide enough for
+#: "ERBB2 has a glm coefficient of" and for the second stat in a parenthetical,
+#: narrow enough that a stat does not reach back across a clause into an
+#: unrelated gene. A stat with no gene within reach is still extracted, with no
+#: gene attached, so an orphan number is not silently dropped.
+_STAT_BIND_WINDOW = 60
 
 # PMID: "PMID:12345678", "PMID 12345678", "PMID12345678".
 _PMID_RE = re.compile(r"\bPMID[:\s]*?(\d{4,9})\b", re.IGNORECASE)
@@ -650,6 +676,42 @@ class Extractor:
         return out
 
     # -- gene + stat + number claims ---------------------------------------- #
+    @staticmethod
+    def _stat_matches(text: str) -> list[dict]:
+        """Every "<stat> <number>" in ``text``, each bound to its gene by POSITION.
+
+        Binding by position rather than by one gene-stat-number pattern is what
+        lets a gene carry more than one statistic. The nearest gene-shaped token
+        BEFORE the stat wins, provided it is within ``_STAT_BIND_WINDOW`` and no
+        other gene sits between them -- so "LUM (glm_coef 18.00, pearson 0.91)"
+        yields both, both bound to LUM, and "LUM glm_coef 18.00 and POSTN
+        pearson 0.80" binds each to its own gene.
+
+        Stopword tokens (PMID, GLM, THE, ...) are skipped when looking for the
+        gene, so "glm_coef" never binds to the word GLM inside itself.
+        """
+        genes = [(m.start(), m.group(1)) for m in _GENE_AT_RE.finditer(text)
+                 if m.group(1) not in _STOPWORD_TOKENS]
+        out: list[dict] = []
+        for m in _STAT_VALUE_RE.finditer(text):
+            at = m.start()
+            prior = [(pos, name) for pos, name in genes if pos < at]
+            gene = None
+            if prior:
+                pos, name = prior[-1]
+                # Within reach, and nothing between the gene and the stat that
+                # is itself a gene (that gene would be the real subject).
+                if at - pos <= _STAT_BIND_WINDOW:
+                    gene = name
+            out.append({
+                "gene": gene,
+                "stat": m.group("stat"),
+                "value": m.group("value"),
+                "at": at,
+                "text": (text[prior[-1][0]:m.end()] if gene else m.group(0)),
+            })
+        return out
+
     def _extract_stat_claims(self, text: str) -> list[NumberClaim]:
         """Extract every "GENE <stat> NUMBER" triple.
 
@@ -662,16 +724,16 @@ class Extractor:
         """
         claims: list[NumberClaim] = []
         seen: set[tuple[str, str, float, int]] = set()
-        for m in _STAT_CLAIM_RE.finditer(text):
-            gene = m.group("gene")
-            if gene in _STOPWORD_TOKENS:
+        for m in self._stat_matches(text):
+            gene = m["gene"]
+            if gene is None or gene in _STOPWORD_TOKENS:
                 continue
-            stat = _canonical_stat(m.group("stat"))
+            stat = _canonical_stat(m["stat"])
             try:
-                value = float(m.group("value"))
+                value = float(m["value"])
             except ValueError:
                 continue
-            key = (gene, stat or "", value, m.start())
+            key = (gene, stat or "", value, m["at"])
             if key in seen:
                 continue
             seen.add(key)
@@ -680,7 +742,7 @@ class Extractor:
                     gene=gene,
                     stat=stat,
                     value=value,
-                    text=m.group(0),
+                    text=m["text"],
                 )
             )
         return claims

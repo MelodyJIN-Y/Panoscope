@@ -872,3 +872,92 @@ def test_record_deterministic_fields_are_not_gated(checker_real_lit):
     COL1A1 -- an off-panel gene name sitting in a DETERMINISTIC field -- and the
     gate must not read it as something a model said."""
     assert checker_real_lit.check_record(_record()).ok is True
+
+
+# --------------------------------------------------------------------------- #
+# Every statistic is grounded, not just the first one per gene
+# --------------------------------------------------------------------------- #
+def test_a_second_statistic_on_the_same_gene_is_checked(checker_real_lit):
+    """The app's OWN opening format, and the number in it that nothing checked.
+
+    The extractor matched gene -> stat -> number in a single pattern, and
+    ``finditer`` consumes the gene, so in "LUM (glm_coef 18.00, pearson 0.91)"
+    only the glm_coef was ever extracted. Every statistic after the first, for
+    every gene, in every answer, was compared against nothing -- a fabricated
+    ``pearson 0.99`` passed, and so did ``pearson 42.0``, which is outside the
+    coefficient's possible range.
+    """
+    real = SourceIndex().stat_value("LUM", "pearson")
+    assert real is not None and abs(real - 0.91) < 0.01, real
+
+    good = "c2 reads as Stromal, driven by LUM (glm_coef 18.00, pearson 0.91)."
+    assert checker_real_lit.check(good, None, "c2").ok is True
+
+    for bad in (
+        "c2 reads as Stromal, driven by LUM (glm_coef 18.00, pearson 0.99).",
+        "c2 reads as Stromal, driven by LUM (glm_coef 18.00, pearson 42.0).",
+    ):
+        result = checker_real_lit.check(bad, None, "c2")
+        assert result.ok is False, f"{bad!r} passed the floor"
+        assert any(v.kind == "number" for v in result.violations), result.summary()
+
+
+def test_a_statistic_stated_in_ordinary_english_is_checked(checker_real_lit):
+    """The register the skill contract tells the model to write in.
+
+    The gap between gene and stat allowed only punctuation and of/at/is/was, so
+    "ERBB2 has a glm coefficient of 99.9" extracted NOTHING: a fabricated number
+    and, in the second case, a fabricated gene with it.
+    """
+    for bad in (
+        "c1 is Tumor: ERBB2 has a glm coefficient of 99.9 here.",
+        "c1 is Tumor: ERBB2 shows a pearson correlation of 0.99 here.",
+        "c1 is Tumor: NOTAGENE7 shows a pearson correlation of 0.99 here.",
+    ):
+        assert checker_real_lit.check(bad, None, "c1").ok is False, f"{bad!r} passed"
+
+    # ...and the true statement in the same register still renders.
+    real = SourceIndex().stat_value("ERBB2", "glm_coef")
+    assert real is not None
+    ok = f"c1 is Tumor: ERBB2 has a glm coefficient of {real:.2f} here."
+    assert checker_real_lit.check(ok, None, "c1").ok is True
+
+
+def test_a_stat_binds_to_its_own_gene_not_the_previous_one(checker_real_lit):
+    """Binding by position must not reach across a gene into the wrong subject."""
+    from panoscope.agent.grounding_check import Extractor, _canonical_stat
+
+    ex = Extractor.__new__(Extractor)
+    got = [(m["gene"], _canonical_stat(m["stat"]), m["value"])
+           for m in ex._stat_matches("LUM glm_coef 18.00 and POSTN pearson 0.80")]
+    assert got == [("LUM", "glm_coef", "18.00"), ("POSTN", "pearson", "0.80")], got
+
+
+def test_the_floor_does_not_refuse_the_apps_own_answers(checker_real_lit):
+    """The other direction, and the one that matters more.
+
+    "An invariant that fires on correct behaviour is worse than none." Widening
+    the extractor is exactly the change that risks it, so the refusal rate over
+    every deterministic answer the product can produce is asserted at zero
+    rather than assumed.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.agent import fallback as fb
+
+    refused, total = [], 0
+    for unit in cfg.CLUSTER_ORDER:
+        for q in ("", "what supports this call?", "what was never measured?",
+                  "could this be something else?", "what about the missing marker?",
+                  "what would settle it?", "how confident are you?"):
+            resp = fb.fallback_opening(unit) if not q else fb.fallback_answer(q, unit)
+            if resp is None:
+                continue
+            total += 1
+            result = checker_real_lit.check(resp.text, resp.grounding, unit)
+            if not result.ok:
+                refused.append(f"{unit} {q!r}: {result.summary()}")
+
+    assert total >= 40, f"only {total} answers exercised"
+    assert not refused, (
+        f"the floor refuses {len(refused)}/{total} of the app's own answers:\n  "
+        + "\n  ".join(refused))
