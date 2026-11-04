@@ -280,6 +280,58 @@ def block_label_html(block: BlockSpec, n: int) -> str:
             f'{_esc(block.label_template.format(count=n))}</div>')
 
 
+def method_limits_html(spec: UISpec) -> str:
+    """What the method that produced these numbers does **not** measure.
+
+    ``types/contracts.py`` has said ``does_not_measure`` is "MANDATORY, from the
+    paper, rendered in the UI" since the Protocol was written, and
+    ``IMPLEMENTATION.md`` repeats it -- but nothing read the field. The registry's
+    own docstring names the failure that leaves: "a ``glm_coef`` with no
+    ``does_not_measure`` beside it is indistinguishable from a fold change, and the
+    confidence assessment silently stops being an audit of someone else's output."
+    The biologist is the one person who has to defend the number and the only one
+    who did not run the method, so the limits belong on the surface where the
+    number is read, not only in the module that declares them.
+
+    A workflow's surface carries the limits of whichever methods registered into
+    it -- including one this repo never sees. Returns ``""`` when no method is
+    registered, which is a degraded surface's problem to announce, not this
+    function's.
+
+    ``UISpec.workflow_id`` is the short surface id the shell routes on ("markers")
+    and a method registers against the workflow's ``name``, the skill directory
+    ("marker-interpretation"). ``workflows/marker.py`` keeps them deliberately
+    different so that renaming a tab cannot silently re-point a skill, so the link
+    is *looked up* through the workflow that owns the spec rather than restated
+    here as a mapping -- the second list is the one nobody updates.
+    """
+    from panoscope import methods, workflows
+
+    owner = next((w for w in workflows.WORKFLOWS.values()
+                  if w.uispec().workflow_id == spec.workflow_id), None)
+    if owner is None:
+        return ""
+
+    out: list[str] = []
+    for m in methods.for_workflow(owner.name):
+        name = _esc(getattr(m, "display_name", None) or m.name)
+        parts = [f'<span class="pano-sf-ml-name">{name}</span>'
+                 f'<span class="pano-sf-ml-stat">{_esc(m.statistic_name)}</span>']
+        measures = str(getattr(m, "measures", "") or "").strip()
+        if measures:
+            stop = "" if measures.endswith((".", "!", "?")) else "."
+            parts.append(f'<div class="pano-sf-ml-is">Measures {_esc(measures)}{stop}</div>')
+        parts.append('<div class="pano-sf-ml-not"><b>Does not measure</b> '
+                     f'{_esc(str(m.does_not_measure).strip())}</div>')
+        for a in getattr(m, "assumptions", ()) or ():
+            parts.append(f'<div class="pano-sf-ml-as">&#8226; {_esc(str(a).strip())}</div>')
+        out.append(f'<div class="pano-sf-ml-item">{"".join(parts)}</div>')
+    if not out:
+        return ""
+    return ('<div class="pano-sf-ml"><div class="pano-sf-block">'
+            "What produced these numbers</div>" + "".join(out) + "</div>")
+
+
 def block_html(spec: UISpec, block: BlockSpec, rows: Sequence[SurfaceRow]) -> str:
     """A block header and its rows -- the header even at zero, with its empty text.
 
@@ -583,6 +635,15 @@ _CSS = """
   border-top:1px solid var(--hair); }
 .pano-sf-empty { font-family:var(--mono); font-size:11px; color:var(--faint);
   padding:6px 0 2px; }
+.pano-sf-ml-item { padding:4px 0 2px; }
+.pano-sf-ml-name { font-family:var(--mono); font-size:11px; color:var(--ink); }
+.pano-sf-ml-stat { font-family:var(--mono); font-size:10px; color:var(--faint);
+  margin-left:6px; }
+.pano-sf-ml-is { font-size:11px; line-height:1.5; color:var(--muted); margin-top:2px; }
+.pano-sf-ml-not { font-size:11px; line-height:1.5; color:var(--ink); margin-top:2px; }
+.pano-sf-ml-not b { color:var(--absent); font-weight:600; }
+.pano-sf-ml-as { font-size:10px; line-height:1.5; color:var(--faint);
+  margin-left:8px; }
 .pano-sf-census { font-family:var(--mono); font-size:12px; color:var(--ink);
   margin:3px 0; }
 .pano-sf-census .lbl { color:var(--faint); letter-spacing:.07em; margin-right:7px; }
@@ -678,6 +739,12 @@ def render_surface(
                 # identifier never is.
                 st.markdown(row_html(spec, row), unsafe_allow_html=True)
 
+    # Under the numbers it qualifies. A reader who has only the number cannot tell
+    # which question produced it, so the question arrives with it.
+    limits = method_limits_html(spec)
+    if limits:
+        st.markdown(limits, unsafe_allow_html=True)
+
 
 def _render_pinnable_row(st, spec: UISpec, row: SurfaceRow, on_select, selected) -> None:
     first = spec.columns[0]
@@ -701,4 +768,5 @@ __all__ = [
     "render_surface", "header_html", "table_html", "row_html", "cell_html",
     "ribbon_html", "block_html", "column_header_html", "rows_for",
     "label_band_html", "census_html", "checklist_html", "provenance_html",
+    "method_limits_html",
 ]
