@@ -961,3 +961,28 @@ def test_the_floor_does_not_refuse_the_apps_own_answers(checker_real_lit):
     assert not refused, (
         f"the floor refuses {len(refused)}/{total} of the app's own answers:\n  "
         + "\n  ".join(refused))
+
+
+def test_the_panel_absence_rule_survives_a_full_stop(checker_real_lit):
+    """The headline rule, bypassed by a sentence break.
+
+    The absence and the inference had to sit in ONE sentence, so "COL1A1 is not
+    detected here, so this is not fibroblasts" was refused while "COL1A1 is not
+    detected here. So this is not fibroblasts." passed clean -- as did putting
+    the inference in the next paragraph. COL1A1 is off-panel for this study, so
+    every one of these reasons from an absence the measurement could not have
+    produced.
+    """
+    for bad in (
+        "COL1A1 is not detected here, so this is not fibroblasts.",
+        "COL1A1 is not detected here. So this is not fibroblasts.",
+        "There is no COL1A1 signal in c2. That argues against a fibroblast call.",
+        "COL1A1 is absent from c2.\n\nThat rules out fibroblasts.",
+    ):
+        assert checker_real_lit.check(bad, None, "c2").ok is False, f"{bad!r} passed"
+
+    # Reach is ONE sentence, and an absence nobody reasons from is not a claim.
+    assert checker_real_lit.check("COL1A1 is absent from this panel.", None, "c2").ok
+    assert checker_real_lit.check(
+        "COL1A1 was never measured here, so its absence argues nothing.", None, "c2"
+    ).ok

@@ -579,3 +579,69 @@ def test_the_header_carries_the_provenance_section_14_asks_for() -> None:
     assert "not built" in header, "corpus line missing when nothing built"
     assert "deterministic" in header, "generator line missing when no model ran"
     assert "spec version 0.1" in header
+
+
+def test_the_enrichment_recheck_flag_reaches_the_document() -> None:
+    """The screen said re-check this; the document said nothing.
+
+    ``verify`` on the enrichment workflow is deterministic and per workflow, and
+    it is True on 7 of the demo's 9 clusters. The Pathways header carried it and
+    the exported .docx/PDF did not, so the file that leaves the lab was quieter
+    than the screen it came from.
+    """
+    from panoscope.agent import config as cfg
+    from panoscope.ui import data_access as _da
+
+    flagged = {c for c in cfg.CLUSTER_ORDER
+               if getattr(_da.enrichment_for(c), "verify", False)}
+    assert flagged, "no cluster carries an enrichment re-check flag to test"
+
+    rep = R.build_report_from_sources()
+    for section in rep.sections:
+        census = str(getattr(section, "enrichment_census", "") or "")
+        if section.cluster in flagged:
+            assert "re-check" in census.lower(), (
+                f"{section.cluster} is flagged by the enrichment rubric and the "
+                f"export says nothing: {census!r}")
+        else:
+            assert "re-check" not in census.lower(), (
+                f"{section.cluster} is not flagged yet the export says so: {census!r}")
+
+
+def test_a_pmid_is_never_split_across_a_pdf_line_break() -> None:
+    """A citation broken by the wrap reads as a different, wrong identifier.
+
+    ``FPDF.write`` wraps wherever the margin falls, so a PMID starting near the
+    right edge is split: the reader sees "PMID:374797" ending one line and the
+    remaining digits beginning the next, and only the first half carries the
+    link. Measured over a sweep of line lengths, 5 of 40 tokens started with too
+    little room to fit.
+    """
+    from fpdf import FPDF
+
+    class Probe(FPDF):
+        def __init__(self) -> None:
+            super().__init__()
+            self.cramped = 0
+            self.tokens = 0
+
+        def write(self, h, txt="", link=""):  # noqa: A003 - matching FPDF's API
+            if txt.startswith("PMID:"):
+                self.tokens += 1
+                room = self.w - self.r_margin - self.get_x()
+                if self.get_string_width(txt) > room + 0.01:
+                    self.cramped += 1
+            return super().write(h, txt, link)
+
+    pdf = Probe()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=9)
+    filler = ("Interferon gamma response drives classical macrophage activation "
+              "and antigen presentation and ") * 2
+    for n in range(40):
+        R._pdf_write_linked(pdf, filler[:60 + n * 3] + " PMID:33352494 tail", 5)
+
+    assert pdf.tokens == 40, pdf.tokens
+    assert pdf.cramped == 0, (
+        f"{pdf.cramped} of {pdf.tokens} citations start with too little room and "
+        f"are split across the wrap")

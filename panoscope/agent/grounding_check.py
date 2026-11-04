@@ -594,10 +594,12 @@ class Extractor:
         """
         out: list[AbsenceClaim] = []
         seen: set[str] = set()
-        for sentence in _SENTENCE_SPLIT_RE.split(text):
+        sentences = _SENTENCE_SPLIT_RE.split(text)
+        for i, sentence in enumerate(sentences):
             if not _ABSENCE_RE.search(sentence):
                 continue
-            if not _INFERENCE_RE.search(sentence):
+            window = sentence + " " + (sentences[i + 1] if i + 1 < len(sentences) else "")
+            if not _INFERENCE_RE.search(window):
                 continue
             # Every gene in the sentence is a candidate, MINUS the ones a clause
             # has already excused by declaring them unmeasured.

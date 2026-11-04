@@ -298,8 +298,15 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict,
     """
     if ce is None:
         return "", ""
+    # The ENRICHMENT rubric's re-check flag, which reached no export at all.
+    # It is deterministic and per workflow, and it is True on 7 of the demo's 9
+    # clusters -- so the Pathways header said "re-check this" while the .docx
+    # and the PDF carried the same programs with nothing beside them. A
+    # document that leaves the lab must not be quieter than the screen it came
+    # from.
+    flag = " — re-check this." if getattr(ce, "verify", False) else ""
     if not getattr(ce, "enriched", ()):  # no program clears the gate
-        return "", ce.census_line
+        return "", ce.census_line + flag
     bits: list[str] = []
     for p in ce.enriched[:4]:
         short = p.gene_set.replace("HALLMARK_", "").replace("_", " ").title()
@@ -327,7 +334,7 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict,
         full = getattr(p, "set_size_full", None)
         scope = f" [{hits}/{full} set genes on panel]" if hits and full else ""
         bits.append(f"{short}{scope} — {bio}{cite}" if bio else f"{short}{scope}")
-    return "; ".join(bits) + ".", ce.census_line
+    return "; ".join(bits) + ".", ce.census_line + flag
 
 
 def build_report(
@@ -901,8 +908,21 @@ def _pdf_write_linked(pdf: Any, text: str, h: float) -> None:
         if m.start() > last:
             pdf.write(h, _pdf_safe(text[last:m.start()]))
         pmid = m.group(1)
+        token = _pdf_safe(f"PMID:{pmid}")
+        # Keep the citation whole. ``write`` wraps at the margin wherever it
+        # happens to be, so a PMID that starts near the right edge is split
+        # across two lines -- the reader sees "PMID:374797" ending one line and
+        # the remaining digits beginning the next, which reads as a different,
+        # wrong identifier, and only the first half carries the link. Break the
+        # line first when the whole token will not fit.
+        try:
+            room = pdf.w - pdf.r_margin - pdf.get_x()
+            if pdf.get_string_width(token) > room:
+                pdf.ln(h)
+        except Exception:  # noqa: BLE001 - a geometry query must never lose the citation
+            pass
         pdf.set_text_color(*_LINK_RGB)
-        pdf.write(h, _pdf_safe(f"PMID:{pmid}"), link=_pubmed_url(pmid))
+        pdf.write(h, token, link=_pubmed_url(pmid))
         pdf.set_text_color(0, 0, 0)
         last = m.end()
     if last < len(text):
