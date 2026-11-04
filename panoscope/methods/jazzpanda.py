@@ -131,6 +131,10 @@ def _columns(table: Any) -> tuple[str, ...]:
     )
 
 
+#: Columns that carry a measurement, and so must be finite when present.
+_STAT_COLUMNS = ("glm_coef", "pearson", "max_gg_corr", "max_gc_corr")
+
+
 def _rows(table: Any) -> tuple[dict[str, Any], ...]:
     """Rows as plain dicts, in the table's own order.
 
@@ -142,9 +146,76 @@ def _rows(table: Any) -> tuple[dict[str, Any], ...]:
     order gave the wrong driver, and therefore the wrong band, on 5 of 9 units.
     """
     to_dict = getattr(table, "to_dict", None)
-    if to_dict is not None:
-        return tuple(to_dict(orient="records"))
-    return tuple(dict(r) for r in table)
+    raw = (tuple(to_dict(orient="records")) if to_dict is not None
+           else tuple(dict(r) for r in table))
+    return _normalised(raw)
+
+
+class MalformedMethodOutput(ValueError):
+    """The method's own table cannot be read as a measurement.
+
+    Raised rather than worked around. This is a trust boundary: the table is
+    produced by someone else, and each shape below produced a confident wrong
+    answer instead of a refusal.
+    """
+
+
+def _normalised(raw: tuple[dict, ...]) -> tuple[dict, ...]:
+    """Strip symbols, and refuse a table that cannot mean one thing.
+
+    * **Whitespace.** A padded symbol (`" KRT7 "`) became the entity id, so it
+      matched no capability frame, was not canonical and did not click back --
+      while still carrying its number. Stripping is normalisation, not
+      invention, so it is done rather than refused.
+    * **A statistic that is not a finite number.** `glm_coef = NaN` on c1 ERBB2
+      gave `driver=('ERBB2', nan)`, state OBSERVED, band **Medium**, basis
+      "glm_coef direct", verify FALSE -- the band ladder ran on a non-number,
+      and `statistic is None iff NOT OBSERVED` was violated by a value that is
+      not a value.
+    * **Two rows for one (unit, gene) carrying different numbers.** c1 ABCC11
+      appeared twice, at 99.9 and 4.176, and both reached the evidence. One
+      measurement cannot have two values and nothing downstream can choose.
+
+    An exactly duplicated row is collapsed: it says the same thing twice.
+    """
+    seen: dict[tuple[str, str], Any] = {}
+    out: list[dict] = []
+    for r in raw:
+        row = dict(r)
+        for col in ("gene", "top_cluster"):
+            if col in row and isinstance(row[col], str):
+                row[col] = row[col].strip()
+        gene, unit = str(row.get("gene", "")), str(row.get("top_cluster", ""))
+
+        for col, value in row.items():
+            if col in _STAT_COLUMNS and value is not None:
+                try:
+                    f = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if f != f or f in (float("inf"), float("-inf")):
+                    raise MalformedMethodOutput(
+                        f"[jazzpanda] {unit}/{gene}: {col} is {value!r}, which is "
+                        f"not a number. A statistic the method could not produce "
+                        f"must not arrive as one -- fix or drop the row in "
+                        f"inputs/markers_top.csv."
+                    )
+
+        key = (unit, gene)
+        if key in seen:
+            prior = seen[key]
+            if prior == row:
+                continue
+            differing = sorted(c for c in set(prior) | set(row)
+                               if prior.get(c) != row.get(c))
+            raise MalformedMethodOutput(
+                f"[jazzpanda] {unit}/{gene} appears more than once with "
+                f"different values ({', '.join(differing)}). One measurement "
+                f"cannot carry two numbers; fix inputs/markers_top.csv."
+            )
+        seen[key] = row
+        out.append(row)
+    return tuple(out)
 
 
 @dataclass(frozen=True, slots=True)

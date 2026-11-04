@@ -9,6 +9,8 @@ on every study where it happens to be wrong, silently and in a committed artifac
 
 from __future__ import annotations
 
+import pytest
+
 from panoscope.methods import jazzpanda_cgst as CGST
 from panoscope.types.measured import Frame
 from panoscope.types.subject import EntityKind
@@ -64,3 +66,87 @@ def test_the_frame_still_admits_every_set_the_result_scored():
     frame = CGST.MODULE.scored_frame(_table("HALLMARK_EMT", " SYNSET_ALPHA "))
     assert isinstance(frame, Frame) and frame.kind is EntityKind.GENE_SET
     assert frame.members == frozenset({"HALLMARK_EMT", "SYNSET_ALPHA"})
+
+
+# --------------------------------------------------------------------------- #
+# The trust boundary: the method's table is produced by someone else
+# --------------------------------------------------------------------------- #
+def _row(**over):
+    base = {"gene": "ERBB2", "top_cluster": "c1", "glm_coef": 4.0, "pearson": 0.9,
+            "max_gg_corr": 0.9, "max_gc_corr": 0.9, "cell_type": "Tumor"}
+    return {**base, **over}
+
+
+def test_a_padded_gene_symbol_is_stripped_not_carried():
+    """A padded symbol became the entity id: it matched no capability frame, was
+    not canonical and did not click back, while still carrying its number.
+    Stripping is normalisation, not invention."""
+    from panoscope.methods.jazzpanda import _normalised
+
+    out = _normalised((_row(gene=" KRT7 "), ))
+    assert out[0]["gene"] == "KRT7"
+
+
+def test_a_statistic_that_is_not_a_number_is_refused():
+    """``glm_coef = NaN`` gave driver=('ERBB2', nan), state OBSERVED, band
+    Medium, basis "glm_coef direct", verify FALSE -- the band ladder running on
+    a non-number, and ``statistic is None iff NOT OBSERVED`` violated by a value
+    that is not a value."""
+    from panoscope.methods.jazzpanda import MalformedMethodOutput, _normalised
+
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(MalformedMethodOutput) as exc:
+            _normalised((_row(glm_coef=bad), ))
+        assert "ERBB2" in str(exc.value) and "glm_coef" in str(exc.value)
+
+    # ...and every other statistic column is held to the same rule.
+    with pytest.raises(MalformedMethodOutput):
+        _normalised((_row(pearson=float("nan")), ))
+
+
+def test_one_measurement_may_not_carry_two_numbers():
+    """c1 ABCC11 appeared twice at 99.9 and 4.176, and both reached the evidence:
+    the table showed one gene with two contradictory values and nothing
+    downstream could choose between them."""
+    from panoscope.methods.jazzpanda import MalformedMethodOutput, _normalised
+
+    with pytest.raises(MalformedMethodOutput) as exc:
+        _normalised((_row(glm_coef=4.0), _row(glm_coef=99.9)))
+    assert "more than once" in str(exc.value)
+    assert "glm_coef" in str(exc.value)
+
+    # An exactly duplicated row says the same thing twice; collapse it.
+    assert len(_normalised((_row(), _row()))) == 1
+    # Different units are different measurements.
+    assert len(_normalised((_row(top_cluster="c1"), _row(top_cluster="c2")))) == 2
+
+
+def test_the_real_study_is_unchanged_by_the_guard():
+    """The guard must cost the committed study nothing."""
+    from panoscope.agent import config as cfg
+    from panoscope.pipeline import records
+
+    built = records.build_all(cfg.current_study())["c1"]
+    assert built.verdict.band == "Very High"
+    assert built.verdict.driver.subject.one("g").id == "ERBB2"
+    assert len(built.evidence.items) == 281
+
+
+def test_the_guard_is_wired_into_the_reader_not_just_available():
+    """``_rows`` is what ``load`` calls, so the guard has to sit on that path.
+
+    Testing ``_normalised`` alone proved it works and not that anything uses
+    it: reverting the single line that calls it left every one of these tests
+    green.
+    """
+    import pandas as pd
+
+    from panoscope.methods.jazzpanda import MalformedMethodOutput, _rows
+
+    assert _rows(pd.DataFrame([_row(gene=" KRT7 ")]))[0]["gene"] == "KRT7"
+
+    with pytest.raises(MalformedMethodOutput):
+        _rows(pd.DataFrame([_row(glm_coef=float("nan"))]))
+
+    with pytest.raises(MalformedMethodOutput):
+        _rows(pd.DataFrame([_row(glm_coef=4.0), _row(glm_coef=99.9)]))
