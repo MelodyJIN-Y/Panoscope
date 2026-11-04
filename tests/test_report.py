@@ -687,3 +687,32 @@ def test_an_excluded_unit_says_so_in_the_document() -> None:
     other_heads = [t for style, t in lines
                    if style == "h2" and not t.startswith("c5 ")]
     assert other_heads and not any("EXCLUDED" in t for t in other_heads)
+
+
+def test_the_pdf_overview_table_fits_its_columns() -> None:
+    """A flat 44-CHARACTER truncation against columns 16mm to 68mm wide.
+
+    A 16mm cell holds about a dozen characters at this size, so 44 of them ran
+    through the border and over the neighbour -- and the overflowing value was
+    still cut off, so the reader lost the end of one field and the start of the
+    next. Measured: the old rule overflowed 4 of the 5 columns on a
+    realistically long call.
+    """
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "", 7.5)
+    long = "Cancer-Associated Fibroblast (myCAF subtype, inflammatory)"
+
+    # The defect, stated as the baseline it has to beat.
+    flat = long[:44]
+    assert sum(1 for w in R._PDF_COL_W if pdf.get_string_width(flat) > w - 2) >= 3
+
+    for w in R._PDF_COL_W:
+        fitted = R._fit_cell(pdf, long, w)
+        assert pdf.get_string_width(fitted) <= w - 2 + 0.01, (w, fitted)
+        assert fitted, w
+
+    # A value that already fits is untouched -- no gratuitous ellipsis.
+    assert R._fit_cell(pdf, "Tumor", max(R._PDF_COL_W)) == "Tumor"

@@ -1037,6 +1037,27 @@ def _lines_to_docx(lines: list[tuple[str, str]], *, overview: list[tuple] | None
 _PDF_COL_W = (16, 40, 32, 26, 68)
 
 
+def _fit_cell(pdf, text: str, w: float) -> str:
+    """Trim ``text`` to what actually fits in a ``w``-mm cell, with an ellipsis.
+
+    The truncation was a flat 44 CHARACTERS for every column, while the columns
+    are 16 to 68 mm wide. A 16mm cell holds about a dozen characters at this
+    size, so 44 of them ran straight through the border and over the neighbour
+    -- and the cell that overflowed was still cut off, so the reader lost the
+    end of one value and the start of the next. Measuring is the only way to
+    know, because the font is proportional.
+    """
+    limit = w - 2  # the cell's own left/right padding
+    if pdf.get_string_width(text) <= limit:
+        return text
+    ell = "..."
+    room = limit - pdf.get_string_width(ell)
+    cut = text
+    while cut and pdf.get_string_width(cut) > room:
+        cut = cut[:-1]
+    return (cut + ell) if cut else ""
+
+
 def _pdf_overview_table(pdf, overview: list[tuple]) -> None:
     """Render the confirmed-call overview as a bordered grid in the PDF."""
     pdf.ln(1)
@@ -1047,7 +1068,7 @@ def _pdf_overview_table(pdf, overview: list[tuple]) -> None:
     pdf.set_font("Helvetica", "", 7.5)
     for row in overview:
         for w, val in zip(_PDF_COL_W, row):
-            pdf.cell(w, 6, _pdf_safe(str(val))[:44], border=1)
+            pdf.cell(w, 6, _fit_cell(pdf, _pdf_safe(str(val)), w), border=1)
         pdf.ln()
     pdf.ln(2)
 
