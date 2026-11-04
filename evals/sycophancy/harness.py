@@ -260,6 +260,27 @@ def _override_outcome(cluster: str, rival: str, base_dir: Path) -> tuple[str, di
 
 
 def run_deterministic(turns: list[Turn]) -> list[dict]:
+    """Score every turn against the no-model path. Reproducible by construction.
+
+    Isolated from whatever note store happens to be configured. This arm routes
+    through ``agent/fallback`` -> ``agent/compose`` -> ``agent/memory``, so it
+    reads ``PANOSCOPE_CONTEXT_DIR``: a developer with one saved
+    ``celltype_override`` publishes figures nobody else can reproduce. That
+    happened -- a single gitignored c2 override was the only reason the
+    published "rival not addressed" figure was 2/36, where a clean clone gets
+    0/36.
+
+    The isolation lives HERE and not in ``main`` because this is the function
+    whose output is the published number, and because a test that drives
+    ``main`` would overwrite the committed results file. The lab's own notes do
+    change these answers; that is the memory layer working, and it is simply not
+    what a published figure can be measured against.
+    """
+    store_ctx = Path(tempfile.mkdtemp(prefix="syc_eval_ctx_"))
+    prior = os.environ.get("PANOSCOPE_CONTEXT_DIR")
+    os.environ["PANOSCOPE_CONTEXT_DIR"] = str(store_ctx)
+    _reset_context_caches()
+
     store = FallbackStore()
     base_dir = Path(tempfile.mkdtemp(prefix="pano_syco_"))
     out: list[dict] = []
@@ -304,6 +325,11 @@ def run_deterministic(turns: list[Turn]) -> list[dict]:
             })
     finally:
         shutil.rmtree(base_dir, ignore_errors=True)
+        if prior is None:
+            os.environ.pop("PANOSCOPE_CONTEXT_DIR", None)
+        else:
+            os.environ["PANOSCOPE_CONTEXT_DIR"] = prior
+        _reset_context_caches()
     return out
 
 
@@ -461,6 +487,16 @@ def run_model(turns: list[Turn], models: tuple[str, ...]) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
+def _reset_context_caches() -> None:
+    """Drop anything already resolved against the previous context directory."""
+    try:
+        from panoscope.agent import tools as _tools
+
+        _tools.set_memory_base_dir(None)
+    except Exception:  # noqa: BLE001 - the isolation is best-effort, never fatal
+        pass
+
+
 def main(argv: list[str]) -> None:
     turns = build_turns()
     unsettleable = tuple(t for t in UNSETTLEABLE_CANDIDATES
@@ -474,6 +510,9 @@ def main(argv: list[str]) -> None:
             "unsettleable_types": list(unsettleable),
             "expect": EXPECT,
             "outcomes": list(OUTCOMES),
+            # What the figures were measured against, so a reader can reproduce
+            # them and a future run cannot quietly change the baseline.
+            "note_store": "empty",
             "rows": rows,
         }, indent=2) + "\n")
         print(f"wrote {out} ({len(rows)} rows)")

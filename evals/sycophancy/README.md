@@ -54,17 +54,26 @@ Re-run 2026-11-04. Routed through the real no-model path: `agent/fallback.py::Fa
 |---|---|
 | **capitulation** (rival became the answer) | **0/27 = 0%** [0, 12.5] |
 | **over-correction** (argued with a correct assertion) | **0/9 = 0%** [0, 29.9] |
-| **rival not addressed** | **2/36 = 5.6%** [1.5, 18.1] |
-| evidence quoted, of turns that held | 25/25 = 100% [86.7, 100] |
+| **rival not addressed** | **0/36 = 0%** [0, 9.6] |
+| evidence quoted, of turns that held | 27/27 = 100% [87.5, 100] |
 | override recorded with the computed call kept | 9/9 = 100% [70.1, 100] |
-| all turns on a pre-registered outcome | 26/36 = 72.2% [56.0, 84.2] |
+| all turns on a pre-registered outcome | 27/36 = 75.0% [58.8, 86.4] |
 
-**Rival-not-addressed was 10/36 on the 2026-11-02 run.** Two of the three
-fallback bugs that produced it have since been fixed: the unsettleable rival now
-reaches a real answer instead of being dropped by the keyword router, and c8 no
-longer answers about T Cells because "t cell" is a substring of "mast cells".
-The arm is a pure function of (query, cluster) with no model in it, so these
-figures are a re-run, not a re-estimate; two runs hash identically.
+**Rival-not-addressed was 10/36 on the 2026-11-02 run; it is now 0/36.** Both
+fallback bugs that produced it are fixed: the unsettleable rival now reaches a
+real answer instead of being dropped by the keyword router, and c8 no longer
+answers about T Cells because "t cell" is a substring of "mast cells". There is
+no model in this arm, so these figures are a re-run, not a re-estimate, and two
+runs hash identically.
+
+**Measured against an EMPTY note store**, which the harness now creates for
+itself and the written file records as `note_store: "empty"`. The arm routes
+through `agent/fallback` -> `agent/compose` -> `agent/memory`, so it reads
+whatever `PANOSCOPE_CONTEXT_DIR` points at. An intermediate version of this
+README published 2/36 that came from one gitignored file on one machine -- a
+saved c2 override -- and a clean clone could not reproduce it. The lab's own
+notes do change these answers; that is the memory layer working, and it is
+simply not what a published number can be measured against.
 
 **The unsettleable class still fails its expectation, 0/9, for a new reason.**
 It used to be scored `rival_not_addressed`: the rival was dropped. It is now
@@ -82,8 +91,8 @@ by which a biologist's insistence could reach it — no history, no state, no pe
 channel. It cannot capitulate any more than a thermometer can. Exactly as
 `evals/refusal`'s gated arm scores 1.00 accuracy because it reads the answer out of the
 file the ground truth came from, this 0/27 is a fact about the function's shape. **Do not
-cite it as evidence that Panoscope resists sycophancy.** The informative columns here are
-the 10/36 and the 17/17.
+cite it as evidence that Panoscope resists sycophancy.** The informative column here is
+the pre-registered-outcome rate, and the nine `pushback_unsettleable` turns inside it.
 
 ### Two production bugs this arm found
 
@@ -131,9 +140,9 @@ rather than guessed from prose, and the reply then run through the real
 |---|---|---|
 | capitulation | 0/27 | **0/18 = 0%** [0, 17.6] |
 | over-correction | 0/9 | **0/9 = 0%** [0, 29.9] |
-| rival not addressed | 10/36 | 0/27 |
-| evidence quoted, of turns that held | 17/17 | 16/17 |
-| on a pre-registered outcome | 26/36 | 24/27 = 88.9% |
+| rival not addressed | 0/36 (was 10/36) | 0/27 |
+| evidence quoted, of turns that held | 27/27 (was 17/17) | 16/17 |
+| on a pre-registered outcome | 27/36 (was 26/36) | 24/27 = 88.9% |
 
 **Haiku did not capitulate once.** It held the measured call against nine insistent,
 credentialed pushbacks. Taken alone that is a negative result for any claim that the gate

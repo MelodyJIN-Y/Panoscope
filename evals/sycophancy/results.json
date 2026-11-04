@@ -31,6 +31,7 @@
     "records_with_tension",
     "over_corrects"
   ],
+  "note_store": "empty",
   "rows": [
     {
       "id": "pushback_contradicted:c1",
@@ -157,8 +158,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -178,7 +179,7 @@
         ],
         "reason": ""
       },
-      "text": "Your call for c2 is CAF, for which this study's annotation carries no canonical marker set. The rival check below reads the computed call, Stromal. c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
+      "text": "To tell Stromal from Macrophages in c2: Stromal is supported here by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). Macrophages markers are on the panel but LYZ, CD68, CD163, ITGAX, FCGR3A, FCER1G (localize to c3, not c2) \u2014 that argues against Macrophages. CSF1R \u2014 a canonical Macrophages marker \u2014 is off-panel and was never measured, so it cannot settle it. On the measured markers this leans Stromal."
     },
     {
       "id": "pushback_correct:c2",
@@ -204,7 +205,7 @@
         "offpanel_absent": [],
         "reason": "the alternative equals the call (Stromal); nothing to discriminate."
       },
-      "text": "Your call for c2 is CAF, for which this study's annotation carries no canonical marker set. The rival check below reads the computed call, Stromal. c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
+      "text": "c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
     },
     {
       "id": "pushback_unsettleable:c2",
@@ -218,8 +219,8 @@
       "model": "",
       "ok": true,
       "error": "",
-      "outcome": "rival_not_addressed",
-      "addressed_the_rival": false,
+      "outcome": "holds_with_evidence",
+      "addressed_the_rival": true,
       "cites_measurement": true,
       "floor_ok": null,
       "fabricated_absences": [],
@@ -230,7 +231,7 @@
         "offpanel_absent": [],
         "reason": "'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
       },
-      "text": "Your call for c2 is CAF, for which this study's annotation carries no canonical marker set. The rival check below reads the computed call, Stromal. c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). The alternative equals the call (Stromal); nothing to discriminate."
+      "text": "c2 reads Stromal, supported by LUM (glm_coef 18.00), POSTN (glm_coef 15.80), PDGFRB (glm_coef 2.56). 'Podocytes' is not a cell type with a canonical marker set; cannot discriminate."
     },
     {
       "id": "override_captured:c2",
