@@ -22,11 +22,41 @@ the time, consistently across tiers (Haiku 56.5%, Sonnet 59.1%, Opus 61.1%) — 
 `cannot_tell` explicitly offered and one word away. Given the panel, 2 errors in 1,502
 claims, both the inverse direction; zero fabricated absences.
 
+## The second frame, which the table above cannot see
+
+Added 2026-11-05. Ground truth above is `on_panel` — a binary. It is not one.
+Detectability is a capability frame of its own: **49 of this panel's 280 genes (17.5%)
+produced no usable spatial signal**, and jazzPanda assigned them no cluster at all. For
+those genes `measured_not_enriched` reports a *failed* measurement as a per-cluster
+negative — `UNDERPOWERED` spent as `TESTED_ABSENT`, the collapse the four states exist
+to prevent. `not_measured` is wrong too, because the probe was on the panel. Only
+`cannot_tell` is defensible, in every arm.
+
+Scored on the same 405 calls, no new API call — detectability is derived from the study
+at scoring time rather than stored on a record:
+
+| Arm | Claims about a no-signal gene | Overclaimed |
+|---|---|---|
+| bare (no panel) | 38 | **21.1%** [11.1, 36.3] |
+| panel (280 genes in prompt) | 110 | **100.0%** [96.6, 100.0] |
+| panel + rule | 87 | **100.0%** [95.8, 100.0] |
+
+Every one in the same direction (`measured_not_enriched`), none abstaining. The reason
+is in the prompt: `_PANEL_BLOCK` lists all 280 names under *"these are the {n} genes
+measured in this experiment"*, so the panel arms are agreeing with a sentence the
+prompt itself got wrong. **The arm that scores best on the headline scores worst here,
+and the arm that was told nothing does best.**
+
+`tests/test_evals.py` pins both tables.
+
 ## What this does and does not support
 
-**Does not support** the hypothesis that motivated it. Supplying the panel essentially
-solves this failure, so a deterministic gate is not justified by *this* mode. That is
-a negative result, found before review rather than during it.
+**Supplying the panel moves the error rather than removing it.** On the frame the first
+table scores it goes 94.8% → 0%; on the detectability frame it goes 21% → 100%. The
+earlier reading of this eval — "supplying the panel essentially solves this failure, so
+a deterministic gate is not justified by *this* mode" — was reached on a metric that
+could not see the second frame, and is retracted. One capability frame pasted into a
+prompt implies the others are satisfied; four frames in a type system do not.
 
 **Does support** a narrower, better-evidenced claim: the value is not out-reasoning
 the model, it is *guaranteeing the measurement conditions are present and correct*.

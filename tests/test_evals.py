@@ -50,6 +50,11 @@ def sycophancy():
     return _load("sycophancy_score", EVALS / "sycophancy" / "score.py")
 
 
+@pytest.fixture(scope="module")
+def panel_absence():
+    return _load("panel_absence_score_v2", EVALS / "panel_absence" / "score_v2.py")
+
+
 def _doc(*parts: str) -> dict:
     return json.loads((EVALS.joinpath(*parts)).read_text())
 
@@ -84,6 +89,69 @@ def test_seeded_misses_are_exactly_the_two_remaining_classes(seeded):
     s = seeded.summarise(_doc("seeded_errors", "results.json"))
     missed = {m.split(":")[0] for m in s["by_arm"]["deterministic"]["misses"]}
     assert missed == {"number_without_stat_keyword", "real_pmid_wrong_claim"}
+
+
+# --------------------------------------------------------------------------- #
+# panel_absence v2 -- the headline, and the frame the headline cannot see
+# --------------------------------------------------------------------------- #
+def test_panel_absence_headline_is_what_the_readme_quotes(panel_absence):
+    """The 94.8 -> 1.5 -> 0.0 table, pinned for the first time.
+
+    This eval is the one a reader is most likely to quote and was the only one of
+    the five whose figures nothing checked.
+    """
+    rows = _doc("panel_absence", "results_v2.json")
+    ok = [r for r in rows if r["ok"]]
+    assert (len(ok), len(rows)) == (405, 405)
+
+    def call_rate(arm: str) -> tuple[int, int]:
+        rs = [r for r in ok if r["arm"] == arm]
+        if arm == "bare":
+            k = sum(1 for r in rs if any(c[1] != "cannot_tell" for c in r["claims"]))
+        else:
+            k = sum(1 for r in rs
+                    if any((c[1] == "not_measured" and c[2])
+                           or (c[1] == "measured_not_enriched" and not c[2])
+                           for c in r["claims"]))
+        return k, len(rs)
+
+    assert call_rate("bare") == (128, 135)        # 94.8%
+    assert call_rate("panel") == (2, 135)         # 1.5%
+    assert call_rate("panel_rule") == (0, 135)    # 0.0%
+
+
+def test_supplying_the_panel_inverts_on_the_detectability_frame(panel_absence):
+    """The result the headline is blind to, and the reason it needs this column.
+
+    Ground truth above is ``on_panel``, a binary. Detectability is a second
+    capability frame: 49 of 280 genes produced no usable spatial signal, so for
+    them ``measured_not_enriched`` reports a failed measurement as a per-cluster
+    negative -- ``UNDERPOWERED`` spent as ``TESTED_ABSENT``.
+
+    ``_PANEL_BLOCK`` lists all 280 names under "the genes measured in this
+    experiment", so the panel arms are agreeing with their own prompt. The arm that
+    scores best on the headline scores worst here, and that is the finding.
+    """
+    det = panel_absence.detectability(_doc("panel_absence", "results_v2.json"))
+    assert det["n_no_signal_genes"] == 49
+
+    bare = det["by_arm"]["bare"]
+    panel = det["by_arm"]["panel"]
+    rule = det["by_arm"]["panel_rule"]
+
+    assert (bare["overclaimed_k"], bare["n_claims"]) == (8, 38)        # 21.1%
+    assert (panel["overclaimed_k"], panel["n_claims"]) == (110, 110)   # 100%
+    assert (rule["overclaimed_k"], rule["n_claims"]) == (87, 87)       # 100%
+
+    # Every one of them in the same direction: the gene was measured and simply is
+    # not enriched here. None claimed it was off-panel -- the panel block rules
+    # that out, which is exactly why it drives the other error to certainty.
+    assert panel["as_not_measured"] == rule["as_not_measured"] == 0
+    assert panel["abstained"] == rule["abstained"] == 0
+
+    # The inversion, stated as the comparison the paper makes.
+    assert bare["overclaimed_k"] / bare["n_claims"] < 0.25
+    assert panel["overclaimed_k"] / panel["n_claims"] == 1.0
 
 
 def test_seeded_every_class_has_a_clean_control(seeded):
