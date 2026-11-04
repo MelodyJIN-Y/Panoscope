@@ -113,6 +113,20 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     # deliberately never validates, so a mistyped --study was reported as an
     # existing study with no units -- blaming the unit for a study-id error.
     study = Study.open(_resolve_study_id(args.study)).require()
+    # Stage 0, the same gate ``build`` runs. ``explain`` BUILDS the record, so a
+    # store missing a capability frame does not produce a smaller record -- it
+    # produces a complete-looking one with the frame silently absent. With
+    # ``inputs/panel.parquet`` removed, ``build`` refuses and names the file while
+    # ``explain`` printed "band Very High / verify FALSE" and a frames line
+    # carrying detect/annotation/clusters and no panel at all. The panel-absence
+    # rule rests on that frame, and CLAUDE.md documents this command as the way to
+    # read the interpretation record.
+    from panoscope.pipeline.stages.validate import validate
+
+    try:
+        validate(study.id)
+    except ValueError as exc:  # a blocked store is a user error, not a traceback
+        raise SystemExit(str(exc)) from exc
     unit = args.unit
     if unit not in study.units:
         raise SystemExit(

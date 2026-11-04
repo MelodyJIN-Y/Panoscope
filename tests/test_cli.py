@@ -173,3 +173,52 @@ def test_build_forwards_the_study_and_the_notes_flag(monkeypatch, tmp_path, demo
     monkeypatch.setattr(pipeline_run, "run", fake_run)
     assert _run("build", "--study", demo_id, "--notes") == 0
     assert seen == {"dataset_id": demo_id, "notes": True}
+
+
+def test_explain_refuses_a_store_with_no_capability_frame(tmp_path, demo_id) -> None:
+    """``explain`` BUILDS the record, so a missing frame makes it smaller, not absent.
+
+    With the panel removed, ``build`` refuses and names the file, while
+    ``explain`` printed a complete-looking record -- "band Very High", "verify
+    FALSE" -- and a frames line carrying detect/annotation/clusters and no panel
+    at all. The panel-absence rule rests on that frame, and CLAUDE.md documents
+    this command as the way to read the interpretation record.
+
+    Run as a SUBPROCESS, which is how the command is invoked and the only way to
+    get a clean read: in-process, first-party lru_caches hold the frame resolved
+    by an earlier test in this file, so the same assertion passed in isolation
+    and failed in file order.
+    """
+    import os
+    import shutil
+    import subprocess
+    import sys
+
+    root = tmp_path / "data"
+    shutil.copytree(layout.resolve_data_root(), root)
+    removed = []
+    for rel in (("studies", demo_id, "inputs", "panel.parquet"),
+                ("panels", "panel.parquet")):
+        panel = root.joinpath(*rel)
+        if panel.is_file():
+            panel.rename(panel.with_suffix(".parquet.bak"))
+            removed.append(panel.name)
+    assert removed, "the fixture store has no panel to remove"
+
+    env = {**os.environ, "PANOSCOPE_DATA_ROOT": str(root)}
+    done = subprocess.run(
+        [sys.executable, "-m", "panoscope.cli", "explain", "c1", "--study", demo_id],
+        env=env, capture_output=True, text=True)
+    output = done.stdout + done.stderr
+
+    assert done.returncode != 0, f"explain rendered a record anyway:\n{output[:600]}"
+    assert "panel.parquet" in output, output[:600]
+    assert "band" not in done.stdout.lower(), (
+        f"a band was printed for a store with no capability frame:\n{done.stdout[:400]}")
+
+    # ...and the healthy store still renders.
+    ok = subprocess.run(
+        [sys.executable, "-m", "panoscope.cli", "explain", "c1", "--study", demo_id],
+        capture_output=True, text=True)
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    assert "band" in ok.stdout.lower()
