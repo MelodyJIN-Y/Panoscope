@@ -714,3 +714,61 @@ def test_a_control_probe_never_enters_the_absence_universe(tmp_path: Path) -> No
     assert dict(tight.drop_reasons)[
         "gene is a control probe, not a subject of interpretation"] == 2
     assert tight.rows_in == 4, "the record still says four rows were read"
+
+
+# --------------------------------------------------------------------------- #
+# The store is written by someone else: name what cannot be read
+# --------------------------------------------------------------------------- #
+def test_a_corrupt_parquet_names_the_file(tmp_path, monkeypatch):
+    """pyarrow says ``'<Buffer>'`` and the biologist can act on nothing.
+
+    pandas hands pyarrow a buffer, so a truncated or non-parquet file reports
+    "Could not open Parquet input source '<Buffer>'" with no path in it. A
+    study whose panel was damaged in transfer produced that traceback at the
+    intake screen.
+    """
+    import shutil
+
+    from panoscope.agent import config as cfg
+    from panoscope.data import layout
+    from panoscope.data.study import Study
+    from panoscope.platforms.xenium import UnreadableStoreFile, XeniumAdapter
+
+    root = tmp_path / "data"
+    shutil.copytree(layout.resolve_data_root(), root)
+    (root / "studies" / cfg.DATASET_ID / "inputs" / "panel.parquet").write_text(
+        "not a parquet file")
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(root))
+    layout.clear_cache()
+
+    with pytest.raises(UnreadableStoreFile) as exc:
+        XeniumAdapter().validate(Study.open(cfg.DATASET_ID))
+    assert "panel.parquet" in str(exc.value), str(exc.value)
+
+
+def test_an_unfilled_sample_column_is_not_a_sample_named_nan(tmp_path, monkeypatch):
+    """A null reads back as the float NaN, and ``str(nan)`` is the non-empty
+    string "nan" -- which passed the emptiness filter. A vendor export whose
+    sample column is present but unfilled was accepted as a study with one
+    sample literally named "nan", and every per-sample view described it."""
+    import shutil
+
+    import pandas as pd
+
+    from panoscope.agent import config as cfg
+    from panoscope.data import layout
+    from panoscope.data.study import Study
+    from panoscope.platforms.xenium import XeniumAdapter
+
+    root = tmp_path / "data"
+    shutil.copytree(layout.resolve_data_root(), root)
+    cells = root / "studies" / cfg.DATASET_ID / "viz" / "cells.csv"
+    df = pd.read_csv(cells)
+    df["sample"] = None
+    df.to_csv(cells, index=False)
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(root))
+    layout.clear_cache()
+
+    samples = XeniumAdapter().samples(Study.open(cfg.DATASET_ID))
+    assert "nan" not in samples, samples
+    assert samples == [cfg.DATASET_ID], samples

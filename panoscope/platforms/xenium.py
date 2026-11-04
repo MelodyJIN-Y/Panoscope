@@ -228,6 +228,27 @@ def _present(store: Study, rel: str) -> bool:
     return p.is_file()
 
 
+class UnreadableStoreFile(ValueError):
+    """A file in the store cannot be read, named.
+
+    pyarrow reports a corrupt parquet as ``Could not open Parquet input source
+    '<Buffer>'`` -- it never says WHICH file, because pandas hands it a buffer.
+    A biologist whose panel was truncated in transfer got that traceback at the
+    intake screen, naming nothing they could act on.
+    """
+
+
+def _read_parquet(path):
+    """``pd.read_parquet`` that names the file when it cannot be read."""
+    try:
+        return pd.read_parquet(path)
+    except Exception as exc:  # noqa: BLE001 - re-raised, named
+        raise UnreadableStoreFile(
+            f"{path} could not be read as parquet ({type(exc).__name__}: "
+            f"{exc}). The file is corrupt, truncated, or not a parquet file."
+        ) from exc
+
+
 @lru_cache(maxsize=16)
 def _annotated_controls_cached(path: str, mtime_ns: int, size: int) -> frozenset[str]:
     """``panel.parquet``'s control rows BY ANNOTATION, memoised on the file itself.
@@ -241,7 +262,7 @@ def _annotated_controls_cached(path: str, mtime_ns: int, size: int) -> frozenset
     later study's question with an earlier study's panel. A rewrite changes at least
     one of the two stat fields, so the key changes with the file.
     """
-    df = pd.read_parquet(path)
+    df = _read_parquet(path)
     # Both columns, not just the annotation: a panel spelling its gene column
     # anything else raised a bare KeyError here as well as in ``_panel_genes``,
     # and this one is reached first through ``frames``.
@@ -304,7 +325,7 @@ class XeniumAdapter:
         if not p.is_file():
             return None
         try:
-            df = pd.read_parquet(p)
+            df = _read_parquet(p)
         except Exception:  # noqa: BLE001 - an unreadable panel is "no measured set"
             return None
         if "gene" not in df.columns:
@@ -564,7 +585,7 @@ class XeniumAdapter:
             if not p.is_file():
                 continue
             if p.suffix == ".parquet":
-                head = pd.read_parquet(p)
+                head = _read_parquet(p)
                 col = head["sample"] if "sample" in head.columns else None
             else:
                 names = pd.read_csv(p, nrows=0).columns
@@ -572,7 +593,13 @@ class XeniumAdapter:
                        if "sample" in names else None)
             if col is None:
                 break
-            found = sorted({str(v).strip() for v in col if str(v).strip()})
+            # ``pd.notna`` first: a null reads back as the float NaN, and
+            # ``str(nan)`` is the non-empty string "nan", which passed this
+            # filter. A vendor export whose sample column is present but
+            # unfilled was accepted as a study with one sample literally named
+            # "nan", and every per-sample view then described it.
+            found = sorted({str(v).strip() for v in col
+                            if pd.notna(v) and str(v).strip()})
             if found:
                 return found
             break
