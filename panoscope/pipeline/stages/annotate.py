@@ -1,9 +1,8 @@
 """Stage: annotate -- derive the cell type per cluster with the marker-gene skill (LIVE).
 
 For a dataset WITHOUT ``interp/annotation.json``, runs the marker-interpretation skill
-per cluster on its top markers: cell type, lineage/category, short name and canonical
-lineage markers. The off-panel canonical set is then computed against the dataset's
-own panel.
+per cluster on its top markers: cell type, lineage/category and short name. It never
+writes canonical markers: those are reference data (§15), never model-written.
 
 The result is a PROPOSAL; the biologist's call replaces it downstream. Resumable: an
 existing annotation.json is read, not regenerated. Fail-soft per cluster: a failed
@@ -29,11 +28,6 @@ from panoscope.pipeline import paths
 _REQUIRED = ("cell_type", "cell_type_short", "category", "lineage")
 _TOP_MARKERS = 8
 
-# A gene symbol, loosely: a letter, then letters/digits/._-. Deliberately permissive
-# about real symbols and strict about the things that are not symbols at all -- the
-# prompt's own shape hints ("<gene symbol>", "..."), an empty string, a sentence.
-_SYMBOL = re.compile(r"^[A-Za-z][A-Za-z0-9._-]*$")
-
 
 def _cluster_markers(cluster: str) -> list[tuple[str, float, float]]:
     df = data.get_cluster_markers(cluster)  # glm_coef desc, NoSig excluded
@@ -51,9 +45,7 @@ def _prompt(cluster: str, markers: list[tuple[str, float, float]]) -> str:
         f"from its spatial marker signature. Reply with ONLY a compact JSON object and "
         f"nothing else (no prose, no code fence): "
         f'{{"cell_type": "...", "cell_type_short": "Prefix_Descriptor", "category": "...", '
-        f'"lineage": "...", "canonical_markers": ["<gene symbol>", "<gene symbol>"]}}. '
-        f"canonical_markers = the established lineage markers for that cell type (gene "
-        f"symbols only). Do NOT include any jazzPanda numbers or a PMID."
+        f'"lineage": "..."}}. Do NOT include any jazzPanda numbers or a PMID.'
     )
 
 
@@ -76,35 +68,20 @@ def _parse(text: str) -> Optional[dict]:
     return obj
 
 
-def _canonical_markers(obj: dict) -> list[str]:
-    """The gene symbols the model named as canonical. Reference data, so: strict.
-
-    Anything that is not a list of symbol-shaped strings yields the EMPTY set rather
-    than a salvaged one (a bare string must not iterate into one-letter "genes").
-    """
-    raw = obj.get("canonical_markers")
-    if not isinstance(raw, (list, tuple)):
-        return []
-    return [g.strip() for g in raw if isinstance(g, str) and _SYMBOL.match(g.strip())]
-
-
 def _record(cluster: str, obj: dict) -> dict:
-    """Build the annotation record; compute off-panel canonical vs THIS dataset's panel.
+    """Build the annotation record. The canonical slot stays empty whatever the model said.
 
-    Takes no markers on purpose -- see the module docstring. With the measurement out
-    of scope there is no expression in this function that could promote an observed
-    marker into the canonical slot.
+    Takes no markers on purpose -- see the module docstring -- so no observed marker can
+    be promoted into the canonical slot either.
     """
-    canon = _canonical_markers(obj)
-    offpanel = [g for g in canon if not data.panel_contains(g)]  # grounded: never measured
     return {
         "cluster": cluster,
         "cell_type": str(obj["cell_type"]),
         "cell_type_short": str(obj["cell_type_short"]),
         "category": str(obj["category"]),
         "lineage": str(obj["lineage"]),
-        "canonical_markers": canon,
-        "offpanel_canonical": offpanel,
+        "canonical_markers": [],
+        "offpanel_canonical": [],
     }
 
 

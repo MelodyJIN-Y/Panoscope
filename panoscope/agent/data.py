@@ -85,8 +85,7 @@ _MARKERS_TOP_COLS = [
     "pearson",
     "max_gg_corr",
     "max_gc_corr",
-    "cell_type",
-]
+]  # no ``cell_type``: a label, and a fresh study has none (labels live in the annotation)
 _PANEL_COLS = ["gene", "ensembl_id", "annotation"]
 
 
@@ -135,8 +134,8 @@ def _read_table(parquet_path, csv_path, produced_by: str) -> pd.DataFrame:
 def load_markers() -> pd.DataFrame:
     """Return the jazzPanda top-marker table (incl. NoSig), controls excluded.
 
-    Columns: gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr,
-    cell_type. Cached; callers must not mutate the returned frame.
+    Columns: gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr.
+    Cached; callers must not mutate the returned frame.
 
     Control probes are dropped from the reader (never the file) by :func:`is_control`,
     the same rule ``XeniumAdapter._detectable_genes`` uses.
@@ -197,11 +196,11 @@ def load_cluster_key() -> dict[str, dict]:
 
 
 def cell_type_for(cluster: str) -> str:
-    """Return the cell type label for a cluster id. KeyError if unknown."""
-    key = load_cluster_key()
-    if cluster not in key:
+    """Return the cell type label for a cluster id ("not yet called" when unlabelled).
+    KeyError if unknown."""
+    if cluster not in cfg.KNOWN_CLUSTERS:
         raise KeyError(f"[data] unknown cluster {cluster!r}")
-    return key[cluster]["cell_type"]
+    return cfg.current_study().label_for(cluster)
 
 
 # --------------------------------------------------------------------------- #

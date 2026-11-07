@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from panoscope.agent import config as cfg
 from panoscope.ui import data_access as da
 
 
@@ -67,3 +68,11 @@ def test_gene_notes_are_grounded_and_cited() -> None:
             pmid = note.get("pmid")
             if pmid is not None:
                 assert str(pmid).isdigit(), f"non-numeric PMID: {pmid!r}"
+
+
+def test_a_study_without_gene_notes_shows_none_not_another_studys(tmp_path) -> None:
+    """A fresh study's biology column is empty; the demo's cited notes never stand in."""
+    from panoscope.data.study import Study
+
+    with cfg.use_study(Study(id="fresh", data_root=tmp_path)):
+        assert da.gene_notes() == {}

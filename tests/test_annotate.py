@@ -3,7 +3,8 @@
 The live agent call is mocked, so these stay deterministic and network-free; the
 run writes only under a pytest tmp dir (never the bundled demo tree).
 
-**The invariant these exist for.** This stage writes the canonical-marker set, and
+**The invariant these exist for.** This stage writes the canonical-marker slot (always
+empty: canonical lists are reference data, never model-written), and
 ``pipeline/records.py`` hands that set to ``core/verdict.assess`` as the list deciding
 which marker may drive the confidence band. So the tests below are not about parsing:
 they are about what reaches that slot when the model fails. The failure path used to
@@ -63,13 +64,11 @@ def test_parse_rejects_a_present_but_unusable_label(payload):
 # --------------------------------------------------------------------------- #
 # The canonical slot: reference data only
 # --------------------------------------------------------------------------- #
-def test_record_computes_offpanel_against_the_panel():
-    obj = {"cell_type": "Tumor", "cell_type_short": "Tum", "category": "Epithelial",
-           "lineage": "Epithelial", "canonical_markers": ["ERBB2", "ZZZ_NOT_ON_PANEL"]}
-    rec = annotate._record("c1", obj)
+def test_the_models_canonical_markers_never_reach_the_record():
+    """§15: canonical lists are reference data. A proposal names a label, nothing more."""
+    rec = annotate._record("c1", annotate._parse(_GOOD))
     assert rec["cell_type"] == "Tumor"
-    assert "ZZZ_NOT_ON_PANEL" in rec["offpanel_canonical"]  # never measured on this panel
-    assert "ERBB2" not in rec["offpanel_canonical"]         # on panel
+    assert rec["canonical_markers"] == [] and rec["offpanel_canonical"] == []
 
 
 def test_record_cannot_see_the_measurement():
@@ -81,33 +80,6 @@ def test_record_cannot_see_the_measurement():
     """
     params = set(inspect.signature(annotate._record).parameters)
     assert params == {"cluster", "obj"}, params
-
-
-@pytest.mark.parametrize("raw,expected", [
-    (["ERBB2", "EPCAM"], ["ERBB2", "EPCAM"]),
-    (["  ERBB2 "], ["ERBB2"]),                       # whitespace, not a different gene
-    ("ERBB2, EPCAM", []),                            # a string, not a list of genes
-    (["ERBB2", "..."], ["ERBB2"]),                   # a shape hint is not a gene
-    (["<gene symbol>", "ERBB2"], ["ERBB2"]),         # nor is the prompt's placeholder
-    (["ERBB2", None, 7, ""], ["ERBB2"]),
-    (None, []),
-    ({"a": "ERBB2"}, []),
-])
-def test_canonical_markers_drops_what_is_not_a_gene_symbol(raw, expected):
-    assert annotate._canonical_markers({"canonical_markers": raw}) == expected
-
-
-def test_a_bare_string_is_never_salvaged_into_per_character_markers():
-    """The inverse fabrication: one-letter 'canonical markers', none of them on panel.
-
-    Each would be reported to the biologist as a canonical marker this panel never
-    measured -- fabricated absence, which is as bad as a fabricated presence.
-    """
-    rec = annotate._record("c1", {"cell_type": "Tumor", "cell_type_short": "Tum",
-                                  "category": "Epithelial", "lineage": "Epithelial",
-                                  "canonical_markers": "ERBB2, EPCAM"})
-    assert rec["canonical_markers"] == []
-    assert rec["offpanel_canonical"] == []
 
 
 # --------------------------------------------------------------------------- #

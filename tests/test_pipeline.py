@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import json
 
+import pandas as pd
+
 import pytest
 
 from panoscope.agent import config as cfg
+from panoscope.agent import data
 from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent import enrichment_themes as agent_enrichment_themes
 from panoscope.agent import holistic as agent_holistic
@@ -149,8 +152,10 @@ def _fresh_study(tmp_path, monkeypatch) -> None:
     demo = paths.inputs_dir(cfg.BUNDLED_DEMO_ID)
     study = tmp_path / "studies" / "fresh"
     (study / "inputs").mkdir(parents=True)
-    for name in ("markers_top.csv", "panel.parquet"):  # no cluster_key, no annotation
-        shutil.copyfile(demo / name, study / "inputs" / name)
+    shutil.copyfile(demo / "panel.parquet", study / "inputs" / "panel.parquet")
+    # No cluster_key, no annotation, and no cell_type column: that column is a label too.
+    pd.read_csv(demo / "markers_top.csv").drop(columns="cell_type").to_csv(
+        study / "inputs" / "markers_top.csv", index=False)
     (study / "manifest.json").write_text(json.dumps(
         {"dataset_id": "fresh", "tissue": "human breast cancer", "platform": "Xenium"}))
     monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path))
@@ -180,6 +185,8 @@ def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_pat
         assert v.cell_type == NOT_YET_CALLED, c
     assert store.load_review_state("fresh") == {}  # nothing signed off: every unit OPEN
     assert EntityKind.CELL_TYPE not in {f.kind for f in XeniumAdapter().frames(Study.open("fresh"))}
+    with cfg.use_study("fresh"):  # the chat's opening reads the label; none is not a crash
+        assert data.cell_type_for("c1") == NOT_YET_CALLED
 
     pipeline_run.run("fresh")  # the proposal already ran; a rebuild does not re-ask
     assert len(asked) == 9

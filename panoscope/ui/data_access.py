@@ -251,26 +251,15 @@ def leading_edge_expr(genes: tuple[str, ...]) -> Optional[pd.DataFrame]:
 # --------------------------------------------------------------------------- #
 # Grounded per-gene biology notes, each live-cited. Read only; never generated here.
 # --------------------------------------------------------------------------- #
-_GENE_NOTES_JSON = cfg.DATA_DIR_PATH / "gene_notes" / "notes.json"
-
-
 @_cache_data(show_spinner=False)
 def gene_notes() -> dict:
-    """All grounded gene notes as ``{cluster: {gene: note}}`` (``{}`` if none).
+    """This study's grounded gene notes as ``{cluster: {gene: note}}`` (``{}`` if none).
 
-    Pipeline tree first, legacy ``data/gene_notes/notes.json`` fallback.
+    No fallback: another study's notes would cite its biology against these clusters.
     """
-    import json
-
     from panoscope.pipeline import store
 
-    tree = store.load_gene_notes()
-    if tree:
-        return tree
-    try:
-        return json.loads(_GENE_NOTES_JSON.read_text())
-    except (OSError, ValueError):
-        return {}
+    return store.load_gene_notes()
 
 
 def gene_note(cluster: str, gene: str) -> Optional[dict]:
