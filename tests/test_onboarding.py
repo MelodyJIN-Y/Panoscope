@@ -200,7 +200,8 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     assert "corpus build refused: no model key" in captions
     assert not [b for b in at.button if b.key == "ob_corpus_build"]
     at.button(key="ob_corpus_skip").click().run()
-    assert "corpus not built — cannot settle" in "\n".join(m.value for m in at.markdown)
+    chip = next(m.value for m in at.markdown if "pano-ctx-chip\"" in m.value)
+    assert "corpus not built — cannot settle" in chip
 
     at.run()  # a later rerun starts from a fresh context: only the session names the study
     root = (tmp_path / "home" / ".panoscope" / "data").resolve()

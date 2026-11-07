@@ -155,3 +155,21 @@ def test_a_literature_off_build_is_byte_identical_with_a_corpus_present(tmp_path
     pipeline_run.run(DEMO_ID, root=tmp_path / "on")
     off, on = tree(tmp_path / "off"), tree(tmp_path / "on")
     assert off[0] and off == on
+
+
+def test_a_summary_cell_with_no_note_says_cannot_settle_until_a_corpus_is_built():
+    from panoscope.ui import data_access as da
+    from panoscope.ui import summary
+
+    v = da.all_verdicts()[0]
+    assert B.NOT_BUILT in summary._biology_cell(v, {}, "")
+    save(Corpus(version=CorpusVersion(DEMO_ID, (), (), "stub", "h")), corpus_path(DEMO_ID))
+    assert summary._biology_cell(v, {}, "") == '<span class="bio-dim">—</span>'
+
+
+def test_the_export_header_carries_the_corpus_staleness():
+    from panoscope.ui import report
+
+    save(Corpus(version=CorpusVersion(DEMO_ID, (), (), "stub", "h", stale_after="2000-01-01")),
+         corpus_path(DEMO_ID))
+    assert report._provenance(DEMO_ID)["corpus_status"].endswith("STALE since 2000-01-01")
