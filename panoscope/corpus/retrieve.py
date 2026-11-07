@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final, Iterable
 
-from panoscope.corpus.store import Corpus, SourceRecord
+from panoscope.corpus.store import Corpus, QueryStatus, SourceRecord, Statement
 from panoscope.types.trace import Trace, Traced
 
 TITLE_WEIGHT: Final = 2
@@ -169,3 +169,47 @@ def search(corpus: Corpus, terms: Iterable[str], *,
            refs=tuple(h.record.uri for h in hits))
     return t.done(Retrieval(terms=wanted, state=Support.FOUND, hits=hits,
                             searched=len(corpus.records), floor=floor))
+
+
+@dataclass(frozen=True, slots=True)
+class KeyState:
+    """FOUND / NONE_FOUND / NOT_BUILT for one (gene, cell type) key of the study's tissue.
+
+    ``gaps`` names every query of the key (or its gene's vocabulary and census) that
+    did not run to completion; NONE_FOUND reads "thin" only when there are none.
+    """
+
+    gene: str
+    cell_type: str
+    state: Support
+    statements: tuple[Statement, ...] = ()
+    gaps: tuple[str, ...] = ()
+
+    @property
+    def reads_as(self) -> str:
+        what = f"{self.gene} in {self.cell_type or 'this tissue'}"
+        if self.state is Support.FOUND:
+            n = len({s.uri for s in self.statements})
+            return (f"{len(self.statements)} statement(s) about {what} from {n} "
+                    "paper(s); topically relevant, never confirmation in this assay")
+        if self.state is Support.NOT_BUILT:
+            return f"the corpus was not built for {what}, so it cannot settle this"
+        if self.gaps:
+            return (f"incomplete search for {what} ({'; '.join(self.gaps)}): nothing "
+                    "found so far, which says nothing either way")
+        return f"searched completely: the literature is thin on {what}"
+
+
+def key_state(corpus: Corpus, gene: str, cell_type: str) -> KeyState:
+    """Resolve one key from the query log and statements; no queries is NOT_BUILT."""
+    g, c = gene.casefold(), cell_type.casefold()
+    runs = [q for q in corpus.queries if q.gene.casefold() == g
+            and q.cell_type.casefold() in (c, "")]
+    if not any(q.cell_type.casefold() == c for q in runs):
+        return KeyState(gene, cell_type, Support.NOT_BUILT)
+    found = tuple(s for s in corpus.statements
+                  if s.gene.casefold() == g and s.cell_type.casefold() == c)
+    gaps = tuple(f"{q.channel} {q.status.value}" for q in runs
+                 if q.status is not QueryStatus.OK)
+    return KeyState(gene, cell_type, Support.FOUND if found else Support.NONE_FOUND,
+                    found, gaps)

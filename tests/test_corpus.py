@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import json
 import socket
 import typing
 from pathlib import Path
@@ -530,10 +529,9 @@ def test_save_round_trips_exactly(tmp_path):
                    built="2026-11-02")
     p = save(built, tmp_path / "sources.json")
     assert load(p) == built
-    # Deterministic bytes: the same corpus writes the same file.
-    first = p.read_bytes()
-    assert save(built, p).read_bytes() == first
-    assert json.loads(first)["spec_version"] == S.SPEC_VERSION
+    # Saving again replaces the file wholesale and reads back the same corpus.
+    assert load(save(built, p)) == built
+    assert load(p).spec_version == S.SPEC_VERSION
 
 
 def test_no_socket_is_opened_across_the_whole_offline_surface(monkeypatch, tmp_path):

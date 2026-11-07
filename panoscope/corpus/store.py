@@ -21,12 +21,20 @@ every record starts at a connector response.
 inside the repository (ARCHITECTURE §10.6, §12).
 
 Clock-free: ``retrieved`` is an ISO string the caller minted.
+
+**Storage** is one SQLite file per study (§8.3): source records, misses, statements
+bound to verbatim spans, the query log, the disposition ledger and the corpus
+version. Rebuilt wholesale, so rows are JSON and the file is replaced atomically.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
-from dataclasses import dataclass
+import os
+import sqlite3
+from contextlib import closing
+from dataclasses import asdict, dataclass, fields
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final, Iterable, Protocol
@@ -41,8 +49,8 @@ same two ``claims.store.thin_literature`` keys off -- ``test_corpus`` asserts th
 have not drifted apart, because a scheme citable in one module and not the other is a
 claim that renders as a citation and resolves to nothing."""
 
-STORE_FILENAME: Final = "sources.json"
-SPEC_VERSION: Final = "0.1"
+STORE_FILENAME: Final = "corpus.sqlite"
+SPEC_VERSION: Final = "0.2"
 
 RESOLVABLE: Final[frozenset[str]] = frozenset({"pmid"})
 """Schemes a connector exists for today. ``doi:`` is citable but not resolvable: the
@@ -93,8 +101,13 @@ class SourceRecord:
     year: int = 0                 # 0 means the connector did not say; never guessed
     journal: str = ""
     abstract: str = ""
-    via: str = ""                 # which connector produced it
-    retrieved: str = ""           # ISO string the caller minted; no clock here
+    via: str = ""                 # the connector that produced it (PubMed, Europe PMC)
+    retrieved: str = ""           # fetched_at: ISO string the caller minted; no clock here
+    pmcid: str = ""
+    doi: str = ""
+    publication_type: tuple[str, ...] = ()
+    licence: str = ""             # as the connector stated it; "" = not stated
+    full_text: str = ""           # licence-bearing like the abstract; store only
 
     def __post_init__(self) -> None:
         scheme, sep, rest = self.uri.partition(":")
@@ -111,8 +124,23 @@ class SourceRecord:
 
     @property
     def redistributable(self) -> bool:
-        """False once an abstract is attached. Metadata-only records are the NLM's."""
-        return not self.abstract.strip()
+        """False once an abstract or full text is attached. Metadata alone is the NLM's."""
+        return not (self.abstract.strip() or self.full_text.strip())
+
+    @property
+    def is_real(self) -> bool:
+        """A connector produced it; records are only ever built from a response."""
+        return bool(self.via)
+
+    @property
+    def retracted(self) -> bool:
+        return any("retract" in t.casefold() for t in self.publication_type)
+
+    def text(self, section: str) -> str:
+        """The stored text a span is checked against: title, abstract or full_text."""
+        if section not in SECTIONS:
+            raise UnboundSpan(f"{section!r} is not a section ({sorted(SECTIONS)})")
+        return getattr(self, section)
 
     @property
     def citation(self) -> str:
@@ -176,6 +204,129 @@ class Resolved:
                 "way, so this says nothing about whether the source exists")
 
 
+SECTIONS: Final[frozenset[str]] = frozenset({"title", "abstract", "full_text"})
+
+
+class UnboundSpan(ValueError):
+    """A statement whose span is not verbatim at its offsets in its record's text."""
+
+
+@dataclass(frozen=True, slots=True)
+class Statement:
+    """One model-read statement about a gene, bound to a verbatim span of one record.
+
+    ``rung``, modality and ``species`` are computed by code (``corpus.window``), never
+    by the model; ``written_by`` is the generator (model + route) that read the span.
+    """
+
+    uri: str
+    gene: str
+    cell_type: str              # the frame label; "" when the span names none
+    tissue: str
+    predicate: str
+    stance: str                 # supports | argues_against | qualifies | neutral
+    span: str
+    start: int
+    end: int
+    section: str                # title | abstract | full_text
+    rung: str = ""              # window.Rung value; "" = beyond the ladder
+    analyte: str = "UNKNOWN"
+    resolution: str = "UNKNOWN"
+    modality_match: str = "UNKNOWN"
+    species: str = "UNSTATED"
+    flags: tuple[str, ...] = ()
+    written_by: str = ""
+
+
+class QueryStatus(StrEnum):
+    OK = "ok"
+    FAILED = "failed"
+    DEGRADED = "degraded"
+    TRUNCATED = "truncated"     # k of N retrieved; degraded for absence
+
+
+@dataclass(frozen=True, slots=True)
+class QueryRun:
+    """One query-log row: the exact string sent, and what came back of how much.
+
+    ``channel`` "census" is count-only (nothing retrieved, ``total`` is the hit count).
+    Any other channel reports OK only when everything was retrieved.
+    """
+
+    query: str
+    channel: str
+    gene: str
+    cell_type: str = ""         # "" for gene-level rows (vocabulary, census)
+    total: int = 0
+    retrieved: int = 0
+    status: QueryStatus = QueryStatus.OK
+    ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "status", QueryStatus(self.status))
+        if "{" in self.query or not self.query.strip():
+            raise ValueError(f"not an exact query string: {self.query!r}")
+        if (self.status is QueryStatus.OK and self.channel != "census"
+                and self.retrieved < self.total):
+            raise ValueError(f"{self.retrieved} of {self.total} retrieved is "
+                             "TRUNCATED, not OK")
+
+    @property
+    def request_hash(self) -> str:
+        return hashlib.sha256(f"{self.channel}\0{self.query}".encode()).hexdigest()[:16]
+
+
+DISPOSITIONS: Final[tuple[str, ...]] = (
+    "DEDUP_OF:", "PREFILTER_NO_ALIAS", "RETRACTED", "REVIEW_CHASE_ONLY", "P1_EXCLUDED:",
+    "NON_TISSUE", "OUT_OF_LADDER", "NOT_SCREENED_TRUNCATED", "NOT_READ_BUDGET", "READ:",
+    "SAME_DATASET_READ",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class Disposition:
+    """The one terminal disposition of an identifier any query returned (§6 ledger)."""
+
+    id: str
+    disposition: str
+
+    def __post_init__(self) -> None:
+        d = self.disposition
+        if not any(d == p or (p.endswith(":") and d.startswith(p) and d != p)
+                   for p in DISPOSITIONS):
+            raise ValueError(f"{self.id}: {d!r} is not a ledger disposition")
+
+
+@dataclass(frozen=True, slots=True)
+class CorpusVersion:
+    """What one build was made from (§8.3). ``built_at`` is outside the content hash."""
+
+    study: str
+    conditions: tuple[tuple[str, str], ...]     # Conditions snapshot, (field, value)
+    reference: tuple[tuple[str, str], ...]      # (source, release)
+    generator: str                              # model + route
+    query_log_hash: str
+    background_hash: str = ""
+    cost: str = ""                              # the build's receipt, as written
+    retrieval: str = "BM25+aliases"
+    embedding: str = "none"
+    spec_version: str = SPEC_VERSION
+    built_at: str = ""
+
+    @property
+    def content_hash(self) -> str:
+        d = {f.name: getattr(self, f.name) for f in fields(self) if f.name != "built_at"}
+        return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def log_hash(queries: Iterable[QueryRun]) -> str:
+    """The query log's digest, in run order, for :attr:`CorpusVersion.query_log_hash`."""
+    h = hashlib.sha256()
+    for q in queries:
+        h.update(f"{q.request_hash}:{q.status.value}:{q.total}:{q.retrieved}\n".encode())
+    return h.hexdigest()[:16]
+
+
 # --------------------------------------------------------------------------- #
 # The corpus
 # --------------------------------------------------------------------------- #
@@ -191,6 +342,27 @@ class Corpus:
     misses: tuple[Miss, ...] = ()
     built: str = ""                   # the corpus version's build stamp (§8.3)
     spec_version: str = SPEC_VERSION
+    statements: tuple[Statement, ...] = ()
+    queries: tuple[QueryRun, ...] = ()
+    ledger: tuple[Disposition, ...] = ()
+    version: CorpusVersion | None = None
+
+    def __post_init__(self) -> None:
+        for st in self.statements:
+            held = self.find(st.uri)
+            if not any(r.text(st.section)[st.start:st.end] == st.span for r in held):
+                raise UnboundSpan(
+                    f"{st.uri} {st.section}[{st.start}:{st.end}] is not {st.span!r}"
+                    + ("" if held else " (no record held)"))
+        ids = [d.id for d in self.ledger]
+        if len(ids) != len(set(ids)):
+            raise ValueError("an identifier holds two dispositions in the ledger")
+
+    @property
+    def unclosed(self) -> tuple[str, ...]:
+        """Ids a query returned that hold no disposition; a build check fails on any."""
+        done = {d.id for d in self.ledger}
+        return tuple(dict.fromkeys(i for q in self.queries for i in q.ids if i not in done))
 
     def find(self, uri: str) -> tuple[SourceRecord, ...]:
         # ponytail: linear scan. A per-study corpus is hundreds of records, not
@@ -325,6 +497,10 @@ def fetch(uris: Iterable[str], *, connector: Connector | None = None,
                 abstract=str(art.get("abstract") or "").strip(),
                 via=via,
                 retrieved=retrieved,
+                pmcid=str(art.get("pmcid") or "").strip(),
+                doi=str(art.get("doi") or "").strip(),
+                publication_type=tuple(str(x) for x in art.get("publication_types") or ()),
+                licence=str(art.get("license") or "").strip(),
             )
         except (HollowRecord, TypeError, ValueError) as exc:
             # A response keyed to a real PMID but carrying no title. Storing it would
@@ -359,30 +535,38 @@ def corpus_path(study: str) -> Path:
     return cache_dir("corpus", study, redistributable=False) / STORE_FILENAME
 
 
-def _record_to_dict(r: SourceRecord) -> dict[str, Any]:
-    return {"uri": r.uri, "title": r.title, "authors": r.authors, "year": r.year,
-            "journal": r.journal, "abstract": r.abstract, "via": r.via,
-            "retrieved": r.retrieved}
+_TABLES: Final = ("records", "misses", "statements", "queries", "ledger")
+
+
+def _tup(v: Any) -> Any:
+    return tuple(_tup(x) for x in v) if isinstance(v, list) else v
+
+
+def _rows(db: sqlite3.Connection, table: str) -> list[dict[str, Any]]:
+    return [{k: _tup(v) for k, v in json.loads(d).items()}
+            for (d,) in db.execute(f"SELECT data FROM {table} ORDER BY n")]
 
 
 def save(corpus: Corpus, path: Path | str) -> Path:
-    """Write the corpus as JSON. Misses are written too -- see :class:`Corpus`.
-
-    ponytail: one JSON file. ARCHITECTURE §8.3 wants the study's SQLite store; this
-    is hundreds of records rebuilt wholesale, so a query engine buys nothing yet.
-    Move it when spans land and the corpus is paged rather than loaded.
-    """
+    """Write the corpus as one SQLite file, replaced atomically. Misses are rows too."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "spec_version": corpus.spec_version,
-        "built": corpus.built,
-        "records": [_record_to_dict(r) for r in corpus.records],
-        "misses": [{"uri": m.uri, "looked_with": m.looked_with,
-                    "retrieved": m.retrieved} for m in corpus.misses],
-    }
-    p.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n",
-                 encoding="utf-8")
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    with closing(sqlite3.connect(tmp)) as db:
+        db.execute("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)")
+        version = json.dumps(asdict(corpus.version), sort_keys=True) if corpus.version else ""
+        db.executemany("INSERT INTO meta VALUES (?, ?)", [
+            ("spec_version", corpus.spec_version), ("built", corpus.built),
+            ("version", version)])
+        for t in _TABLES:
+            # ponytail: rows are JSON; add typed columns and indexes when a query needs them.
+            db.execute(f"CREATE TABLE {t} (n INTEGER PRIMARY KEY, data TEXT NOT NULL)")
+            db.executemany(f"INSERT INTO {t} (data) VALUES (?)",
+                           [(json.dumps(asdict(r), sort_keys=True),)
+                            for r in getattr(corpus, t)])
+        db.commit()
+    os.replace(tmp, p)
     return p
 
 
@@ -396,31 +580,28 @@ def load(path: Path | str) -> Corpus:
     if not p.is_file():
         raise CorpusUnavailable(
             f"{p} has no corpus. It is fetched, never bundled -- build it with "
-            "corpus.store.fetch(...) and save it, or point PANOSCOPE_REFERENCE_DIR "
-            "at a cache that has one. Until then the corpus is unread, not empty."
+            "`panoscope corpus build`, or point PANOSCOPE_REFERENCE_DIR at a cache "
+            "that has one. Until then the corpus is unread, not empty."
         )
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise CorpusUnavailable(f"{p} could not be read: {exc}") from exc
-    if not isinstance(data, dict) or "records" not in data:
+        with closing(sqlite3.connect(p.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+            meta = dict(db.execute("SELECT k, v FROM meta"))
+            rows = {t: _rows(db, t) for t in _TABLES}
+    except sqlite3.Error as exc:
         raise CorpusUnavailable(
-            f"{p} is not a corpus file (no 'records' key). Refusing rather than "
-            "guessing -- a half-read corpus reads as thin literature."
-        )
+            f"{p} is not a corpus store ({exc}). Refusing rather than guessing -- a "
+            "half-read corpus reads as thin literature."
+        ) from exc
+    v = json.loads(meta["version"]) if meta.get("version") else None
     return Corpus(
-        records=tuple(SourceRecord(
-            uri=str(d["uri"]), title=str(d.get("title", "")),
-            authors=str(d.get("authors", "")), year=int(d.get("year") or 0),
-            journal=str(d.get("journal", "")), abstract=str(d.get("abstract", "")),
-            via=str(d.get("via", "")), retrieved=str(d.get("retrieved", "")),
-        ) for d in data.get("records", ())),
-        misses=tuple(Miss(
-            uri=str(d["uri"]), looked_with=str(d.get("looked_with", "")),
-            retrieved=str(d.get("retrieved", "")),
-        ) for d in data.get("misses", ())),
-        built=str(data.get("built", "")),
-        spec_version=str(data.get("spec_version", SPEC_VERSION)),
+        records=tuple(SourceRecord(**d) for d in rows["records"]),
+        misses=tuple(Miss(**d) for d in rows["misses"]),
+        built=meta.get("built", ""),
+        spec_version=meta.get("spec_version", SPEC_VERSION),
+        statements=tuple(Statement(**d) for d in rows["statements"]),
+        queries=tuple(QueryRun(**d) for d in rows["queries"]),
+        ledger=tuple(Disposition(**d) for d in rows["ledger"]),
+        version=CorpusVersion(**{k: _tup(x) for k, x in v.items()}) if v else None,
     )
 
 

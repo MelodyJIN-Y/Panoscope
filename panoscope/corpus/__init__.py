@@ -8,6 +8,9 @@ carry abstracts". This package is the other end of that pointer:
   :func:`~panoscope.corpus.store.resolve`.
 * :mod:`~panoscope.corpus.retrieve` -- a stated linear ranking with a relevance
   floor, and the same three states at the query layer.
+* :mod:`~panoscope.corpus.window` -- the build's input contract, gene vocabulary and
+  the W0..W5 rung, modality and species facets, as pure code.
+* :mod:`~panoscope.corpus.vocab` -- HGNC, MeSH and census lookups from real sources.
 
 Three states everywhere, never two: resolved / looked-and-found-nothing /
 not-looked-up. Only the middle one is thin literature, and only the middle one is a
@@ -20,18 +23,22 @@ repository; the corpus is fetched, cached outside the checkout, and rebuilt whol
 """
 
 from panoscope.corpus.retrieve import (
-    DEFAULT_FLOOR, DEFAULT_LIMIT, TITLE_WEIGHT, Hit, Retrieval, Support, search,
+    DEFAULT_FLOOR, DEFAULT_LIMIT, TITLE_WEIGHT, Hit, KeyState, Retrieval, Support,
+    key_state, search,
 )
 from panoscope.corpus.store import (
     CITATION_SCHEMES, RESOLVABLE, SPEC_VERSION, STORE_FILENAME, Connector, Corpus,
-    CorpusUnavailable, HollowRecord, Miss, Resolution, Resolved, SourceRecord,
-    corpus_path, fetch, load, resolve, save,
+    CorpusUnavailable, CorpusVersion, Disposition, HollowRecord, Miss, QueryRun,
+    QueryStatus, Resolution, Resolved, SourceRecord, Statement, UnboundSpan,
+    corpus_path, fetch, load, log_hash, resolve, save,
 )
 
 __all__ = [
     "CITATION_SCHEMES", "DEFAULT_FLOOR", "DEFAULT_LIMIT", "RESOLVABLE",
     "SPEC_VERSION", "STORE_FILENAME", "TITLE_WEIGHT", "Connector", "Corpus",
-    "CorpusUnavailable", "Hit", "HollowRecord", "Miss", "Resolution", "Resolved",
-    "Retrieval", "SourceRecord", "Support", "corpus_path", "fetch", "load",
-    "resolve", "save", "search",
+    "CorpusUnavailable", "CorpusVersion", "Disposition", "Hit", "HollowRecord",
+    "KeyState", "Miss", "QueryRun", "QueryStatus", "Resolution", "Resolved",
+    "Retrieval", "SourceRecord", "Statement", "Support", "UnboundSpan",
+    "corpus_path", "fetch", "key_state", "load", "log_hash", "resolve", "save",
+    "search",
 ]
