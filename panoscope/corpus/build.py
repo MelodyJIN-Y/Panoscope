@@ -63,7 +63,9 @@ def build(study: Any, *, today: date, receipt: Receipt, reader: Reader | None = 
     if not (genes or resume):
         p.unlink(missing_ok=True)                 # rebuilt wholesale (§8.3)
     todo = genes or scope(study, tuple(e.label for e in ctx.cell_types))
-    tissue = (ctx.tissue,)
+    # T block (§3): the intake's UBERON label, since the stated prose ("human breast
+    # cancer") as one quoted phrase matches almost no title or abstract
+    tissue = tuple(dict.fromkeys(t for t in (study.manifest.get("tissue_label"), ctx.tissue) if t))
     bg = study.manifest.get("background") or {}
     papers = tuple(str(c.get("value", ""))[5:] for c in bg.get("papers_of_interest", ())
                    if str(c.get("value", "")).startswith("pmid:"))   # ponytail: DOIs unread

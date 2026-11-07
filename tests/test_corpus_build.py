@@ -75,6 +75,17 @@ def test_a_build_reads_its_scope_and_writes_a_dated_version_with_its_receipt(stu
     assert lines[-1].startswith("1/1 version ") and load(corpus_path(DEMO_ID)) == corpus
 
 
+def test_the_tissue_block_carries_the_intake_uberon_label_not_only_the_prose(stubbed, monkeypatch):
+    from panoscope.data import study as S
+
+    real, seen = S._manifest, []
+    monkeypatch.setattr(S, "_manifest", lambda s: {**real(s), "tissue_label": "breast"})
+    monkeypatch.setattr(B, "context_for", lambda s: _ctx(study=s.id, tissue="human breast cancer"))
+    monkeypatch.setattr(B, "retrieve", lambda *a, tissue_terms, **k: seen.append(tissue_terms))
+    _build()
+    assert seen == [("breast", "human breast cancer")]
+
+
 def test_resume_keeps_what_is_built_and_a_fresh_build_starts_over(stubbed):
     save(Corpus(queries=(QueryRun("old", "C1", "OLD", "Fibroblasts"),)), corpus_path(DEMO_ID))
     resumed, _ = _build(resume=True)
