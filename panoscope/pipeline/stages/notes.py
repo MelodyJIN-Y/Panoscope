@@ -23,6 +23,7 @@ from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent import loop as agent_loop
 
+from panoscope.data.study import NOT_YET_CALLED
 from panoscope.pipeline import paths, v1_verdicts
 
 _MAX_WORDS = 16
@@ -211,6 +212,8 @@ def run_celltype_notes(
         notes = {}
         for cluster in cfg.CLUSTER_ORDER:
             ct = v1_verdicts.verdict_for(cluster).cell_type
+            if ct == NOT_YET_CALLED:      # no cell type yet, so no key to read a card for
+                continue
             notes[cluster] = {"cluster": cluster, "cell_type": ct,
                               **cards.note(cards.cell_type_card(corpus, ct), corpus)}
         _save(out_path, notes)
@@ -299,6 +302,8 @@ def run_gene_notes(
 
     for cluster in cfg.CLUSTER_ORDER:
         verdict = v1_verdicts.verdict_for(cluster)
+        if corpus is not None and verdict.cell_type == NOT_YET_CALLED:
+            continue                      # no cell type yet, so no key to read a card for
         notes.setdefault(cluster, {})
         for ev in verdict.evidence:
             gene = ev.gene

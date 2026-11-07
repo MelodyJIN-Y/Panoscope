@@ -484,6 +484,21 @@ def _corpus_progress(sid: str) -> None:
         st.progress(i / max(n, 1), text=f"[{i}/{n}] {line}")
 
 
+def _corpus_refusal(store: Study) -> str:
+    """Why the corpus cannot be built for this study now, or "" (the build's own checks)."""
+    from panoscope.corpus.store import CorpusUnavailable
+    from panoscope.corpus.window import context_for
+
+    if not agent_loop.has_model_key():
+        return ("corpus build refused: no model key (set ANTHROPIC_API_KEY to your own "
+                "API key; see docs/llm-access.md)")
+    try:
+        context_for(store)
+    except CorpusUnavailable as exc:
+        return str(exc)
+    return ""
+
+
 def _render_corpus_step(sid: str) -> None:
     """After Build: offer the literature corpus. Skipped, notes read "cannot settle"."""
     from panoscope.corpus import build as corpus_build
@@ -492,12 +507,12 @@ def _render_corpus_step(sid: str) -> None:
     job = _JOBS.get(sid)
     if job is not None:
         _corpus_progress(sid)
-    elif not agent_loop.has_model_key():
-        st.caption("corpus build refused: no model key (set ANTHROPIC_API_KEY to your own "
-                   f"API key; see docs/llm-access.md). Notes read \"{corpus_build.NOT_BUILT}\".")
-    elif st.button("Build literature corpus", key="ob_corpus_build", type="primary"):
-        _start_corpus(cfg.current_study())
-        st.rerun()
+    if job is None or job["error"]:            # not started, or failed: offer it (again)
+        if refused := _corpus_refusal(cfg.current_study()):
+            st.caption(f"{refused}. Notes read \"{corpus_build.NOT_BUILT}\".")
+        elif st.button("Build literature corpus", key="ob_corpus_build", type="primary"):
+            _start_corpus(cfg.current_study())
+            st.rerun()
     if job is None or not job["done"]:
         st.caption("You can start annotating now; until the corpus is built, notes read "
                    f"\"{corpus_build.NOT_BUILT}\". A running build keeps going.")

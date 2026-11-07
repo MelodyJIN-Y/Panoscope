@@ -32,6 +32,9 @@ Reader = Callable[[str, str], tuple[str, int, int]]
 
 READER_MODEL: Final = os.getenv("PANOSCOPE_READER_MODEL", "claude-opus-5-5")
 PRICE: Final = {"claude-opus-5-5": (4.0, 20.0)}   # USD per MTok, list price (2026-10)
+# Spec §5: per gene, counted in P2 passages. ponytail: passages only (no query, fetch or
+# time budget), and an interrupted gene restarts its count on resume.
+BUDGET_PASSAGES: Final = 400
 SETTING_FIELDS: Final = ("species", "specimen", "tissue", "disease", "subtype", "treatment",
                          "stage", "assay", "system", "data_source")
 RELATIONS: Final = {
@@ -352,7 +355,8 @@ def passages(rec: SourceRecord, aliases: tuple[Term, ...], cells: tuple[str, ...
 def read(ctx: StudyContext, gene: str, aliases: tuple[Term, ...], *, reader: Reader,
          receipt: Receipt, tissue_terms: tuple[str, ...] = (), path: Path | None = None,
          retrieved: str = "") -> Corpus:
-    """P1 then P2 for every gated paper of ``gene``; resumable, saved after each paper.
+    """P1 then P2 for every gated paper of ``gene`` within the passage budget; resumable,
+    saved after each paper. Past the budget the rest close NOT_READ_BUDGET (a gap).
 
     Every co-occurrence sentence is accounted for or re-asked once; still unaccounted
     is counted as unextracted (the read row is DEGRADED, so the key cannot read thin).
@@ -362,20 +366,31 @@ def read(ctx: StudyContext, gene: str, aliases: tuple[Term, ...], *, reader: Rea
     generator = f"{receipt.model} via the Anthropic API (user key)"
     tissue = tissue_terms or (ctx.tissue,)
     cells = tuple(t for e in ctx.cell_types for t in cell_terms(e))
-    gated = [i for q in run.corpus.queries if q.channel == "gate" and q.gene == gene
-             for i in q.ids]
-    for uri in dict.fromkeys(gated):
+    gated = list(dict.fromkeys(i for q in run.corpus.queries
+                               if q.channel == "gate" and q.gene == gene for i in q.ids))
+    budget, spent = f"P2 passage budget for {gene}", 0
+    if run.done(budget, "read", gene, "") is not None:
+        return run.corpus                   # BUDGET_EXHAUSTED on an earlier run
+    for n, uri in enumerate(gated):
         ledger = {d.id: d.disposition for d in run.corpus.ledger}
         rec = next(iter(run.corpus.find(uri)), None)
         q = f"P2 {uri} for {gene}"
         if (rec is None or ledger.get(uri, "").startswith(_CLOSED)
                 or run.done(q, "read", gene, "") is not None):
             continue
+        ps, ids = passages(rec, aliases, cells)
+        if spent + len(ps) > BUDGET_PASSAGES:   # BUDGET_EXHAUSTED: the key cannot read thin
+            rest = [u for u in gated[n:] if u not in ledger]
+            run.commit(ledger=(*run.corpus.ledger,
+                               *(Disposition(u, "NOT_READ_BUDGET") for u in rest)))
+            run.log(QueryRun(budget, "read", gene, total=len(rest),
+                             status=QueryStatus.TRUNCATED))
+            break
+        spent += len(ps)
         if (setting := _p1(run, rec, reader, receipt)) != "ok":
             if setting == "failed":     # this gene's key must not read thin past it
                 run.log(QueryRun(q, "read", gene, total=1, status=QueryStatus.FAILED))
             continue
-        ps, ids = passages(rec, aliases, cells)
         try:
             found, done = _p2(ctx, run.corpus, rec, gene, aliases, ps, list(ids), reader,
                               receipt, tissue, generator)

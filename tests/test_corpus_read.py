@@ -179,6 +179,17 @@ def test_a_failed_model_call_is_a_gap_not_an_empty_read_and_resumes(tmp_path):
     assert not key_state(corpus, "POSTN", "Myoepithelial").gaps
 
 
+def test_an_exhausted_passage_budget_closes_the_rest_unread_and_stays_spent(tmp_path, monkeypatch):
+    monkeypatch.setattr(R, "BUDGET_PASSAGES", 0)
+    p, stub = _corpus(tmp_path), Stub([MARK])
+    corpus, _ = _read(p, stub)
+    assert stub.calls == [] and _ledger(corpus)["pmid:1"] == "NOT_READ_BUDGET"
+    assert "incomplete search" in key_state(corpus, "POSTN", "Myoepithelial").reads_as
+    monkeypatch.setattr(R, "BUDGET_PASSAGES", 400)
+    _read(p, stub)                                      # a resume does not spend it again
+    assert stub.calls == []
+
+
 def test_a_quoted_exclusion_closes_the_paper_without_p2(tmp_path):
     stub = Stub(setting={"exclude": {"reason": "other tissue", "quote": "Tumour size varied."}})
     corpus, _ = _read(_corpus(tmp_path), stub)
@@ -310,6 +321,25 @@ def test_celltype_notes_come_from_cards_when_a_corpus_exists(tmp_tree, monkeypat
     assert first["pmid"] == "7" and first["dissent"] == 1 and first["verify"] is False
     others = [n for n in got.values() if n["cell_type"] != first["cell_type"]]
     assert others and all("cannot settle" in n["summary"] for n in others)
+
+
+def test_an_uncalled_cluster_gets_no_corpus_note(tmp_tree, monkeypatch):
+    """A built corpus has no key for "not yet called"; a note would say it was not built."""
+    from dataclasses import replace
+
+    from panoscope.agent import config as cfg
+    from panoscope.data.study import NOT_YET_CALLED
+    from panoscope.pipeline import v1_verdicts
+    from panoscope.pipeline.stages import notes as notes_stage
+
+    _demo_corpus()
+    first, last = cfg.CLUSTER_ORDER[0], cfg.CLUSTER_ORDER[-1]
+    real = v1_verdicts.verdict_for
+    monkeypatch.setattr(v1_verdicts, "verdict_for", lambda c: replace(
+        real(c), cell_type=NOT_YET_CALLED) if c == last else real(c))
+    for run in (notes_stage.run_celltype_notes, notes_stage.run_gene_notes):
+        got = run(cfg.DATASET_ID, root=tmp_tree)
+        assert first in got and last not in got
 
 
 def test_reconcile_stamps_a_lookup_only_when_the_search_was_complete():

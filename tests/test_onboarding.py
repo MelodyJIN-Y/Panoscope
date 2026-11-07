@@ -221,6 +221,17 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     assert "xenium · human breast cancer" in "\n".join(m.value for m in at.markdown)  # ours, not the demo's "Xenium"
 
 
+def test_the_corpus_step_states_the_builds_own_refusal_before_offering_it(monkeypatch) -> None:
+    """With a key but no tissue id, the step says why rather than offering a doomed build."""
+    from panoscope.agent import loop as agent_loop
+
+    store = Study.open(FIXTURE)
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: False)
+    assert "no model key" in onboarding._corpus_refusal(store)
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: True)
+    assert "tissue_id missing" in onboarding._corpus_refusal(store)
+
+
 def test_opening_a_study_drops_the_last_studys_ui_state(monkeypatch) -> None:
     """A demo chat thread must not follow the biologist into their own study."""
     from types import SimpleNamespace
