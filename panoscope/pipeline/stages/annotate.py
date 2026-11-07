@@ -23,6 +23,7 @@ from panoscope.agent import annotation as agent_annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.agent import loop as agent_loop
+from panoscope.data import study as study_mod
 from panoscope.pipeline import paths
 
 _REQUIRED = ("cell_type", "cell_type_short", "category", "lineage")
@@ -174,6 +175,7 @@ def run_annotate(
     _save(out_path, dataset_id, clusters)
 
     agent_annotation.load_annotation.cache_clear()
+    study_mod.clear_cache()  # validate cached the label set before this wrote it
     uncalled = [c for c in cfg.CLUSTER_ORDER if c not in clusters]
     if uncalled:
         # Said once, plainly: silence is what let a fabricated canonical set look

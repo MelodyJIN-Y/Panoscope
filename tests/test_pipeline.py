@@ -140,15 +140,11 @@ def test_run_writes_holistic_and_calibration(tmp_path):
     assert "interp/calibration.md" in man["artifacts"]
 
 
-def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_path, monkeypatch):
-    """No label set is the starting state: the build passes and the biologist calls."""
+def _fresh_study(tmp_path, monkeypatch) -> None:
+    """A data root holding one study with the demo's tidy inputs and no labels."""
     import shutil
 
-    from panoscope.agent import loop as agent_loop
     from panoscope.data import layout
-    from panoscope.data.study import NOT_YET_CALLED, Study
-    from panoscope.platforms.xenium import XeniumAdapter
-    from panoscope.types.subject import EntityKind
 
     demo = paths.inputs_dir(cfg.BUNDLED_DEMO_ID)
     study = tmp_path / "studies" / "fresh"
@@ -160,6 +156,15 @@ def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_pat
     monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path))
     layout.clear_cache()
 
+
+def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_path, monkeypatch):
+    """No label set is the starting state: the build passes and the biologist calls."""
+    from panoscope.agent import loop as agent_loop
+    from panoscope.data.study import NOT_YET_CALLED, Study
+    from panoscope.platforms.xenium import XeniumAdapter
+    from panoscope.types.subject import EntityKind
+
+    _fresh_study(tmp_path, monkeypatch)
     asked: list[str] = []
 
     def no_model(msg, cluster=None, **_):
@@ -178,3 +183,18 @@ def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_pat
 
     pipeline_run.run("fresh")  # the proposal already ran; a rebuild does not re-ask
     assert len(asked) == 9
+
+
+def test_a_proposal_written_during_the_build_is_what_that_build_reads(tmp_path, monkeypatch):
+    """Validate caches the (empty) label set first; the build must not serve it stale."""
+    from types import SimpleNamespace
+
+    from panoscope.agent import loop as agent_loop
+
+    _fresh_study(tmp_path, monkeypatch)
+    body = json.dumps({"cell_type": "T cell", "cell_type_short": "T", "category": "Immune",
+                       "lineage": "Lymphoid", "canonical_markers": ["CD3E"]})
+    monkeypatch.setattr(agent_loop, "chat", lambda *a, **k: SimpleNamespace(text=body))
+    pipeline_run.run("fresh")
+    clusters = json.loads(paths.manifest_json("fresh").read_text())["clusters"]
+    assert {store.load_verdict(c, "fresh").cell_type for c in clusters} == {"T cell"}
