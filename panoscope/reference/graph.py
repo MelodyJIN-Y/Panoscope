@@ -27,7 +27,8 @@ Three guards, one per route a number could take:
 
 :attr:`Lookup.absence_argues` is ``False`` for all three.
 
-**Relations are a registry** (``RELATIONS``), holding only what a source emits today.
+**Relations are a registry** (``RELATIONS``), holding only what a source emits today:
+``marks`` (mints a CURATED claim), and ``is_a``/``synonym`` (Cell Ontology structure, no claim).
 ``is_cell_type`` is the verdict, never a relation: ``Edge`` refuses that predicate.
 """
 
@@ -73,6 +74,18 @@ RELATIONS: dict[str, Relation] = _relations(
         "it is on any panel; the frame decides measurability, the edge does not",
         EntityKind.GENE, EntityKind.CELL_TYPE,
         claim_predicate="marks",
+    ),
+    Relation(
+        "is_a",
+        "the cell type is a subtype of the parent (Cell Ontology); structure only, "
+        "it says nothing about this tissue",
+        EntityKind.CELL_TYPE, EntityKind.CELL_TYPE,
+    ),
+    Relation(
+        "synonym",
+        "the subject is an exact synonym of the object's name (Cell Ontology); "
+        "navigation only",
+        EntityKind.CELL_TYPE, EntityKind.CELL_TYPE,
     ),
     # Deliberately absent: `is_cell_type`. That is the verdict, and it is the
     # measurement's to make. See the module docstring.

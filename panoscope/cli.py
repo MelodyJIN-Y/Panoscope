@@ -1,4 +1,4 @@
-"""The ``panoscope`` console script: ``run``, ``build``, ``explain``, ``doctor``.
+"""The ``panoscope`` console script: ``run``, ``build``, ``explain``, ``doctor``, ``reference fetch``.
 
 Thin: every verb delegates and this module only parses arguments and prints. Heavy
 imports happen *inside* the verb that needs them, so ``panoscope doctor`` still
@@ -317,6 +317,14 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
         print(f"  {sid:<28} {units} units  {s.tissue or '?'} / {s.platform or '?'}")
 
     print()
+    from panoscope.reference import sources as ref
+
+    print(f"reference sources (cache {ref.cache_root()})")
+    for s in ref.fetchable():
+        state = "cached" if s.path.is_file() else "not fetched"
+        print(f"  {type(s).__name__:<13} {s.release:<12} [{state}]  licence: {s.licence}")
+
+    print()
     print("packages")
     for group, names in _DEP_GROUPS.items():
         rendered = "  ".join(f"{n}={_dist_version(n)}" for n in names)
@@ -353,6 +361,20 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     print("  (shell + the .env above; the agent resolves its own, "
           "relative to the installed package)")
     return 0
+
+
+def _cmd_reference_fetch(args: argparse.Namespace) -> int:
+    """Download every reference source into the user cache; one failure does not stop the rest."""
+    from panoscope.reference import sources as ref
+
+    failed = 0
+    for s in ref.fetchable():
+        try:
+            print(f"{type(s).__name__} {s.release}: {s.fetch()}  (licence: {s.licence})")
+        except ref.SourceUnavailable as exc:
+            failed += 1
+            print(f"{type(s).__name__} {s.release}: not fetched -- {exc}")
+    return 1 if failed else 0
 
 
 def _dist_version(name: str) -> str:
@@ -402,6 +424,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_doctor = sub.add_parser("doctor", help="resolved paths, studies, versions, credentials")
     p_doctor.set_defaults(func=_cmd_doctor)
+
+    p_ref = sub.add_parser("reference", help="reference sources (fetched, never bundled)")
+    p_ref_sub = p_ref.add_subparsers(dest="ref_command", required=True, metavar="<action>")
+    p_ref_sub.add_parser("fetch", help="download every source into the user cache"
+                         ).set_defaults(func=_cmd_reference_fetch)
 
     return ap
 

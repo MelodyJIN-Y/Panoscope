@@ -1,4 +1,5 @@
-"""The source registry, the licence gate, and PanglaoDB.
+"""The source registry, the licence gate, and the sources: PanglaoDB, CellMarker 2.0,
+the Cell Ontology, and a lab-curated list.
 
 **The licence gate is behaviour, not documentation.** :func:`cache_dir` refuses to
 resolve a cache directory inside the repository for a source with
@@ -11,7 +12,7 @@ is instantiated per organ, so the study build registers what its tissue needs.
 **PanglaoDB is organ-scoped** (ARCHITECTURE §8.1: the join key is the
 ``(gene, cell type, tissue)`` triple), read from the file's ``organ`` column.
 
-**Offline is a first-class outcome.** Only :meth:`PanglaoDB.fetch` touches the
+**Offline is a first-class outcome.** Only each source's ``fetch`` touches the
 network. ``nodes()``/``edges()`` read the cache or raise :class:`SourceUnavailable`,
 and :func:`build` records the source as unavailable rather than returning an empty
 graph (see ``graph.Presence``).
@@ -21,14 +22,17 @@ from __future__ import annotations
 
 import csv
 import gzip
+import hashlib
 import io
 import os
 import urllib.request
+import zipfile
+from xml.etree import ElementTree
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Iterator
 
-from panoscope.reference.graph import Edge, Graph, Node
+from panoscope.reference.graph import Edge, Graph, Node, NotClaimable
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import ReferenceSource
 from panoscope.types.measured import Frame
@@ -341,57 +345,383 @@ class PanglaoDB:
         symbols the source holds an opinion about; it carries no members, so it
         cannot enter a ``MeasuredWorld`` or decide whether anything was measured.
         """
-        symbols = frozenset(
-            n.entity.id for n in self.nodes() if n.entity.kind is EntityKind.GENE
-        )
-        frame = Frame(
-            kind=EntityKind.GENE,
-            name=f"panglaodb:{self.organ.lower()}:curated_symbols",
-            members=symbols,
-        )
-        return Conditions(
-            assay=Condition("scRNA-seq", Provenance.STATED),
-            modality=Condition("transcriptomics", Provenance.STATED),
-            tissue=Condition(f"panglaodb:organ:{self.organ}", Provenance.READ),
-            method=UNKNOWN,          # >1000 aggregated studies; no single method
-            segmentation=UNKNOWN,    # dissociated scRNA-seq; none to declare
-            fixation=UNKNOWN,        # varies per contributing study
-            frames=(frame.ref(),),
-        )
+        return _stamp(self, f"panglaodb:organ:{self.organ}",
+                      Condition("scRNA-seq", Provenance.STATED))
 
     # -- fetching (explicit, never implicit) -------------------------------- #
     def fetch(self, *, timeout: float = 120.0) -> Path:
-        """Download the markers file into the cache. Called by a human or by setup.
+        """Download the markers file into the cache. Never called from a read path."""
+        return _download(self.name, self.url, self.path, _is_gzip, timeout)
 
-        Never called from a read path. The licence gate in :attr:`path` refuses a
-        destination inside the repository, and the write is atomic.
-        """
-        dest = self.path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        req = urllib.request.Request(
-            self.url, headers={"User-Agent": "Panoscope/0.1 (reference cache)"},
+
+# --------------------------------------------------------------------------- #
+# Shared by every source: the download, and the provenance stamp
+# --------------------------------------------------------------------------- #
+def _is_gzip(data: bytes) -> bool:
+    try:
+        with gzip.open(io.BytesIO(data), "rb") as fh:
+            fh.read(1)
+    except OSError:
+        return False
+    return True
+
+
+def _download(name: str, url: str, dest: Path, valid, timeout: float) -> Path:
+    """Fetch ``url`` to ``dest`` atomically. ``valid(bytes)`` refuses a 403 page or a
+    truncated body, which would otherwise parse as "this release has no rows"."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Panoscope/0.1 (reference cache)"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            data = resp.read()
+    except OSError as exc:                 # URLError and friends are OSErrors
+        raise SourceUnavailable(
+            f"{name}: could not fetch {url}: {exc}. The graph will record this "
+            f"source as unread rather than as empty; or place the file at {dest}."
+        ) from exc
+    if not valid(data):
+        raise SourceUnavailable(
+            f"{name}: {url} did not return the expected file. Some sites reject "
+            f"automated requests; fetch it in a browser and place it at {dest}."
         )
-        tmp = dest.with_name(dest.name + ".part")
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-                tmp.write_bytes(resp.read())
-        except OSError as exc:                 # URLError and friends are OSErrors
-            tmp.unlink(missing_ok=True)
+    tmp = dest.with_name(dest.name + ".part")
+    tmp.write_bytes(data)
+    tmp.replace(dest)
+    return dest
+
+
+def _stamp(src, tissue: str, assay: Condition) -> Conditions:
+    """§7.5's provenance stamp for a marker source. The ``FrameRef`` names the symbols
+    the source holds an opinion about and carries no members, so it decides nothing."""
+    symbols = frozenset(
+        n.entity.id for n in src.nodes() if n.entity.kind is EntityKind.GENE
+    )
+    frame = Frame(kind=EntityKind.GENE, name=f"{src.name}:curated_symbols",
+                  members=symbols)
+    return Conditions(
+        assay=assay,
+        modality=Condition("transcriptomics", Provenance.STATED),
+        tissue=Condition(tissue, Provenance.READ),
+        method=UNKNOWN, segmentation=UNKNOWN, fixation=UNKNOWN,
+        frames=(frame.ref(),),
+    )
+
+
+def _marker_nodes(pairs: Iterator[tuple[str, str]], provenance: str) -> Iterator[Node]:
+    """One node per gene and per cell type from ``(gene, cell type)`` pairs, deduplicated."""
+    seen: set[Entity] = set()
+    for g, ct in pairs:
+        for e in (Entity(EntityKind.GENE, g), Entity(EntityKind.CELL_TYPE, ct)):
+            if e not in seen:
+                seen.add(e)
+                yield Node(entity=e, source=provenance)
+
+
+def _require(name: str, path: Path, header, required: frozenset[str]) -> None:
+    missing = sorted(required - set(header))
+    if missing:
+        raise UnrecognisedSource(
+            f"{name}: {path} is missing column(s) {missing}; found {sorted(header)}. "
+            "Refusing rather than guessing."
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Cell Ontology: structure only (is_a, synonym), never a marker
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True, slots=True)
+class CellOntology:
+    """The Cell Ontology's ``is_a`` hierarchy and exact synonyms, from a pinned release.
+
+    Diehl AD et al. *The Cell Ontology 2016.* J Biomed Semantics 7:44.
+    ``doi:10.1186/s13326-016-0088-7`` (PMID 27377652) -- looked up live, not recalled.
+    Licence CC BY 4.0, read from the release header (``terms:license``).
+    """
+
+    release: ClassVar[str] = "2026-06-08"
+    licence: ClassVar[str] = "CC BY 4.0"
+    redistributable: ClassVar[bool] = True
+    citation: ClassVar[str] = "doi:10.1186/s13326-016-0088-7"
+    name: ClassVar[str] = "cl"
+    url: ClassVar[str] = (
+        "http://purl.obolibrary.org/obo/cl/releases/2026-06-08/cl-basic.obo"
+    )
+
+    @property
+    def provenance(self) -> str:
+        return f"cl@{self.release}"
+
+    @property
+    def path(self) -> Path:
+        return cache_dir("cl", self.release,
+                         redistributable=self.redistributable) / "cl-basic.obo"
+
+    def _terms(self) -> list[dict]:
+        """Live ``CL:`` terms as ``{id, name, synonyms, parents}``; obsolete ones dropped."""
+        if not self.path.is_file():
             raise SourceUnavailable(
-                f"{self.name}: could not fetch {self.url}: {exc}. The graph will "
-                "record this source as unread rather than as empty."
-            ) from exc
-        # A gzip file that does not open is a 403 page or a truncated body; either
-        # would parse as "this release has no rows", which reads as a finding.
-        try:
-            with gzip.open(io.BytesIO(tmp.read_bytes()), "rb") as fh:
-                fh.read(1)
-        except OSError as exc:
-            tmp.unlink(missing_ok=True)
+                f"cl: {self.path} is not present -- run `panoscope reference fetch`."
+            )
+        terms, cur = [], None
+        with self.path.open(encoding="utf-8") as fh:
+            for line in fh:
+                line = line.rstrip("\n")
+                if line.startswith("["):
+                    cur = {"syn": [], "is_a": []} if line == "[Term]" else None
+                    if cur is not None:
+                        terms.append(cur)
+                elif cur is None or ": " not in line:
+                    continue
+                else:
+                    tag, val = line.split(": ", 1)
+                    if tag in ("id", "name"):
+                        cur[tag] = val
+                    elif tag == "is_obsolete" and val == "true":
+                        cur["obsolete"] = True
+                    elif tag == "is_a":
+                        cur["is_a"].append(val.split(" ", 1)[0])
+                    elif tag == "synonym" and '" EXACT' in val:
+                        cur["syn"].append(val[1:val.index('" EXACT')])
+        return [t for t in terms if str(t.get("id", "")).startswith("CL:")
+                and t.get("name") and not t.get("obsolete")]
+
+    def nodes(self) -> Iterator[Node]:
+        """One cell-type node per term, keyed on its name; the CL id is its alias."""
+        for t in self._terms():
+            yield Node(entity=Entity(EntityKind.CELL_TYPE, t["name"]),
+                       source=self.provenance, aliases=frozenset({t["id"]}))
+
+    def edges(self) -> Iterator[Edge]:
+        """``child is_a parent`` between CL terms, and ``synonym --synonym--> name``."""
+        terms = self._terms()
+        names = {t["id"]: t["name"] for t in terms}
+        for t in terms:
+            me = Entity(EntityKind.CELL_TYPE, t["name"])
+            links = [("is_a", Entity(EntityKind.CELL_TYPE, names[p]), me)
+                     for p in t["is_a"] if p in names]
+            links += [("synonym", me, Entity(EntityKind.CELL_TYPE, s))
+                      for s in t["syn"] if s != t["name"]]
+            for pred, obj, subj in links:
+                yield Edge(subject=subj, predicate=pred, object=obj,
+                           source=self.provenance, citation=self.citation,
+                           licence=self.licence)
+
+    def conditions(self) -> Conditions:
+        """An ontology was established under no assay; its edges mint no claim to stamp."""
+        raise NotClaimable("the Cell Ontology is structure only; it has no conditions")
+
+    def fetch(self, *, timeout: float = 120.0) -> Path:
+        return _download(self.name, self.url, self.path,
+                         lambda b: b.startswith(b"format-version:"), timeout)
+
+
+# --------------------------------------------------------------------------- #
+# CellMarker 2.0
+# --------------------------------------------------------------------------- #
+_CM_REQUIRED = frozenset({"species", "tissue_class", "cell_name", "Symbol"})
+_XL = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+
+
+def _xlsx_rows(path: Path) -> Iterator[list[str]]:
+    """The first sheet of an .xlsx, row by row, as strings. Stdlib only: a
+    shared-strings table plus one sheet is all CellMarker's file needs."""
+    def col(ref: str) -> int:
+        n = 0
+        for ch in ref:
+            if not ch.isalpha():
+                break
+            n = n * 26 + ord(ch.upper()) - 64
+        return n - 1
+
+    with zipfile.ZipFile(path) as z:
+        shared: list[str] = []
+        if "xl/sharedStrings.xml" in z.namelist():
+            for _, el in ElementTree.iterparse(z.open("xl/sharedStrings.xml")):
+                if el.tag == _XL + "si":
+                    shared.append("".join(t.text or "" for t in el.iter(_XL + "t")))
+                    el.clear()
+        for _, row in ElementTree.iterparse(z.open("xl/worksheets/sheet1.xml")):
+            if row.tag != _XL + "row":
+                continue
+            cells = {}
+            for c in row.iter(_XL + "c"):
+                kind = c.get("t")
+                if kind == "s":
+                    v = shared[int(c.findtext(_XL + "v") or 0)]
+                elif kind == "inlineStr":
+                    v = "".join(t.text or "" for t in c.iter(_XL + "t"))
+                else:
+                    v = c.findtext(_XL + "v") or ""
+                cells[col(c.get("r", ""))] = v.strip()
+            row.clear()
+            yield [cells.get(i, "") for i in range(max(cells, default=-1) + 1)]
+
+
+@dataclass(frozen=True, slots=True)
+class CellMarker:
+    """CellMarker 2.0's curated marker table, scoped to one ``tissue_class``, human only.
+
+    Hu C et al. *CellMarker 2.0.* Nucleic Acids Res 51:D870 (2023).
+    ``doi:10.1093/nar/gkac947`` (PMID 36300619) -- looked up live, not recalled.
+    Each row's own ``PMID`` is its citation; it is a citation only, never a value.
+    """
+
+    tissue: str
+
+    release: ClassVar[str] = "2.0"
+    licence: ClassVar[str] = (
+        "no redistribution licence found (the download site could not be read "
+        "when this was written); treated as not redistributable"
+    )
+    redistributable: ClassVar[bool] = False
+    citation: ClassVar[str] = "doi:10.1093/nar/gkac947"
+    species: ClassVar[str] = "Human"
+    url: ClassVar[str] = ("http://bio-bigdata.hrbmu.edu.cn/CellMarker/"
+                          "CellMarker_download_files/file/Cell_marker_All.xlsx")
+
+    @property
+    def name(self) -> str:
+        return f"cellmarker:{self.tissue.lower()}"
+
+    @property
+    def provenance(self) -> str:
+        return f"cellmarker@{self.release}"
+
+    @property
+    def path(self) -> Path:
+        return cache_dir("cellmarker", self.release,
+                         redistributable=self.redistributable) / "Cell_marker_All.xlsx"
+
+    def _rows(self) -> Iterator[dict[str, str]]:
+        if not self.path.is_file():
             raise SourceUnavailable(
-                f"{self.name}: {self.url} did not return a gzip file ({exc}). "
-                "panglaodb.se rejects some automated requests; fetch it in a browser "
-                f"and place it at {dest}."
-            ) from exc
-        tmp.replace(dest)
-        return dest
+                f"{self.name}: {self.path} is not present. CellMarker is fetched, "
+                "never bundled -- run `panoscope reference fetch`."
+            )
+        rows = _xlsx_rows(self.path)
+        header = next(rows, [])
+        _require(self.name, self.path, header, _CM_REQUIRED)
+        want = self.tissue.strip().lower()
+        for vals in rows:
+            row = dict(zip(header, vals))
+            if (row.get("species") == self.species
+                    and row.get("tissue_class", "").lower() == want
+                    and row.get("Symbol") and row.get("cell_name")):
+                yield row
+
+    def nodes(self) -> Iterator[Node]:
+        return _marker_nodes(((r["Symbol"], r["cell_name"]) for r in self._rows()),
+                             self.provenance)
+
+    def edges(self) -> Iterator[Edge]:
+        """One ``gene --marks--> cell type`` per row; no panel field, resolved at read."""
+        for r in self._rows():
+            pmid = r.get("PMID", "")
+            quals = [("tissue", self.tissue), ("species", self.species)]
+            if r.get("cancer_type"):
+                quals.append(("cancer_type", r["cancer_type"]))
+            yield Edge(
+                subject=Entity(EntityKind.GENE, r["Symbol"]), predicate="marks",
+                object=Entity(EntityKind.CELL_TYPE, r["cell_name"]),
+                source=self.provenance,
+                citation=f"pmid:{pmid}" if pmid.isdigit() else self.citation,
+                licence=self.licence, qualifiers=tuple(quals),
+            )
+
+    def conditions(self) -> Conditions:
+        return _stamp(self, f"cellmarker:tissue_class:{self.tissue}",
+                      Condition("mixed (curated from experiments and sequencing)",
+                                Provenance.STATED))
+
+    def fetch(self, *, timeout: float = 300.0) -> Path:
+        return _download(self.name, self.url, self.path,
+                         lambda b: zipfile.is_zipfile(io.BytesIO(b)), timeout)
+
+
+# --------------------------------------------------------------------------- #
+# Lab-curated list: the lab's own file, never fetched
+# --------------------------------------------------------------------------- #
+_LAB_REQUIRED = frozenset({"cell_type", "gene", "tissue"})
+
+
+@dataclass(frozen=True, slots=True)
+class LabCurated:
+    """A lab-provided CSV (``cell_type, gene, tissue`` + optional ``note``, ``citation``),
+    scoped to one tissue. Without a citation an edge cites the file by its digest."""
+
+    file: Path
+    tissue: str
+
+    licence: ClassVar[str] = "lab"
+    redistributable: ClassVar[bool] = False     # the lab's to share, not ours
+
+    @property
+    def name(self) -> str:
+        return f"lab:{self.tissue.lower()}"
+
+    @property
+    def release(self) -> str:
+        """The file's content digest, so an edited list is a new release."""
+        p = Path(self.file)
+        return hashlib.sha256(p.read_bytes()).hexdigest()[:12] if p.is_file() else "unread"
+
+    def _rows(self) -> Iterator[dict[str, str]]:
+        p = Path(self.file)
+        if not p.is_file():
+            raise SourceUnavailable(f"{self.name}: {p} is not present")
+        with p.open(newline="", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            header = [(c or "").strip().lower() for c in reader.fieldnames or ()]
+            _require(self.name, p, header, _LAB_REQUIRED)
+            want = self.tissue.strip().lower()
+            for raw in reader:
+                row = {(k or "").strip().lower(): (v or "").strip()
+                       for k, v in raw.items() if k is not None}
+                if row["tissue"].lower() == want and row["gene"] and row["cell_type"]:
+                    yield row
+
+    def nodes(self) -> Iterator[Node]:
+        return _marker_nodes(((r["gene"], r["cell_type"]) for r in self._rows()),
+                             f"lab@{self.release}")
+
+    def edges(self) -> Iterator[Edge]:
+        digest = f"file:sha256:{hashlib.sha256(Path(self.file).read_bytes()).hexdigest()}"
+        for r in self._rows():
+            quals = [("tissue", self.tissue)]
+            if r.get("note"):
+                quals.append(("note", r["note"]))
+            yield Edge(
+                subject=Entity(EntityKind.GENE, r["gene"]), predicate="marks",
+                object=Entity(EntityKind.CELL_TYPE, r["cell_type"]),
+                source=f"lab@{self.release}", citation=r.get("citation") or digest,
+                licence=self.licence, qualifiers=tuple(quals),
+            )
+
+    def conditions(self) -> Conditions:
+        return _stamp(self, f"lab:tissue:{self.tissue}",
+                      Condition("lab-curated list", Provenance.STATED))
+
+
+# --------------------------------------------------------------------------- #
+# Tissue (ontology id) -> each source's own organ key. Explicit; no fallback.
+# --------------------------------------------------------------------------- #
+TISSUE_KEYS: dict[str, dict[str, str]] = {
+    # Organ names read from panglaodb.se/markers.html's organ groups.
+    # ponytail: CellMarker keys are absent until checked against the fetched file's
+    # tissue_class values; the site could not be read when this was written.
+    "UBERON:0000310": {"panglaodb": "Mammary gland"},     # breast
+    "UBERON:0002113": {"panglaodb": "Kidney"},            # kidney
+}
+
+
+def organ_key(tissue_id: str, source: str) -> str | None:
+    """The source's key for this tissue, or ``None`` -- which reads "not in reference
+    data". Never another tissue's key."""
+    return TISSUE_KEYS.get(tissue_id, {}).get(source)
+
+
+def fetchable() -> tuple:
+    """One instance per downloadable file. Scope is irrelevant to ``fetch``/``path``."""
+    return (CellOntology(), CellMarker(""), PanglaoDB(""))

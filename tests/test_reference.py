@@ -458,12 +458,13 @@ def test_the_read_path_never_reaches_for_the_network():
     """A read that silently downloads turns an offline suite flaky and a slow link
     into a hung demo. Fetching is explicit, and only ``fetch`` does it."""
     for fn in (PanglaoDB._rows, PanglaoDB.nodes, PanglaoDB.edges,
-               PanglaoDB.conditions):
+               PanglaoDB.conditions, S.CellOntology._terms, S.CellMarker._rows,
+               S._xlsx_rows, S.LabCurated._rows, S.LabCurated.edges):
         src = inspect.getsource(fn)
         assert "urlopen" not in src and "urllib" not in src, (
             f"{fn.__qualname__} reaches for the network on a read path"
         )
-    assert "urlopen" in inspect.getsource(PanglaoDB.fetch), (
+    assert "urlopen" in inspect.getsource(S._download), (
         "the network scan above is vacuous if nothing fetches"
     )
 
@@ -508,8 +509,9 @@ def test_a_redistributable_source_may_cache_inside_the_repo(monkeypatch):
 def test_no_reference_data_is_bundled_in_the_repo():
     """ARCHITECTURE §12's CI grep, run in the suite so it fails at the commit that
     adds the file rather than at the job that runs nightly."""
-    patterns = ("panglaodb", "cellmarker", "cell_marker", "celltypist", "cellxgene")
-    data_suffixes = (".gz", ".tsv", ".csv", ".parquet", ".json", ".zip", ".db",
+    patterns = ("panglaodb", "cellmarker", "cell_marker", "celltypist", "cellxgene",
+                "cl-basic")
+    data_suffixes = (".gz", ".tsv", ".csv", ".parquet", ".json", ".zip", ".db", ".obo",
                      ".sqlite", ".xlsx", ".h5", ".h5ad")
     hits = []
     for p in REPO.rglob("*"):
