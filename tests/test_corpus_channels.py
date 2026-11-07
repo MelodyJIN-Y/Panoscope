@@ -88,6 +88,12 @@ def _run(monkeypatch, tmp_path, world, ctx=None, aliases=POSTN, **kw):
 
 
 # --------------------------------------------------------------------------- #
+def test_a_frame_label_matches_its_marker_plus_and_singular_spellings_but_not_a_symbol():
+    cells = C.matcher((), ("CD8 T cells", "Podocytes"))
+    assert all(cells.search(t) for t in ("exhausted CD8+T cells", "a CD8+ T cell", "podocyte"))
+    assert not cells.search("CD8 T") and not C.matcher((Term("PSORS", "x", True),)).search("PSOR")
+
+
 def test_a_gene_only_or_gene_plus_generic_query_cannot_be_built():
     g = '("POSTN")'
     for bad in (dict(), dict(extra=(C._or(C.M_CELL),))):

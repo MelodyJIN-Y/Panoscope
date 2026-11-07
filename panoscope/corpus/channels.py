@@ -210,15 +210,21 @@ class _Run:
 # --------------------------------------------------------------------------- #
 # Matching, sentences, full text
 # --------------------------------------------------------------------------- #
-def _alt(terms: Iterable[str]) -> str:
-    return "|".join(re.escape(t) for t in sorted(set(terms), key=len, reverse=True))
+def _alt(terms: Iterable[str], loose: bool = True) -> str:
+    """Longest first. Loose: a space also matches "+" ("CD8 T cells" ~ "CD8+T cells") and a
+    plural matches its singular (the matcher's suffix adds the s back)."""
+    def pat(t: str) -> str:
+        if loose and len(t) > 4 and t.endswith("s"):
+            t = t[:-1]
+        return re.escape(t).replace(r"\ ", r"\+?[\s-]?") if loose else re.escape(t)
+    return "|".join(pat(t) for t in sorted(set(terms), key=len, reverse=True))
 
 
 def matcher(aliases: Iterable[Term], cells: Iterable[str] = ()) -> re.Pattern[str]:
     """Word-bounded alias match: restricted aliases case-sensitive, the rest case-folded."""
     al = tuple(aliases)
     loose = _alt([*(a.text for a in al if not a.restricted), *cells])
-    strict = _alt(a.text for a in al if a.restricted)
+    strict = _alt((a.text for a in al if a.restricted), loose=False)
     parts = [p for p in (f"(?i:{loose})" if loose else "", strict) if p]
     return re.compile(rf"(?<!\w)(?:{'|'.join(parts) or '(?!)'})(?:e?s)?(?!\w)")
 
