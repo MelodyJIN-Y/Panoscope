@@ -314,8 +314,11 @@ def _screen(run: _Run, gene: str, aliases: tuple[Term, ...]) -> list[SourceRecor
     rx = matcher(aliases)
     body: set[str] = set()
     ids: list[str] = []
+    passed: set[str] = set()                # another gene's gate holds these open
     for q in run.corpus.queries:
-        if q.gene in (gene, ""):
+        if q.channel == "gate":
+            passed |= set(q.ids) if q.gene != gene else set()
+        elif q.gene in (gene, ""):
             ids += q.ids
             body |= set(q.ids) if q.channel in _BODY else set()
     gated: list[SourceRecord] = []
@@ -332,9 +335,12 @@ def _screen(run: _Run, gene: str, aliases: tuple[Term, ...]) -> list[SourceRecor
             if any("review" in t.casefold() for t in rec.publication_type):
                 ledger.setdefault(uri, "REVIEW_CHASE_ONLY")
             gated.append(rec)
-        else:
+        elif uri not in passed:
             ledger.setdefault(uri, "PREFILTER_NO_ALIAS")
     run.commit(ledger=tuple(Disposition(i, d) for i, d in ledger.items()))
+    ids_ = tuple(dict.fromkeys(r.uri for r in gated))
+    run.log(QueryRun(f"prefilter gate for {gene}", "gate", gene, total=len(ids_),
+                     retrieved=len(ids_), ids=ids_))
     return gated
 
 

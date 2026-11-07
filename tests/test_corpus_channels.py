@@ -41,6 +41,7 @@ def _hit(pmid="", doi="", title="A paper", abstract="", oa="N", pmcid="",
 JATS = ("<article><front/><body><sec><title>Results</title><p>POSTN was high in "
         "fibroblasts. Basal cells lacked periostin.</p><p>Tumour size varied.</p>"
         "<fig><caption><title>POSTN map</title><p>Shown in breast.</p></caption></fig>"
+        "<table><tr><td>POSTN</td><td>2.1</td></tr></table>"
         "</sec></body></article>")
 
 
@@ -131,6 +132,9 @@ def test_over_the_cap_narrows_and_logs_each_step(monkeypatch, tmp_path):
     w = World(pubmed=[(lambda q: "Xenium" in q and "Fibroblast" in q, 3, ["1", "2", "3"]),
                       (lambda q: "Fibroblast" in q, 500, [])],
               meta=[_hit(pmid=p, abstract="POSTN") for p in "123"])
+    w.fail = {"Xenium"}                       # the narrowed step fails; a re-run resumes it
+    _run(monkeypatch, tmp_path, w)
+    w.fail = set()
     c = _run(monkeypatch, tmp_path, w)
     c1 = [q for q in c.queries if q.channel == "C1" and q.cell_type == "Fibroblasts"]
     assert [q.status for q in c1] == [QueryStatus.NARROWED, QueryStatus.OK]
@@ -169,12 +173,13 @@ def test_the_gate(monkeypatch, tmp_path):
     w = World(epmc=[(_c3, [_hit(pmid="10", abstract="no alias here")])],
               pubmed=[(lambda q: "Fibroblast" in q and "Xenium" not in q, 4,
                        ["11", "12", "13", "14"])],
-              meta=[_hit(pmid="11", abstract="nothing"),
+              meta=[_hit(pmid="11", abstract="POSTNL1 only"),
                     _hit(pmid="12", abstract="POSTN rises", types=("Review",)),
                     _hit(pmid="13", abstract="POSTN", types=("Retracted Publication",)),
                     _hit(pmid="14", abstract="Periostin in stroma."),
-                    _hit(pmid="15", abstract="nothing on the gene")])
-    c = _run(monkeypatch, tmp_path, w, papers_of_interest=("15",))
+                    _hit(pmid="15", abstract="nothing on the gene"),
+                    _hit(pmid="16", abstract="POSTN in stroma")])
+    c = _run(monkeypatch, tmp_path, w, papers_of_interest=("15", "16"))
     led = {d.id: d.disposition for d in c.ledger}
     assert "pmid:10" not in led                         # a C3 body hit passes without alias
     assert led["pmid:11"] == "PREFILTER_NO_ALIAS"
@@ -182,11 +187,14 @@ def test_the_gate(monkeypatch, tmp_path):
     assert led["pmid:13"] == "RETRACTED"
     assert "pmid:14" not in led                         # name alias, case-folded
     assert led["pmid:15"] == "PREFILTER_NO_ALIAS"       # C5 is screened, never auto-accepted
-    # another gene whose alias the paper names reopens it
+    assert "pmid:16" not in led
+    # another gene whose alias the paper names reopens it; one that does not, never closes
+    # a paper an earlier gene's gate holds open
     monkeypatch.setattr(C, "_get", World(meta=w.meta.values()))
     c = C.retrieve(_ctx(), "GENE2", (Term("gene", "study", False),), today=TODAY,
                    path=tmp_path / "corpus.sqlite", papers_of_interest=("15",))
-    assert "pmid:15" not in {d.id for d in c.ledger}
+    led = {d.id for d in c.ledger}
+    assert "pmid:15" not in led and "pmid:16" not in led
 
 
 def test_full_text_for_gated_oa_and_the_cooccurrence_index(monkeypatch, tmp_path):
@@ -197,6 +205,7 @@ def test_full_text_for_gated_oa_and_the_cooccurrence_index(monkeypatch, tmp_path
     ft = rec["pmid:20"].full_text
     assert ft.startswith("## Results\nPOSTN was high in fibroblasts.")
     assert "\nPOSTN map\n" in ft                         # a caption title is not a heading
+    assert ft.endswith("\nPOSTN | 2.1")                  # table rows kept
     assert not rec["pmid:21"].full_text and sum("fullTextXML" in x for x in w.calls) == 1
     frame = [t for e in _ctx().cell_types for t in C.cell_terms(e)]
     got = C.cooccurrence(rec["pmid:20"], POSTN, frame)
