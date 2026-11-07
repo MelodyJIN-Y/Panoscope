@@ -4,9 +4,10 @@ probes, no module-level globals, nothing that raises.
 Data root resolution order, first match wins:
 
 1. an explicit argument
-2. ``$PANOSCOPE_DATA_ROOT``
-3. ``./data`` relative to the current working directory, if it exists
-4. the repo root inferred from this file
+2. the root this context opened (one Streamlit session's rerun; :func:`set_session_root`)
+3. ``$PANOSCOPE_DATA_ROOT``
+4. ``./data`` relative to the current working directory, if it exists
+5. the repo root inferred from this file
 
 A caller that needs the root to *exist* checks for itself and reports.
 """
@@ -14,6 +15,7 @@ A caller that needs the root to *exist* checks for itself and reports.
 from __future__ import annotations
 
 import os
+from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -23,6 +25,8 @@ ENV_STUDY = "PANOSCOPE_DATASET"  # historical name; a study id
 
 _DATA_DIRNAME = "data"
 _STUDIES_DIRNAME = "studies"  # the store is data/studies/<id>
+
+_SESSION_ROOT: ContextVar[Optional[str]] = ContextVar("panoscope_data_root", default=None)
 
 
 def _package_repo_root() -> Path:
@@ -45,10 +49,22 @@ def _resolve_cached(explicit: Optional[str], env: Optional[str], cwd: str) -> Pa
 def resolve_data_root(explicit: Optional[Path] = None) -> Path:
     """The directory containing the study store. Never raises."""
     return _resolve_cached(
-        str(explicit) if explicit is not None else None,
+        str(explicit) if explicit is not None else _SESSION_ROOT.get(),
         os.getenv(ENV_DATA_ROOT),
         os.getcwd(),
     )
+
+
+def set_session_root(root: Optional[Path]) -> None:
+    """The data root for this context; ``None`` falls back to the environment."""
+    _SESSION_ROOT.set(str(root) if root is not None else None)
+
+
+def user_data_root() -> Path:
+    """Where the app builds a biologist's own study: the resolved root, never the repo's."""
+    root = resolve_data_root()
+    repo = (_package_repo_root() / _DATA_DIRNAME).resolve()
+    return Path.home().joinpath(".panoscope", "data").resolve() if root == repo else root
 
 
 def clear_cache() -> None:

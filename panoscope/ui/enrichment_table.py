@@ -30,6 +30,7 @@ from panoscope.ui import surface
 @st.fragment
 def _pathway_chat_fragment(cluster: str) -> None:
     """The Pathways chat as a fragment, so a chat turn re-renders only this pane."""
+    state.apply_session_study()  # a fragment rerun skips app.py's top
     enrichment_conversation.render_pathway_conversation(cluster)
 
 

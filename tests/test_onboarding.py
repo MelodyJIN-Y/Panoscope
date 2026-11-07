@@ -150,3 +150,51 @@ def test_one_unreadable_file_costs_only_its_own_half_of_the_sentence(tmp_path: P
     store = _study_with_manifest(tmp_path, {})
     (store.inputs / "panel.parquet").unlink()
     assert _ready_for(store) == "Interpretation ready. 3 clusters."
+
+
+def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path, monkeypatch) -> None:
+    """Path box -> checklist -> platform and tissue -> build -> the session's study."""
+    from streamlit.testing.v1 import AppTest
+
+    import panoscope
+    from panoscope.agent import loop as agent_loop
+    from panoscope.data import layout
+    from panoscope.ui import state
+
+    demo = Study.open(DEMO).inputs
+    folder = tmp_path / "mystudy"
+    folder.mkdir()
+    for name in ("markers_top.csv", "panel.parquet"):  # no labels, no manifest
+        shutil.copyfile(demo / name, folder / name)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv(layout.ENV_DATA_ROOT, raising=False)
+    layout.clear_cache()
+
+    def no_model(*_a, **_k):
+        raise RuntimeError("no model key")
+
+    monkeypatch.setattr(agent_loop, "chat", no_model)
+
+    at = AppTest.from_file(str(Path(panoscope.__file__).parent / "app.py"), default_timeout=300)
+    at.session_state["active_page"] = "upload"
+    at.run()
+    at.text_input(key="ob_folder").input(str(folder)).run()
+    at.selectbox(key="ob_platform").select("xenium").run()
+    assert "tissue" in at.code[0].value.split("BLOCKING")[1].split("Optional")[0]
+    at.text_input(key="ob_f_tissue").input("human breast cancer")
+    at.button(key="ob_apply").click().run()
+    assert "tissue             human breast cancer  (stated" in at.code[0].value
+    at.button(key="ob_build").click().run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+
+    at.run()  # a later rerun starts from a fresh context: only the session names the study
+    root = tmp_path / "home" / ".panoscope" / "data"
+    assert at.session_state["active_page"] == "summary"
+    assert at.session_state[state.K_STUDY] == (str(root.resolve()), "mystudy")
+    built = Study(id="mystudy", data_root=root.resolve())
+    assert built.manifest["tissue"] == "human breast cancer" and len(built.units) == 9
+    assert "not yet called" in "\n".join(m.value for m in at.markdown)
+    at.session_state["active_page"] = "markers"
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert "xenium · human breast cancer" in "\n".join(m.value for m in at.markdown)  # ours, not the demo's "Xenium"

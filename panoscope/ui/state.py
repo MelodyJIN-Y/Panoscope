@@ -22,6 +22,7 @@ K_CHAT_THREAD = "chat_thread"
 K_PENDING_DRAFT = "pending_draft"
 K_OPENING_POSTED = "opening_posted"
 K_INITIALIZED = "_ui_initialized"
+K_STUDY = "_study"  # (data root, study id) this session opened; absent = the default
 
 # --------------------------------------------------------------------------- #
 # Closed vocabularies for the viewing/interaction controls
@@ -60,6 +61,33 @@ def _ss() -> Any:
     import streamlit as st
 
     return st.session_state
+
+
+def apply_session_study() -> None:
+    """Point this rerun's context at the session's study, or back at the default.
+
+    Unconditional: Streamlit may reuse a script thread across reruns, so a context
+    left by another run must not survive.
+    """
+    from pathlib import Path
+
+    from panoscope.data import layout
+    from panoscope.data.study import Study
+
+    root, sid = _ss().get(K_STUDY) or (None, None)
+    layout.set_session_root(Path(root) if root else None)
+    cfg.set_study(Study(id=sid, data_root=Path(root)) if sid
+                  else layout.default_study_id() or cfg.BUNDLED_DEMO_ID)
+
+
+def open_study(store: Any) -> None:
+    """Make ``store`` (``None``: the default) this session's study; per-study UI state starts over."""
+    ss = _ss()
+    for key in (*_DEFAULTS, K_INITIALIZED, K_STUDY):
+        ss.pop(key, None)
+    if store is not None:
+        ss[K_STUDY] = (str(store.data_root), store.id)
+    apply_session_study()
 
 
 def init_state() -> None:

@@ -175,6 +175,7 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
 @st.fragment
 def _chat_pane_fragment(cluster: str) -> None:
     """The marker chat as a fragment, so a chat turn re-renders only this pane."""
+    state.apply_session_study()  # a fragment rerun skips the top of this file
     conversation.render_conversation(cluster)
 
 
@@ -268,6 +269,7 @@ st.set_page_config(
     page_icon=str(_LOGO_MARK) if _LOGO_MARK.exists() else "🔬",
     layout="wide",
 )
+state.apply_session_study()  # before anything reads the study
 theme.inject_css()
 state.init_state()
 

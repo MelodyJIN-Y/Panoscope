@@ -4,28 +4,31 @@ A two-step gate the app shows before the dashboard:
 
 1. **Landing** — brand, one-line pitch, the three things that make Panoscope
    different, and a "Get started" call to action.
-2. **Upload** — drop in the jazzPanda marker CSV, the gene-set CSV, and the
-   Seurat object, then "Analyze". A short staged progress ("reading jazzPanda
-   output -> panel-absence rule -> grounding citations") hands off to the
-   dashboard.
-
-DEMO NOTE (honest framing): this is a front door, not a live processor. The app
-runs on the PRECOMPUTED per-dataset tree (the project's "precomputed jazzPanda
-output only" rule). The uploaded files are accepted and their names are echoed in
-the progress, but the dashboard reads the existing interpretation tree — no live
-jazzPanda run, no slow gene-note recompute. Real processing is the offline
-``pipeline.run`` path; this screen stands in for it during the demo.
+2. **Upload** — a results-folder path box. Panoscope links the folder's files into
+   a study under the user data root, recognises each through the method registry,
+   shows the §6.4 intake checklist, asks only what is missing, and builds the study
+   deterministically (``pipeline.run``) for this session. "Explore the demo" opens
+   the bundled precomputed study instead.
 """
 from __future__ import annotations
 
 import base64
 import html
+import json
 import time
+from pathlib import Path
 
 import streamlit as st
 
+from panoscope import methods, platforms
+from panoscope.agent import intake
+from panoscope.data import layout
+from panoscope.data import study as study_mod
+from panoscope.data.study import Study
+from panoscope.types.contracts import UndeclaredClustering
+
 from panoscope.agent import profile as agent_profile
-from panoscope.ui import nav
+from panoscope.ui import nav, state
 
 
 def _detected_tissue() -> str:
@@ -128,19 +131,7 @@ h1 a.anchor-link, h2 a.anchor-link { display:none !important; }
 .pano-ob-h2{ font-family:var(--sans); font-weight:720; color:var(--ink); letter-spacing:-.02em; font-size:1.7rem; margin:0 0 .5rem 0; }
 .pano-ob-sub{ font-family:var(--sans); color:var(--muted); font-size:.96rem; margin:0 0 1.6rem 0; }
 .pano-ob-card-h{ font-family:var(--sans); font-weight:650; color:var(--ink); font-size:.9rem; margin:.2rem 0 .15rem 0; min-height:1.3em; }
-.pano-ob-card-h .req{ color:var(--faint); font-weight:600; font-size:.74rem; }
 .pano-ob-card-d{ font-family:var(--sans); color:var(--faint); font-size:.78rem; line-height:1.4; margin:0 0 .55rem 0; min-height:2.6em; }
-
-/* dropzones as tidy cards */
-[data-testid="stFileUploaderDropzone"]{
-  background:var(--paper); border:1.5px dashed var(--hair); border-radius:12px; min-height:104px;
-  transition:border-color .15s ease, background .15s ease;
-}
-[data-testid="stFileUploaderDropzone"]:hover{ border-color:var(--accent); background:var(--accent-soft); }
-/* No file-size text at all (Seurat objects are large); the card states the type.
-   The instructions block holds only 'NGB per file • TYPE'; the Upload button is a
-   separate sibling, so hiding this leaves the button intact. */
-[data-testid="stFileUploaderDropzoneInstructions"]{ display:none !important; }
 
 /* research-focus input styled to match the dropzone cards (onboarding CSS only
    loads on these screens, so a broad stTextArea selector is safe here) */
@@ -191,7 +182,7 @@ h1 a.anchor-link, h2 a.anchor-link { display:none !important; }
 /* honor reduced-motion (taste-skill requirement) */
 @media (prefers-reduced-motion: reduce){
   .st-key-pano_ob_cta .stButton>button, .st-key-pano_ob_go .stButton>button,
-  .st-key-pano_ob_skip .stButton>button, [data-testid="stFileUploaderDropzone"]{ transition:none !important; }
+  .st-key-pano_ob_skip .stButton>button{ transition:none !important; }
   .st-key-pano_ob_cta .stButton>button:hover, .st-key-pano_ob_go .stButton>button:hover{ transform:none !important; }
 }
 </style>
@@ -291,14 +282,6 @@ def render_landing() -> None:
             st.markdown(_hero_visual_html(), unsafe_allow_html=True)
 
 
-def _upload_card(col, title: str, desc: str, key: str, types, required: bool):
-    with col:
-        tag = "" if required else ' <span class="req">· optional</span>'
-        st.markdown(f'<div class="pano-ob-card-h">{title}{tag}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="pano-ob-card-d">{desc}</div>', unsafe_allow_html=True)
-        return st.file_uploader(title, type=types, key=key, label_visibility="collapsed")
-
-
 def _ready_line() -> str:
     """The final progress line, with the study's own cluster count and panel size.
 
@@ -327,12 +310,11 @@ def _ready_line() -> str:
     return "Interpretation ready." + (f" {', '.join(bits)}." if bits else "")
 
 
-def _run_progress(names: list[str]) -> None:
+def _run_progress() -> None:
     """Short staged progress so the hand-off feels like real work (it reads the
     precomputed tree; see the module DEMO NOTE)."""
-    read = names[0] if names else "markers_top.csv"
     steps = [
-        (f"Reading jazzPanda output ({read})…", 0.28),
+        ("Reading jazzPanda output (markers_top.csv)…", 0.28),
         ("Applying the panel-absence rule to the gene panel…", 0.52),
         ("Scoring confidence from spatial glm_coef…", 0.72),
         ("Grounding cell-type notes with looked-up citations…", 0.9),
@@ -345,6 +327,112 @@ def _run_progress(names: list[str]) -> None:
     time.sleep(0.35)
 
 
+_KEY_OF = {"assay": "platform"}  # checklist field -> manifest key, where they differ
+
+
+def _stage(folder: Path) -> Study:
+    """Link the folder's top-level files into a study under the user data root. Copies nothing."""
+    store = Study(id=folder.name, data_root=layout.user_data_root())
+    store.inputs.mkdir(parents=True, exist_ok=True)
+    for p in folder.iterdir():
+        dst = store.inputs / p.name
+        if p.is_file() and p.name != "manifest.json" and not (dst.is_symlink() or dst.exists()):
+            dst.symlink_to(p.resolve())
+    if not store.exists:
+        own = folder / "manifest.json"
+        _write_manifest(store, {**(json.loads(own.read_text()) if own.is_file() else {}),
+                                "dataset_id": store.id})
+    return store
+
+
+def _stated(store: Study) -> dict[str, str]:
+    """What the biologist stated for this staged study this session, by field."""
+    return st.session_state.setdefault("_ob_stated", {}).setdefault(store.id, {})
+
+
+def _write_manifest(store: Study, man: dict) -> None:
+    layout.manifest_json(store.id, store.data_root).write_text(json.dumps(man, indent=2) + "\n")
+    study_mod.clear_cache()
+
+
+def _apply(store: Study, draft: intake.Draft, answers: dict[str, str]) -> bool:
+    """The biologist's answers, validated by the draft, written to the staged manifest."""
+    stated, ok = _stated(store), True
+    for field, value in answers.items():
+        many = field in intake.BACKGROUND[1:]  # list-valued: comma-separated entries
+        try:
+            for v in (value.split(",") if many else [value]):
+                if v.strip():
+                    draft = draft.stated(field, v)
+        except (ValueError, UndeclaredClustering) as exc:
+            st.error(f"{field}: {exc}")
+            ok = False
+            continue
+        if value.strip() and field not in intake.BACKGROUND:
+            stated[field] = draft.condition(field).value
+    man = {**store.manifest, "background": draft.background.to_manifest()}
+    man.update({_KEY_OF.get(f, f): v for f, v in stated.items()})
+    _write_manifest(store, man)
+    return ok
+
+
+def _build(store: Study) -> None:
+    """Build into the user data root, then open the study for this session."""
+    from panoscope.pipeline import run as pipeline_run
+
+    layout.set_session_root(store.data_root)
+    try:
+        with st.spinner("Building the interpretation…"):
+            pipeline_run.run(store.id)
+    except Exception as exc:  # noqa: BLE001 - a blocked build is shown, never a traceback
+        state.apply_session_study()
+        st.error(str(exc))
+        return
+    study_mod.clear_cache()
+    state.open_study(store)
+    _nav(nav.SUMMARY_PAGE)
+
+
+def _render_folder_intake() -> None:
+    """§6.4: read the folder, show the checklist, ask only what is missing, build."""
+    path = st.text_input("Results folder", key="ob_folder",
+                         placeholder="/path/to/your/results")
+    folder = Path(path).expanduser() if path.strip() else None
+    if folder is None:
+        return
+    if not folder.is_dir():
+        st.error(f"{folder} is not a folder.")
+        return
+    for p, m in sorted(methods.recognise_inputs(folder).items()):
+        st.markdown(f"- `{p.name}`: " + (f"{m.display_name} ({m.workflow})" if m
+                                         else "not recognised by any registered method"))
+    store = _stage(folder)
+    if not store.platform:
+        choice = st.selectbox("Platform (blocks the study until declared)", platforms.names(),
+                              index=None, key="ob_platform")
+        if choice:
+            _stated(store)["assay"] = choice
+            _write_manifest(store, {**store.manifest, "platform": choice})
+            st.rerun()
+        return
+    draft = intake.derive(platforms.for_study(store), store)
+    for field, value in _stated(store).items():
+        draft = draft.stated(field, value)
+    st.code(draft.checklist().render(), language=None)
+
+    with st.form("ob_intake", clear_on_submit=True):
+        answers = {f: st.text_input(f, key=f"ob_f_{f}")
+                   for f in intake.ITEMS[1:] if draft.status(f) is not intake.Status.KNOWN}
+        answers |= {f: st.text_input(f"{f} (optional)", key=f"ob_f_{f}")
+                    for f in intake.BACKGROUND}
+        if st.form_submit_button("Apply", key="ob_apply") and _apply(store, draft, answers):
+            st.rerun()
+    if draft.missing:
+        st.warning("Blocked until declared: " + ", ".join(draft.missing))
+    elif st.button("Build  →", key="ob_build", type="primary"):
+        _build(store)
+
+
 def render_upload() -> None:
     """Load-your-data page (?page=upload)."""
     _css()
@@ -353,31 +441,14 @@ def render_upload() -> None:
         st.markdown(
             """
 <div class="pano-ob">
-  <h2 class="pano-ob-h2">Bring your jazzPanda output</h2>
-  <p class="pano-ob-sub">Drop in your jazzPanda marker table; add the gene-set enrichment result and the
-  Seurat object to unlock Pathways and the spatial views. Panoscope builds the interpretation; you review it.</p>
+  <h2 class="pano-ob-h2">Bring your own results</h2>
+  <p class="pano-ob-sub">Point Panoscope at the folder holding your panel and method results. It reads what
+  is there, asks only about what is missing, and builds the interpretation; you review it.</p>
 </div>
 """,
             unsafe_allow_html=True,
         )
-        c1, c2, c3 = st.columns(3, gap="medium")
-        f1 = _upload_card(
-            c1, "Marker genes (CSV)",
-            "jazzPanda top markers: gene, top_cluster, glm_coef, pearson.",
-            "ob_markers", ["csv"], required=True,
-        )
-        f2 = _upload_card(
-            c2, "Gene-set enrichment (CSV)",
-            "jazzPanda gene-set enrichment result: per-cluster program scores. Drives Pathways.",
-            "ob_panel", ["csv"], required=False,
-        )
-        f3 = _upload_card(
-            c3, "Seurat object (.rds)",
-            "Cells, clusters and UMAP. Required for the spatial views.",
-            "ob_seurat", ["rds", "Rds", "RDS"], required=True,
-        )
-
-        names = [f.name for f in (f1, f2, f3) if f is not None]
+        _render_folder_intake()
 
         # Tissue is read from the dataset (grounded) — the agent reasons within it and
         # prefers tissue-relevant literature (a real cross-tissue paper is still fine).
@@ -419,7 +490,7 @@ def render_upload() -> None:
         col, _sp = st.columns([1, 2])
         with col:
             with st.container(key="pano_ob_cta"):
-                analyze = st.button("Analyze my data  →", width="stretch", key="ob_analyze")
+                analyze = st.button("Explore the demo  →", width="stretch", key="ob_analyze")
         with st.container(key="pano_ob_skip"):
             skip = st.button("← back", key="ob_back")
 
@@ -427,5 +498,6 @@ def render_upload() -> None:
             _nav("welcome")
         if analyze:
             agent_profile.save(interest)
-            _run_progress(names)
+            state.open_study(None)
+            _run_progress()
             _nav("summary")   # enter the dashboard
