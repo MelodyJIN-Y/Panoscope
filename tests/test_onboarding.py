@@ -226,7 +226,7 @@ def test_a_refresh_keeps_the_study_the_url_names_and_a_bad_one_falls_back(tmp_pa
     from panoscope.ui import state
 
     root = Study.open(FIXTURE).data_root
-    for sid, want in ((FIXTURE, (str(root), FIXTURE)), ("../x", None), ("nope", None)):
+    for sid, want in ((FIXTURE, (str(root), FIXTURE)), (f"../studies/{FIXTURE}", None), ("nope", None)):
         at = AppTest.from_file(str(Path(panoscope.__file__).parent / "app.py"), default_timeout=300)
         at.query_params.update(page="summary", study=sid, root=str(root))
         at.run()
