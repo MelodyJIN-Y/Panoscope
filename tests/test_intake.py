@@ -424,9 +424,12 @@ def test_background_persists_with_provenance_and_papers_are_identifiers(
 
 def test_expected_cell_types_never_enter_the_label_space(tmp_path: Path) -> None:
     """A prior to test, not an input: it is in neither the frames nor the conditions."""
-    store = _store(tmp_path, "s", platform="Xenium", tissue="t")
+    stated = derive(ADAPTER, _store(tmp_path, "s0", platform="Xenium", tissue="t")
+                    ).stated("expected_cell_types", "Zeta cell")
+    store = _store(tmp_path, "s", platform="Xenium", tissue="t",
+                   background=stated.background.to_manifest())
     (store.inputs / "cluster_key.json").write_text(json.dumps({"c1": {"cell_type": "T cell"}}))
-    draft = derive(ADAPTER, store).stated("expected_cell_types", "Zeta cell")
+    draft = derive(ADAPTER, store)
     assert draft.background.expected_cell_types[0].value == "Zeta cell"
     labels = {m for f in ADAPTER.frames(store) if f.kind is EntityKind.CELL_TYPE
               for m in f.members}
