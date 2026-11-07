@@ -361,11 +361,13 @@ def _provenance(dataset: str) -> dict:
     Fail-soft per field and never silent. No network.
     """
     frames: tuple[tuple[str, str], ...] = ()
+    study = dataset
     try:
         from panoscope import platforms
         from panoscope.data.study import Study
 
         store = Study.open(dataset)
+        study = store.id
         frames = tuple((f.name, f.digest)
                        for f in platforms.for_study(store).frames(store))
     except Exception:  # noqa: BLE001 - a thinner header, never a wrong one
@@ -382,12 +384,15 @@ def _provenance(dataset: str) -> dict:
     try:
         from panoscope.corpus import store as corpus_store
 
-        c = corpus_store.load(corpus_store.corpus_path(dataset))
-        # ``misses`` separates "asked and found nothing" from "never asked".
-        built = getattr(c, "built", "") or "no build stamp"
-        corpus = (f"{built} · {len(getattr(c, 'records', ()))} record(s), "
-                  f"{len(getattr(c, 'misses', ()))} miss(es) · spec "
-                  f"{getattr(c, 'spec_version', '?')}")
+        # Keyed by the study (corpus_path's key), never by a dataset name.
+        c = corpus_store.load(corpus_store.corpus_path(study))
+        v = c.version
+        built = (v.built_at if v else "") or c.built or "no build stamp"
+        corpus = (f"{built} · {len(c.records)} record(s), {len(c.misses)} miss(es), "
+                  f"{len(c.statements)} statement(s)"
+                  f" · spec {c.spec_version}")
+        if v is not None:
+            corpus += f" · version {v.content_hash} · {v.generator} · {v.cost}"
     except Exception:  # noqa: BLE001 - CorpusUnavailable is the ordinary case
         pass
 

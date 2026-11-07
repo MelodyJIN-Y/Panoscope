@@ -50,7 +50,7 @@ have not drifted apart, because a scheme citable in one module and not the other
 claim that renders as a citation and resolves to nothing."""
 
 STORE_FILENAME: Final = "corpus.sqlite"
-SPEC_VERSION: Final = "0.2"
+SPEC_VERSION: Final = "0.3"
 
 RESOLVABLE: Final[frozenset[str]] = frozenset({"pmid"})
 """Schemes a connector exists for today. ``doi:`` is citable but not resolvable: the
@@ -241,6 +241,18 @@ class Statement:
     written_by: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class Setting:
+    """One P1 setting field of a paper (species, tissue, assay ...) as a verbatim quote."""
+
+    uri: str
+    field: str
+    quote: str
+    start: int
+    end: int
+    section: str
+
+
 class QueryStatus(StrEnum):
     OK = "ok"
     FAILED = "failed"
@@ -350,13 +362,14 @@ class Corpus:
     queries: tuple[QueryRun, ...] = ()
     ledger: tuple[Disposition, ...] = ()
     version: CorpusVersion | None = None
+    settings: tuple[Setting, ...] = ()
 
     def __post_init__(self) -> None:
-        for st in self.statements:
+        for st in (*self.statements, *self.settings):
             held = self.find(st.uri)
-            if not any(r.text(st.section)[st.start:st.end] == st.span for r in held):
+            if not any(r.text(st.section)[st.start:st.end] == _span(st) for r in held):
                 raise UnboundSpan(
-                    f"{st.uri} {st.section}[{st.start}:{st.end}] is not {st.span!r}"
+                    f"{st.uri} {st.section}[{st.start}:{st.end}] is not {_span(st)!r}"
                     + ("" if held else " (no record held)"))
         ids = [d.id for d in self.ledger]
         if len(ids) != len(set(ids)):
@@ -377,6 +390,10 @@ class Corpus:
     def licensed_records(self) -> tuple[SourceRecord, ...]:
         """The records carrying an abstract -- i.e. the ones that may not ship."""
         return tuple(r for r in self.records if not r.redistributable)
+
+
+def _span(row: Statement | Setting) -> str:
+    return row.span if isinstance(row, Statement) else row.quote
 
 
 def resolve(corpus: Corpus, uri: str) -> Traced[Resolved]:
@@ -539,7 +556,7 @@ def corpus_path(study: str) -> Path:
     return cache_dir("corpus", study, redistributable=False) / STORE_FILENAME
 
 
-_TABLES: Final = ("records", "misses", "statements", "queries", "ledger")
+_TABLES: Final = ("records", "misses", "statements", "queries", "ledger", "settings")
 
 
 def _tup(v: Any) -> Any:
@@ -606,6 +623,7 @@ def load(path: Path | str) -> Corpus:
         queries=tuple(QueryRun(**d) for d in rows["queries"]),
         ledger=tuple(Disposition(**d) for d in rows["ledger"]),
         version=CorpusVersion(**{k: _tup(x) for k, x in v.items()}) if v else None,
+        settings=tuple(Setting(**d) for d in rows["settings"]),
     )
 
 

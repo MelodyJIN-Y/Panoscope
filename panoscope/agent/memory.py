@@ -210,6 +210,44 @@ def _reconcile_query(
     return " ".join(p for p in parts if p).strip()
 
 
+def _corpus_tension(note: Note, query: str) -> Optional[Tension]:
+    """agree/dissent from the study corpus's Statements, derived now; None without a corpus.
+
+    The join is the note's anchor (markers x cell type) to Statement (gene, cell type),
+    in-window only. Dissent is a display flag: nothing here reaches ``verify`` (D1).
+    """
+    if not (note.subject_markers and note.subject_cell_type and note.scope_ref.dataset):
+        return None
+    from panoscope.corpus import cards
+    from panoscope.corpus.retrieve import Support
+    from panoscope.corpus.store import CorpusUnavailable, corpus_path, load
+
+    try:
+        corpus = load(corpus_path(note.scope_ref.dataset))
+    except CorpusUnavailable:
+        return None
+    agree, dissent, states = cards.stance_toward(
+        corpus, tuple(note.subject_markers), note.subject_cell_type)
+
+    def cite(rows, stance: str) -> tuple[Citation, ...]:
+        out = {}
+        for st in rows:
+            for rec in corpus.find(st.uri)[:1]:
+                pmid = st.uri.removeprefix("pmid:")
+                out.setdefault(st.uri, Citation(
+                    pmid=pmid, title=rec.title, authors=rec.authors, year=rec.year,
+                    journal=rec.journal, url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+                    if st.uri.startswith("pmid:") else "", stance=stance,
+                    is_real=rec.is_real, fetched_at=rec.retrieved))
+        return tuple(out.values())
+
+    complete = all(k.state is Support.NONE_FOUND and not k.gaps for k in states)
+    stamp = (corpus.version.built_at if corpus.version else "") or corpus.built or "corpus build"
+    return Tension(agree=cite(agree, "agree"), dissent=cite(dissent, _STANCE_DISSENT),
+                   thin=not (agree or dissent), query=query,
+                   looked_up_at=stamp if (agree or dissent or complete) else "")
+
+
 def reconcile(note: Note, literature_search: Optional[LiteratureSearch] = None) -> Tension:
     """Cross-check a note's claim against the literature and split agree/dissent.
 
@@ -229,6 +267,8 @@ def reconcile(note: Note, literature_search: Optional[LiteratureSearch] = None) 
         note.claim, note.subject_cell_type, note.subject_markers, note.subject_gene_sets
     )
 
+    if (built := _corpus_tension(note, query)) is not None:
+        return built
     if literature_search is None:
         return Tension(agree=(), dissent=(), thin=True, query=query, looked_up_at="")
 

@@ -1,5 +1,9 @@
 """Stage (notes) -- grounded per-cluster cell-type summaries (LIVE PubMed).
 
+When the study has a built literature corpus, the cell-type and gene notes are its
+cards (``corpus.cards``), with no model call; the one-PMID harness below runs only for
+a study without one.
+
 For each cluster's annotated cell type, asks the agent for one plain-language
 summary WITH a real PubMed citation fetched live; thin literature yields
 ``pmid: null``, never a fabricated PMID. Written to ``interp/celltype_notes.json``
@@ -184,12 +188,33 @@ def _save(out_path: Path, notes: dict[str, Any]) -> None:
     out_path.write_text(json.dumps(notes, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def _corpus(dataset_id: str) -> Any:
+    """The study's built corpus, or None when it has none (the harness then runs)."""
+    from panoscope.corpus.store import CorpusUnavailable, corpus_path, load
+
+    try:
+        return load(corpus_path(dataset_id))
+    except CorpusUnavailable:
+        return None
+
+
 def run_celltype_notes(
     dataset_id: str | None = None, root: Optional[Path] = None
 ) -> dict[str, Any]:
     """Generate (resumable) one cited cell-type note per cluster into the tree."""
     dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "celltype_notes.json"
+    corpus = _corpus(dataset_id)
+    if corpus is not None:
+        from panoscope.corpus import cards
+
+        notes = {}
+        for cluster in cfg.CLUSTER_ORDER:
+            ct = v1_verdicts.verdict_for(cluster).cell_type
+            notes[cluster] = {"cluster": cluster, "cell_type": ct,
+                              **cards.note(cards.cell_type_card(corpus, ct), corpus)}
+        _save(out_path, notes)
+        return notes
     notes = _load(out_path)
 
     for cluster in cfg.CLUSTER_ORDER:
@@ -269,7 +294,8 @@ def run_gene_notes(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "gene_notes.json"
-    notes = _load(out_path)
+    corpus = _corpus(dataset_id)
+    notes = {} if corpus is not None else _load(out_path)
 
     for cluster in cfg.CLUSTER_ORDER:
         verdict = v1_verdicts.verdict_for(cluster)
@@ -278,16 +304,23 @@ def run_gene_notes(
             gene = ev.gene
             if gene in notes[cluster] and notes[cluster][gene].get("summary"):
                 continue
-            try:
-                resp = agent_loop.chat(
-                    _gene_query(gene, verdict.cell_type, cluster, ev), cluster=cluster
-                )
-            except Exception as exc:  # noqa: BLE001 - keep going; save what we have
-                print(f"  ERROR {cluster}/{gene}: {exc}", flush=True)
-                continue
-            cite = resp.citations[0] if resp.citations else None
-            fb = _gene_fallback(gene, verdict.cell_type, ev.is_canonical)
-            summary, pmid, citation, _ = _resolve_note(resp.text, cite, fb)
+            if corpus is not None:
+                from panoscope.corpus import cards
+
+                lit = cards.note(cards.card(corpus, gene, verdict.cell_type), corpus)
+            else:
+                try:
+                    resp = agent_loop.chat(
+                        _gene_query(gene, verdict.cell_type, cluster, ev), cluster=cluster
+                    )
+                except Exception as exc:  # noqa: BLE001 - keep going; save what we have
+                    print(f"  ERROR {cluster}/{gene}: {exc}", flush=True)
+                    continue
+                cite = resp.citations[0] if resp.citations else None
+                fb = _gene_fallback(gene, verdict.cell_type, ev.is_canonical)
+                summary, pmid, citation, _ = _resolve_note(resp.text, cite, fb)
+                lit = {"summary": summary, "pmid": pmid, "citation": citation,
+                       "verify": bool(resp.verify)}
             notes[cluster][gene] = {
                 "gene": gene,
                 "cluster": cluster,
@@ -302,12 +335,9 @@ def run_gene_notes(
                 "is_on_panel": ev.is_on_panel,
                 "role": ev.role,
                 "caveats": list(ev.caveats),
-                # Tier B — the skill's Output-4 biology note (live-cited).
-                "summary": summary,
-                "pmid": pmid,
-                "citation": citation,
+                # Tier B — the corpus card, else the Output-4 note (live-cited).
+                **lit,
                 "caveat_flagged": "localizes better with another cluster" in ev.caveats,
-                "verify": bool(resp.verify),
             }
             _save(out_path, notes)
             pm = notes[cluster][gene]["pmid"] or "no-cite"
