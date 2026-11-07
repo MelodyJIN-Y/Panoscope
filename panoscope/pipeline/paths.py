@@ -22,22 +22,8 @@ from panoscope.agent import config as cfg
 def datasets_root(root: Optional[Path] = None) -> Path:
     """``root`` if given, else the ACTIVE data root's ``studies/`` -- resolved now.
 
-    **This used to be a module constant**, ``cfg.DATA_DIR_PATH / "studies"``
-    evaluated at import. ``cfg.DATA_DIR_PATH`` is dynamic (``config.__getattr__``
-    resolves it against ``PANOSCOPE_DATA_ROOT`` on every read) and this froze it to
-    whatever the environment said the first time anything imported this module.
-
-    Two things followed, and both were silent. A test that correctly redirects the
-    root -- ``monkeypatch.setenv`` followed by ``layout.clear_cache()`` -- still had
-    ``ui/chat_store`` write ``chat_threads.json`` into the REAL repository tree,
-    gitignored, under a study id that exists nowhere; the suite did that on every
-    run. And ``ui/report._dataset_undecidables`` read one store's records while the
-    verdicts beside it followed ``cfg.current_study()``, so a document exported from
-    a study opened outside ``data/studies/`` either lost its replicate caveats or,
-    with a same-named store in the frozen root, attached THAT store's sentences to
-    these rows by unit id.
-
-    Resolving per call is the whole fix: every helper below routes through here.
+    Resolved per call, never at import: ``cfg.DATA_DIR_PATH`` follows
+    ``PANOSCOPE_DATA_ROOT``. Every helper below routes through here.
     """
     return Path(root) if root is not None else cfg.DATA_DIR_PATH / "studies"
 

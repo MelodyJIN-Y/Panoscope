@@ -1,34 +1,16 @@
 """The method-agnostic reader: a tidy table in, a ``ReadingRecord`` out.
 
-One row per unit x entity. That is the only shape this module knows, and knowing one
-shape is what makes it method-agnostic: the column *names* are parameters, so
-jazzPanda's ``gene, top_cluster, glm_coef`` and a DE result's
-``gene, contrast, log2fc`` are the same read with different arguments. Nothing here
-knows what a gene is, what a cluster means, or which statistic is primary.
+One row per unit x entity; the column *names* are parameters, so nothing here knows
+what a gene is, what a cluster means, or which statistic is primary.
 
-**Why the reader, and not the method, counts the drops.** ``rows_in`` minus
-``rows_dropped`` is the only place a biologist can see that part of a table never
-reached the interpretation, and a method that drops its own rows reports a clean run
-over whatever survived. Every drop is counted under a reason string, and the reasons
-are a sorted tuple of pairs (``ReadingRecord.__post_init__`` re-sorts, so this does
-not depend on anyone remembering): two runs that dropped the same rows for the same
-reasons must hash identically, and a dict would make the bytes depend on which
-malformed row a reader happened to meet first.
+**The reader, not the method, counts the drops**, each under a reason string, as a
+sorted tuple of pairs so identical drops hash identically.
 
-**The entity universe includes rows that were dropped.** A row dropped because its
-unit column held a sentinel (jazzPanda's ``NoSig``) still tells us the method *looked
-at* that entity, so it belongs to the universe ``entities_outside_frame`` is computed
-over: the demo's 49 undetectable panel genes are named there rather than vanishing.
+**The entity universe includes dropped rows** (e.g. jazzPanda's ``NoSig``): the method
+looked at them, so ``entities_outside_frame`` names them rather than letting them vanish.
 
-**On the returned ``Traced``: its decision tuple is always empty, and that is a
-contract gap, not an oversight.** ``Trace.note`` refuses any rule id absent from
-``trace.RULES``, and ``RULES`` has no ``read:*`` step -- reading is not one of the
-registered steps. The reader's reasoning is therefore carried entirely by the typed
-``ReadingRecord``, which is arguably where it belongs (it is hashed, diffable and
-click-backable in a way a prose decision is not). ``Traced`` is returned anyway
-because every value crossing out of this layer is expected to be one. If reading
-should narrate itself, ``RULES`` needs read-step entries, and that is a reviewed
-contract change.
+The returned ``Traced`` carries no decisions: ``trace.RULES`` has no ``read:*`` step,
+so the reading is carried entirely by the typed ``ReadingRecord``.
 """
 
 from __future__ import annotations
@@ -53,13 +35,9 @@ _SINGLE_ROLE_SHAPE: Final[dict[EntityKind, tuple[str, str]]] = {
 }
 """Entity kind -> the registered one-entity subject shape and its role name.
 
-Derived from ``subject.SHAPES`` by hand rather than by introspection: a shape is
-single-entity by intent, not by arity, and a rule like "exactly one REQUIRED role"
-would silently pick up ``module`` and ``niche`` the day their member roles changed
-gate. A kind absent from this map has no one-entity shape, and the reader refuses
-rather than building a ``Subject`` directly -- a hand-built Subject can fail to
-compare equal to the same thing built through ``subject()``, which breaks the one
-join key reconciliation depends on.
+Listed by hand from ``subject.SHAPES`` (single-entity by intent, not by arity). A kind
+absent here has no one-entity shape and the reader refuses rather than hand-building
+a ``Subject``.
 """
 
 
@@ -104,30 +82,16 @@ def read_tidy(
 ) -> Traced[ReadingRecord]:
     """Read one tidy result file into its ``ReadingRecord`` (counts, drops, frames).
 
-    ``record_path`` is what lands in ``ReadingRecord.path``, defaulting to ``path``.
-    A caller passes a store-relative name here so the record does not embed an
-    absolute path: the record is hashed into the golden artifact, and
-    ``/Users/someone/...`` in it makes byte-stability a property of whose laptop
-    produced it.
+    ``record_path`` is what lands in ``ReadingRecord.path`` (default ``path``); pass a
+    store-relative name so the golden record embeds no absolute path.
 
     ``not_subjects`` names entities that are measured but are not subjects of
-    interpretation -- on Xenium, the negative control probes. They are dropped
-    BEFORE the universe is built, which is the whole difference: an entity in the
-    universe is one the method looked at, so every frame then gets asked about it
-    and the ones that refuse it put it in ``entities_outside_frame``. A control
-    refused by both gene frames is therefore counted and NAMED there, among the
-    genes this panel could not speak to -- and it is not a gene the panel missed,
-    it is a probe doing its job. The count is reported ("11 entity(s) the method
-    named that no frame admits"), so six probes inflate a number a biologist reads
-    as how much of the method's output the capability frames had to refuse.
-
-    Dropped with a REASON, like every other drop here, so ``panoscope explain``
-    prints "gene is a control probe, not a subject of interpretation: 6" rather
-    than six rows silently disappearing between the file and the record.
+    interpretation (Xenium's negative control probes). They are dropped with a
+    reason BEFORE the universe is built, so they never count as entities no frame
+    admits.
 
     Raises ``UnrecognisedResult`` when a named column is absent, or when
-    ``entity_kind`` has no registered one-entity subject shape. Never guesses a
-    column: a wrong unit column reinterprets every row beneath it.
+    ``entity_kind`` has no registered one-entity subject shape. Never guesses a column.
     """
     p = Path(path)
     if entity_kind not in _SINGLE_ROLE_SHAPE:

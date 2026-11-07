@@ -1,44 +1,22 @@
 """The Xenium adapter: what the 10x Xenium store was CAPABLE of seeing, and what it
 says about itself.
 
-Every member here is a read. None computes a statistic -- the adapter declares the
-apparatus, the method declares what it found, and that split is what makes the
-confidence assessment an audit rather than a self-assessment.
+Every member is a read; none computes a statistic. The adapter declares the
+apparatus and the method declares what it found.
 
-**Two gene frames, not one.** ``measured.py`` says there is one absence primitive per
-entity kind and that several frames may share a kind; this is the first place that
-matters in practice. The panel says which genes the assay *could* report.
-Detectability says which of those produced usable spatial signal at all -- 49 of the
-demo's 280 (17.5%) did not. They are different facts with different consequences: a
-gene off the panel was never probed, a gene on the panel with no signal was probed
-and produced nothing usable, neither absence argues anything, and only the second is
-a property of this tissue section rather than of the panel design. ``_state_for``
-requires *every* frame of a kind to admit an entity, so declaring both is what makes
-an undetectable gene resolve to ``NEVER_MEASURED`` instead of quietly reading as a
-tested absence that argues against a rival. Folding detectability into a footnote --
-which is what the codebase did before -- is the four-states-into-a-boolean mistake,
-one layer down.
+**Two gene frames, not one.** The panel says which genes the assay *could* report;
+detectability says which of those produced usable spatial signal (49 of the demo's
+280 did not). ``_state_for`` requires *every* frame of a kind to admit an entity, so
+an undetectable gene resolves ``NEVER_MEASURED`` rather than a tested absence.
 
-**The panel size is derived and never asserted.** ``manifest.json`` carries
-``panel_gene_count``, and this module ignores it in favour of counting the rows of
-``panel.parquet``. A count in a manifest is a claim about a file; the file is the
-measured set. The second study's immuno-oncology panel is a different size, and a
-constant 280 would turn it into 280 genes that are not there -- while a stale
-manifest count would do the same thing with a plausible number on it.
+**The panel size is derived, never asserted**: counted from ``panel.parquet``, not
+read from the manifest's ``panel_gene_count``.
 
-**The clustering blocker is real here.** ``clustering_mode`` delegates to
-``base.declared_clustering``, which raises ``UndeclaredClustering`` when the store
-holds more than one sample and declares nothing. The demo is one sample, so it
-returns without raising; the kidney study is not, so it will not.
+**The clustering blocker** delegates to ``base.declared_clustering``.
 
-**What this adapter refuses to infer.** ``tissue`` arrives as the manifest's prose
-("human breast cancer") even though ``Conditions.tissue`` wants an ontology id,
-because mapping prose to UBERON is inference and
-``PlatformAdapter.standing_conditions`` may only write ``READ``. ``fixation`` is FFPE
-in every description of this dataset and is still ``UNKNOWN`` here, because no file in
-the store says so and a condition that merely sounds right is exactly what
-``Provenance`` exists to stop. Intake fills both, with a provenance saying who filled
-them in.
+**Not inferred:** ``tissue`` stays the manifest's prose (mapping it to UBERON would
+be inference) and ``fixation`` stays ``UNKNOWN`` since no file states it. Intake
+fills both, with provenance.
 """
 
 from __future__ import annotations
@@ -73,23 +51,10 @@ sentinel, from one declaration.
 def is_no_signal(value: object) -> bool:
     """True if a unit-column ``value`` says *no usable spatial signal*, in ANY case.
 
-    One predicate, because four places test this sentinel and they must agree about
-    it: this adapter's detectability frame, ``agent/config._derive_cluster_order``
-    (which builds the cluster label set as the sentinel's complement),
-    ``agent/grounding_check.is_detectable`` and ``agent/verdict._detectable_genes``.
-    They tested ``!= "NoSig"`` independently and case-SENSITIVELY, and
-    ``markers_top.csv`` is a consumed input whose spelling is whatever the upstream
-    jazzPanda run emitted. A table spelling it ``nosig`` therefore put every
-    undetectable gene INTO ``detect:<id>``, which makes its absence argue -- the
-    panel-absence rule inverted, and inverted hardest on an off-target panel where
-    the undetectable set is most of the assay. The Stage 0 guard that exists to
-    catch an unknown label shared the same comparison, so it passed the store clean.
-
-    **Blank and NaN count as no signal**, and that is the conservative direction
-    rather than a convenience: an empty unit column is not a declaration that the
-    gene was detected, and reading it as one both admits the gene to the
-    detectability frame and (at ``agent/config.py``) makes the empty string a
-    cluster id.
+    The one predicate every reader of this sentinel uses, so they agree; the
+    spelling is whatever the upstream run emitted. **Blank and NaN count as no
+    signal** (the conservative direction): an empty unit column does not declare
+    the gene detected.
     """
     s = "" if value is None else str(value).strip()
     return not s or s.upper() == NO_SIGNAL.upper() or s.lower() == "nan"
@@ -101,44 +66,15 @@ CONTROL_PREFIXES: Final[tuple[str, ...]] = (
 )
 """Xenium puts its negative controls in the same table as the panel.
 
-**Prefix FAMILIES, not spellings.** Each entry names a control family and stops
-where the family name stops, because the vendor decorates the rest: ``BLANK`` is
-``BLANK_0003`` and ``BlankCodeword_0001`` and ``Blank-0002``, ``ANTISENSE`` is
-``antisense_ABC`` and ``antisenseXYZ``. The list used to carry the decorated
-spellings -- ``"BLANK_"``, ``"Blank-"``, ``"antisense_"`` -- which is the same
-mistake as a case-sensitive comparison one level down: it answers the probe the
-author happened to have in front of them rather than the family. ``BlankCodeword``
-is emitted by *every* Xenium run and matched none of them, so a blank codeword
-entered ``panel:<id>`` and ``detect:<id>`` as a gene, and a probe measuring nothing
-could be ``OBSERVED`` -- on an off-target panel, where a handful of rows carry any
-statistic at all, plausibly the top one, with a ``Source``-backed sentence calling
-it on-panel while quoting "negative control" as its annotation.
+**Prefix FAMILIES, not spellings** (``BLANK`` matches ``BLANK_0003`` and
+``BlankCodeword_0001``), each the longest string that is still only the family:
+``NEG`` is not one because NEGR1 is a real gene. ``tests/test_panel_controls.py`` pins
+both directions. Upper-cased because the comparison is (``is_control_probe``).
 
-The families are deliberately the longest string that is still only the family.
-``NEG`` is not one: **NEGR1 is a real human gene** and a bare ``NEG`` would delete
-it from the assay, which is the same class of error as admitting a control, pointed
-the other way. ``BLANK`` and ``ANTISENSE`` are safe in that direction because no
-HGNC symbol begins with either -- antisense transcripts are named ``<GENE>-AS1``,
-never ``ANTISENSE*``. ``tests/test_panel_controls.py`` pins both directions.
+Custom add-on panels are NOT filtered; nothing in the tidy store marks them.
 
-Upper-cased in the source because the comparison is (see ``is_control_probe``);
-written out rather than lower-cased at use so the one list reads as what is matched.
-
-This is the platform-specific half of "how measured is derived": on another platform
-the rule is different, which is why it lives in an adapter and not in ``measured.py``.
-A control probe left in the frame makes the panel look larger than the assay and
-makes a control's absence read as a biological absence.
-
-Custom add-on panels are NOT filtered, because nothing in the tidy store marks them.
-A study that mixes a base panel with add-ons and needs them separated has to declare
-that separation; guessing it from a gene name is how a real gene gets dropped.
-
-Public, and imported by ``agent/data.py`` (as ``NO_SIGNAL`` already is by
-``agent/grounding_check.py``), because the frame and the tidy reader have to drop the
-same rows or they disagree about the size of the assay. They did disagree: the
-adapter filtered and ``load_panel`` did not, so the capability frame said 12 while
-``manifest.panel_gene_count``, every "...on this N-gene panel" caveat and every
-plot's conditionality line said 13. A second copy of this list is a second answer.
+Public and shared with ``agent/data.py`` so the frame and the tidy reader drop the
+same rows and agree on the size of the assay.
 """
 
 
@@ -151,21 +87,9 @@ _CONTROL_PREFIXES_UPPER: Final[tuple[str, ...]] = tuple(
 def is_control_probe(name: str) -> bool:
     """True if ``name`` is a Xenium control probe rather than a panel gene, in ANY case.
 
-    The named half of "excluded, not invisible": controls are dropped from the panel
-    everywhere (see ``agent/data.load_panel``), and this is what lets a caller say
-    *why* a name is off-panel instead of reporting a probe the instrument really did
-    run as something that was never measured.
-
-    **Case-insensitive, because every other gene-identity comparison here is.**
-    ``panel_contains`` and ``panel_annotation`` upper-case both sides -- a vendor who
-    writes ``erbb2`` means ERBB2, and a vendor who writes ``NEGCONTROLPROBE_00001``
-    means the same probe. This was the one case-SENSITIVE comparison left, and it was
-    the one the capability frame used: on a ``panel.parquet`` whose controls arrive in
-    any other case it put every control back into ``panel:<id>``, so the frame said 13
-    where the tidy reader said 12 and the two layers that must agree about the size of
-    the assay disagreed. ``agent.data.is_control`` delegates here rather than carrying
-    its own upper-cased copy, so the frame and the readers share one rule and one
-    comparison -- they agree by construction, not because two filters happen to match.
+    Lets a caller say *why* a name is off-panel. Case-insensitive like every other
+    gene-identity comparison here; ``agent.data.is_control`` delegates here so the
+    frame and the readers share one rule.
     """
     return str(name).strip().upper().startswith(_CONTROL_PREFIXES_UPPER)
 
@@ -173,29 +97,12 @@ def is_control_probe(name: str) -> bool:
 CONTROL_ANNOTATION_TOKENS: Final[tuple[str, ...]] = ("CONTROL", "CODEWORD")
 """Words in ``panel.parquet``'s ``annotation`` column that mark a row as a probe.
 
-**The second half of the control rule, and the half that is not the vendor's to
-rename.** :data:`CONTROL_PREFIXES` matches the probe's NAME, and a name is exactly
-what a vendor is free to change between panel versions: a negative control shipped
-as ``IntergenicRegion_0001`` or ``GenomicControl_02`` matches no family here, enters
-``panel:<id>`` as a gene, and can then be ``OBSERVED`` -- which on an off-target
-panel, where few rows carry any statistic, is plausibly the top one. Measured on a
-kidney-shaped rehearsal: two such probes led ``key_markers`` in ``interp/verdicts.csv``
-with ``role: supports`` and ``caveats: []``, read as *"Driven by IntergenicRegion_0001"*
-on the Markers page, and were handed to the model with ``glm_coef 89.0`` and a
-``jz`` Source -- while the row's own ``annotation`` column said ``negative control``
-and ``agent/data.panel_annotation`` already read that column.
+The half of the control rule a vendor cannot rename: a control named
+``IntergenicRegion_0001`` matches no prefix family but is annotated
+``negative control``. Matched as substrings of the upper-cased annotation and kept to
+two terms already used as control vocabulary; widening it risks deleting real genes.
 
-So the store already carried the answer and nothing asked it. These two tokens are
-the smallest rule that reads it. They are matched as substrings of the upper-cased
-annotation, and they are deliberately only two: both are terms this codebase already
-treats as vendor control vocabulary (``negative control`` is the annotation on this
-repo's own fixture control row; ``CODEWORD`` is already a prefix family above), and
-neither is a word a cell-type or tissue annotation uses. Widening this list guesses
-at strings no file here contains, and guessing wrong here deletes a real gene from
-the assay -- the same error as admitting a probe, pointed the other way.
-
-Name OR annotation, never name AND annotation: an unannotated control still matches
-by family, and an un-family-named control still matches by annotation.
+Name OR annotation: either one marks a control.
 """
 
 
@@ -253,14 +160,8 @@ def _read_parquet(path):
 def _annotated_controls_cached(path: str, mtime_ns: int, size: int) -> frozenset[str]:
     """``panel.parquet``'s control rows BY ANNOTATION, memoised on the file itself.
 
-    ``is_control`` is asked once per row of every marker table a build reads, so an
-    uncached parquet read here is one file read per gene -- measured at roughly
-    three times the suite's runtime before this cache went in.
-
-    Keyed on ``(path, mtime_ns, size)`` rather than on the path alone: a build
-    rewrites study inputs in-process, and a cache keyed on the name would answer a
-    later study's question with an earlier study's panel. A rewrite changes at least
-    one of the two stat fields, so the key changes with the file.
+    Asked once per marker-table row, so cached. Keyed on ``(path, mtime_ns, size)``
+    so an in-process rewrite of study inputs changes the key.
     """
     df = _read_parquet(path)
     # Both columns, not just the annotation: a panel spelling its gene column
@@ -278,15 +179,10 @@ def _annotated_controls_cached(path: str, mtime_ns: int, size: int) -> frozenset
 class XeniumAdapter:
     """``PlatformAdapter`` for a 10x Xenium store in the tidy layout.
 
-    Structural conformance only -- no base class, per ``types/contracts.py``. Reads
-    at call time and holds no path, no table and no study, so one instance is safe
-    to share and a study opened later is never served an earlier study's frames.
-
-    ``sample`` is the one thing an instance carries, and it is a *sample id*, not a
-    resolved file: :meth:`for_sample` binds which section's reading this adapter
-    speaks for, and the path is still resolved against whichever store a call is
-    given. Detectability is the only frame that moves -- see
-    :meth:`_detectable_genes` for why it must.
+    Structural conformance only (``types/contracts.py``). Reads at call time and
+    holds no path, table or study, so one instance is safe to share. ``sample`` is
+    the one thing an instance carries (see :meth:`for_sample`): it moves only the
+    detectability frame.
     """
 
     name = "xenium"
@@ -297,15 +193,9 @@ class XeniumAdapter:
     def for_sample(self, sample: str) -> "XeniumAdapter":
         """This adapter, reading ``sample``'s own tables rather than the pooled ones.
 
-        A new instance rather than a mutation, because the pooled adapter is shared
-        and a replicate loop that re-pointed it would change what every other caller
-        in the process means by "detectable".
-
-        Not on the ``PlatformAdapter`` Protocol yet (``types/contracts.py``), which
-        is a gap and not a decision: a second platform with per-sample tables needs
-        the same method under the same name, and today's one caller --
-        ``pipeline/records.py::_concordance`` -- would meet it as an ``AttributeError``
-        rather than as a missing declaration.
+        A new instance, not a mutation: the pooled adapter is shared. Not on the
+        ``PlatformAdapter`` Protocol yet; its one caller is
+        ``pipeline/records.py::_concordance``.
         """
         return XeniumAdapter(sample)
 
@@ -313,13 +203,8 @@ class XeniumAdapter:
     def _panel_genes(self, store: Study) -> frozenset[str] | None:
         """``panel.parquet``'s gene column, minus negative controls: the measured set.
 
-        ``None`` when the file is absent, for the same reason ``_detectable_genes``
-        returns it: "no panel file" and "a panel file listing nothing but negative
-        controls" are different facts about a store, and only the second is the
-        apparatus declaring that it measured nothing. Returning a bare
-        ``frozenset()`` for both made the second unrepresentable, and ``frames``
-        then dropped the ``panel:`` frame and left ``detect:`` governing the gene
-        kind alone -- a tested absence against a measured set that is empty.
+        ``None`` when the file is absent or unreadable (no frame at all); an empty
+        frozenset is a panel declaring it measured nothing.
         """
         p = store.inputs / "panel.parquet"
         if not p.is_file():
@@ -329,16 +214,8 @@ class XeniumAdapter:
         except Exception:  # noqa: BLE001 - an unreadable panel is "no measured set"
             return None
         if "gene" not in df.columns:
-            # UNREADABLE, not empty -- the same answer a missing file gets, so the
-            # distinction this docstring protects (None = no frame at all,
-            # frozenset() = a frame that admits nothing) still holds.
-            #
-            # This indexed df["gene"] unguarded, so a panel whose column is spelled
-            # "Gene" or "gene_name" raised a bare KeyError out of ``frames``. And
-            # ``intake.derive`` wraps ``reads`` in try/except Blocked but not
-            # ``frames``, so the biologist got a traceback instead of the checklist
-            # line written for precisely this case -- which already says "missing
-            # or has no usable gene column" four hundred lines below.
+            # UNREADABLE, not empty -- the same answer a missing file gets, so
+            # intake shows its checklist line instead of a KeyError.
             return None
         notes = (df["annotation"] if "annotation" in df.columns
                  else [None] * len(df))
@@ -350,17 +227,10 @@ class XeniumAdapter:
     def is_control(self, store: Study, entity: str) -> bool:
         """``PlatformAdapter.is_control``: the store's own answer about one name.
 
-        The public half of the rule the two gene frames already apply, exposed
-        because the frames are not enough on their own. A control row in
-        ``markers_top.csv`` is refused by both frames and therefore resolves
-        ``NEVER_MEASURED`` -- which is a real state, so the row becomes a real
-        subject: it is enumerated as a never-measured entity, projected to v1 as an
-        OffPanelNote reading *"X is off-panel (never measured); its absence is not
-        evidence against T"* in a container whose contract is *canonical markers
-        never measured*, and counted into the §9.10 replicate denominator as part of
-        "this unit's profile". None of those sentences is true of a probe, and all
-        three are click-backable. ``agent/data.is_control`` is this rule on the v1
-        side of the agent/core line; they read the same two columns.
+        Needed beyond the frames: a control row in ``markers_top.csv`` would
+        otherwise become a real never-measured subject (off-panel notes, §9.10
+        denominator). ``agent/data.is_control`` is the v1-side twin; both read the
+        same two columns.
         """
         return (is_control_probe(entity)
                 or str(entity).strip().upper() in self._annotated_controls(store))
@@ -368,13 +238,8 @@ class XeniumAdapter:
     def _annotated_controls(self, store: Study) -> frozenset[str]:
         """Upper-cased names the panel file's ANNOTATION marks as control probes.
 
-        The detectability frame is read off ``markers_top.csv``, which carries no
-        annotation column, so without this a probe the panel file annotates as a
-        control but whose name matches no family stays a member of ``detect:<id>``.
-        The lattice would still refuse it -- ``_state_for`` requires every frame of
-        a kind to admit an entity and ``panel:<id>`` does not -- but the frame's
-        size is reported, and a detectability count inflated by probes is a derived
-        number that disagrees with the panel beside it.
+        ``markers_top.csv`` has no annotation column, so this keeps
+        annotation-marked probes out of ``detect:<id>`` and its reported size.
         """
         p = store.inputs / "panel.parquet"
         if not p.is_file():
@@ -385,11 +250,8 @@ class XeniumAdapter:
     def _markers_path(self, store: Study) -> Path:
         """The marker table THIS adapter speaks for: the bound sample's, or pooled.
 
-        Factored out so the detectability frame and the sentence ``validate`` prints
-        when that frame comes back empty name the same file. They did not: the
-        blocker named ``inputs/markers_top.csv`` on a per-sample adapter, sending a
-        biologist to a pooled table full of signal to explain why one section had
-        none.
+        Shared so the detectability frame and ``validate``'s blocker name the same
+        file.
         """
         if self.sample is None:
             return store.inputs / "markers_top.csv"
@@ -407,12 +269,8 @@ class XeniumAdapter:
     def _why_detect_empty(self, store: Study) -> str:
         """Why the detectability frame came back empty, COUNTED from the table.
 
-        The sentence this replaces asserted one cause -- "every gene is marked
-        NoSig" -- for three different stores, and was false on the one the empty
-        frame was built to represent: a table whose every row is a control probe
-        has no NoSig row in it at all, and a zero-row table has no gene to mark.
-        A blocker is the sentence a biologist acts on, so it says what the file
-        actually holds.
+        Says what the file actually holds (all NoSig, all control probes, or no
+        rows) rather than asserting one cause.
         """
         p = self._markers_path(store)
         df = pd.read_csv(p, usecols=["gene", "top_cluster"])
@@ -439,43 +297,15 @@ class XeniumAdapter:
         """Panel genes with usable spatial signal; ``None`` when nothing declares it.
 
         ``None`` rather than an empty frozenset: "no detectability file" and "no gene
-        was detectable" are different statements, and an empty frame would make every
-        gene in the study ``NEVER_MEASURED``.
+        was detectable" are different statements.
 
-        **Detectability is per sample, and this is the frame that proves it.** It is
-        never *declared* anywhere; it is read off a markers table, as the genes that
-        table did not mark ``NoSig``. So a pooled table answers the pooled question,
-        and handing its answer to one section says that section tested a gene its own
-        file says produced no usable signal -- a fabricated measurement status, and
-        the one the four-state lattice exists to make unrepresentable. It fabricates
-        in both directions: the section is then credited with a *measured* absence
-        that argues against the other section, and with an agreement when both
-        sections were silent about a gene only the pooled read could see. Gene
-        dropout between sections is the normal case (the demo runs 17.5% no usable
-        signal on a panel designed for its tissue), not an edge.
+        **Per sample.** Read off the bound sample's markers table as the genes it did
+        not mark ``NoSig``; a pooled answer handed to one section would fabricate a
+        measured absence (or agreement). The panel frame does NOT move: one panel was
+        run across the sections. A bound sample with no table raises.
 
-        The panel frame deliberately does NOT move: one instrument panel was run
-        across the sections, so what the apparatus was *capable* of is the store's,
-        and only what each section actually got signal from is the sample's.
-
-        A bound sample with no table on disk raises rather than returning ``None``:
-        ``None`` here means "nothing declares detectability", which turns every
-        ``NoSig`` gene into a tested absence that argues -- exactly the fabrication
-        above, arriving as a silent fallback instead of a leak.
-
-        **Controls are dropped here too, and this frame is the half that mattered.**
-        A method writes its own output over whatever probes the instrument ran, so a
-        negative control reaches ``markers_top.csv`` with a real unit and a real
-        number on it. ``_panel_genes`` filtered and this did not, so the control sat
-        in ``detect:<id>`` and the panel frame was the only thing keeping it out of
-        the lattice -- and on a mixed-case panel file that frame let it in too. Both
-        gene frames now refuse it, and because ``_state_for`` requires *every* frame
-        of a kind to admit an entity, that refusal is what makes a control
-        unadmittable rather than merely unlikely: it can never be ``OBSERVED``, so
-        its count can never be promoted to a spatial marker carrying a number, and
-        never ``TESTED_ABSENT``, so its absence can never argue against a cell type.
-        See ``agent.data.is_control`` for where a control sits in the four states and
-        what the lattice still cannot say about one.
+        **Controls are dropped here too**, so both gene frames refuse them and a
+        control can never be ``OBSERVED`` or ``TESTED_ABSENT``.
         """
         p = self._markers_path(store)
         if not p.is_file():
@@ -492,40 +322,16 @@ class XeniumAdapter:
     def frames(self, store: Study) -> tuple[Frame, ...]:
         """Every capability frame this store declares. Derived, never constant.
 
-        An undeclarable frame is omitted rather than returned empty. ``_state_for``
-        reads "no frame for this kind" as ``NEVER_MEASURED`` with a reason naming the
-        gap, whereas an empty frame says the apparatus measured nothing at all -- the
-        same verdict with a false explanation behind it. ``validate`` is where the gap
-        becomes something a biologist can act on.
+        An undeclarable frame is omitted (``_state_for`` reads that as
+        ``NEVER_MEASURED`` with a reason naming the gap); ``validate`` turns the gap
+        into a blocker.
 
-        **Which is why the two gene frames test ``is not None`` and not truthiness.**
-        Both helpers already separated "nothing declares this" from "this is declared
-        and empty", and both tests threw the distinction away: ``frozenset()`` is
-        falsy, so a *declared* empty frame was dropped exactly as an undeclarable one
-        was. The gene kind then had only ``panel:`` left, every frame of the kind
-        admitted every panel gene, and a gene whose own ``markers_top.csv`` row says
-        ``NoSig`` came back ``TESTED_ABSENT`` with ``absence_is_evidence`` -- handed
-        to the rival machinery as "measured and did not mark this unit", with no flag
-        and nothing for ``verify`` to read. The frame built to stop that fabrication
-        was the thing producing it. (Reachable only since the controls filter above:
-        a ``markers_top.csv`` in which the one gene with a unit is a control probe
-        now yields an empty detectable set from a non-empty table.)
-
-        Emitted instead, an empty ``detect:`` frame admits nothing, so every gene in
-        the study resolves ``NEVER_MEASURED`` naming it, and no absence anywhere in
-        the study argues against anything -- which is precisely what a study whose
-        method marked every gene ``NoSig`` supports. ``validate`` blocks such a store
-        at Stage 0 as well, and the two do different jobs: the blocker is what reaches
-        the biologist, the frame is what keeps the lattice honest for the callers that
-        never run Stage 0 (``agent.discriminate``, ``methods.*``, ``pipeline.records``,
-        ``agent.intake``), which read ``frames`` directly on whatever is on disk.
-
-        The two kinds below stay on truthiness deliberately. Each declares exactly one
-        frame, so an omitted empty one already resolves ``NEVER_MEASURED`` -- the same
-        state, with a reason ("no frame declared for cell_type") that is not false.
-        Neither is read through a sentinel either: there is no "declared and empty" to
-        tell apart from "not declared", because the store declaring no cell types and
-        the store declaring no units are the one fact in both cases.
+        The two gene frames test ``is not None``, not truthiness: a *declared* empty
+        frame is emitted, so it admits nothing and every gene resolves
+        ``NEVER_MEASURED`` -- dropping it would leave ``panel:`` alone and turn a
+        ``NoSig`` gene into a tested absence. Callers that never run Stage 0 read
+        ``frames`` directly, so the frame itself must stay honest. The cell-type and
+        unit kinds stay on truthiness: an omitted empty one is the same state.
         """
         out: list[Frame] = []
         panel = self._panel_genes(store)
@@ -559,22 +365,10 @@ class XeniumAdapter:
     def samples(self, store: Study) -> list[str]:
         """The samples in this store, first-hand. The count lives here and nowhere else.
 
-        Three reads, in descending order of how explicit they are: a declared
-        ``samples`` list, the distinct values of a ``sample`` column in the cell
-        table, and -- for a flat cell table with no such column -- the single sample
-        the store evidently holds, named after the store. The last is a count, not a
-        guess: a table with no sample column holds one sample, and returning an empty
-        list instead would let the clustering blocker fall through on a store that
-        simply never mentioned the word.
-
-        **Unless the store contradicts it.** ``inputs/samples/<sample>/`` holding
-        per-sample marker tables is the store saying, in files, that it has more than
-        one reading. Answering "one sample, named after the store" over the top of
-        that is not a count and not a default: it is a false measurement claim, and
-        the one that costs most, because a single sample makes
-        ``declared_clustering`` return ``"independent"`` as a tautology and every
-        ``ReadingRecord`` then carries a clustering mode nobody declared. So the
-        fallback refuses, naming the tables it found and the file to fix.
+        In order: a declared ``samples`` list, the distinct values of a ``sample``
+        column in the cell table, else the single sample the store holds, named
+        after the store. That fallback refuses (``UndeclaredSamples``) when
+        ``inputs/samples/<sample>/`` tables say there is more than one reading.
         """
         declared = store.manifest.get("samples")
         if isinstance(declared, (list, tuple)) and declared:
@@ -621,27 +415,10 @@ class XeniumAdapter:
     def sample_inputs(self, store: Study) -> dict[str, Path]:
         """Per-sample marker tables, by sample id. Empty when the store has none.
 
-        ``samples`` says how many readings exist; this says where they are, and
-        until it did, nothing in the codebase could produce the
-        ``core.concordance.Replicate`` list §9.10 is defined over -- the function
-        had no caller that was not a test, because a caller would have had to guess
-        a path. Resolved from the filesystem under one convention,
-        ``inputs/samples/<sample>/markers_top.csv``, and NOT from a manifest key:
-        the same rule as ``available_views``, because a manifest may say a file is
-        there and only the file settles it.
-
-        A sample with no table is simply absent from the mapping rather than
-        mapped to the pooled table. Handing back the pooled numbers under two
-        sample names would make every replicate agree with itself, and §9.10's one
-        informative outcome -- divergence -- would become unreachable while the
-        check went on reporting that it had run.
-
-        Scans the directory rather than iterating :meth:`samples`, which is both the
-        honest reading of "resolved from the filesystem" and what lets
-        :meth:`samples` consult this to catch its own fallback: a store whose sample
-        list is undeclared is exactly the store whose per-sample tables nobody has
-        asked about, and asking :meth:`samples` first would have made that
-        unanswerable. A directory here with no table under it is not a sample.
+        Resolved from the filesystem under ``inputs/samples/<sample>/markers_top.csv``,
+        not from a manifest key. A sample with no table is absent, never mapped to the
+        pooled table (which would make every replicate agree with itself). Scans the
+        directory rather than :meth:`samples`, which consults this.
         """
         base = store.inputs / "samples"
         if not base.is_dir():
@@ -685,15 +462,10 @@ class XeniumAdapter:
         return ("xenium_microns", 1.0)
 
     def reads(self, store: Study) -> dict[str, Condition]:
-        """What the store states about the experiment, with provenance. Asserts
-        nothing about whether it is enough.
+        """What the store states about the experiment, with provenance.
 
-        ``READ`` for everything parsed out of a file and ``UNKNOWN`` for everything
-        else. The adapter never writes ``INFERRED`` -- that provenance means a model
-        proposed it and the biologist confirmed, and neither has happened here.
-
-        Never raises on a missing field: a store with a readable assay and no tissue
-        still yields the assay. Deciding that the missing tissue blocks the study is
+        ``READ`` for everything parsed out of a file, ``UNKNOWN`` otherwise; never
+        ``INFERRED``. Never raises on a missing field: blocking is
         :class:`Conditions`' job, through :meth:`standing_conditions`.
         """
         def read(key: str) -> Condition:
@@ -723,11 +495,7 @@ class XeniumAdapter:
         """:meth:`reads`, finished with the frames into a ``Conditions``.
 
         Raises ``Blocked`` (from ``Conditions``) when the store declares no frames,
-        no tissue or no assay. That is the right layer to fail at: a study with no
-        capability frame makes every absence ``NEVER_MEASURED`` and the panel-absence
-        rule a machine that says nothing. ``validate`` reports the same gaps as
-        strings, for the intake checklist, and ``reads`` hands over the fields that
-        *were* readable without asserting the study is complete.
+        no tissue or no assay. ``validate`` reports the same gaps as strings.
         """
         return Conditions(frames=tuple(f.ref() for f in self.frames(store)),
                           **self.reads(store))
@@ -814,15 +582,8 @@ class XeniumAdapter:
             on_disk = self.sample_inputs(store)
             missing = [s for s in samples if s not in on_disk]
             if missing:
-                # What the MISSING tables cost, counted rather than assumed. The
-                # sentence here used to say "only the pooled table is readable, so
-                # replicate concordance has nothing to run on" for every shape of
-                # this problem -- which is false as soon as two of the declared
-                # sections do have a table, and false in the direction that makes a
-                # biologist stop reading a study that can still be compared. On a
-                # kidney-shaped store, where one section failing QC is the ordinary
-                # case rather than the edge, that is the difference between a
-                # blocked study and a narrower denominator.
+                # What the MISSING tables cost, counted: two readable sections
+                # still give a (narrower) comparison.
                 readable = [s for s in samples if s in on_disk]
                 if len(readable) >= 2:
                     cost = (

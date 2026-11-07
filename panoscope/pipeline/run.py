@@ -1,14 +1,11 @@
-"""Pipeline entrypoint — one run per dataset.
+"""Pipeline entrypoint -- one run per dataset.
 
     panoscope build --study xenium_hbreast_sample1           # deterministic
     panoscope build --study xenium_hbreast_sample1 --notes   # + live notes
 
-Deterministic path (default, no network): validate inputs (Stage 0) -> copy raw
-inputs for provenance -> persist verdicts +
-verdicts.csv (Stage 4) -> write the Step-4 interp artifacts (holistic.json +
-calibration.md) -> write the manifest. ``--notes`` additionally runs the one LIVE
-stage (real-PubMed cell-type + per-marker biology notes) before the manifest, so
-those files are hashed into it too.
+Deterministic path (no network): validate inputs -> copy raw inputs -> verdicts +
+verdicts.csv -> interp artifacts (holistic.json + calibration.md) -> manifest.
+``--notes`` also runs the one LIVE stage (real-PubMed notes) before the manifest.
 """
 
 from __future__ import annotations
@@ -43,13 +40,8 @@ _RAW_SOURCES: dict[str, Path] = {
     "panel.parquet": cfg.DATA_DIR_PATH / "panels" / "panel.parquet",
     "cluster_key.json": cfg.DATA_DIR_PATH / "cluster_key.json",
 }
-# `tissue` and `platform` used to be module constants here -- "human breast cancer"
-# and "Xenium" -- passed straight into build_manifest. They are declarations, not
-# derivations: no file in a store produces them, and a constant would have stamped
-# the kidney study as breast. Tissue is the corpus scoping key, so that is not a
-# cosmetic error, it is a literature search scoped to the wrong organ, reported as
-# a correct one. They are read from the study's declarations instead, and
-# build_manifest refuses an empty one.
+# `tissue` and `platform` are declarations, not derivations: read from the
+# study's declarations, and build_manifest refuses an empty one.
 
 
 def _now_iso() -> str:
@@ -64,12 +56,8 @@ def _now_iso() -> str:
 def _declared(dataset_id: str, root: Optional[Path]) -> dict[str, Any]:
     """The biologist's declarations for this study, read before the build rewrites them.
 
-    The manifest already in the output tree when there is one; otherwise the study's
-    own manifest in the canonical tree, which is what a run into a tmp root is
-    building from. Returned whole, so :func:`manifest.build_manifest` can carry every
-    declared key forward -- the §6.3 pair ``samples`` / ``clustering_mode`` above all,
-    which a from-scratch rebuild used to eat, leaving the next build to raise
-    ``UndeclaredClustering`` against the file it had just emptied.
+    The output tree's manifest if there is one, else the canonical tree's. Returned
+    whole so :func:`manifest.build_manifest` carries every declared key forward.
     """
     for mp in (paths.manifest_json(dataset_id, root), paths.manifest_json(dataset_id, None)):
         try:
@@ -84,17 +72,9 @@ def _declared(dataset_id: str, root: Optional[Path]) -> dict[str, Any]:
 def _has_enrichment_result() -> bool:
     """True when this study ships the enrichment table the Pathways slice reads.
 
-    An existence check and not ``except FileNotFoundError``. The absence of the
-    input is a condition; the stage's v2 half (``read_tidy`` -> ``adapter.frames``
-    -> ``record.write``) raises the *same* exception class for an unreadable tidy
-    table or a record it cannot write, and catching the pair together let a build
-    report success with ``interp/records/`` silently absent -- the artifact the
-    reproducibility claim is about, missing, with nothing said.
-
-    Reaches for the private resolver on purpose: it is the one function that knows
-    where a study's enrichment result lives, the stage already calls it to make sure
-    both engines read one file, and re-deriving the path here is how the check and
-    the stage end up disagreeing.
+    An existence check, not ``except FileNotFoundError``: the stage raises that same
+    class for real failures, which must not be swallowed. Uses the stage's own
+    resolver so the check and the stage read one path.
     """
     return agent_enrichment._jz_enrichment_csv().exists()
 
@@ -207,28 +187,13 @@ def run(
 ) -> Path:
     """Run the pipeline for ``dataset_id``; return the dataset directory.
 
-    Deterministic by default (validate -> inputs -> viz -> verdicts -> holistic +
-    calibration -> manifest). Pass ``notes=True`` to also run the LIVE notes stage
-    (real-PubMed cell-type + per-marker biology notes) before the manifest, so
-    the notes are hashed into it too.
+    Deterministic by default; ``notes=True`` also runs the LIVE notes stage before
+    the manifest.
 
-    **The whole build is scoped to the study being built**, which is what this
-    wrapper exists for. Every agent-layer reader inside -- ``cfg.CLUSTER_ORDER``,
-    ``cfg.DATASET_ID``, ``data.load_panel()``, each stage's own reads -- resolves
-    against ``cfg.current_study()`` at CALL time. The scope used to sit around
-    ``data.load_cells()`` alone, so ``panoscope build --study X`` built the
-    *environment's default* study into X's directory and exited 0: nine demo
-    clusters and a 280-gene panel written under a three-cluster, twelve-gene
-    fixture, every number tracing honestly to method output -- the wrong
-    specimen's. That is the confident floor satisfied per value and violated per
-    study, which is its worst form, and nothing printed. Scoping here rather than
-    in ``cli.py`` covers every caller: the CLI and the tests.
-
-    The scope resolves the study at its CANONICAL location, not under ``root``.
-    ``root`` means *write the tree here*, not *read it from here*: the inputs are
-    copied out of the canonical tree by ``_copy_inputs`` and the destination is
-    empty when the build starts, so pointing the readers at it would block every
-    build on its own missing manifest.
+    **The whole build is scoped to the study being built**: every agent-layer
+    reader resolves against ``cfg.current_study()`` at call time, so without the
+    scope a build would write the default study into X's directory. The scope uses
+    the study's CANONICAL location; ``root`` only says where to write the tree.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     ddir = paths.dataset_dir(dataset_id, root)
@@ -240,15 +205,9 @@ def run(
 def _run_de(dataset_id: str, root: Optional[Path]) -> None:
     """The COMPARISON slice (third workflow), built only when a DE result exists.
 
-    Same shape as the enrichment slice: a study with no DE table simply does not get
-    one, and ``run_de`` returns an empty dict rather than raising. What is NOT
-    swallowed is a DE table no registered method can read -- that reaches the caller,
-    because a build printing success over an unbuilt ``records/comparison/`` is the
-    failure the enrichment stage already learned not to have.
-
-    The marker evidence is passed in rather than rebuilt: ARCHITECTURE §9.7's check 4
-    joins the DE result against the spatial one for the SAME unit, and deriving the
-    spatial side twice would be two places it could differ.
+    No DE table -> nothing built. A DE table no registered method can read raises.
+    The marker evidence is passed in, not rebuilt: §9.7 check 4 joins DE against the
+    spatial result for the SAME unit.
     """
     from panoscope.agent import config as _cfg
     from panoscope.pipeline import records
@@ -300,15 +259,8 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     # the two notes files are hashed when a --notes run produced them (or a prior
     # one left them in the tree).
     for name in (
-        # The file the BAND comes from, and it was hashed nowhere. ``annotation.json``
-        # is read-if-present: ``_ensure_annotation`` regenerates it only when absent,
-        # so for the bundled demo -- and for every rebuild after the first -- it is a
-        # provenance input that ``records.build_all`` turns into the ``canonical`` set
-        # ``core_verdict.assess`` reads. Emptying one cluster's canonical_markers moves
-        # c1 from Very High / "glm_coef direct" / verify=False to Low / "no canonical
-        # driver" / verify=True, and nothing in the manifest recorded that the file had
-        # changed. inputs/cluster_key.json, the FALLBACK for the same labels, was hashed;
-        # the primary source was not.
+        # The file the BAND's canonical set comes from (read-if-present), so it is
+        # hashed as a provenance input.
         "annotation.json",
         "holistic.json",
         "calibration.md",

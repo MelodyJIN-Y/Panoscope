@@ -1,57 +1,21 @@
 """Transcript Points, read lazily -- the reader ARCHITECTURE §5.1 asks for.
 
-§5.1 replaces the hard-coded tidy layer with a SpatialData ``.zarr`` store, and the
-row that matters for the interface is::
+The "density computed from Points" half of §5.1: any bin size, any panel gene, no
+precompute step (``scripts/precompute_density.py`` bakes three bin sizes per gene).
+Measured on the Xenium breast sample1 store: 4-125 ms per gene vs ~7 ms for a
+precomputed file.
 
-    density/*.parquet   ->  computed from Points            bin size in real um
-    transcripts.csv.gz  ->  Points (lazy, no full read)
+What makes it fast:
 
-This module is the "computed from Points" half. It exists because the alternative
-does not survive a second dataset: ``scripts/precompute_density.py`` streams 1.32 GB
-of ``transcripts.csv.gz`` to bake **841 files** (280 genes x 3 bin sizes, 26 MB), and
-those three bin sizes are then the only ones a biologist can ever choose. Two samples
-double the file count; a 5,000-plex panel makes it 15,000.
+1. *Sorted by feature*, so each gene is one contiguous row span.
+2. *A row-OFFSET index, not a predicate*: ``feature_name`` is dictionary-encoded (as
+   ``spatialdata`` requires), which gives pyarrow no row-group statistics to prune
+   on, so an exact ``(start_row, end_row)`` per gene does the pruning.
+3. *200k-row row groups.*
 
-MEASURED on the Xenium human breast sample1 store (34,493,510 transcripts at
-qv>=20), best of three, with the committed precomputed frames as the oracle:
-
-    gene      transcripts   this module   precomputed file
-    CPA3           14,150          4 ms              7 ms
-    LUM         1,087,247         66 ms              7 ms
-    ERBB2       2,164,898        125 ms              7 ms
-
-Slower per frame, and worth it: ANY bin size (37 um works), any gene on the panel,
-no precompute step, one store instead of 841 files. 125 ms is the worst gene on the
-panel, and the residual is reading and binning 2.16 M real points.
-
-**Three things make it fast, each measured rather than assumed.**
-
-1. *Sorted by feature.* Each gene is then one contiguous row span, so a query reads
-   a handful of row groups instead of the file.
-2. *A row-OFFSET index, not a predicate.* Filtering with ``pc.field(...) == gene``
-   costs ~200 ms FLAT regardless of how small the gene is -- flat, because
-   ``feature_name`` is ``dictionary``-encoded and dictionary columns carry no
-   min/max row-group statistics for pyarrow to prune on. Re-encoding it as plain
-   ``string`` makes the same filter 11-68x faster AND makes the store unreadable by
-   ``spatialdata``, which requires the categorical. So the encoding stays exactly as
-   SpatialData writes it and the index does the pruning instead: an exact
-   ``(start_row, end_row)`` per gene, read the covering row groups, slice. There is
-   no comparison at query time at all.
-3. *200k-row row groups.* SpatialData writes ~1 M-row groups, which is four times
-   more data per query than the answer needs.
-
-**Reading needs no ``spatialdata``.** A Points element is parquet underneath
-(``points/<name>/points.parquet/part.*.parquet``), so the query path uses pyarrow,
-already a core dependency. ``spatialdata`` is needed to BUILD a store and for
-interop -- the ``panoscope[spatial]`` extra, exactly as §5.1 places it -- and the
-legacy tidy reader is retained beside this one, as §5.1 also requires.
-
-**On the file name.** ``IMPLEMENTATION.md`` §1 names ``data/spatial.py``; its §10
-migration map marks a DIFFERENT row mentioning that path as superseded, on the
-grounds that the reader it meant "already shipped as ``platforms/xenium.py``". That
-note is about splitting ``agent/data.py`` and about the TIDY reader. This is the
-zarr reader §5.1 asks for, it is a reader, and ``panoscope/data/`` is where §1 says
-readers live.
+**Reading needs no ``spatialdata``**: a Points element is parquet underneath, so the
+query path uses pyarrow. ``spatialdata`` (the ``panoscope[spatial]`` extra) is needed
+to BUILD a store.
 """
 
 from __future__ import annotations
@@ -128,16 +92,9 @@ def _parquet_file(store_dir: Path | str, name: str = DEFAULT_POINTS) -> Any:
 def build_index(store_dir: Path | str, name: str = DEFAULT_POINTS) -> PointsIndex:
     """Scan the Points parquet once and record each feature's row span.
 
-    One pass reading only ``feature_name``: about 3 s for 34.5 M rows. The result
-    is written beside the store, so it costs that once per store rather than once
-    per session.
-
-    **The sortedness check is the load-bearing half.** A feature's rows are
-    contiguous only if the table is sorted by feature. On an unsorted table every
-    span would stretch from a gene's first row to its last, the query would read
-    most of the file, and *nothing would look wrong* -- the answers would still be
-    correct, just slow. A defect that returns the right number is the one nobody
-    finds, so this raises instead.
+    About 3 s for 34.5 M rows; written beside the store, so once per store.
+    Raises if the table is not sorted by feature: the answers would still be
+    right, just silently slow.
     """
     import numpy as np
     import pyarrow as pa
@@ -201,10 +158,8 @@ def _index_cached(store_dir: str, name: str, _mtime_ns: int) -> PointsIndex:
                 spans={k: (int(v[0]), int(v[1])) for k, v in raw["spans"].items()},
                 row_group_size=int(raw["row_group_size"]),
                 n_rows=int(raw["n_rows"]))
-        # Stale or unfingerprinted: rebuild. A sidecar written before this field
-        # existed has no claim on the current bytes, and an index that is wrong is
-        # worse than one that costs three seconds -- it answers with the wrong
-        # gene's rows and nothing looks broken.
+        # Stale or unfingerprinted: rebuild. A wrong index would silently answer
+        # with the wrong gene's rows.
     return build_index(store_dir, name)
 
 
@@ -225,11 +180,7 @@ def available_features(store_dir: Path | str,
                        name: str = DEFAULT_POINTS) -> tuple[str, ...]:
     """Every feature the store carries, sorted. Control probes INCLUDED.
 
-    Not filtered here, deliberately. This module reports what the instrument
-    recorded; deciding that a probe is not a subject of interpretation belongs to
-    ``PlatformAdapter.is_control``, and doing it in two places is two places the
-    rule can drift -- which is exactly how a negative control once led
-    ``key_markers``.
+    Filtering probes is ``PlatformAdapter.is_control``'s job, in one place.
     """
     return tuple(sorted(index(store_dir, name).spans))
 
@@ -239,15 +190,9 @@ def density(gene: str, bin_um: float, store_dir: Path | str,
     """One feature's transcript density, binned at ``bin_um`` micrometres.
 
     Returns ``hx, hy, count, density`` with ``hx``/``hy`` the bin CENTRE in µm and
-    ``density = count / bin_area`` -- the exact shape
-    ``scripts/precompute_density.py`` wrote, so this is a drop-in for
-    ``data_access.hexbins`` and the committed frames are its oracle.
-
-    Area-normalised for the reason the precompute was: a coarser bin holds more
-    transcripts, and a raw count would make it look hotter when nothing about the
-    tissue changed. Bin size is a VIEWING control -- it changes the picture, never
-    a value -- which is why any size is accepted. The three the precompute baked
-    were a storage limit, not a measurement one.
+    ``density = count / bin_area`` -- the shape ``scripts/precompute_density.py``
+    wrote, so the committed frames are its oracle. Bin size is a VIEWING control,
+    so any size is accepted.
     """
     import numpy as np
     import pandas as pd

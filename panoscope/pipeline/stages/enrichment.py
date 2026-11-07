@@ -1,45 +1,20 @@
-"""Enrichment stage — compute + persist the per-cluster enrichment (deterministic).
+"""Enrichment stage -- compute + persist the per-cluster enrichment (deterministic).
 
-The enrichment mirror of ``stages/verdicts.py``, one step behind it. It writes
-**twice**, and the two halves are not symmetric:
+Writes twice:
 
-  * ``interp/enrichment/c{n}.json`` + ``interp/enrichment.csv`` — the v1 view, still
-    produced by ``agent/enrichment.py`` itself. It no longer carries a band:
-    ``ClusterEnrichment.confidence``/``.confidence_score`` and the CSV's
-    ``cluster_confidence`` column are deleted, replaced by the per-item census
-    (``core/export.py`` and ``core/compat.py`` record the column change).
-  * ``interp/records/characterisation/c{n}.json`` — the ``InterpretationRecord``,
-    built through ``platforms/tidy`` -> ``methods/jazzpanda_cgst`` ->
-    ``workflows/enrichment`` -> ``core/record``, which is exactly the composition
-    ``pipeline/records.py`` runs for the marker half. Nothing reads these yet.
+  * ``interp/enrichment/c{n}.json`` + ``interp/enrichment.csv`` -- the v1 view, from
+    ``agent/enrichment.py``. No band: per-item census only.
+  * ``interp/records/characterisation/c{n}.json`` -- the ``InterpretationRecord``,
+    through ``platforms/tidy`` -> ``methods/jazzpanda_cgst`` ->
+    ``workflows/enrichment`` -> ``core/record``, as ``pipeline/records.py`` does for
+    the marker half.
 
-**The two engines now agree about the measurement, and that was a reviewed change.**
-They did not. v1 read ``n_overlap``, the method's own count of a set's genes on the
-panel; ``jazzpanda_cgst._in_frame`` counts ``genes_tested`` against EVERY gene frame,
-so the 49 of 280 demo genes with no usable spatial signal stop counting toward a
-set's footprint. That moved ``panel_hits`` on 35 of 70 rows. The frame count is the
-correct one -- crediting a set with genes the measurement never usably saw is the
-panel-absence rule broken in the arithmetic -- so ``agent/enrichment`` was moved onto
-it, which moved a committed CSV and the golden hash deliberately.
+Both engines count a set's panel hits against every gene frame (genes with no usable
+spatial signal do not count). :func:`_report_divergence` checks they stay in step;
+its leading-edge reading is expected to be non-zero while v2's ``leading_edge`` is
+the raw selection.
 
-:func:`_report_divergence` stays, and its ``panel_hits`` reading is now zero: it is
-what keeps the two code paths from drifting apart again without anyone noticing.
-
-Its second reading, the leading edge, is **not** zero and is not meant to be. v1 now
-filters the lasso's ``genes_selected`` through the same frames
-(``agent/enrichment._pathway_from_jz_row``) so that no gene the measurement could not
-usably see is counted, named or plotted as a driver; v2's ``leading_edge`` coverage
-is still the raw selection. Until ``methods/jazzpanda_cgst`` does the same, the gap
-is the honest count of how much of this panel's selection the apparatus could not
-see -- and it is the ONLY place that count exists, because a record rebuilt from
-disk carries the admitted genes alone.
-
-The v1 half is still not *cut over* -- ``agent/enrichment.py`` still produces the v1
-view, because ``core/compat.py`` has no enrichment projection and writing one would
-mean authoring the thing the projection is supposed to be checked against.
-
-Computes nothing new. Both halves read the biologist's enrichment result; the stage
-arranges and serialises.
+Computes nothing new: both halves read the biologist's enrichment result.
 """
 
 from __future__ import annotations
@@ -113,11 +88,8 @@ def write_records(
 ) -> dict[str, Path]:
     """One ``InterpretationRecord`` per unit, under ``records/characterisation/``.
 
-    Deliberately not wrapped in a ``try``. A study whose enrichment table this method
-    cannot read is a loud failure of ``panoscope build``, which is the point: the
-    bugs this cutover work keeps turning up were all silent, and a swallowed
-    exception here would leave the v2 half quietly unbuilt while the Pathways tab
-    went on rendering from v1.
+    Not wrapped in a ``try``: an enrichment table this method cannot read fails the
+    build loudly rather than leaving the v2 half unbuilt.
     """
     import pandas as pd
 
@@ -257,16 +229,8 @@ def _report_divergence(
 ) -> None:
     """Say out loud, every build, whether the two engines still agree.
 
-    This started as the go/no-go evidence for a cutover that had not happened: v1 read
-    ``n_overlap`` and v2 counted the capability frames, and the two differed on 35 of
-    70 rows. The v1 engine now counts the frames too
-    (``agent/enrichment._load_jazzpanda_rows``), so the expected reading is **zero**
-    and this is no longer a measurement of a gap -- it is the check that the gap
-    stayed closed. Two engines reading one file through two code paths drift silently
-    unless something compares them on every build.
-
-    Always printed, including when nothing differs: silence has to mean "they agree"
-    and never "nobody looked".
+    The expected ``panel_hits`` reading is zero; this is the check that it stays so.
+    Always printed, so silence never means "nobody looked".
     """
     rows = differing = tier_edge = 0
     le_rows = le_genes = le_selected = 0

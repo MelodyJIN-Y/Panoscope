@@ -13,14 +13,10 @@ Three states everywhere, never two: resolved / looked-and-found-nothing /
 not-looked-up. Only the middle one is thin literature, and only the middle one is a
 claim about the world.
 
-**Nothing here is bundled.** Abstracts are the publisher's, so
-:func:`~panoscope.corpus.store.corpus_path` resolves through the same licence gate as
-reference data (``redistributable=False``) and cannot land inside the repository
-working tree. The corpus is fetched, cached outside the checkout, and rebuilt
-wholesale (ARCHITECTURE §8.3, §10.6).
-
-Importing this package touches no file and no network; the PubMed connector is
-imported lazily inside ``store.fetch``.
+**Nothing here is bundled.** :func:`~panoscope.corpus.store.corpus_path` goes through
+the reference licence gate (``redistributable=False``) and cannot land inside the
+repository; the corpus is fetched, cached outside the checkout, and rebuilt wholesale
+(ARCHITECTURE §8.3, §10.6). Importing this package touches no file and no network.
 """
 
 from panoscope.corpus.retrieve import (

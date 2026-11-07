@@ -1,43 +1,25 @@
 """jazzPanda's competitive gene-set test, declared: what it measures, and what it
 does not -- which on a targeted panel is almost everything a reader will assume.
 
-The second method module, and the one that proves the registry claim is structural
-rather than a story told once. It registers into a *different* workflow from
-``jazzpanda.py`` with no change to ``types/`` or ``core/``, and the difference that
-matters is not the statistic: it is the task kind. Markers ask *what IS this unit*,
-which has a label space and therefore a band. This asks *what is RUNNING here*,
-which has none -- so this module declares no band ladder at all, and
-:meth:`JazzPandaCGST.rubric` raises rather than returning one. A ``BAND_EDGES`` here
-would be the same category error ``UISpec`` already refuses to render.
+Registers into a *different* workflow from ``jazzpanda.py`` with no change to
+``types/`` or ``core/``. The task kind is CHARACTERISATION (*what is RUNNING here*),
+which has no label space, so there is no band ladder and :meth:`JazzPandaCGST.rubric`
+raises.
 
-**The failure this module exists to prevent.** "c2 is enriched for interferon
-gamma response." The set has 200 genes; ten of them are on this panel; the test
-compared those ten against the other panel genes. The sentence a reader forms from
-a z of 11.2 is a genome-wide claim, and the measurement is an over-representation
-*within the measured set*. ``does_not_measure`` is where that gap is written down,
-and :class:`~panoscope.types.measured.Coverage` is where it is enforced: K of N
-against a floor, and below the floor the set is UNDERPOWERED, which means its
-absence argues nothing and its statistic is withheld rather than printed small.
+**The failure this prevents:** a within-panel over-representation (ten of a
+200-gene set on the panel) read as a genome-wide claim. ``does_not_measure`` writes
+the gap down; :class:`~panoscope.types.measured.Coverage` enforces it (below the
+floor the set is UNDERPOWERED and its statistic withheld).
 
-**Why the panel hits are counted against the frame and not read off the table.**
-The result carries ``n_overlap``, the method's own count of set genes on the panel.
-This module instead counts how many of ``genes_tested`` every GENE frame in the
-study's world admits -- which on the demo study is the panel frame *and* the
-detectability frame, so the 49 of 280 genes that yield no usable spatial signal do
-not count toward a set's footprint. Reading ``n_overlap`` would take the method's
-word for its own capability; the whole point of the audit is that capability is
-declared by the apparatus, before the result is read.
+**Panel hits are counted against the frames, not read off ``n_overlap``**: a set's
+``genes_tested`` must be admitted by EVERY gene frame (panel and detectability), so
+capability is declared by the apparatus, not by the method.
 
-**Two bars, two owners.** ``Q_REPORTED`` is this method's reporting bar on its own
-statistic -- the analog of jazzPanda's ``NoSig`` sentinel -- and a scored set that
-does not clear it is TESTED_ABSENT: in frame, asked, and not reported here. That is
-the productive half of the lattice and it belongs to the method, because only the
-method knows what its own q means. The *enriched versus suggestive* split is a
-question of how cautious this lab has decided to be and lives in
-``workflows/enrichment.py``, for exactly the reason jazzPanda's promote/demote
-ladder lives in ``core/verdict.py`` and not beside its ``BAND_EDGES``.
+**Two bars, two owners.** ``Q_REPORTED`` is this method's reporting bar (below it a
+scored set is TESTED_ABSENT); the *enriched versus suggestive* split is lab policy
+in ``workflows/enrichment.py``.
 
-**``load`` reads; it never recomputes.** The enrichment result is a consumed input.
+**``load`` reads; it never recomputes.**
 """
 
 from __future__ import annotations
@@ -70,18 +52,9 @@ CORROBORATING_COLUMNS: tuple[str, ...] = ("gc_corr",)
 UNIT_KIND: str = "cluster"
 UNIT_COLUMN: str = "cluster"
 
-#: How a collection names its sets -> the collection. The frame name says WHICH
-#: universe a set was scored in, and that is provenance, so it is DERIVED from the
-#: result's own set names: MSigDB's hallmark release names every one of its sets
-#: ``HALLMARK_<program>``, so a table whose sets carry that prefix was scored
-#: against it. Was ``COLLECTION = "MSigDB_Hallmark"``, asserted over every study --
-#: true on the demo, and on the synthetic fixture it named a real,
-#: restrictively-licensed collection as the source of four invented sets
-#: (SYNSET_ALPHA/BETA/GAMMA/DELTA), in the study whose reason for existing is that
-#: nothing licensed is bundled. ``agent/enrichment.py`` derives the same thing for
-#: the record; the table is deliberately a second copy rather than an import:
-#: a method module is an independent declaration, and ``methods/`` does not
-#: import from ``agent/`` at all.
+#: How a collection names its sets -> the collection. DERIVED from the result's
+#: own set names (provenance), never asserted. A deliberate second copy of
+#: ``agent/enrichment.py``'s table: ``methods/`` does not import from ``agent/``.
 COLLECTION_BY_SET_PREFIX: tuple[tuple[str, str], ...] = (
     ("HALLMARK_", "MSigDB_Hallmark"),
 )
@@ -95,12 +68,8 @@ UNKNOWN_COLLECTION: str = "unknown"
 def _collection(sets: frozenset[str]) -> str:
     """The one collection this result was scored against, or ``unknown``.
 
-    One frame covers the whole table, so it can only carry one name honestly. A
-    table whose sets do not all derive the same collection -- a mixed run, or one
-    the prefix table has no entry for -- gets ``unknown`` rather than the name of
-    whichever half happened to match: the frame is what tells a reader which
-    universe a TESTED_ABSENT set was asked in, and half an answer there reads as a
-    whole one.
+    One frame covers the whole table, so a table whose sets do not all derive the
+    same collection gets ``unknown`` rather than half an answer.
     """
     derived = {next((c for p, c in COLLECTION_BY_SET_PREFIX
                      if s.strip().upper().startswith(p)), UNKNOWN_COLLECTION)
@@ -148,12 +117,8 @@ def _split(cell: Any) -> tuple[str, ...]:
 def _in_frame(symbols: tuple[str, ...], world: MeasuredWorld) -> int:
     """How many of a set's genes EVERY gene frame admits.
 
-    Every frame, not any: the panel says a gene could have been detected and the
-    detectability frame says it produced usable signal, and a set whose footprint
-    is three undetectable genes was never measurable however the panel was designed.
-    No gene frame at all counts as nothing measurable, matching the lattice's
-    reading of a missing frame -- an empty answer here would say the apparatus
-    measured nothing, which is the same verdict with a false reason behind it.
+    Every frame, not any: panel and detectability both. No gene frame at all counts
+    as nothing measurable, matching the lattice's reading of a missing frame.
     """
     frames = world.for_kind(EntityKind.GENE)
     if not frames:
@@ -176,8 +141,6 @@ class JazzPandaCGST:
 
     name: str = "jazzpanda_cgst"
     #: How the package names ITSELF, for anywhere a person reads it.
-    #: The registry id is an identifier, and the study chip was printing it
-    #: verbatim ("jazzpanda_spatial_glm markers").
     display_name: str = "jazzPanda CGST"
     workflow: str = "enrichment-interpretation"
     statistic_name: str = "cgst_z"
@@ -267,11 +230,8 @@ class JazzPandaCGST:
              store: Any) -> Traced[dict[str, NormalisedEvidence]]:
         """Precomputed gene-set result in, normalised evidence out, keyed by unit.
 
-        Reads, never recomputes. The gene frames and standing conditions come from
-        the adapter; the GENE_SET frame is the method's, because which sets were
-        scored at all is a fact about this result and about nothing else. Without it
-        every set would resolve as NEVER_MEASURED -- there is one capability frame
-        per entity kind, and nobody else can declare this one.
+        Reads, never recomputes. Gene frames and standing conditions come from the
+        adapter; the GENE_SET frame is the method's (:meth:`scored_frame`).
         """
         import pandas as pd  # local: keeps `import panoscope.methods` free of pandas
 
@@ -311,13 +271,9 @@ class JazzPandaCGST:
     def scored_frame(self, table: Any) -> Frame:
         """The GENE_SET capability frame: every set this result scored, anywhere.
 
-        Public, and it has to be. Nobody else can declare this frame -- the adapter
-        knows panels and annotations, not which collection a result was run against
-        -- and a caller that cannot get it cannot tell "scored for another unit and
-        not reported here" (TESTED_ABSENT, which argues) from "never scored at all"
-        (NEVER_MEASURED, which argues nothing). That is exactly the collapse the four
-        states exist to stop, and it would happen in the rival test, where it matters
-        most. ``load`` uses this, so there is one spelling of the frame name.
+        Public: only the method can declare it, and without it a caller cannot tell
+        TESTED_ABSENT (scored elsewhere, not reported here) from NEVER_MEASURED.
+        ``load`` uses this, so there is one spelling of the frame name.
         """
         scored = frozenset(str(r["gene_set"]).strip() for r in _table.rows(table))
         return Frame(EntityKind.GENE_SET,
@@ -326,11 +282,8 @@ class JazzPandaCGST:
     def _reading(self, row: dict[str, Any], world: MeasuredWorld) -> Reading:
         """One result row, as the method claims it -- before the frame rules.
 
-        Both K-of-N numbers travel as ``Coverage`` rather than as corroborating
-        statistics. That is not tidiness: ``Coverage`` is what the lattice demotes
-        on, so a set below a floor comes back UNDERPOWERED with its z withheld,
-        whereas a panel-hit count carried as a statistic would sit in a column
-        beside a z that the apparatus could not support.
+        Both K-of-N numbers travel as ``Coverage``, which the lattice demotes on,
+        rather than as corroborating statistics.
         """
         tested = _split(row.get("genes_tested"))
         selected = _split(row.get("genes_selected"))
@@ -389,13 +342,7 @@ class JazzPandaCGST:
     def rubric(self, ev: NormalisedEvidence) -> Traced[str]:
         """There is no band here, and asking for one is the error, not the answer.
 
-        CHARACTERISATION has no label space, so there is no alternative for the
-        remaining probability mass to sit on and a unit-level band is *undefined*
-        rather than merely unhelpful. The Protocol requires the attribute; what it
-        cannot require is a number that does not exist. Raising makes the category
-        error loud at the one moment it is cheap, which is the same move
-        ``UISpec.__post_init__`` makes for the header and ``Finding`` makes by
-        having no field to fill.
+        CHARACTERISATION has no label space, so a unit-level band is *undefined*.
         """
         raise NoBandForThisTaskKind(
             f"{self.name} answers a CHARACTERISATION ({self.workflow}): there is no "
@@ -407,13 +354,8 @@ class JazzPandaCGST:
     def traversals(self) -> tuple[tuple[str, str], ...]:
         """Reference-graph edges this method's evidence licenses following.
 
-        Empty, and deliberately so. ``reference/graph.py`` registers exactly one
-        relation today -- ``marks`` (gene -> cell type) -- and an over-representation
-        z licenses nothing about it: the set is not a marker of anything, and
-        traversing to the cell type its genes mark would let the enrichment result
-        argue about identity, which ``does_not_measure`` says it cannot. Set
-        membership is not a registered relation; when it becomes one, it belongs
-        here and nowhere else.
+        Empty: an over-representation z licenses nothing about ``marks`` (gene ->
+        cell type), and set membership is not a registered relation.
         """
         return ()
 

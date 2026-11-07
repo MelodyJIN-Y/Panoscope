@@ -1,36 +1,19 @@
 """The COMPARISON composition root: *does this result make sense?*
 
-The third of three, and the one that was missing. ``stages/verdicts.py`` composes
-ASSIGNMENT and ``stages/enrichment.py`` composes CHARACTERISATION; ``workflows/de.py``
-had no caller at all, so its four §9.7 checks and ``core/reconcile.py``'s join ran
-only in tests.
+Composes ``workflows/de.py`` (its four §9.7 checks and ``core/reconcile.py``'s join),
+as ``stages/verdicts.py`` does ASSIGNMENT and ``stages/enrichment.py``
+CHARACTERISATION.
 
 **The method is chosen by SCHEMA, not by filename.** Every method registered into
-``de-interpretation`` is asked whether it can read the table; ``detect_unit`` raises
-``UnrecognisedResult`` on a shape it does not know, and that refusal is the answer.
-A filename convention would have meant this root deciding that ``de_edger.csv`` is
-an edgeR table -- the root knowing about a method, which is the thing the registry
-exists to prevent. The convention names the KIND of result (``de_*.csv``); the
-schema names the method. Two methods accepting one table is a collision and raises,
-because silently taking the first would make the record's ``module`` field depend on
-import order.
+``de-interpretation`` is asked whether it can read the table (``detect_unit`` raises
+``UnrecognisedResult`` otherwise). ``de_*.csv`` names the KIND of result; the schema
+names the method. Two methods accepting one table raises.
 
-**Check 4 is why this stage takes the marker evidence.** Cross-method coherence
-joins the DE result against the spatial one for the SAME unit, through
-``core/reconcile.py``. Rebuilding the marker side here would be a second place the
-spatial evidence is derived; it is passed in instead, exactly as
-``stages/enrichment.py`` takes its ``enrichments``.
+**Check 4 takes the marker evidence** passed in, not rebuilt here.
 
-**Three of the four checks will refuse on a study like the fixture, and that is the
-demonstration rather than a shortfall.** ``panel_scoping`` needs the affected
-process and its canonical genes; ``composition_vs_expression`` needs this unit's
-share of cells per arm; neither is in a DE table and neither is declared in any file
-this repository has. ``replicate_confound`` refuses on every branch by design -- a
-``topTags`` table reports one number per gene for the whole unit, so which replicate
-drives it is not in the file whoever fitted it. Each refusal names what would settle
-it. §9.7 calls that the clearest demonstration of the refusal behaviour, and a root
-that supplied a default process or a default abundance to make the checks go green
-would be manufacturing the answer.
+Checks that need inputs no file declares (affected process, per-arm cell share,
+per-replicate numbers) refuse and name what would settle them; this root supplies
+no defaults to make them pass.
 """
 
 from __future__ import annotations
@@ -64,11 +47,8 @@ def de_result_path(study: Any) -> Optional[Path]:
 def _method_for(table: Any) -> Any:
     """The registered DE method whose schema this table matches. Never guesses.
 
-    Asks every member of the registry and lets each one refuse. Zero acceptances
-    names the schemas that were tried, because "this is not a DE table" is only
-    useful next to what a DE table would have looked like. Two acceptances raise:
-    the record stamps the method that produced it, and a tie broken by import order
-    would make that stamp arbitrary.
+    Zero acceptances raise naming the schemas tried; two raise, since a tie broken
+    by import order would make the record's method stamp arbitrary.
     """
     from panoscope import methods
     from panoscope.types.contracts import UnrecognisedResult
@@ -108,11 +88,8 @@ def _method_for(table: Any) -> Any:
 def _spatial_side(marker_ev: Any, world: Any) -> Any:
     """The ASSIGNMENT side of the cross-method join, from the marker build.
 
-    Built here rather than in ``workflows/de.py`` because a workflow may not reach
-    for another workflow's result: the join is a composition decision and this is
-    the composition root. ``Authority.MEASUREMENT`` because the spatial items ARE a
-    measurement -- a reference edge arriving on this side would be reference data
-    corroborating a measurement, which §7 forbids outright.
+    Built in the composition root: a workflow may not reach for another workflow's
+    result. ``Authority.MEASUREMENT`` -- reference data may never corroborate (§7).
     """
     from panoscope.core.reconcile import Side
     from panoscope.types.claim import Authority
@@ -150,16 +127,10 @@ def run_de(marker_evidence: dict[str, Any] | None = None,
            root: Optional[Path] = None) -> dict[str, Path]:
     """One ``InterpretationRecord`` per unit, under ``records/comparison/``.
 
-    ``marker_evidence`` maps unit id -> that unit's ``NormalisedEvidence`` from the
-    marker build, and supplies check 4. A unit with no marker evidence still gets a
-    record: ``cross_method_coherence`` returns *cannot be settled* naming the missing
-    spatial result, which is a different statement from checked-and-coherent and must
-    not be collapsed into one.
-
-    Deliberately not wrapped in a ``try``. A study whose DE table no registered
-    method can read is a loud failure of ``panoscope build`` -- the same discipline
-    ``stages/enrichment.write_records`` keeps, and for the same reason: a swallowed
-    error leaves ``records/`` unbuilt while the build prints success.
+    ``marker_evidence`` maps unit id -> that unit's marker ``NormalisedEvidence``
+    (check 4). A unit without it still gets a record, with check 4 *cannot be
+    settled* rather than coherent. Not wrapped in a ``try``: an unreadable DE table
+    fails the build loudly.
     """
     import pandas as pd
 

@@ -1,30 +1,15 @@
 """The workflow registry: one entry per interpretive question.
 
-Data, not types -- the same pattern as ``SHAPES`` in ``types/subject.py``, ``RULES``
-in ``types/trace.py`` and ``FLAGS`` in ``types/evidence.py``. Adding a question is a
-dict entry and an import; no type changes, no branch anywhere in ``core/``, and the
-contract tests parameterise over whatever is in :data:`WORKFLOWS`, so adding one
-proves conformance rather than merely asserting it.
+Data, not types (like ``SHAPES`` / ``RULES`` / ``FLAGS``): adding a question is one
+``register`` call and an import, and the contract tests parameterise over
+:data:`WORKFLOWS`. ``register`` rather than a dict literal so the Protocol, the
+``UISpec`` and id uniqueness are checked at import.
 
-**Why a ``register`` call and not a dict literal.** ``SHAPES`` can be a literal
-because a ``Shape`` is inert. A ``Workflow`` is a live object that must satisfy a
-Protocol, must own a renderable ``UISpec``, and must not collide with another
-workflow's id -- and a literal has nowhere to put those checks. So the literal
-becomes one call per entry at the bottom of this module, which reads the same and
-fails at import rather than at render time.
+**Duplicate ids raise** ``DuplicateRegistration`` (shared with ``types/uispec.py``);
+import order is no tie-break.
 
-**Duplicate ids raise.** ``DuplicateRegistration`` is reused from ``types/uispec.py``
-rather than redefined: one exception for one failure, so a caller can catch
-registration collisions across both registries with one name. Last-write-wins between
-two import-time registrations is decided by import order, which is decided by
-nothing, and the loser fails far from the cause.
-
-**This module must not import ``panoscope.methods``.** The dependency runs one way --
-methods validate against workflows -- so that a broken method cannot make the
-workflow registry unimportable, and so the import graph has no cycle for
-``test_every_first_party_module_imports_cleanly`` to trip over. The inverse lookup
-("which methods answer this question?") therefore lives in
-``panoscope.methods.for_workflow``.
+**This module must not import ``panoscope.methods``**: methods validate against
+workflows, one way, so the inverse lookup lives in ``panoscope.methods.for_workflow``.
 """
 
 from __future__ import annotations

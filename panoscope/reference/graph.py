@@ -1,39 +1,23 @@
-"""The reference graph: nodes, typed edges, and the one rule the whole module exists
-to make structural.
+"""The reference graph: nodes, typed edges, and the one rule the module makes
+structural.
 
 > Reference data determines **which question is asked of the measurement**. The
 > measurement alone determines **the answer**. Reference data may select and order
 > evidence, generate rivals, supply canonical lists and carry citations; it may never
 > supply a value, count as agreement, or corroborate a measurement.
 
-``evidence.py`` makes a statistic-without-an-observation *unrepresentable* rather than
-merely tested for. This module does the same thing one level up, and it needs three
-separate guards because a number can reach the interpretation layer by three routes:
+Three guards, one per route a number could take:
 
-1. **A typed field.** ``Node`` and ``Edge`` have no ``int``/``float`` field at all.
-   There is no slot to put a statistic in, so no source can return one. This is not a
-   convention: ``test_no_numeric_field_on_the_graph`` walks the dataclass fields.
-   PanglaoDB is the live demonstration -- its marker table carries a ubiquitousness
-   index and four sensitivity/specificity columns, and ``sources.py`` has nowhere to
-   put any of them.
+1. **A typed field.** ``Node`` and ``Edge`` have no ``int``/``float`` field
+   (``test_no_numeric_field_on_the_graph``).
+2. **The one open channel.** ``Edge.qualifiers`` **rejects a numeric-looking value**
+   (:class:`ReferenceValueLeak`); spell textual ones so they do not read as numbers
+   (``("release", "v2020")``).
+3. **Authority.** ``Edge.to_claim()`` hard-codes :attr:`Authority.CURATED`, so a
+   reference edge can never be grouped as MEASUREMENT.
 
-2. **The one open channel.** ``Edge.qualifiers`` is the only free-text key/value
-   channel on the graph, and it is exactly where a determined caller would smuggle
-   ``("specificity", "0.87")``. So it **rejects a numeric-looking value** at
-   construction (:class:`ReferenceValueLeak`). The cost is honest and small: a
-   legitimately textual qualifier that happens to read as a number must be spelled so
-   it does not -- ``("release", "v2020")``, never ``("release", "2020")``.
-
-3. **Authority.** ``Edge.to_claim()`` takes no authority argument and hard-codes
-   :attr:`Authority.CURATED`. ``by_authority`` groups and never merges, so an edge
-   that cannot be minted above CURATED can never appear in the MEASUREMENT band, and
-   "counts as agreement" has no code path. A ``MEASUREMENT`` reference claim is
-   unrepresentable rather than forbidden by review.
-
-**A missing node reads as "not in reference data", never as "does not exist".** That
-is the panel-absence rule applied to the graph (ARCHITECTURE §7.3), and it has the
-same failure mode: collapse it to a boolean and silence starts arguing. So a lookup
-returns three states, not two --
+**A missing node reads as "not in reference data", never as "does not exist"**
+(ARCHITECTURE §7.3). A lookup returns three states:
 
 =========================  ====================================================
 ``IN_REFERENCE``           the consulted sources have a node for this entity
@@ -41,21 +25,10 @@ returns three states, not two --
 ``NO_SOURCE``              nothing could be read -- offline, or never fetched
 =========================  ====================================================
 
-``NO_SOURCE`` is the half that makes offline degradation honest. An unfetched source
-returning an empty graph would render as ``NOT_IN_REFERENCE`` for every gene in the
-panel, which reads as "the literature knows nothing about any of this" -- a confident
-claim built out of a failed download. The third state is the difference between "we
-looked and found nothing" and "we did not look", and :attr:`Lookup.absence_argues` is
-a constant ``False`` for all three, because reference silence never argues under any
-of them.
+:attr:`Lookup.absence_argues` is ``False`` for all three.
 
-**Relations are a registry, data not types** -- the ``SHAPES``/``RULES``/``FLAGS``
-pattern. ``RELATIONS`` holds exactly one entry because exactly one source emits one
-today; a relation nothing emits is a traversal nobody can test, which is the FLAGS
-lesson. Note what is *not* registerable: ``is_cell_type`` is the verdict, written by
-the deterministic engine from the measurement. A reference source able to assert it
-would be reference data supplying the answer, so there is no relation for it and
-``Edge`` refuses the predicate.
+**Relations are a registry** (``RELATIONS``), holding only what a source emits today.
+``is_cell_type`` is the verdict, never a relation: ``Edge`` refuses that predicate.
 """
 
 from __future__ import annotations
@@ -77,16 +50,9 @@ from panoscope.types.trace import Trace, Traced
 class Relation:
     """A relation a reference edge is allowed to assert, declared once.
 
-    ``subject_kind``/``object_kind`` are checked at construction, so an edge whose
-    endpoints are the wrong kind cannot exist -- a ``cell_type --marks--> gene`` edge
-    would traverse backwards and hand the caller a canonical list of cell types for a
-    gene, silently.
-
-    ``claim_predicate`` is the ``claim.PREDICATES`` id this relation mints as, or
-    ``""`` for a relation that is graph structure only (an alias link is navigation,
-    not an assertion anyone should cite). It is the join between the graph's
-    vocabulary and the claim store's, written down once instead of guessed at the
-    call site.
+    ``subject_kind``/``object_kind`` are checked at construction, so a backwards edge
+    cannot exist. ``claim_predicate`` is the ``claim.PREDICATES`` id this relation
+    mints as, or ``""`` for graph structure only (e.g. an alias link).
     """
 
     id: str
@@ -147,16 +113,9 @@ def _reads_as_number(value: str) -> bool:
 class Node:
     """One entity as a reference ontology holds it.
 
-    Keyed on :class:`Entity`, which is the join key the rest of the system already
-    uses: ``Subject.key`` is built from entities, so a node joins to a subject without
-    a second identity scheme to keep in sync. ``label`` is display-only on ``Entity``
-    and equality is on ``(kind, id)``, so two spellings of one gene cannot become two
-    nodes.
-
-    ``aliases`` is a ``frozenset`` rather than a tuple because it is a set and
-    ordering it would be a lie that the serialised bytes then depend on. It answers
-    §7.2's "is this symbol an alias" and nothing else: an alias is navigation, never
-    an assertion, so it carries no citation.
+    Keyed on :class:`Entity`, the system's join key (equality on ``(kind, id)``).
+    ``aliases`` is a ``frozenset`` (unordered) and answers §7.2's "is this symbol an
+    alias" only: navigation, never an assertion, so no citation.
     """
 
     entity: Entity
@@ -176,20 +135,9 @@ class Node:
 class Edge:
     """One typed, cited, provenanced relation between two reference entities.
 
-    Note what is **not** here: no score, no weight, no confidence, no statistic, no
-    rank. The type has no numeric field, which is guard 1 of the three in the module
-    docstring -- a reference source has no channel through which a value could reach
-    the interpretation layer, so "never supplies a value" is a property of the shape
-    rather than a rule somebody has to remember.
-
-    ``citation`` is a resolvable URI from ``claim.SOURCE_SCHEMES`` for the same reason
-    ``Claim.source`` is: a citation that is the string "Smith et al." renders, exports
-    and survives, and the grounding gate cannot tell it from a fabrication.
-
-    ``qualifiers`` are SORTED pairs rather than a dict, for ``evidence.py``'s reason:
-    a dict field is unhashable and its insertion order flows through ``asdict`` into
-    the serialised bytes, so the graph would differ by the order a reader happened to
-    add them.
+    No score, weight, confidence, statistic or rank (guard 1). ``citation`` is a
+    resolvable URI from ``claim.SOURCE_SCHEMES``. ``qualifiers`` are SORTED pairs, not
+    a dict, so the serialised bytes do not depend on insertion order.
     """
 
     subject: Entity
@@ -254,16 +202,8 @@ class Edge:
     def to_claim(self, claim_id: str) -> Claim:
         """Mint this edge as a CURATED claim. Guard 3: the authority is not an argument.
 
-        There is no parameter through which a caller could ask for ``MEASUREMENT`` or
-        ``LAB``, so a reference edge cannot enter the band where the measurement's own
-        output lives, and cannot be grouped as the lab's judgement either. That is the
-        "never counts as agreement" half of the rule, made structural: claims are
-        ordered and never merged, so an edge that cannot be minted above CURATED can
-        only ever be displayed *beside* a measurement, never as one.
-
-        ``conditions`` is deliberately left ``None``: this edge's formation conditions
-        belong to its source, and ARCHITECTURE §7.5 is explicit that a
-        database-curated claim receives a provenance stamp, not a transfer verdict.
+        ``conditions`` is ``None``: a database-curated claim gets a provenance stamp,
+        not a transfer verdict (ARCHITECTURE §7.5).
         """
         rel = RELATIONS[self.predicate]
         if not rel.claim_predicate:
@@ -337,11 +277,8 @@ class Graph:
 class Lookup:
     """What the reference graph says about one entity, and what that is worth.
 
-    :attr:`absence_argues` is a constant ``False`` with no branch in it, mirroring
-    ``Measured.absence_is_evidence``. The difference is the point: a *measured*
-    absence is the productive half of the lattice and does argue, but a reference
-    source's silence is only ever coverage, so there is no state in which it may be
-    read as evidence against anything.
+    :attr:`absence_argues` is a constant ``False``: unlike a *measured* absence, a
+    reference source's silence is only ever coverage.
     """
 
     entity: Entity

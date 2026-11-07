@@ -1,12 +1,8 @@
-"""Build the calibration table (Markdown) from a verdict list — no recompute.
+"""Build the calibration table (Markdown) from a verdict list -- no recompute.
 
-The calibration table is the honest proof that the confidence rubric both COMMITS
-on clean calls and FLAGS shaky ones (see ``tests/test_calibration.py`` and the
-README). It is a pure projection of the already-computed ``ClusterVerdict`` set:
-one row per cluster, every number tracing to jazzPanda's ``glm_coef``. The
-pipeline writes it as a per-dataset tree artifact (``interp/calibration.md``) and
-``scripts/calibration_table.py`` reuses this same builder for the README — one
-implementation, so the two can never drift.
+A pure projection of the computed ``ClusterVerdict`` set, one row per cluster. The
+pipeline writes it as ``interp/calibration.md`` and ``scripts/calibration_table.py``
+reuses this builder for the README, so the two cannot drift.
 """
 
 from __future__ import annotations

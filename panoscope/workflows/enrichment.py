@@ -1,39 +1,19 @@
 """The enrichment workflow: *what is RUNNING here?* -- and the surface that answers it.
 
-The second interpretive question, and the one that makes the no-band rule visible
-rather than merely stated. Enrichment is a CHARACTERISATION: there is no label
-space -- the programs are not alternatives competing for one slot, a cluster may be
-running four of them at once -- so a unit-level band is **undefined**, not merely
-unhelpful. There is no "instead" for the remaining confidence to be confidence *in*.
-
-That single fact shapes everything below:
-
-* :meth:`EnrichmentInterpretation.interpret` returns a ``Finding``, which has no
-  ``band`` field to fill. An ``Assignment`` routed through it raises.
-* :meth:`uispec` declares a ``CensusHeader``. ``UISpec.__post_init__`` refuses a
-  ``LabelBandHeader`` on anything that is not an ASSIGNMENT, so the bug this
-  replaces -- ``ui/enrichment_table.py`` importing the assignment header and
-  inheriting a confidence band it had no right to -- is now unconstructable.
-* ``methods/jazzpanda_cgst.py`` declares no band ladder, and its ``rubric`` raises.
+A CHARACTERISATION: no label space (a cluster may run four programs at once), so a
+unit-level band is **undefined**. Hence :meth:`EnrichmentInterpretation.interpret`
+returns a ``Finding`` (no ``band`` field), :meth:`uispec` declares a ``CensusHeader``,
+and ``methods/jazzpanda_cgst.py``'s ``rubric`` raises.
 
 The header is per-item counts: *4 enriched, 3 untestable, top EMT z 4.2 on 18/200
-panel genes*. A count survives having no denominator for the thing being decided,
-because it is a statement about the items rather than about the unit.
+panel genes*.
 
-**What this module does NOT own.** Not the reporting bar (``jazzpanda_cgst.py``
-declares ``Q_REPORTED`` on its own statistic, and a set that fails it is
-TESTED_ABSENT at load), not the capability floors (same place, as ``Coverage``, so
-the lattice demotes on them), not the measurement states. What lives here is
-:data:`Q_ENRICHED` -- the *enriched versus suggestive* split, which is a question
-about how cautious this lab has decided to be and not about what the statistic
-means. That is the same split jazzPanda's ``BAND_EDGES`` and ``core/verdict.py``
-make, drawn in the same place for the same reason.
+**Owned here:** only :data:`Q_ENRICHED`, the *enriched versus suggestive* split (lab
+policy). The reporting bar, capability floors and measurement states are the
+method's and the lattice's.
 
-**The cell-type call is imported, never re-derived.** ``EnrichmentReference`` carries
-it as display context and the census header attributes it. Recomputing it here would
-give one number two homes and let them disagree; arguing with it from an enrichment
-result would be the method speaking outside what it measures. A cross-lineage program
-is reported as a tension, never as a re-typing.
+**The cell-type call is imported, never re-derived** (display context only). A
+cross-lineage program is reported as a tension, never as a re-typing.
 """
 
 from __future__ import annotations
@@ -77,16 +57,9 @@ PANEL_COVERAGE: str = "panel_hits"
 class EnrichmentReference:
     """The reference side of one characterisation. Selects; never supplies a value.
 
-    ``cell_type`` is IMPORTED from the marker workflow and is display context only.
-    Nothing here can become a number in the output: the counts are over
-    ``ev.items``, the z and the q come from the method, and the K of N comes from
-    the capability frames.
-
-    ``world`` is here for the same reason ``MarkerReference.world`` is, and under
-    the same protest: ``Workflow.rival_test`` receives only
-    ``(evidence, alternative, reference)``, and deciding whether a rival program was
-    *never scored* or *scored and not reported here* needs frame membership, which
-    ``NormalisedEvidence`` carries only as digests.
+    ``cell_type`` is IMPORTED from the marker workflow, display context only.
+    ``world`` is here, as ``MarkerReference.world`` is, so ``rival_test`` can tell
+    *never scored* from *scored and not reported here*.
     """
 
     cell_type: str = ""
@@ -110,12 +83,8 @@ class EnrichmentInterpretation:
                   reference: Any) -> Traced[Finding]:
         """One unit's gene-set evidence -> the finding, traced. No band anywhere.
 
-        The tier is almost entirely a function of the measurement: ``permitted_tiers``
-        leaves exactly one choice open, SUPPORTED versus SUGGESTIVE, and that is a
-        question about the size of a number that exists. Everything else -- measured
-        absence, below a floor, never scored -- was settled by the lattice at load,
-        and re-deciding it here would be a second implementation of the thing
-        ``types/`` already owns.
+        ``permitted_tiers`` leaves one choice open, SUPPORTED vs SUGGESTIVE; the
+        lattice settled everything else at load.
         """
         t = Trace()
         ref_: EnrichmentReference = reference
@@ -138,15 +107,9 @@ class EnrichmentInterpretation:
                    reference: Any) -> Traced[RivalResult]:
         """Could another PROGRAM account for this cluster's signal instead?
 
-        The alternative is a gene set, so the rival space is the collection -- the
-        same shape as the marker workflow's rival test with cell types swapped out,
-        which is why ``RivalResult`` needed nothing added to carry it.
-
-        ``core.rival.rival_test`` is deliberately not reused: it walks a canonical
-        marker LIST and builds ``gene`` subjects, and a program is one subject, not
-        a list of them. What is reused is the part that matters -- ``core.measure``
-        adjudicating the subject against the frames -- so the four states are
-        decided in one place here too.
+        The rival space is the collection. ``core.rival.rival_test`` is not reused (it
+        walks a marker LIST; a program is one subject), but ``core.measure`` still
+        adjudicates the subject against the frames.
         """
         t = Trace()
         ref_: EnrichmentReference = reference
@@ -215,14 +178,8 @@ class EnrichmentInterpretation:
     def uispec(self) -> UISpec:
         """The review surface this question requires.
 
-        A ``CensusHeader``, which has no band slot at all -- the structural form of
-        the rule. Four blocks, one per measurement state, so an untestable program
-        is a row that says why and not a row that quietly did not render.
-
-        No plots are declared, for the reason the marker surface declares none: a
-        ``PlotSpec`` is a promise to draw and R4 makes it conditional on a
-        conditionality builder that can state the denominator. Those land with the
-        view layer.
+        A ``CensusHeader`` (no band slot) and four blocks, one per measurement state.
+        No plots yet: a ``PlotSpec`` needs a conditionality builder (R4).
         """
         return UISpec(
             workflow_id=SURFACE_ID,
@@ -303,13 +260,8 @@ def _coverage(item: EvidenceItem, what: str = PANEL_COVERAGE) -> Coverage | None
 def _tier(item: EvidenceItem) -> tuple[Tier, bool, str, tuple[str, ...]]:
     """``(tier, verify, rule id, because)`` for one item. Deterministic, total.
 
-    ``verify`` is produced HERE, by rubric, and is never offered to a caller or a
-    model as an argument. It is the flag that says a human must look again, so a
-    layer that could set it could also clear it.
-
-    An untestable item does not carry ``verify``: it is not a call that a second
-    look could settle, it is a question this panel could not ask. Saying "re-check"
-    about it would read as doubt over a result when there is no result.
+    ``verify`` is produced HERE, by rubric, never offered to a caller or a model. An
+    untestable item does not carry ``verify``: there is no result to re-check.
     """
     m = item.measured
     if not m.carries_number:
@@ -338,13 +290,8 @@ def _summary(ev: NormalisedEvidence, reference: EnrichmentReference,
              items: tuple[FindingItem, ...]) -> str:
     """Per-item counts, the top program, and the panel scope. NOT the narration layer.
 
-    It must render identically with the model offline, so it carries no adjective
-    the numbers do not license. There is no band in it and nowhere to put one: the
-    counts ARE the header, which is the whole shape of a characterisation.
-
-    The panel-scope sentence is mandatory and deterministic. A reader handed "c2 is
-    enriched for interferon gamma response" forms a genome-wide claim unless the
-    denominator is said out loud, and the figure cannot say it for them.
+    Renders identically offline; no band. The panel-scope sentence is mandatory, so
+    an enrichment is never read as a genome-wide claim.
     """
     n = {t: sum(1 for i in items if i.tier is t) for t in Tier}
     head = (f"{ev.unit}: {n[Tier.SUPPORTED]} enriched, "

@@ -1,28 +1,15 @@
-"""Stage: annotate — derive the cell type per cluster with the marker-gene skill (LIVE).
+"""Stage: annotate -- derive the cell type per cluster with the marker-gene skill (LIVE).
 
-For a dataset WITHOUT ``interp/annotation.json``, this runs the marker-interpretation
-skill per cluster: given the cluster's top jazzPanda markers, the skill assigns the
-cell type, lineage/category, a short name, and the canonical lineage markers -- the
-skill's Output 2 (the per-cluster interpretation Panoscope shows). The off-panel
-canonical set (the panel-absence rule's input) is then computed by checking those
-canonical markers against the dataset's own panel, so it is grounded per dataset.
+For a dataset WITHOUT ``interp/annotation.json``, runs the marker-interpretation skill
+per cluster on its top markers: cell type, lineage/category, short name and canonical
+lineage markers. The off-panel canonical set is then computed against the dataset's
+own panel.
 
-Resumable: an existing annotation.json is read, not regenerated, so the bundled demo
-(which ships its annotation) never re-annotates. Fail-soft per cluster: a failed or
-unparseable call yields an honest "Unknown" record rather than crashing the pipeline.
-
-**Fail-soft means empty, never substituted.** The canonical-marker list this stage
-writes is reference data: ``pipeline/records.py`` hands it straight to
-``core/verdict.assess`` as the set deciding which marker may drive the band. So no
-branch here may fill that slot from anything the measurement produced. The failure
-path returns an EMPTY canonical set with an Unknown label, which the rubric already
-reads correctly (``band:no_canonical_driver`` -> Low -> ``verify=True``). A cluster's
-own top markers promoted into that slot would make every driver canonical by
-construction, and the band would be the measurement agreeing with itself -- the one
-thing CLAUDE.md says reference data may never do. It would fire hardest exactly where
-the model struggles most: an unfamiliar panel against unfamiliar tissue. ``_record``
-therefore takes no markers at all, so the fabrication is unrepresentable rather than
-merely avoided.
+Resumable: an existing annotation.json is read, not regenerated. Fail-soft per
+cluster: a failed call yields an "Unknown" record with an EMPTY canonical set, never
+one filled from the measurement -- canonical markers are reference data, and the
+cluster's own top markers there would make the band the measurement agreeing with
+itself. ``_record`` takes no markers, so that substitution is unrepresentable.
 """
 from __future__ import annotations
 
@@ -92,11 +79,7 @@ def _canonical_markers(obj: dict) -> list[str]:
     """The gene symbols the model named as canonical. Reference data, so: strict.
 
     Anything that is not a list of symbol-shaped strings yields the EMPTY set rather
-    than a salvaged one. ``{"canonical_markers": "ERBB2, EPCAM"}`` used to be iterated
-    as a *string*, making each character a canonical marker: one-letter "genes", none
-    of them on the panel, every one of them then reported to the biologist as a
-    canonical marker this panel never measured. Dropping junk costs a band (empty ->
-    ``band:no_canonical_driver`` -> verify); salvaging it invents markers.
+    than a salvaged one (a bare string must not iterate into one-letter "genes").
     """
     raw = obj.get("canonical_markers")
     if not isinstance(raw, (list, tuple)):
@@ -133,11 +116,8 @@ def _record(cluster: str, obj: Optional[dict]) -> dict:
 def _load_existing(out_path: Path) -> dict[str, dict]:
     """Read the annotation we are resuming, or stop.
 
-    An unreadable annotation.json used to come back as ``{}``, which is indistinguishable
-    from "no annotation yet": the stage then re-annotated every cluster and ``_save``
-    overwrote the damaged file with whatever the model said this time. A stored record
-    is not something to silently replace, so an existing-but-unreadable file raises
-    here. ``--force`` skips this function and is the way to deliberately start over.
+    An existing-but-unreadable file raises rather than reading as "no annotation
+    yet" and being overwritten. ``--force`` skips this to start over deliberately.
     """
     if not out_path.exists():
         return {}
@@ -188,7 +168,7 @@ def run_annotate(
             print(f"  ERROR {cluster}: {exc}", flush=True)
         else:
             if obj is None:
-                # Unparseable is a failure too, and it used to look like a result.
+                # Unparseable is a failure too, not a result.
                 print(f"  UNPARSEABLE {cluster}: {(resp.text or '')[:120]!r}", flush=True)
         clusters[cluster] = _record(cluster, obj)
         print(f"  {cluster}: {clusters[cluster]['cell_type']}", flush=True)

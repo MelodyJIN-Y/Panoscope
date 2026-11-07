@@ -1,29 +1,18 @@
 """Precompute transcript-density hexbins for the demo markers (ONE-TIME).
 
-NOT retired, and not the primary path either. ``panoscope/data/spatial.py`` now
-bins from a SpatialData Points store at request time, at any bin size, and
-``ui/data_access.hexbins`` prefers it. But the store is 609 MB and cannot be
-committed (§12: fetch, never bundle), so the 841 frames this script wrote are
-the ONLY way a fresh clone draws a plot. They are also the oracle: all 840
-reproduce bin-for-bin from the store (tests/test_spatial_points.py), which is
-the validation §5.1's sequencing note asks for. Deleting either would cost a
-guarantee, so both stay.
+Not the primary path: ``panoscope/data/spatial.py`` bins from a SpatialData Points
+store at any bin size. But that store cannot be committed (§12), so these frames are
+the only way a fresh clone draws a plot, and they are the oracle
+``tests/test_spatial_points.py`` checks the store against.
 
-Streams the ~1.4 GB Xenium ``transcripts.csv.gz`` a SINGLE time (pandas
-``chunksize`` — the file is never loaded whole), keeps only demo-marker rows that
-pass quality control, then bins each gene's transcript locations at 25 / 50 / 100
-µm and writes one area-normalized parquet per (gene, bin) under ``data/density/``.
+Streams the Xenium ``transcripts.csv.gz`` once (pandas ``chunksize``), keeps
+QC-passing demo-marker rows, and bins each gene at 25 / 50 / 100 µm into one
+area-normalized parquet per (gene, bin) under ``data/density/``.
 
-Grounding discipline (CLAUDE.md):
-  * The bin size is a *viewing* control: it changes the picture, never a value.
-    Each (gene, bin) is a distinct precomputed frame here. The store path bins
-    live instead -- which is the same rule, not an exception to it: it re-bins
-    raw transcript positions and derives no statistic. A plot renders, it does
-    not derive.
-  * The density colour scale is AREA-NORMALIZED (``density = count / bin_area``,
-    transcripts per µm²) so coarser bins are not falsely hotter.
-  * DEMO_MARKERS is read from ``agent/config.py`` (itself derived from source),
-    never hand-typed here.
+  * Bin size is a *viewing* control: it changes the picture, never a value.
+  * ``density = count / bin_area`` (transcripts per µm²), so coarser bins are not
+    falsely hotter.
+  * DEMO_MARKERS is read from ``agent/config.py``, never hand-typed.
 
 Outputs:
   data/density/{GENE}_{bin}um.parquet   cols: hx, hy, count, density
@@ -143,12 +132,8 @@ def _stream_demo_transcripts(demo_set: frozenset[str]) -> dict[str, pd.DataFrame
         sub = chunk.loc[mask, ["feature_name", "x_location", "y_location"]]
 
         # Defensive: never let a control probe through even if a name collides.
-        # This script used to carry its own lower-cased prefix list -- a shorter one
-        # (it knew nothing of NegPrb / UnassignedCodeword_ / DeprecatedCodeword_) and
-        # a second answer to a question that already had one. It now shares the panel
-        # layer's rule, which is the adapter's list compared case-insensitively, so
-        # the transcript filter and the panel reader cannot disagree about what a
-        # control is.
+        # Shares the adapter's control-probe rule, so the transcript filter and the
+        # panel reader agree about what a control is.
         keep = ~sub["feature_name"].map(is_control)
         sub = sub.loc[keep]
         kept_rows += len(sub)

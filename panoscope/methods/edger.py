@@ -1,41 +1,20 @@
 """edgeR: a condition contrast on PSEUDOBULK counts, with the replicates modelled.
 
-The second method registering into ``de-interpretation``, and it is here to make
-ARCHITECTURE §4's claim checkable: *the core does not change when a member is
-added*. Nothing in ``core/``, in ``workflows/de.py`` or in the composition root
-knows this file exists. The workflow reads a unit-level ``Coverage`` and never asks
-which package wrote it.
+The second method in ``de-interpretation``; nothing in ``core/``, ``workflows/de.py``
+or the composition root knows this file exists (ARCHITECTURE §4).
 
-**What differs from ``methods/seurat_de.py`` is the DECLARATION, not the plumbing,
-and it does not make the replicate check settle.** Seurat's test treats cells as
-independent observations, which they are not, so its p-value is a cell-level
-statement that does not generalise to a condition. edgeR sums counts to one profile
-per sample per cluster and fits a negative binomial GLM over a design in which
-samples are nested in conditions, so its p-value *is* a condition-level statement
-when the design carries enough biological replicates. That difference is real and
-is declared in :attr:`assumptions`, where a biologist reads it.
+**What differs from ``methods/seurat_de.py`` is the DECLARATION.** edgeR fits a
+negative binomial GLM over samples nested in conditions, so its p-value is a
+condition-level statement given enough replicates; that is declared in
+:attr:`assumptions`. It does not make §9.7's check 2 settle:
+``workflows/de.replicate_confound`` refuses on every branch, since a ``topTags`` table
+has one number per gene per unit.
 
-It changes nothing about ARCHITECTURE §9.7's check 2, and claiming otherwise would
-be the overclaim this project exists to refuse. ``workflows/de.replicate_confound``
-returns *cannot be settled* on every branch -- including when the replicate floor is
-cleared -- because a ``topTags`` table reports one number per gene for the whole
-unit, so which replicate drives it is not in the file whoever fitted it. Both
-methods are refused for the same reason, and the refusal names the same missing
-thing: the contrast re-run within each sample.
+This module reads a table and declares what its numbers mean; the checks, the
+lattice and the join live elsewhere.
 
-**What this module does NOT own.** Not the four checks (``workflows/de.py``), not
-the lattice (``types/measured.py``), not the join (``core/reconcile.py``). It reads
-a table and declares what the table's numbers mean. If it ever computes a
-statistic, the layering has inverted.
-
-**On the band edges.** They are the same numbers ``seurat_de.BAND_EDGES`` carries,
-and that is not a shared ladder smuggled in: both statistics are log2 fold changes,
-so "1.0 is a doubling" is arithmetic and not a tuned threshold. They are declared
-here, in this module, because §9.4 says a rubric belongs to the method -- and they
-are **not calibrated against an edgeR calibration set**, which is stated rather than
-implied. The demo's bands were tuned against jazzPanda's ``glm_coef``; nothing in
-this repository has tuned a fold-change ladder, and an uncalibrated constant that
-says so is honest in a way that a borrowed one is not.
+**Band edges** equal ``seurat_de.BAND_EDGES`` (both are log2 fold changes) and are
+**not calibrated against an edgeR calibration set**.
 """
 
 from __future__ import annotations
@@ -93,8 +72,6 @@ class EdgeR:
 
     name: str = "edger"
     #: How the package names ITSELF, for anywhere a person reads it.
-    #: The registry id is an identifier, and the study chip was printing it
-    #: verbatim ("jazzpanda_spatial_glm markers").
     display_name: str = "edgeR"
     workflow: str = WORKFLOW_ID
     statistic_name: str = "logFC"
@@ -158,11 +135,8 @@ class EdgeR:
     def detect_unit(self, table: Any) -> UnitSpec:
         """Read the unit kind and ids FROM THE SCHEMA (§9.2), never from a caller.
 
-        edgeR is run per cluster here, one ``topTags`` block each, concatenated with
-        the cluster it was fitted for. A table with no ``cluster`` column is an
-        edgeR result for the whole object -- a different unit, and a different
-        question -- and is refused rather than read as though every gene belonged to
-        one unnamed unit.
+        One ``topTags`` block per cluster, concatenated with its ``cluster``. A table
+        with no ``cluster`` column (a whole-object result) is refused.
         """
         cols = _table.columns(
             table, "edgeR's topTags output is a table with columns "
@@ -192,16 +166,10 @@ class EdgeR:
              store: Any) -> Traced[dict[str, NormalisedEvidence]]:
         """Precomputed ``topTags`` output in, normalised evidence out, by unit.
 
-        Reads, never recomputes. Two things come from the adapter and nowhere else:
-        the capability frames, and the **sample count**, which ``Conditions``
-        deliberately cannot express.
-
-        The sample count lands as a unit-level :class:`Coverage` against
-        :data:`~panoscope.workflows.de.REPLICATE_FLOOR` -- the same coverage name
-        ``seurat_de`` writes, so ``workflows/de.replicate_confound`` reads one field
-        and never branches on which package produced it. What differs between the
-        two methods is not the number but what the design does with it, and that
-        difference is declared in :attr:`assumptions` rather than coded here.
+        Reads, never recomputes. The capability frames and the **sample count**
+        come from the adapter; the count lands as a unit-level :class:`Coverage`
+        against :data:`~panoscope.workflows.de.REPLICATE_FLOOR`, under the same name
+        ``seurat_de`` writes.
         """
         import pandas as pd  # local: keeps `import panoscope.methods` free of pandas
 
@@ -240,14 +208,8 @@ class EdgeR:
     def _reading(self, row: dict[str, Any]) -> Reading:
         """One ``topTags`` row, as edgeR reports it -- before the frame rules.
 
-        ``direction`` is carried as a field rather than smuggled into the magnitude:
-        a comparison's answer is "a ranked annotated set, **with direction**"
-        (§9.1), and a down-regulated gene is a result, not a weak one.
-
-        ``flags`` is empty and must be. The flag registry in ``types/evidence.py``
-        holds only ``specificity:*`` ids, which belong to a spatial statistic; the
-        confounds a pseudobulk contrast is subject to are unit-level and live on the
-        workflow's check results, where they can name what is missing.
+        ``direction`` is a field, not folded into the magnitude (§9.1). ``flags`` is
+        empty: the flag registry holds only spatial ``specificity:*`` ids.
         """
         fc = float(row["logFC"])
         return Reading(
@@ -262,11 +224,8 @@ class EdgeR:
     def absence_reads_as(self, subject: Subject, measured: Measured) -> str:
         """What this method's silence about a subject MEANS, in its own terms.
 
-        A spatial method's tested absence argues "it localises somewhere else";
-        Seurat's argues "its mean in these cells is not different enough from the
-        rest". edgeR's argues something narrower than either: this gene's summed
-        abundance in this cluster did not move **between the conditions compared**.
-        It is silent about every other contrast, and about place entirely.
+        Narrower than a spatial or Seurat absence: this gene's summed abundance in
+        this cluster did not move **between the conditions compared**.
         """
         who = subject.display()
         if measured.state is MeasuredState.NEVER_MEASURED:
@@ -288,17 +247,9 @@ class EdgeR:
     def rubric(self, ev: NormalisedEvidence) -> Traced[str]:
         """Per-item EFFECT SIZE off this method's own statistic. **Never a band.**
 
-        The workflow this method registers into is a ``COMPARISON`` and has no label
-        space, so there is nothing for a unit-level band to be confidence *in*, and
-        ``Finding`` has no field to put one in. What this returns is the one thing
-        only the method can know: what a given magnitude of *its* statistic is
-        worth -- which is what §9.4's divergence invariant compares against
-        jazzPanda's, and the reason a ``glm_coef`` of 3.0 and a ``logFC`` of 3.0
-        must not read the same.
-
-        ``abs()`` matches every other method's: a strongly negative fold change is a
-        strong measurement, and direction is carried on the ``EvidenceItem`` rather
-        than read as weakness.
+        COMPARISON has no label space. What a magnitude of *its* statistic is worth
+        is the method's to say (§9.4). ``abs()``: direction rides on the
+        ``EvidenceItem``.
         """
         t = Trace()
         lead = next((i for i in ev.items if i.measured.carries_number), None)
@@ -321,12 +272,7 @@ class EdgeR:
     def traversals(self) -> tuple[tuple[str, str], ...]:
         """Reference-graph edges this method's evidence licenses following.
 
-        None, deliberately, and that is a declaration rather than a gap. This
-        method's rivals come from the data (``rival_space="data"``): a fold change
-        between two groups of samples licenses no traversal of a curated graph,
-        because the question it answers -- does this result make sense? -- is
-        settled by the design and the measurement, and a reference edge can neither
-        supply a value nor count as agreement.
+        None, by declaration: rivals come from the data (``rival_space="data"``).
         """
         return ()
 

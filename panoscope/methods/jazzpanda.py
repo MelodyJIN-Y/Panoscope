@@ -1,41 +1,21 @@
 """jazzPanda's spatial GLM, declared: what its paper says it measures, and does not.
 
-This file is deliberately almost all *declaration*. Adding a method to Panoscope
-means reading the paper and writing down the contract -- not writing interpretation
-logic -- and this is the first module that has to prove that claim is real rather
-than aspirational. The four fields that carry weight (``measures``,
-``does_not_measure``, ``assumptions``, ``statistic_name``) are transcribed from
-``panoscope/skills/marker-interpretation/SKILL.md``, which is itself transcribed from
-the jazzPanda paper's Methods and the package docs. Nothing here paraphrases upward.
+Almost all *declaration*. ``measures``, ``does_not_measure``, ``assumptions`` and
+``statistic_name`` are transcribed from
+``panoscope/skills/marker-interpretation/SKILL.md`` (itself from the jazzPanda paper's
+Methods and the package docs).
 
-**The failure this module exists to prevent.** A ``glm_coef`` read as a fold change.
-jazzPanda does not ask "is this gene higher on average in this cluster's cells?" --
-it asks "do this gene's transcripts fall in the same places on the tissue as this
-cluster's cells?" Those two questions disagree, loudly, on a gene that is uniformly
-higher everywhere in a cluster but not spatially concentrated. A reader who has only
-the number cannot tell which question produced it, so the number must arrive carrying
-the question. ``does_not_measure`` is that carrying.
+**The failure this prevents:** a ``glm_coef`` read as a fold change. jazzPanda asks
+whether a gene's transcripts fall in the same places as a cluster's cells, not
+whether it is higher on average there; ``does_not_measure`` carries that question
+with the number.
 
-**Where the rubric stops.** This module declares :data:`BAND_EDGES` -- the mapping
-from the magnitude of *its own* statistic to a band label -- and nothing else about
-confidence. The promote, the three demotes, the fragile cap and the fragile floor all
-live in ``core/verdict.py``, because they are the project's confidence *policy* and
-apply to whatever statistic a method hands up. A method knows what its own
-``glm_coef`` means; it does not know how cautious this lab has decided to be. The
-split matters most for the second method: a mean-expression rubric must map its own
-``log2FC`` through its own edges, and if the edges lived in ``core/`` the two methods
-would be forced to agree, which is precisely the method-blindness ARCHITECTURE §9.4
-calls the inversion of the value proposition.
+**Where the rubric stops.** This module owns :data:`BAND_EDGES` (its own statistic's
+magnitude -> band) and the specificity thresholds that raise ``specificity:*`` flags.
+The promote, demotes, cap and floor are ``core/verdict.py``'s confidence policy, so
+each method maps its own statistic through its own edges (ARCHITECTURE §9.4).
 
-The three specificity thresholds below are *also* the method's, for the same reason,
-and they are the only place ``specificity:*`` flags are raised. ``core/verdict.py``
-branches on the flag ids and never re-derives them from the raw correlations -- one
-owner for one rule, so there is no second copy to drift.
-
-**``load`` reads; it never recomputes.** The precomputed ``top_result`` table is a
-consumed input. That is the whole basis of the audit: if this module ran the analysis
-it would be grading its own homework, and the confidence assessment would stop being
-an assessment of someone else's output.
+**``load`` reads; it never recomputes.** ``top_result`` is a consumed input.
 """
 
 from __future__ import annotations
@@ -93,10 +73,8 @@ EPS: float = 1e-9               # max_gc_corr > pearson must be a real differenc
 def _flags_for(pearson: float, max_gc_corr: float, max_gg_corr: float) -> tuple[str, ...]:
     """Registered ``specificity:*`` ids for one row. Order is code order, hashed.
 
-    Ids, never prose: the interface used to decide whether to draw a badge by
-    matching the English sentence "localizes better with another cluster", so a copy
-    edit here silently stopped a badge rendering while the test, asserting the same
-    literal, stayed green.
+    Ids, never prose, so the interface matches on a stable id rather than an
+    English sentence a copy edit could change.
     """
     out: list[str] = []
     if max_gc_corr > pearson + EPS:
@@ -115,12 +93,8 @@ _STAT_COLUMNS = ("glm_coef", "pearson", "max_gg_corr", "max_gc_corr")
 def _rows(table: Any) -> tuple[dict[str, Any], ...]:
     """Rows as plain dicts, in the table's own order.
 
-    The order here is whatever the file has; ``load`` sorts per unit. This docstring
-    used to claim the file arrived glm_coef-descending within a cluster. It does not
-    -- ``markers_top.csv`` is alphabetical by gene, and 8 of the demo's 9 clusters
-    are unsorted -- and the claim was load-bearing: ``core/verdict._drivers`` takes
-    the first eligible canonical marker in caller order, so trusting the file's
-    order gave the wrong driver, and therefore the wrong band, on 5 of 9 units.
+    The file's order is not statistic-descending (``markers_top.csv`` is
+    alphabetical); ``load`` sorts per unit, which the driver choice depends on.
     """
     return _normalised(_table.rows(table))
 
@@ -137,20 +111,12 @@ class MalformedMethodOutput(ValueError):
 def _normalised(raw: tuple[dict, ...]) -> tuple[dict, ...]:
     """Strip symbols, and refuse a table that cannot mean one thing.
 
-    * **Whitespace.** A padded symbol (`" KRT7 "`) became the entity id, so it
-      matched no capability frame, was not canonical and did not click back --
-      while still carrying its number. Stripping is normalisation, not
-      invention, so it is done rather than refused.
-    * **A statistic that is not a finite number.** `glm_coef = NaN` on c1 ERBB2
-      gave `driver=('ERBB2', nan)`, state OBSERVED, band **Medium**, basis
-      "glm_coef direct", verify FALSE -- the band ladder ran on a non-number,
-      and `statistic is None iff NOT OBSERVED` was violated by a value that is
-      not a value.
-    * **Two rows for one (unit, gene) carrying different numbers.** c1 ABCC11
-      appeared twice, at 99.9 and 4.176, and both reached the evidence. One
-      measurement cannot have two values and nothing downstream can choose.
+    * **Whitespace** is stripped (normalisation, not invention).
+    * **A statistic that is not a finite number** is refused: ``statistic is None
+      iff NOT OBSERVED`` cannot hold for a NaN.
+    * **Two rows for one (unit, gene) with different numbers** are refused.
 
-    An exactly duplicated row is collapsed: it says the same thing twice.
+    An exactly duplicated row is collapsed.
     """
     seen: dict[tuple[str, str], Any] = {}
     out: list[dict] = []
@@ -203,8 +169,6 @@ class JazzPandaSpatialGLM:
 
     name: str = "jazzpanda_spatial_glm"
     #: How the package names ITSELF, for anywhere a person reads it.
-    #: The registry id is an identifier, and the study chip was printing it
-    #: verbatim ("jazzpanda_spatial_glm markers").
     display_name: str = "jazzPanda"
     workflow: str = "marker-interpretation"
     statistic_name: str = "glm_coef"
@@ -249,16 +213,10 @@ class JazzPandaSpatialGLM:
     # propose an alternative account of a cluster.
     rival_space: Literal["reference", "data", "none"] = "reference"
 
-    # MANDATORY-ADJACENT: the declaration that makes TESTED_ABSENT reachable at all.
-    # A method that does not declare it enumerates no absences, because for a
-    # table truncated to the top N rows the unnamed entities were cut off, not tested,
-    # and enumerating them would fabricate measured absences. jazzPanda's top_result
-    # is not truncated: the assumption above -- "each gene is assigned to at most ONE
-    # cluster (maximum coefficient, minimum p-value)" -- means the table enumerates
-    # the WHOLE analysed panel, one row per gene, with ``NoSig`` for the genes it
-    # assigned nowhere. So a gene whose row says it peaked in c4 was tested in c1 and
-    # did not come up there, which is a measured absence and argues. True here is a
-    # statement about this method's output format, not a preference.
+    # MANDATORY-ADJACENT: makes TESTED_ABSENT reachable. jazzPanda's top_result is
+    # not truncated: it enumerates the whole analysed panel, one row per gene
+    # (``NoSig`` for genes assigned nowhere), so a gene that peaked in c4 was
+    # tested in c1 and did not come up there.
     enumerates_absence: bool = True
 
     # Looked up live (Bioconductor, 2026-11-02), not written from memory. The
@@ -275,24 +233,9 @@ class JazzPandaSpatialGLM:
     def detect_unit(self, table: Any) -> UnitSpec:
         """Read the unit kind and ids FROM THE SCHEMA, never from a caller's say-so.
 
-        ``NoSig`` is excluded from the units on purpose: it is jazzPanda's sentinel
-        for *tested here, assigned nowhere*, not a cluster. Admitting it would create
-        a unit whose every item is a tested absence and whose band would then be
-        computed as though something had been found.
-
-        **Excluded in ANY case, and a blank or NaN with it.** This compared
-        ``- {NOSIG}`` exactly, which is the same case-sensitive comparison that put
-        undetectable genes into the detectability frame one layer down -- and here
-        it is worse, because the sentinel does not merely mis-state a gene's status,
-        it becomes a UNIT. Measured on a kidney-shaped store whose table spelled it
-        ``nosig`` and left one row's column blank: ``records.build_all`` returned
-        five units for a three-cluster study, and ``interp/records/assignment/``
-        gained ``nosig.json`` and ``nan.json`` -- two cell populations that do not
-        exist, each with a band, each a file the app will read. ``verdicts.csv``
-        did not show them only because the v1 path lists ``cfg.CLUSTER_ORDER``
-        instead, which is the kind of accidental cover that hides a defect for a
-        release. The predicate is the adapter's, so there is one answer to "is this
-        value the no-signal sentinel" in the whole codebase.
+        ``NoSig`` (*tested here, assigned nowhere*) is not a unit; it is excluded in
+        ANY case, with blank and NaN, through the adapter's ``is_no_signal`` so
+        there is one answer to "is this the sentinel".
         """
         cols = _table.columns(
             table, "jazzPanda's top_result is a table with columns "
@@ -322,17 +265,10 @@ class JazzPandaSpatialGLM:
              store: Any) -> Traced[dict[str, NormalisedEvidence]]:
         """Precomputed ``top_result`` in, normalised evidence out, keyed by unit.
 
-        Reads, never recomputes. The capability frames and the standing conditions
-        come from the adapter -- this method has no idea what a Xenium panel is, and
-        a method that derived one would be asserting a panel size rather than
-        reading it, which is how a hardcoded 280 survives into a study with a
-        different panel.
-
-        Returns ``Traced``: loading DECIDES -- it drops rows, applies frames and
-        withholds statistics the frame refused -- and a statistic silently dropped
-        during load is indistinguishable from a method that reported nothing. The
-        Protocol originally returned a bare dict, which discarded exactly those
-        decisions at the registry boundary; it was widened for this reason.
+        Reads, never recomputes. Capability frames and standing conditions come from
+        the adapter, never derived here. Returns ``Traced`` because loading
+        DECIDES: it drops rows, applies frames and withholds statistics the frame
+        refused.
         """
         import pandas as pd  # local: keeps `import panoscope.methods` free of pandas
 
@@ -443,15 +379,9 @@ class JazzPandaSpatialGLM:
     def rubric(self, ev: NormalisedEvidence) -> Traced[str]:
         """Base band off THIS method's statistic, with the decision that produced it.
 
-        The ladder stops here. No promote, no demote, no cap, no floor -- those are
-        ``core/verdict.py``'s, because they are the project's confidence policy and
-        would otherwise be re-stated (and eventually re-tuned, differently) by every
-        method that registers. What a method owns is the one thing only it can know:
-        what a given magnitude of its own statistic is worth.
-
-        ``abs()`` matches the live config: a strongly negative coefficient is a
-        strong measurement, and direction is carried on the ``EvidenceItem`` rather
-        than smuggled into the band as a weakness.
+        No promote, demote, cap or floor: those are ``core/verdict.py``'s policy.
+        ``abs()``: a strongly negative coefficient is a strong measurement; direction
+        rides on the ``EvidenceItem``.
         """
         t = Trace()
         lead = next((i for i in ev.items if i.measured.carries_number), None)
@@ -476,12 +406,9 @@ class JazzPandaSpatialGLM:
     def traversals(self) -> tuple[tuple[str, str], ...]:
         """Reference-graph edges this method's evidence licenses following.
 
-        Deliberately short. A spatial co-location coefficient licenses asking "what
-        is this gene a canonical marker of" and "what else marks that type" -- it
-        licenses nothing about regulation or pathway membership, because the
-        measurement says nothing about either. The predicate vocabulary lands with
-        ``panoscope/reference/graph.py``; these are the two edges the marker workflow
-        already follows today.
+        A spatial co-location coefficient licenses "what is this gene a canonical
+        marker of" and "what else marks that type" -- nothing about regulation or
+        pathway membership.
         """
         return (("marker_of", "forward"), ("marker_of", "reverse"))
 

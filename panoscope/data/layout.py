@@ -1,22 +1,14 @@
-"""Where things live on disk. Pure path math — no filesystem I/O beyond existence
+"""Where things live on disk. Pure path math -- no filesystem I/O beyond existence
 probes, no module-level globals, nothing that raises.
 
-This module exists because deriving the data root from ``__file__`` couples the
-install layout to the data layout. That coupling broke once already when the package
-moved under ``panoscope/``, and it is what makes a ``pip install`` of this tool unable
-to find a study.
+Data root resolution order, first match wins:
 
-Resolution order for the data root, first match wins:
+1. an explicit argument
+2. ``$PANOSCOPE_DATA_ROOT``
+3. ``./data`` relative to the current working directory, if it exists
+4. the repo root inferred from this file
 
-1. an explicit argument — the caller knows best
-2. ``$PANOSCOPE_DATA_ROOT`` — the lever for an institutional or shared store
-3. ``./data`` relative to the current working directory, if it exists — a source checkout
-4. the repo root inferred from this file — the fallback that keeps a source checkout
-   working from any cwd
-
-Nothing here raises. A caller that needs the root to *exist* checks for itself and
-reports, so a missing store is a named error at the call site rather than an import
-crash three modules away.
+A caller that needs the root to *exist* checks for itself and reports.
 """
 
 from __future__ import annotations

@@ -1,11 +1,8 @@
 """Faithful ``ClusterVerdict`` <-> JSON-safe dict conversion.
 
-The verdict engine is deterministic, so a persisted verdict must reload to an
-object EQUAL to the freshly computed one (``==`` on the frozen dataclasses). That
-means every tuple field has to reload as a tuple, not a list — so the loaders are
-explicit per type rather than a generic ``**d`` splat. ``tests/test_pipeline.py``
-asserts the round-trip for all clusters; that equality is the correctness gate
-for reading verdicts off disk instead of recomputing them.
+A persisted verdict must reload ``==`` the freshly computed one, so every tuple
+field reloads as a tuple: the loaders are explicit per type. ``tests/test_pipeline.py``
+asserts the round-trip.
 """
 
 from __future__ import annotations

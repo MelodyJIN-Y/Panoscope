@@ -1,16 +1,10 @@
-"""Stage 6 (notes) — grounded per-cluster cell-type summaries (LIVE PubMed).
+"""Stage (notes) -- grounded per-cluster cell-type summaries (LIVE PubMed).
 
-For each cluster's annotated cell type, ask the Panoscope agent for one crisp
-plain-language summary of what that cell type is in this tissue and why its
-drivers mark it, WITH a real PubMed citation fetched live. The agent's grounding
-gate guarantees the citation is real, so these obey the confident floor: thin
-literature yields ``pmid: null`` and says so, never a fabricated PMID.
-
-Written to ``interp/celltype_notes.json`` so the Summary table's cell-type
-summary column reads it instantly (no live call on page open). Resumable: an
-existing cluster note is skipped and the file is rewritten after each cluster.
-This is the only [LIVE] stage in slice 2; it degrades honestly and never blocks
-the deterministic tree.
+For each cluster's annotated cell type, asks the agent for one plain-language
+summary WITH a real PubMed citation fetched live; thin literature yields
+``pmid: null``, never a fabricated PMID. Written to ``interp/celltype_notes.json``
+so the Summary table reads it with no live call. Resumable per cluster; the only
+LIVE stage, and it never blocks the deterministic tree.
 """
 
 from __future__ import annotations
@@ -34,18 +28,9 @@ _TRAIL_AUTHOR = re.compile(r",\s*[A-Z][a-z]+ [A-Z]{1,3}\.?\s*$")
 # Phrases that mean the model wrote META-commentary (about the connector, the
 # literature search, or the verdict) instead of a cell-type description.
 _META_MARKERS = (
-    # The model narrating its own PROCESS rather than stating a finding. These
-    # five phrasings got past the list and were written into the committed
-    # pathway notes, so the exported document carried "Mitotic Spindle - None of
-    # the resolved papers directly support a claim about mitotic spindle programs
-    # in myoepithelial cells. Let me try one more targeted search. (PMID:11499843)"
-    # -- a real identifier stapled to a sentence saying the papers do not support
-    # the claim, which is the mismatched citation this guard exists to stop.
-    #
-    # Deliberately narrow. "none of the" alone would also reject a true finding
-    # ("none of the driving genes are canonical"), so the marker names the
-    # PAPERS. Measured against the committed store: these catch 5 of 53 pathway
-    # notes and 0 cell-type notes.
+    # The model narrating its own PROCESS rather than stating a finding; a real
+    # PMID stapled to such a sentence is a mismatched citation. Deliberately
+    # narrow ("none of the" alone would reject true findings).
     "let me",
     "i'll ",
     "i will ",
@@ -154,12 +139,9 @@ def _resolve_note(
 ):
     """Turn the model's answer + its top citation into (summary, pmid, citation, used_fallback).
 
-    Confident floor: if the model's text is unusable (empty or meta-commentary),
-    use the deterministic fallback clause AND DROP the citation — a fallback clause
-    is not supported by any paper, so stapling a real PMID to it would be a
-    mismatched citation (worse than none). A citation is kept ONLY when the model's
-    own prose survives as the summary. ``max_words``/``max_sentences`` cap the
-    summary length (a per-pathway note gets more room than a one-gene note).
+    If the model's text is unusable (empty or meta-commentary), use the
+    deterministic fallback AND DROP the citation: a PMID is kept only on the model's
+    own prose. ``max_words``/``max_sentences`` cap the summary length.
     """
     summary = _shorten(model_text, max_words, max_sentences)
     used_fallback = (not summary) or _looks_meta(summary)
@@ -281,13 +263,9 @@ def run_gene_notes(
 ) -> dict[str, Any]:
     """Generate (resumable) a skill-grounded biology note for EVERY assigned marker.
 
-    Iterates each cluster's Tier-A evidence (from ``pipeline.v1_verdicts``, the same
-    projection that writes ``interp/clusters/<unit>.json``, so a note's cell type and
-    numbers are the table's); for each gene
-    asks the agent (which carries SKILL.md) to produce the Output-4 note grounded
-    in that gene's evidence, then records the evaluation fields alongside the note.
-    Confident floor: one real live PMID or none; deterministic role-only fallback
-    when the model's text is unusable.
+    Iterates each cluster's Tier-A evidence from ``pipeline.v1_verdicts`` (the table's
+    own projection) and asks the agent for the Output-4 note per gene. One real live
+    PMID or none; deterministic role-only fallback when the model's text is unusable.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "gene_notes.json"

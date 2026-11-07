@@ -1,48 +1,26 @@
 """The source corpus: what a ``pmid:`` URI actually resolves to.
 
-``types/claim.py`` says it outright: *"Claims do not carry abstracts -- the URI
-resolves to a ``SourceRecord`` in a reference store -- which is what makes ``licence``
-meaningful and what makes 'citations must be real and looked up live' checkable at
-all."* This module is that store. Until it existed, ``Claim.source`` was a string
-whose only guarantee was that its scheme was spelled correctly, and a fabricated
-``pmid:99999999`` was indistinguishable from a real one at every point downstream.
+The store ``types/claim.py`` points at (claims carry a URI, not an abstract), which is
+what makes "citations must be real and looked up live" checkable.
 
-**Three states, never two.** ``reference/graph.py`` keeps found / read-and-absent /
-could-not-read apart because a failed download reported as a finding is invisible --
-the sentence reads identically either way. The same split is load-bearing here and
-for a sharper reason: CLAUDE.md's answer for the middle state is *"say the literature
-is thin"*, which is a claim about the world. Commit ``5b7ab08`` is the bug in its pure
-form -- ``ok=True, n_results=0`` reported a lookup that never completed as thin
-literature.
+**Three states, never two:**
 
 * :attr:`Resolution.RESOLVED` -- a record is held, and it came off a live connector.
 * :attr:`Resolution.NOT_FOUND` -- a lookup **ran to completion** and the source does
-  not exist. A :class:`Miss` is written for it. This is thin literature, and it is a
-  finding.
-* :attr:`Resolution.NOT_LOOKED_UP` -- nothing is held either way: never looked, or
-  the lookup failed. Says nothing at all.
+  not exist (a :class:`Miss`). Thin literature, and a finding.
+* :attr:`Resolution.NOT_LOOKED_UP` -- never looked, or the lookup failed. Says nothing.
 
-The asymmetry between the last two is the whole design of :func:`fetch`: a connector
-error, a timeout or an unparseable response writes **nothing** -- not a record and not
-a ``Miss`` -- so the URI stays ``NOT_LOOKED_UP`` and the failure survives only in the
-trace. The one way to produce a ``Miss`` is a connector that answered cleanly.
+In :func:`fetch` a connector error, timeout or unparseable response writes **nothing**,
+so the URI stays ``NOT_LOOKED_UP``; only a clean empty answer produces a ``Miss``.
 
-**Nothing in here invents a record.** :class:`SourceRecord` refuses an empty title,
-so a half-read response cannot be stored as a plausible-looking stub; there is no
-default, no placeholder and no construction path that does not begin at a connector
-response. The one thing this module will happily record is absence.
+**Nothing in here invents a record**: :class:`SourceRecord` refuses an empty title and
+every record starts at a connector response.
 
-**Licence: the corpus is not redistributable and the path refuses to let it be.**
-Abstracts are the publisher's, not NCBI's, and §12's rule is fetch, never bundle. So
-:func:`corpus_path` resolves through ``reference.sources.cache_dir`` with
-``redistributable=False``: the same gate, reused rather than re-implemented, which
-means a corpus cannot resolve a path inside the repository working tree even with
-``PANOSCOPE_REFERENCE_DIR`` pointed at the checkout. There is no window in which the
-bytes exist in the tree to be committed. ARCHITECTURE §10.6 agrees: the literature
-store is the untracked, rebuildable half.
+**Licence:** abstracts are the publisher's, so :func:`corpus_path` goes through
+``reference.sources.cache_dir`` with ``redistributable=False`` and cannot resolve
+inside the repository (ARCHITECTURE §10.6, §12).
 
-Clock-free, like ``claims/store.py``: ``retrieved`` is an ISO string the caller
-minted. A ``now()`` here would put a timestamp into bytes that are hashed.
+Clock-free: ``retrieved`` is an ISO string the caller minted.
 """
 
 from __future__ import annotations
@@ -104,16 +82,9 @@ class Resolution(StrEnum):
 class SourceRecord:
     """One source, as a connector returned it. Flat, because its origin is flat.
 
-    The fields are exactly ``agent/mcp_client.py``'s Citation shape, deliberately:
-    every one of them is a value that server wrote, so there is no field here that
-    somebody would have to fill in from somewhere -- which is the only way a field
-    gets filled in from memory.
-
-    ``abstract`` is the licence-bearing field and the only one. Metadata (title,
-    authors, journal, year) is the NLM record; the abstract belongs to the publisher.
-    :attr:`redistributable` says so, and nothing in this package ever writes a corpus
-    to a redistributable path regardless -- the gate does not depend on this flag
-    being read by anyone.
+    Exactly ``agent/mcp_client.py``'s Citation shape, so no field is ever filled from
+    memory. ``abstract`` is the one licence-bearing field (the publisher's);
+    :attr:`redistributable` says so, and the path gate does not depend on it.
     """
 
     uri: str
@@ -212,13 +183,8 @@ class Resolved:
 class Corpus:
     """The built corpus for one study. Records and misses, both first class.
 
-    ``misses`` is not bookkeeping: it is the only thing that distinguishes "we asked
-    and the answer was nothing" from "we never asked", and a corpus that dropped it
-    would collapse ``Resolution``'s three states back into two the moment it was
-    saved and reloaded.
-
-    Never merged, for ``claim.py``'s reason: two connectors that both hold a record
-    for one PMID contribute two records, and whoever reads them sees the pair.
+    ``misses`` is what keeps "asked, found nothing" apart from "never asked" across a
+    save and reload. Never merged: two records for one PMID stay two.
     """
 
     records: tuple[SourceRecord, ...] = ()
@@ -240,14 +206,8 @@ class Corpus:
 def resolve(corpus: Corpus, uri: str) -> Traced[Resolved]:
     """What the corpus says about ``uri``, with the decision that settled it.
 
-    Pure: reads the corpus in hand and never the network. A read path that silently
-    reaches for a connector is how an offline suite becomes flaky and a slow link
-    becomes a hung demo (``reference.sources.PanglaoDB.fetch`` says the same).
-
-    Order matters. A record wins over a miss, because a later successful fetch is a
-    better answer than an earlier empty one; and the default -- no record, no miss --
-    is ``NOT_LOOKED_UP``, which is the fail-closed direction: an unasked question
-    must never render as an answer.
+    Pure, never the network. A record wins over a miss; no record and no miss is
+    ``NOT_LOOKED_UP`` (fail-closed).
     """
     t = Trace()
     held = corpus.find(uri)
@@ -280,11 +240,9 @@ def resolve(corpus: Corpus, uri: str) -> Traced[Resolved]:
 class Connector(Protocol):
     """What :func:`fetch` needs of a literature client.
 
-    Structural rather than a base class, so ``agent.mcp_client.PubMedMCP`` satisfies
-    it without being edited, and so a test can pass a fake without inheriting one.
-    ``last_error`` is in the protocol because it is the entire contract that matters:
-    ``[]`` with ``last_error is None`` is a completed empty answer, ``[]`` with it set
-    is a lookup that did not happen.
+    Structural, so ``agent.mcp_client.PubMedMCP`` satisfies it unedited.
+    ``last_error`` is the contract: ``[]`` with it ``None`` is a completed empty
+    answer, ``[]`` with it set is a lookup that did not happen.
     """
 
     last_error: str | None
@@ -304,18 +262,13 @@ def fetch(uris: Iterable[str], *, connector: Connector | None = None,
           retrieved: str = "", built: str = "") -> Traced[Corpus]:
     """Resolve ``uris`` against a live connector and build the corpus they produce.
 
-    One outcome per URI, and the three outcomes are kept apart at the point where
-    they are *created*, which is the only place the distinction is still cheap:
+    One outcome per URI:
 
     * the connector returned a record -> a :class:`SourceRecord`;
     * the connector answered cleanly and returned nothing -> a :class:`Miss`;
     * the connector errored, timed out, returned a shape it could not parse, or
       there is no connector for the scheme -> **nothing is written**, and the trace
-      carries ``corpus:lookup_failed``.
-
-    The third case writing nothing is not an oversight to be tidied up later. A
-    failed lookup that left a ``Miss`` behind would be indistinguishable, forever
-    after, from a paper that does not exist.
+      carries ``corpus:lookup_failed`` (a ``Miss`` here would fake a finding).
     """
     t = Trace()
     wanted = tuple(dict.fromkeys(u.strip() for u in uris if u and u.strip()))
@@ -436,9 +389,8 @@ def save(corpus: Corpus, path: Path | str) -> Path:
 def load(path: Path | str) -> Corpus:
     """Read a corpus back. Raises :class:`CorpusUnavailable` when there is none.
 
-    Not "return an empty corpus": that is the ``5b7ab08`` bug one layer down. A
-    caller that catches this records the corpus as unbuilt; a caller handed
-    ``Corpus()`` would report the literature as silent.
+    Not "return an empty corpus": a caller that catches this records the corpus as
+    unbuilt; a caller handed ``Corpus()`` would report the literature as silent.
     """
     p = Path(path)
     if not p.is_file():

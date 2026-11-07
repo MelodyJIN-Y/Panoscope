@@ -1,27 +1,16 @@
-"""Stage 4 — build the per-unit records through ``core/``, and write both views.
+"""Stage 4 -- build the per-unit records through ``core/``, and write both views.
 
-``IMPLEMENTATION.md`` §10: "Never mutate the committed per-unit JSONs. v3 records
-write to ``interp/records/<task_kind>/<unit>.json``; the v1 files become a
-**generated compatibility view** through one adapter, so the UI and the store are
-untouched during migration." This stage is where that happens, so it writes twice:
+``IMPLEMENTATION.md`` §10: v3 records are new files and the v1 files become a
+generated compatibility view. So this stage writes twice:
 
-  * ``interp/records/assignment/<unit>.json`` — the ``InterpretationRecord``, via
-    ``core/record.write``. The reading (path, sha256, rows dropped and why, the
-    entities no frame admits), every decision with its refs, the claims, the
-    undecidables. This is the artifact; it is new, and nothing reads it yet.
-  * ``interp/clusters/<unit>.json`` + ``interp/verdicts.csv`` — the v1 view,
-    projected through ``core/compat.py`` (plus the one field it drops, see
-    ``pipeline/records._with_pctile``). Byte-identical to what ``agent/verdict.py``
-    wrote, which is the §10 gate's claim and ``tests/test_core_compat.py``'s
-    assertion over all nine demo units.
+  * ``interp/records/assignment/<unit>.json`` -- the ``InterpretationRecord``, via
+    ``core/record.write``.
+  * ``interp/clusters/<unit>.json`` + ``interp/verdicts.csv`` -- the v1 view,
+    projected through ``core/compat.py`` (plus ``pipeline/records._with_pctile``),
+    pinned by the golden hash.
 
-It used to run ``agent.verdict.all_verdicts()``. That is the cutover: the files the
-UI reads are now produced by the same functions ``panoscope explain`` renders from,
-so the two surfaces cannot disagree about a band. ``agent/verdict.py`` has since been
-deleted; the golden hash pins this output.
-
-Computes nothing. Every number arrives from ``core/``; this stage arranges and
-serialises.
+The UI's files come from the same functions ``panoscope explain`` renders from.
+Computes nothing; every number arrives from ``core/``.
 """
 
 from __future__ import annotations
@@ -43,16 +32,12 @@ def run_verdicts(
 ) -> list[ClusterVerdict]:
     """Build every unit through ``core/``; write both views; return the v1 objects.
 
-    The returned ``ClusterVerdict``s are rebuilt from the v1 dicts this stage just
-    wrote, rather than being a second in-memory product: the calibration table and
-    the manifest downstream then describe exactly the bytes on disk. ``run.py`` and
-    ``calibration.py`` are unchanged by the cutover for that reason.
+    The returned ``ClusterVerdict``s are reloaded from the v1 dicts just written, so
+    the calibration table and manifest describe exactly the bytes on disk.
 
-    The study is the ACTIVE one (``cfg.current_study()``), not ``dataset_id``. That
-    is what ``agent.data`` resolved before the cutover, so the behaviour is
-    preserved exactly -- including the pre-existing mismatch when a caller passes a
-    ``dataset_id`` that is not the active study, which writes one study's output
-    under another's name. Named here rather than silently fixed; see the report.
+    The study is the ACTIVE one (``cfg.current_study()``), not ``dataset_id``: a
+    ``dataset_id`` that is not the active study writes one study's output under
+    another's name (known, preserved behaviour).
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     study = cfg.current_study()

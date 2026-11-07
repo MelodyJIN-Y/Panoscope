@@ -1,40 +1,20 @@
 """Seurat's cluster-vs-rest differential expression, declared: what it measures, and
 what it does not.
 
-Like ``methods/jazzpanda.py`` this file is almost all *declaration*. The difference
-worth stating up front is the one that makes two methods in one repo pay for
-themselves: **this method's ``does_not_measure`` is jazzPanda's ``measures``, and
-jazzPanda's ``does_not_measure`` is this one's.** A reader handed a bare number can
-then tell which question produced it, which is the failure the whole design is built
-against.
+Almost all *declaration*: **this method's ``does_not_measure`` is jazzPanda's
+``measures``, and the reverse**, so a reader can tell which question produced a number.
 
-**The failure this module exists to prevent.** An ``avg_log2FC`` read as evidence of
-spatial organisation. Seurat's test asks "is this gene higher, per cell, in this
-cluster's cells than in the rest?" -- it never looks at a coordinate. A gene
-uniformly raised across every cell of a cluster whose cells are scattered over the
-whole section scores *identically* to one whose transcripts pile into a single
-region. jazzPanda exists precisely to tell those two apart; this statistic cannot,
-and must say so where a reader will see it.
+**The failure this prevents:** an ``avg_log2FC`` read as spatial organisation.
+Seurat compares per-cell expression and never looks at a coordinate.
 
-**The workflow this registers into is a COMPARISON, which has no band.** §9.1: there
-is no label space, so a unit-level band is undefined rather than merely unhelpful,
-and ``Finding`` has no field one could be put in. :meth:`SeuratDE.rubric` is
-nevertheless declared, for two reasons: ``MethodModule`` requires it to be present,
-and ARCHITECTURE §9.4's rubric-divergence invariant -- the single most important test
-in the DE work -- is a statement about *this method's ladder* versus jazzPanda's. So
-:data:`BAND_EDGES` is what it says it is: a per-item **effect-size** ladder for this
-method's own statistic. ``workflows/de.py`` never puts it on a unit, and nothing can.
+**COMPARISON has no band** (§9.1). :meth:`SeuratDE.rubric` exists because
+``MethodModule`` requires it and §9.4's rubric-divergence invariant compares this
+ladder against jazzPanda's: :data:`BAND_EDGES` is a per-item **effect-size** ladder,
+never put on a unit. The edges are the conventional log2 fold-change breaks (4x, 2x,
+1.5x, 1.2x), declared as conventions, not tuned: there is no calibration set for
+this statistic.
 
-**Where the edges came from, honestly.** jazzPanda's are tuned against the demo
-study's calibration set. There is no DE artifact in this repo and no calibration set
-for this statistic, so these are the conventional log2 fold-change breaks (4x, 2x,
-1.5x, 1.2x) and are declared as conventions rather than presented as tuned. The day a
-real DE result and a calibration set land, they get tuned and this paragraph is the
-thing that gets deleted.
-
-**``load`` reads; it never recomputes.** The ``FindAllMarkers`` table is a consumed
-input. Panoscope does not run differential expression -- that is what makes the
-assessment an audit of someone else's output rather than a self-assessment.
+**``load`` reads; it never recomputes.** ``FindAllMarkers`` output is a consumed input.
 """
 
 from __future__ import annotations
@@ -94,8 +74,6 @@ class SeuratDE:
 
     name: str = "seurat_de"
     #: How the package names ITSELF, for anywhere a person reads it.
-    #: The registry id is an identifier, and the study chip was printing it
-    #: verbatim ("jazzpanda_spatial_glm markers").
     display_name: str = "Seurat"
     workflow: str = WORKFLOW_ID
     statistic_name: str = "avg_log2FC"
@@ -195,17 +173,10 @@ class SeuratDE:
              store: Any) -> Traced[dict[str, NormalisedEvidence]]:
         """Precomputed ``FindAllMarkers`` output in, normalised evidence out, by unit.
 
-        Reads, never recomputes. Two things come from the adapter and from nowhere
-        else: the capability frames (a panel size asserted here instead of read is
-        how a hardcoded 280 survives into a study with a different panel) and the
-        **sample count**, which ``Conditions`` deliberately cannot express.
-
-        The sample count lands as a unit-level :class:`Coverage` against
-        :data:`REPLICATE_FLOOR`, which demotes the *unit* to ``UNDERPOWERED`` when
-        the design has too few biological replicates -- §9.5's "differential
-        abundance with n=2 is an UNDERPOWERED **unit**, not item". That is what the
-        workflow's replicate check reads, and it is why the refusal can name a
-        number nobody typed into it.
+        Reads, never recomputes. The capability frames and the **sample count** come
+        from the adapter; the count lands as a unit-level :class:`Coverage` against
+        :data:`REPLICATE_FLOOR`, which makes too few replicates an UNDERPOWERED
+        **unit** (§9.5) for the workflow's replicate check.
         """
         import pandas as pd  # local: keeps `import panoscope.methods` free of pandas
 
@@ -244,15 +215,8 @@ class SeuratDE:
     def _reading(self, row: dict[str, Any]) -> Reading:
         """One FindAllMarkers row, as Seurat claims it -- before the frame rules.
 
-        ``direction`` is carried as a field rather than smuggled into the magnitude:
-        a comparison's answer is "a ranked annotated set, **with direction**" (§9.1),
-        and a down-regulated gene is a result, not a weak one.
-
-        ``flags`` is empty and must be. The flag registry in ``types/evidence.py``
-        holds only ``specificity:*`` ids, which belong to a spatial statistic; the
-        confounds this method's output is subject to are unit-level and live on the
-        workflow's check results, where they can name what is missing. Inventing an
-        id here would mean editing a frozen type.
+        ``direction`` is a field, not folded into the magnitude (§9.1). ``flags`` is
+        empty: the flag registry holds only spatial ``specificity:*`` ids.
         """
         fc = float(row["avg_log2FC"])
         return Reading(
@@ -267,11 +231,8 @@ class SeuratDE:
     def absence_reads_as(self, subject: Subject, measured: Measured) -> str:
         """What this method's silence about a subject MEANS, in its own terms.
 
-        The four states are generic; what a tested absence *argues* is not. For a
-        spatial method it argues "it localises somewhere else"; here it argues "its
-        mean expression in this cluster's cells is not different enough from the
-        rest to be reported" -- a statement about magnitude in cells, not about
-        place, and the difference is the entire reason both methods exist.
+        Here a tested absence argues "its mean expression in this cluster's cells is
+        not different enough from the rest" -- magnitude in cells, not place.
         """
         who = subject.display()
         if measured.state is MeasuredState.NEVER_MEASURED:
@@ -291,16 +252,9 @@ class SeuratDE:
     def rubric(self, ev: NormalisedEvidence) -> Traced[str]:
         """Per-item EFFECT SIZE off this method's own statistic. **Never a band.**
 
-        The workflow this method registers into is a ``COMPARISON`` and has no label
-        space, so there is nothing for a unit-level band to be confidence *in*, and
-        ``Finding`` has no field to put one in (``workflows/de.py`` never calls this
-        for a unit verdict). What this returns is the one thing only the method can
-        know: what a given magnitude of *its* statistic is worth, which is what
-        ARCHITECTURE §9.4's divergence invariant compares against jazzPanda's.
-
-        ``abs()`` matches jazzPanda's and for the same reason: a strongly negative
-        fold change is a strong measurement, and direction is carried on the
-        ``EvidenceItem`` rather than read as weakness.
+        COMPARISON has no label space; ``workflows/de.py`` never calls this for a
+        unit. What a magnitude of *its* statistic is worth is the method's to say
+        (§9.4). ``abs()``: direction rides on the ``EvidenceItem``.
         """
         t = Trace()
         lead = next((i for i in ev.items if i.measured.carries_number), None)
@@ -323,12 +277,7 @@ class SeuratDE:
     def traversals(self) -> tuple[tuple[str, str], ...]:
         """Reference-graph edges this method's evidence licenses following.
 
-        None, deliberately, and that is a declaration rather than a gap. This
-        method's rivals come from the data (``rival_space="data"``): a fold change
-        between two groups of cells licenses no traversal of a curated graph,
-        because the question it answers -- does this result make sense? -- is settled
-        by the design and the measurement, and a reference edge can neither supply a
-        value nor count as agreement.
+        None, by declaration: rivals come from the data (``rival_space="data"``).
         """
         return ()
 
@@ -338,14 +287,6 @@ def _edge(label: str) -> float:
 
 
 #: The registered instance. One object, built once, attributes frozen.
-#:
-#: Registered in ``panoscope/methods/__init__.py`` alongside ``methods/edger.py``,
-#: which answers the same question from a pseudobulk design. Both landed with the
-#: first DE artifact and the composition root that reads one.
-#:
-#: No study in this repository carries a FindAllMarkers table, so on today's data
-#: this module is registered and never selected -- ``pipeline/stages/de.py`` picks
-#: by schema, and the only DE table present is edgeR's. That is the registry
-#: working rather than a gap: being able to read a shape nobody has yet is not the
-#: same as being absent, and a declaration costs nothing until a table matches it.
+#: No study here carries a FindAllMarkers table, so it is registered and, by
+#: schema, never selected today.
 MODULE = SeuratDE()

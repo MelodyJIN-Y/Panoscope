@@ -1,15 +1,8 @@
 """The ``Study`` object: what replaces the module-level dataset singleton.
 
-Frozen and hashable, so it can be the cache key. That is not a detail — every reader
-in this codebase is wrapped in ``lru_cache(maxsize=1)``, which means opening a second
-study silently serves the first study's data to everything downstream. Keying the
-caches on the study makes that class of bug unrepresentable rather than merely tested
-for.
-
-Construction never touches the filesystem and never raises. Everything derived is
-computed on first access and cached per study, so an absent or malformed store
-produces an empty result at the point of use, with a named error, rather than an
-import-time crash three modules away.
+Frozen and hashable, so it is the cache key: readers cached per study cannot serve
+one study's data for another. Construction never touches the filesystem and never
+raises; everything derived is computed on first access and cached per study.
 """
 
 from __future__ import annotations

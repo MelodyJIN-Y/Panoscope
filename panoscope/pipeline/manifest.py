@@ -1,21 +1,11 @@
 """The dataset manifest: one file that indexes a pipeline run.
 
-``manifest.json`` records dataset metadata, input provenance (filename + sha256
-of each copied raw input), and every derived artifact with its sha256 — so a run
-is reproducible and a migration can prove the copied inputs are byte-identical to
-the originals. Timestamps are metadata only and do not affect any grounded value.
+``manifest.json`` records dataset metadata, input provenance (filename + sha256) and
+every derived artifact with its sha256. Timestamps are metadata only.
 
-**A build may not eat a declaration.** The manifest holds two kinds of field. Most
-are *derived*: the pipeline recomputes them from the files on every run and whatever
-was there before is stale by definition. A few are *declared*: the biologist wrote
-them, no file can produce them, and ``samples`` / ``clustering_mode`` are the two
-§6.3 blockers among them. Rebuilding the whole dict from scratch — which is what this
-used to do — made declaring a clustering mode impossible in practice: the first build
-ate the declaration and the second raised ``UndeclaredClustering`` against the file it
-had just emptied, so a jointly-clustered study could be deadlocked or silently
-stamped ``independent``, and nothing in between. :data:`DERIVED_KEYS` is therefore the
-closed list of what a build owns; every other key in the previous manifest is carried
-forward untouched.
+**A build may not eat a declaration.** :data:`DERIVED_KEYS` is the closed list of
+what a build owns; every other key in the previous manifest (the biologist's
+declarations, e.g. the §6.3 ``samples`` / ``clustering_mode``) is carried forward.
 """
 
 from __future__ import annotations
@@ -57,20 +47,11 @@ def build_manifest(
     """Assemble the manifest dict. ``generated_at`` is an ISO-8601 string.
 
     ``inputs`` maps a logical name -> {file, sha256}; ``artifacts`` maps a
-    tree-relative path -> {sha256, ...}. Both are built by the caller.
+    tree-relative path -> {sha256, ...}. ``samples`` and ``clustering_mode`` are
+    written only when declared, never invented. Every key of ``declared`` (the
+    existing manifest) outside :data:`DERIVED_KEYS` survives the rebuild.
 
-    ``samples`` and ``clustering_mode`` are the biologist's §6.3 declarations and
-    are written only when they were declared: a build that invented either would be
-    making a measurement claim on the biologist's behalf, and a single-element
-    ``samples`` written from a fallback is exactly the false "one sample, therefore
-    independent clustering" this pipeline must never record.
-
-    ``declared`` is the manifest that was already there. Every key in it outside
-    :data:`DERIVED_KEYS` survives the rebuild.
-
-    Raises ``ValueError`` on an undeclared ``tissue`` or ``platform``. They block the
-    study (§6.3), ``tissue`` is the corpus scoping key, and the alternative to failing
-    here was the module constant that would have stamped the kidney study as breast.
+    Raises ``ValueError`` on an undeclared ``tissue`` or ``platform`` (§6.3 blockers).
     """
     if not str(tissue or "").strip():
         raise ValueError(

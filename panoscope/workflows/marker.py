@@ -1,33 +1,16 @@
 """The marker workflow: *what IS this unit?* -- and the surface that answers it.
 
-One interpretive question, one task kind, one review surface. The question is an
-ASSIGNMENT: there is a label space (the study's annotation label set), so probability
-mass has somewhere to sit and a unit-level band is meaningful. That is the whole
-reason this workflow may declare a ``LabelBandHeader`` and the enrichment workflow
-may not -- ``UISpec.__post_init__`` refuses the other combination, so the rule is
-structural rather than reviewed.
+An ASSIGNMENT: there is a label space (the study's annotation label set), so a
+unit-level band is meaningful and this workflow may declare a ``LabelBandHeader``
+(``UISpec.__post_init__`` refuses it for the other task kinds).
 
-**Task kind belongs to the method, not to the use.** ``task_kind`` is declared here
-because a workflow *is* a question, and every method registering into it is a
-different way of producing evidence that this same question can be asked of. A reader
-who points the marker surface at an enrichment table does not thereby turn an
-enrichment into an assignment; they get a refusal from the registry
-(``panoscope/methods/__init__.py``), which is the honest outcome.
+**What this module does NOT own:** the band ladder (``methods/jazzpanda.py``), the
+promote/demote/cap/floor (``core/verdict.py``), the rival bucketing (``core/rival.py``).
+``interpret`` and ``rival_test`` are composition; every number comes up through
+``core/`` from the method's table.
 
-**What this module does NOT own.** Not the band ladder (``methods/jazzpanda.py``
-declares the edges for its own statistic), not the promote/demote/cap/floor
-(``core/verdict.py`` owns the confidence policy), not the rival bucketing
-(``core/rival.py``). ``interpret`` and ``rival_test`` here are composition: they say
-which reference list selects which evidence, and they assemble the declared output
-shape. Every number in the result came up through ``core/`` from the method's table.
-If this file ever computes a statistic, the layering has inverted.
-
-**Reference data selects; it never supplies.** :class:`MarkerReference` carries a
-curated canonical-marker list and the rival lists. Those decide *which* measurement
-is asked for -- which gene is allowed to drive the band, which absences are worth
-reporting -- and nothing else. No field on it can become a value in the output: the
-band is read off the driver's ``glm_coef``, the drivers are ``EvidenceItem``\\s from
-the method, and the caveats name entities the frame refused.
+**Reference data selects; it never supplies.** :class:`MarkerReference`'s lists decide
+*which* measurement is asked for, and no field on it can become a value in the output.
 """
 
 from __future__ import annotations
@@ -58,18 +41,9 @@ SURFACE_ID: str = "markers"
 class MarkerReference:
     """The reference side of one assignment: a candidate label and its marker lists.
 
-    Passed in rather than looked up, because this layer does no IO and because a
-    curated marker list is reference data -- it may select and order evidence, and
-    it may generate rivals, but it may never supply a value or count as agreement.
-
-    ``world`` is the awkward field and it is here under protest.
-    ``Workflow.rival_test`` receives only ``(evidence, alternative, reference)``, and
-    deciding whether a rival's canonical marker was *never measured* or *tested and
-    absent* needs the capability frames -- which ``NormalisedEvidence`` carries only
-    as digests (``conditions.frames``), not as membership. Deriving the frames from
-    ``ev.reported`` instead would be wrong in the one direction that matters: every
-    unreported canonical marker would come back NEVER_MEASURED, collapsing the
-    productive half of the lattice into "we don't know".
+    Passed in (this layer does no IO). ``world`` is here because ``rival_test``
+    needs the capability frames to tell *never measured* from *tested absent*, and
+    ``NormalisedEvidence`` carries them only as digests.
     """
 
     label: str
@@ -106,26 +80,14 @@ class MarkerInterpretation:
                   reference: Any) -> Traced[Assignment]:
         """One unit's evidence plus one candidate label -> the assignment, traced.
 
-        The partition into ``drivers`` and ``unmeasured`` is by whether a number
-        exists, which ``Assignment.__post_init__`` re-checks: a driver with no
-        statistic would render as the blank row the interface rule forbids, and an
-        "unmeasured" item carrying a number is a caveat about something that was in
-        fact measured.
+        ``drivers`` vs ``unmeasured`` partitions on whether a number exists
+        (re-checked by ``Assignment.__post_init__``). ``verify`` comes from
+        ``core/verdict.py``, never recomputed or passed in.
 
-        ``verify`` is taken from ``core/verdict.py`` and is never recomputed, never
-        widened and never offered as an argument. It is the flag that says a human
-        must look again, so a layer that could set it could also clear it.
-
-        **The §9.10 replicate coverage reaches the band through the unit, not
-        through the reference.** :func:`_replicate_coverage` reads it off
-        ``ev.unit_measured``, which is where ``Measured.coverage`` already says
-        every K-of-N lives and where ``workflows/de.py`` already reads one. The
-        alternative was a field on :class:`MarkerReference`, and it would have been
-        wrong twice over: a replicate count is a measurement fact rather than
-        reference data, and a reference object that can lower a band is exactly the
-        thing the rule about reference data forbids. Routing it through the unit
-        also means a composition root cannot forget to pass it -- the coverage
-        travels with the evidence it describes.
+        The §9.10 replicate coverage reaches the band through the unit
+        (:func:`_replicate_coverage`), not the reference: it is a measurement fact,
+        and a reference that could lower a band is what the reference-data rule
+        forbids.
         """
         t = Trace()
         ref_: MarkerReference = reference
@@ -151,11 +113,8 @@ class MarkerInterpretation:
                    reference: Any) -> Traced[RivalResult]:
         """Does the measurement separate this call from ``alternative``?
 
-        ``undecidable`` is not a failure field. "The deciding marker is off panel" is
-        the productive output of the panel-absence rule at full strength -- the
-        kidney study's whole shape -- and it must be reported as a named gap rather
-        than folded into a lower band, where the biologist could not tell it from a
-        weak measurement.
+        ``undecidable`` is a named gap (e.g. the deciding marker is off panel), not a
+        failure and not a lower band.
         """
         t = Trace()
         ref_: MarkerReference = reference
@@ -207,16 +166,9 @@ class MarkerInterpretation:
     def uispec(self) -> UISpec:
         """The review surface this question requires.
 
-        Four blocks, one per measurement state, because the panel-absence rule needs
-        somewhere to appear and a never-measured gene must be a *row that says so* --
-        not a missing row, which is indistinguishable from a gene that was measured
-        and found nothing.
-
-        No plots are declared. A ``PlotSpec`` is a promise to draw, and R4 makes that
-        promise conditional on a conditionality builder that can state the cell count,
-        the artifact sha and the shared colour maximum. Those are the view layer's and
-        are landing separately; declaring a dotted path to a builder that does not yet
-        exist would be a surface promising a figure it cannot produce.
+        Four blocks, one per measurement state: a never-measured gene is a *row that
+        says so*, not a missing row. No plots are declared yet: a ``PlotSpec`` needs
+        a conditionality builder (R4) that the view layer does not have.
         """
         return UISpec(
             workflow_id=SURFACE_ID,
@@ -250,16 +202,10 @@ class MarkerInterpretation:
                 BlockSpec("underpowered", "TOO LITTLE SIGNAL - {count}",
                           statuses=(MeasuredState.UNDERPOWERED,),
                           empty_text="every on-panel marker cleared the floor"),
-                # NEVER_MEASURED splits on the frame that refused the gene, because
-                # the two readings are not interchangeable and the biologist acts on
-                # the difference. Off panel: never probed, so nothing can be said of
-                # it. No usable signal: it WAS probed, and the reason there is no
-                # number is this sample's detectability, not the panel design. One
-                # header covering both is a false statement about whichever group it
-                # does not describe -- on this demo, about 49 genes out of 49.
-                # EXCLUDES rather than matching "panel:", so the two blocks partition
-                # the state instead of both selecting from it -- a row carrying an
-                # unrecognised frame falls here rather than off the table entirely.
+                # NEVER_MEASURED splits on the refusing frame: off panel (never
+                # probed) vs no usable signal (probed, this sample's detectability).
+                # EXCLUDES "panel:" so the two blocks partition the state and an
+                # unrecognised frame falls here.
                 BlockSpec("never_measured", "NEVER MEASURED - {count} off panel",
                           statuses=(MeasuredState.NEVER_MEASURED,),
                           frame_excludes=("detect:",),
@@ -280,18 +226,10 @@ class MarkerInterpretation:
 def _replicate_coverage(ev: NormalisedEvidence) -> Any:
     """The §9.10 K of N this unit's band must see, or ``None`` if it was never asked.
 
-    ``None`` and ``Coverage(k=0, n=N)`` are different answers and the difference is
-    the whole reason this is a lookup rather than a flag. Absent means the question
-    was never askable -- one sample, no per-sample tables, independent clustering --
-    and the band is untouched, because demoting for the absence of a question would
-    punish the single-sample demo on every unit. Present with ``k=0`` means the
-    comparison WAS asked and compared nothing, which is a genuinely unsupported
-    profile and demotes.
-
-    Matched on :data:`~panoscope.core.verdict.REPLICATE_COVERAGE_WHAT` rather than
-    by position, because ``Measured.coverage`` is one home for every K-of-N in the
-    system -- panel hits, leading-edge size, cells in a niche -- and taking the
-    first would hand ``assess`` whichever one happened to be written first.
+    ``None`` (never askable: band untouched) differs from ``Coverage(k=0, n=N)``
+    (asked, compared nothing: demotes). Matched on
+    :data:`~panoscope.core.verdict.REPLICATE_COVERAGE_WHAT`, not position:
+    ``Measured.coverage`` holds every K-of-N.
     """
     return next((c for c in ev.unit_measured.coverage
                  if c.what == REPLICATE_COVERAGE_WHAT), None)

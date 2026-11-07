@@ -1,41 +1,20 @@
 """The source registry, the licence gate, and PanglaoDB.
 
-A :class:`~panoscope.types.contracts.ReferenceSource` is the only thing allowed to
-put nodes and edges into the graph, and ``graph.py`` is where "it may never supply a
-value" is made structural. This module is the other half: **where the data lives, and
-whether it may live in the repo at all.**
+**The licence gate is behaviour, not documentation.** :func:`cache_dir` refuses to
+resolve a cache directory inside the repository for a source with
+``redistributable=False``, even with ``PANOSCOPE_REFERENCE_DIR`` pointed at the
+checkout, so restrictively-licensed data cannot be bundled.
 
-**The licence gate is behaviour, not documentation.** CLAUDE.md's compliance rule is
-"MIT. Everything shown must be open source. Fetch restrictively-licensed data, never
-bundle it", and ARCHITECTURE §12 adds "restrictively-licensed sources are fetched,
-never bundled; CI greps ``data/`` and fails on known marker-database filenames". A CI
-grep catches the mistake after someone makes it. :func:`cache_dir` refuses to make
-it: a source with ``redistributable=False`` cannot resolve a cache directory inside
-the repository working tree, so there is no path by which ``fetch`` could write one
-there -- not even with ``PANOSCOPE_REFERENCE_DIR`` pointed at the checkout, which is
-precisely the shortcut someone takes on a laptop and then commits.
+**Registration is data.** ``SOURCES`` is a plain dict, **empty at import**: PanglaoDB
+is instantiated per organ, so the study build registers what its tissue needs.
 
-**Registration is data.** ``SOURCES`` is a plain dict, the ``SHAPES``/``RULES``/
-``FLAGS`` pattern, and it is **empty at import**. That is deliberate and it is not
-laziness: PanglaoDB is instantiated per organ (see below), so a prepopulated registry
-would have to name a tissue, and a tissue constant in library code is exactly the
-dataset constant CLAUDE.md forbids -- the demo is breast and the second study is
-kidney. The study build registers what its tissue needs.
+**PanglaoDB is organ-scoped** (ARCHITECTURE §8.1: the join key is the
+``(gene, cell type, tissue)`` triple), read from the file's ``organ`` column.
 
-**Why PanglaoDB is organ-scoped.** ARCHITECTURE §8.1: the join key is the
-``(gene, cell type, tissue)`` triple, not the gene -- "POSTN in breast is a different
-question from POSTN in kidney". The marker table carries an ``organ`` column, so the
-scoping is *read from the file* rather than imposed. It also makes
-``ReferenceSource.conditions()`` constructible at all: ``Conditions`` blocks on an
-unknown tissue, and a pan-organ database has no single one. See
-:meth:`PanglaoDB.conditions` for the one place that contract forced a judgement call.
-
-**Offline is a first-class outcome.** Nothing here touches the network except
-:meth:`PanglaoDB.fetch`, which a human or a setup step calls explicitly. ``nodes()``
-and ``edges()`` read the cache or raise :class:`SourceUnavailable`; :func:`build`
-catches it and records the source as unavailable rather than silently producing an
-empty graph. An empty graph and an unread graph are the same bytes and completely
-different claims -- see ``graph.Presence``.
+**Offline is a first-class outcome.** Only :meth:`PanglaoDB.fetch` touches the
+network. ``nodes()``/``edges()`` read the cache or raise :class:`SourceUnavailable`,
+and :func:`build` records the source as unavailable rather than returning an empty
+graph (see ``graph.Presence``).
 """
 
 from __future__ import annotations
@@ -116,11 +95,8 @@ def _repo_root() -> Path:
 def cache_dir(name: str, release: str, *, redistributable: bool) -> Path:
     """Where one source's release is cached -- and the licence gate.
 
-    ``redistributable`` is a boolean on the contract rather than a licence string
-    precisely so that something can *act* on it. This acts on it: a source that may
-    not be redistributed may not resolve a directory inside the repository, so it
-    cannot be committed by accident, by a mis-set environment variable, or by a
-    well-meaning "just cache it next to the code".
+    A source that may not be redistributed may not resolve a directory inside the
+    repository.
     """
     root = cache_root()
     if not redistributable:
@@ -166,12 +142,8 @@ def get(name: str) -> ReferenceSource | None:
 def build(names: tuple[str, ...] = ()) -> Traced[Graph]:
     """Read the named sources (all registered ones by default) into one graph.
 
-    Never merges: two sources that both hold a node for ERBB2 contribute two nodes,
-    for ``claim.py``'s reason -- claims are ordered and never merged, and a graph that
-    merged them would have silently resolved a disagreement nobody saw.
-
-    A source that cannot be read lands in ``Graph.unavailable`` with its reason, and
-    the returned graph is honest about having been built with a hole in it.
+    Never merges: two sources holding a node for one gene contribute two nodes. An
+    unreadable source lands in ``Graph.unavailable`` with its reason.
     """
     t = Trace()
     chosen = names or tuple(sorted(SOURCES))
@@ -219,17 +191,11 @@ _PANGLAO_COLUMNS = (
     "sensitivity_human", "sensitivity_mouse",
     "specificity_human", "specificity_mouse",
 )
-"""The 2020 release's 14 columns. Read by NAME, never by position, and the four this
-reader needs are required explicitly -- a release that renames one must fail loudly
-(:class:`UnrecognisedSource`) rather than emit edges between the wrong columns.
+"""The 2020 release's 14 columns. Read by NAME, never by position; a release that
+renames a required one fails loudly (:class:`UnrecognisedSource`).
 
-**Five of these fourteen are numbers** -- the ubiquitousness index and the four
-sensitivity/specificity columns -- and not one of them has anywhere to go. ``Edge``
-has no numeric field and ``Edge.qualifiers`` rejects a numeric value, so the rule
-"reference data may never supply a value" is enforced by the shape of the output
-rather than by this reader's restraint. That is the whole demonstration, on a real
-file: a careless rewrite of :meth:`PanglaoDB.edges` that tried to carry
-``specificity_human`` would raise, not ship.
+Five of them are numbers, and none has anywhere to go: ``Edge`` has no numeric field
+and its qualifiers reject numeric values.
 """
 
 _REQUIRED_COLUMNS = frozenset(
@@ -245,13 +211,8 @@ class PanglaoDB:
     mouse and human single-cell RNA sequencing data.* Database 2019: baz046.
     ``doi:10.1093/database/baz046`` -- resolved live against Crossref, not recalled.
 
-    **Licence: the site states none.** panglaodb.se says only "all data used in this
-    database are public" and asks to be cited; there is no licence, no terms-of-use
-    page and no redistribution grant. The CC-BY-4.0 that Crossref reports is the
-    *article's* licence, not the database's. So ``redistributable`` is ``False``,
-    fail-closed: an unstated licence is not permission, and the cost of being wrong
-    in that direction is one download instead of a licence violation shipped in a
-    public MIT repo.
+    **Licence: the site states none** (the CC-BY-4.0 Crossref reports is the
+    article's). So ``redistributable`` is ``False``, fail-closed.
     """
 
     organ: str
@@ -348,14 +309,10 @@ class PanglaoDB:
     def edges(self) -> Iterator[Edge]:
         """One ``gene --marks--> cell type`` edge per row.
 
-        The qualifiers carry organ, species and the curation flag, and nothing else.
-        ``canonical marker`` is a *curation* flag spelled ``1``/``0`` in the file and
-        re-spelled ``yes``/``no`` here -- deliberately, and it is the one judgement
-        call in this reader. Supplying canonical lists is explicitly what reference
-        data is *for* (§7.2), while the five continuous columns are measurements of
-        somebody else's experiment, which is what the rule forbids. The re-spelling is
-        also what keeps it past ``Edge``'s numeric guard, so it is written down here
-        rather than left to look like an accident.
+        Qualifiers carry organ, species and the curation flag only. ``canonical
+        marker`` is re-spelled ``1``/``0`` -> ``yes``/``no``: a curation flag
+        (canonical lists are what reference data is *for*, §7.2), which also keeps
+        it past ``Edge``'s numeric guard.
         """
         for row in self._rows():
             quals = [
@@ -379,22 +336,10 @@ class PanglaoDB:
     def conditions(self) -> Conditions:
         """The conditions THIS SOURCE's edges were established under (§7.5's stamp).
 
-        Three fields are honestly ``UNKNOWN`` and stay that way: PanglaoDB aggregates
-        over a thousand studies, so there is no single analysis method, no single
-        fixation and no segmentation at all. ``declared_unknown`` propagates them,
-        which is the material for §7.5's class banner -- *"curated edges in this
-        corpus were established in dissociated scRNA-seq; you are in FFPE in-situ"* --
-        rendered once rather than repeated on every edge.
-
-        **The judgement call.** ``Conditions`` requires at least one ``FrameRef``, and
-        a curated database has no capability frame in the measurement sense. What it
-        does have is the set of symbols it holds an opinion about, which is the honest
-        reading of "what this apparatus was capable of saying something about", so
-        that is what the ref describes. It cannot leak into a measurement: a
-        ``FrameRef`` carries a digest and a size but no members, so it answers no
-        ``contains()`` and cannot be put in a ``MeasuredWorld``. Reference coverage
-        therefore still cannot decide whether anything was measured -- which is §7.3's
-        rule, enforced by a type rather than by a reviewer.
+        Analysis method, fixation and segmentation are ``UNKNOWN`` (PanglaoDB
+        aggregates over many studies). The required ``FrameRef`` describes the set of
+        symbols the source holds an opinion about; it carries no members, so it
+        cannot enter a ``MeasuredWorld`` or decide whether anything was measured.
         """
         symbols = frozenset(
             n.entity.id for n in self.nodes() if n.entity.kind is EntityKind.GENE
@@ -418,12 +363,8 @@ class PanglaoDB:
     def fetch(self, *, timeout: float = 120.0) -> Path:
         """Download the markers file into the cache. Called by a human or by setup.
 
-        Never called from :meth:`nodes`, :meth:`edges` or :meth:`conditions`: a read
-        path that silently reaches for the network turns an offline test suite into a
-        flaky one and a slow link into a hung demo. The licence gate in
-        :attr:`path` has already refused any destination inside the repository before
-        a byte is written, and the write is atomic so an interrupted download never
-        leaves a half file that the reader would parse as a short release.
+        Never called from a read path. The licence gate in :attr:`path` refuses a
+        destination inside the repository, and the write is atomic.
         """
         dest = self.path
         dest.parent.mkdir(parents=True, exist_ok=True)

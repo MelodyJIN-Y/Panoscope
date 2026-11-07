@@ -3,25 +3,15 @@
 The composition root ``IMPLEMENTATION.md`` §10 names: adapter -> ``read_tidy`` ->
 ``method.load`` -> ``core.measure`` -> ``core.verdict`` -> ``core.record``, with
 ``core.concordance`` between the last two when the store holds per-sample tables
-under joint clustering (see :func:`_concordance`). It worked
-before this module existed, but it lived in ``cli.py`` where only
-``panoscope explain`` could reach it, while ``pipeline/stages/verdicts.py`` ran
-``agent/verdict.py``. Two engines, one of which wrote the files the UI reads: the
-surface a biologist actually looks at was the one *not* under the §10 gate. Moving
-the root here is the whole point of the cutover -- ``explain`` and ``build`` now
-compose the same functions in the same order, and ``panoscope explain`` calls
-:func:`build` rather than keeping a second copy.
+under joint clustering (see :func:`_concordance`). ``panoscope explain`` and
+``panoscope build`` both compose it through :func:`build`.
 
 **The v1 projection lives here, not in ``core/``.** :func:`to_v1_dict` is
-``core/compat.to_v1_assignment`` plus the one field that adapter deliberately drops
-(see :func:`_with_pctile`). ``core/`` may not grow a rule it decided not to have;
-the pipeline, which owns the on-disk v1 *view*, is where the view is completed.
+``core/compat.to_v1_assignment`` plus the one field that adapter drops
+(see :func:`_with_pctile`).
 
 **Nothing here decides anything.** Every number comes up from ``core/`` and every
-label from the study's own annotation. This module reads files, calls the registered
-method, and arranges the results -- the one thing it must never do is compute a
-statistic, because then ``build`` and ``explain`` could disagree about a value and
-only one of them would be on disk.
+label from the study's own annotation; this module never computes a statistic.
 """
 
 from __future__ import annotations
@@ -45,14 +35,8 @@ ENTITY_COLUMN = "gene"
 class UnitBuild(NamedTuple):
     """One unit's record and the pieces the record has no field for.
 
-    ``InterpretationRecord`` carries the reading, the decisions, the claims and the
-    undecidables -- no band, no ``verify``, no evidence items. A renderer or a v1
-    projection cannot be written from the record alone, so the pieces it was
-    assembled FROM travel beside it rather than being re-derived from it.
-
-    ``canonical`` is upper-cased, which both consumers want: ``core.verdict.assess``
-    and ``core.compat`` normalise case themselves, and ``cli``'s renderer compares
-    against it directly.
+    ``InterpretationRecord`` carries no band, no ``verify`` and no evidence items, so
+    the pieces it was assembled FROM travel beside it. ``canonical`` is upper-cased.
     """
 
     record: Any          # InterpretationRecord
@@ -60,15 +44,10 @@ class UnitBuild(NamedTuple):
     verdict: Any         # core.verdict.Verdict
     canonical: frozenset[str]
     label: Any           # core.compat.UnitLabel
-    #: The workflow's own output for this unit, through ``core.interpret.interpret``
-    #: -- the ASSIGNMENT shape, guarded against the declared task kind. It carries
-    #: the same band and ``verify`` as :attr:`verdict`, and the two are pinned to
-    #: each other by ``tests/test_workflow_routed.py`` rather than left to agree by
-    #: habit. They are not redundant: ``Assignment`` is the v2 output contract and
-    #: the thing a surface renders, while ``Verdict`` carries the basis, the
-    #: demotion ids and the driver that the v1 projection and ``cli explain`` branch
-    #: on and for which ``Assignment`` has no field. Defaulted, so the positional
-    #: constructor stays source-compatible with callers that build one directly.
+    #: The workflow's own output (``core.interpret.interpret``, ASSIGNMENT shape).
+    #: Same band and ``verify`` as :attr:`verdict`, pinned by
+    #: ``tests/test_workflow_routed.py``; ``Verdict`` keeps the basis, demotion ids
+    #: and driver that ``Assignment`` has no field for.
     assignment: Any = None   # types.outputs.Assignment
 
 
@@ -77,63 +56,19 @@ def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
                                                   dict[str, tuple[str, ...]]]:
     """Replicate concordance per unit (ARCHITECTURE §9.10) -- or why there is none.
 
-    Returns ``(traced_by_unit, undecidable_by_unit)``. The first carries the
-    ``Traced[Concordance]`` for every unit the samples could actually be compared
-    on, so :func:`build_all` can splice its decisions into that unit's record. The
-    second carries the sentences that go into ``InterpretationRecord.undecidable``,
-    and it is the half this function exists for.
+    Returns ``(traced_by_unit, undecidable_by_unit)``: the ``Traced[Concordance]``
+    for every unit the samples could be compared on, and the sentences for
+    ``InterpretationRecord.undecidable``. Either the record carries the comparison
+    or it carries why the comparison could not be made -- never silence.
 
-    **Silence was the bug.** ``PlatformAdapter.sample_inputs`` has resolved
-    ``inputs/samples/<sample>/markers_top.csv`` for a while and ``validate`` already
-    refuses a multi-sample store that lacks them -- so a store could pass validation
-    *because the per-sample tables are present* and then have nobody open them. The
-    record's ``reading.path`` was the pooled table, which averages the samples
-    together, and a unit whose profile differs between sections came out as one
-    confident number with no caveat on it. That is a wrong answer rather than a
-    refusal, which is the failure the four-state lattice exists to prevent, arriving
-    one layer up. Both outcomes are therefore written down: either the record carries
-    the comparison, or it carries why the comparison could not be made.
-
-    **The sample count is checked before the clustering mode**, which is not the
-    order §9.10 reads in. ``declared_clustering`` returns ``"independent"`` as a
-    tautology for a single-sample store, so asking about the mode first would tell
-    the demo's biologist that "the same unit id in two samples names two different
-    units" about a study that has one sample. The honest first question is whether
-    there is a second reading at all.
-
-    **The lattice is not re-implemented here, and that is deliberate.** Whether a
-    gene measured in sampleA and never measured in sampleB is a divergence is
-    ``core.concordance``'s question, which it answers through ``reconcile._compare``
-    -- a side that carries no number and whose absence is not evidence lands on
-    NOT_COMPARABLE and can neither agree nor conflict. A second gate here would be a
-    second place the four states could collapse into two, and on the kidney panel,
-    where most canonical markers are off-panel, that collapse would make the whole
-    check noise.
-
-    **A unit a sample emitted no rows for drops that sample rather than joining it
-    with an empty profile.** ``concordance`` adjudicates a missing row as
-    not-comparable naming the sample, and a replicate with zero items would turn
-    every subject of that unit into one -- a check seen to run and find nothing,
-    which reads as agreement. The dropped sample is named in the record instead.
-
-    ``method.load`` is re-run per sample rather than the pooled read being reused:
-    the per-sample tables are different files with different rows.
-
-    **And each run gets that sample's own frames, through
-    ``adapter.for_sample(s)``.** This function used to hand one
-    ``adapter.frames(study)`` to every replicate, on the reading that joint
-    clustering makes the replicates share one capability frame. Half of that is
-    true: they share the panel, because one panel was run across the sections. The
-    other half is false, and falsely in the direction that fabricates. Detectability
-    is not declared anywhere -- it is read off a markers table as the genes it did
-    not mark ``NoSig`` -- so the pooled frame says a section tested a gene whose own
-    file reports no usable signal. ``reconcile._compare`` then reads that section's
-    silence as a *measured* absence and returns CONFLICT, and the record told the
-    biologist the samples "genuinely conflict" about a gene one of them never
-    measured. The same leak ran the other way and was quieter: a gene silent in both
-    sections but visible in the pooled read came out as both having tested it and
-    neither reporting it, which is CONSISTENT and counts into ``coverage.k`` --
-    inflating the one denominator that protects the kidney case.
+    * The sample count is checked before the clustering mode: ``declared_clustering``
+      is ``"independent"`` by tautology for a single-sample store.
+    * The four-state lattice is ``core.concordance``'s, not re-implemented here.
+    * A unit a sample emitted no rows for drops that sample (named in the record)
+      rather than joining with an empty profile, which would read as agreement.
+    * ``method.load`` runs per sample with that sample's own frames
+      (``adapter.for_sample(s)``): detectability is per-file, and a pooled frame
+      would read a section's no-signal gene as a measured absence.
     """
     from panoscope.core.concordance import Replicate, concordance
 
@@ -204,19 +139,9 @@ def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
                 "not in the table. The band is demoted one rung and flagged for "
                 "re-check",
             )
-            # Not ``continue`` alone. This unit is the THINNEST possible replicate
-            # coverage -- zero subjects comparable -- and leaving it out of ``conc``
-            # made ``assess`` receive ``replicate=None``, which means *the question
-            # was never askable*. That is true of the single-sample demo and false
-            # here: the study is multi-sample and joint, two tables are readable,
-            # the question WAS asked, and the answer is "nothing could be compared".
-            #
-            # Reporting it as not-askable inverted the gradient one last time: a
-            # unit comparable on 1 of 12 subjects was demoted and flagged, while a
-            # unit comparable on 0 of 12 came back at full band with no demotion and
-            # shipped. In this project's own vocabulary that is UNDERPOWERED
-            # reported as NEVER_MEASURED -- and it went quiet exactly as the
-            # evidence thinned, on exactly the units an off-target panel is worst at.
+            # Not ``continue`` alone: the question WAS asked here (multi-sample,
+            # joint) and compared nothing, which is K=0 and must demote, not
+            # ``replicate=None`` (never askable).
             uncomparable.add(unit)
             continue
 
@@ -234,24 +159,9 @@ def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
                 "subject across sections before reading the pooled number -- "
                 "agreement would not have raised confidence either"
             )
-        # K of N, unconditionally. How many subjects were comparable out of how many
-        # is a FACT about the comparison, not an exception to it: a check that
-        # compared one subject of forty and a check that compared all forty both
-        # report "not divergent", and only the denominator separates them. Writing
-        # it only when ``ok`` was false wrote it almost never -- ``floor`` is 1, so
-        # the line fired at k == 0 alone, and every point of the gradient from
-        # 1-of-200 to 200-of-200 printed no concordance line at all, byte-identical
-        # to a study where the check ran clean on everything. That inverted the
-        # loudness gradient: the single-sample demo says "there is no second
-        # reading" on all nine units while a multi-sample study at 8% coverage said
-        # nothing. The study that cannot support the check shouted; the study that
-        # silently under-supported it was quiet.
-        #
-        #
-        # The floor is no longer 1, so the second clause now fires across the thin
-        # half of the gradient instead of at k == 0 alone -- and it says the band
-        # moved, because a caveat that does not name its consequence is a caveat
-        # a reader skips. Thin must LOOK thin in the same neutral field.
+        # K of N, unconditionally: only the denominator separates a check that
+        # compared one subject of forty from one that compared all forty. Below
+        # the floor, the line also says the band moved.
         notes.append(
             f"replicate concordance compared {c.coverage.k} of {c.coverage.n} "
             f"subject(s) across {', '.join(c.samples)}"
@@ -290,23 +200,13 @@ def _replicate_coverage(unit: str, n_subjects: int, conc: dict[str, Any],
                         uncomparable: set[str]) -> Any:
     """The §9.10 K of N this unit's band must see, or ``None`` if it was never askable.
 
-    Three outcomes, and the whole point is that they are three rather than two:
+    * the comparison ran -- its own ``Coverage``, K of N as measured;
+    * askable but compared nothing -- ``K=0``, which demotes;
+    * never askable (one sample, no per-sample tables, or independent clustering)
+      -- ``None``, band untouched.
 
-    * the comparison ran -- its own ``Coverage`` travels, K of N as measured;
-    * it was ASKABLE and compared nothing -- ``K=0``, which is a real coverage and
-      demotes, because a multi-sample joint-clustered study whose second section
-      reported no row under this unit has a genuinely unsupported profile here;
-    * it was never askable -- ``None``, and the band is untouched. One sample, no
-      per-sample tables, or independent clustering: there is no second reading to
-      be thin, and demoting for the absence of a question would punish the
-      single-sample demo on all nine units.
-
-    ``N`` is the count of subjects the METHOD reported for this unit, which is the
-    same denominator :func:`concordance` uses, so one unit cannot read "0 of 17"
-    down one path and "9 of 12" down the other. ``K=0`` with ``N>0`` is what makes
-    :func:`core.verdict.assess` fire -- it guards on ``replicate.n``, so a zero
-    denominator would silently mean "not assessed" and reopen the hole this
-    function exists to close.
+    ``N`` is the count of subjects the METHOD reported for this unit, the same
+    denominator :func:`concordance` uses; ``assess`` guards on ``replicate.n``.
     """
     if unit in conc:
         return conc[unit].value.coverage
@@ -324,23 +224,12 @@ def _replicate_coverage(unit: str, n_subjects: int, conc: dict[str, Any],
 def _claim_store(study: Study) -> Any:
     """The curated claim store under this study's data root, or an empty one.
 
-    ``claims.store.SEED_RELPATH`` is relative to the data root and not to the
-    repository, so a study tree copied elsewhere resolves its own seed or none --
-    which is the honest outcome and not an error. An absent seed yields an empty
-    store, and the record then carries no ``claims_used`` at all rather than a claim
-    borrowed from whichever checkout happened to be on disk.
+    ``claims.store.SEED_RELPATH`` is relative to the data root, so a study tree
+    copied elsewhere resolves its own seed or none. ``BadSeed`` is caught (the band
+    does not depend on it); every other failure raises.
 
-    ``BadSeed`` is caught for the same reason and nothing else is: a malformed seed
-    must not take the build down, because the band does not depend on it. Every
-    other failure is left to raise.
-
-    Returns ``(store, why_absent)``, and the second half is the point. An empty
-    store and a store with nothing to say about this label produce the same empty
-    ``claims_used``, so without a reason carried alongside it the record cannot
-    distinguish *the lab's curated knowledge has nothing about this cell type* from
-    *there is no curated knowledge base here at all*. Those are different facts and
-    only the second is something the biologist can fix. Collapsing them is the
-    failure the four-state lattice exists to prevent, arriving in the claim layer.
+    Returns ``(store, why_absent)``: *no curated knowledge base here* must stay
+    distinguishable from *nothing curated about this label*.
     """
     from panoscope.claims import store as claims_store
     from panoscope.data import layout
@@ -356,36 +245,16 @@ def _claims_used(store: Any, label: str, world: Any, conditions: Any,
                  context: str, no_store: str, anchor: str) -> Any:
     """ARCHITECTURE §14's *evaluability + transfer*, for one unit.
 
-    Returns ``Traced[tuple[(claim_id, verdict), ...]]``. The decisions travel with
-    it so the reasoning lands in the record rather than only the conclusion, and the
-    refusals are kept: ``InterpretationRecord.claims_used`` carries considered-and-
-    withheld claims on purpose, because a record listing only the applied ones reads
-    as though the evidence all pointed one way.
+    Returns ``Traced[tuple[(claim_id, verdict), ...]]``, refusals kept: a record
+    listing only the applied claims reads as though the evidence all pointed one way.
 
-    **Nothing here can move a band, and that is the point.** A curated claim is
-    reference data: it may select and order evidence and carry a citation, and it
-    may never supply a value or count as agreement. So this runs AFTER ``assess``
-    and feeds only the record. The claim layer's job is to say which knowledge was
-    brought to bear and what the measurement did with it -- on the kidney panel,
-    where almost no canonical marker is on-panel, that answer is mostly
-    *never measured here*, and reporting that is the panel-absence rule doing its
-    work rather than a gap.
+    **Nothing here can move a band.** A curated claim is reference data, so this
+    runs AFTER ``assess`` and feeds only the record.
 
-    **Narrowed by the unit's LABEL and by nothing else.** Filtering also on the
-    subjects the method reported would have been the obvious next line and it would
-    have been wrong in the one direction that matters: a curated marker for this
-    label that the panel never carried produces no evidence item, so it would have
-    been dropped silently -- and on an off-target panel, where almost no canonical
-    marker is on-panel, that is most of them. The frame can answer without an
-    evidence item. ``evaluability`` asks the world directly and returns
-    NEVER_MEASURED, which is the productive half of the lattice and the kidney
-    study's whole shape. Dropping those rows would turn the panel-absence rule into
-    a shorter list.
-
-    Narrowed BEFORE ``about`` rather than filtered after, because ``about`` emits a
-    decision per out-of-scope claim per subject; asking it only about the claims
-    that name this unit's label keeps the scope gate -- which is ``about``'s, not
-    reimplemented here -- without writing the same refusal once per gene.
+    Narrowed by the unit's LABEL only, not by the subjects the method reported: a
+    curated marker the panel never carried has no evidence item but must still
+    come back NEVER_MEASURED. Narrowed before ``about`` so its scope gate runs
+    without one refusal per gene.
     """
     from panoscope.claims.store import ClaimStore, assess
     from panoscope.types.trace import Trace, ref
@@ -432,14 +301,9 @@ def _claims_used(store: Any, label: str, world: Any, conditions: Any,
 def build_all(study: Study) -> dict[str, UnitBuild]:
     """Every unit the method found, built once off one read of its table.
 
-    One read, not one per unit: the file's sha256 is hashed into every record, and
-    ``method.load`` sorts each unit's rows by descending statistic because
-    ``core/verdict._drivers`` takes the first eligible canonical marker *in caller
-    order*. Re-reading per unit would be nine chances for those two facts to drift
-    apart; doing it once is also what makes ``build`` cheap enough to call per unit.
-
-    Heavy imports are local for the reason every CLI verb's are: ``panoscope
-    doctor`` must still answer on an install missing them.
+    One read keeps the file's sha256 and ``method.load``'s statistic-descending row
+    order identical across units. Heavy imports are local so ``panoscope doctor``
+    still answers on an install missing them.
     """
     import dataclasses
 
@@ -463,19 +327,10 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             "pick one for you. The record names its method."
         )
     method = registered[0]
-    # The shape guard, at the one place that holds the declaration and the band.
-    # This root projects a band into interp/clusters/<unit>.json and into
-    # verdicts.csv, so a workflow that declares no label space cannot be allowed to
-    # reach it. ``core/interpret.py`` guards the other half of the same rule by
-    # comparing the RETURNED object against the declaration, and now runs on this
-    # path too (see the ``interpret`` call below) -- but it cannot run before the
-    # IO, and a CHARACTERISATION workflow registered here should fail before the
-    # study is read rather than nine units in. Declaration first, object second;
-    # neither subsumes the other. Without it, registering a CHARACTERISATION workflow under
-    # WORKFLOW_ID would write a unit-level band for a question with no label space,
-    # and nothing downstream would notice: ``core.record.build`` takes task_kind as a
-    # parameter and ``core.compat.to_v1_assignment`` is handed a Verdict and never
-    # asks what question it answers. Loud, at the composition root, before any IO.
+    # The shape guard on the declaration, before any IO: this root writes a
+    # unit-level band, so a workflow without a label space must not reach it.
+    # ``core/interpret.py`` guards the returned object (the ``interpret`` call
+    # below); neither subsumes the other.
     wf = workflows.get(method.workflow)
     if wf.task_kind is not TaskKind.ASSIGNMENT:
         raise SystemExit(
@@ -567,30 +422,11 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # does measure comes back tested-absent, not never-measured.
         reported = frozenset().union(*(f.members for f in ev.reported)) \
             if ev.reported else frozenset()
-        # DERIVED from the canonical list, not read from a pre-filtered field.
-        #
-        # This used to iterate ``offpanel_canonical`` alone. That field is written
-        # once and never recomputed (``pipeline/stages/annotate.py`` reads an
-        # existing annotation.json rather than regenerating it), and in the
-        # committed demo it is empty for eight of nine units -- so the panel-absence
-        # rule, which is the headline claim, demonstrated on exactly one cluster.
-        # c5's call is T_Cells while canonical CD3D is off-panel and said nothing;
-        # c7 Endothelial rests on four of seven canonical markers with CLDN5, CDH5
-        # and FLT1 never measured, and its section read as a complete set.
-        #
-        # The canonical list is the honest input and the lattice is the right judge,
-        # which is what the comment above has always said. A canonical marker the
-        # panel DOES carry is already among ``ev.items`` (the method reports every
-        # panel gene), so the de-dup leaves exactly the off-panel ones -- no row is
-        # added twice and none is classified here. ``offpanel_canonical`` is still
-        # honoured first, because a study may curate absences its canonical list
-        # does not name.
-        # Identity is stripped and case-folded, the rule ``Frame.contains`` uses and
-        # for its reason: an exact comparison here is how the two band engines came
-        # to disagree about one gene (markers_top spelling CD68 as Cd68). Comparing
-        # subject keys exactly re-made it -- the canonical list says SYNG01, the
-        # method table says Syng01, and the gene was added a second time with no
-        # statistic although it was OBSERVED, which ``EvidenceItem`` rejects outright.
+        # DERIVED from the canonical list, not only the pre-filtered
+        # ``offpanel_canonical`` (honoured first): on-panel canonical markers are
+        # already in ``ev.items``, so the de-dup leaves the off-panel ones.
+        # Identity is stripped and case-folded, as ``Frame.contains`` does, so a
+        # spelling difference cannot add an OBSERVED gene a second time.
         def _norm(name: object) -> str:
             return str(name).strip().casefold()
 
@@ -658,19 +494,10 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             claims_used=claims_t.value,
             undecidable=conc_because.get(unit, ()),
         ).value
-        # The workflow answers its own question. ``core.interpret.interpret``
-        # rather than ``wf.interpret`` directly: the guard that compares the
-        # RETURNED shape against the declared task kind lives there, and this is
-        # the path that writes a band into verdicts.csv, so it is the path that
-        # most needs it. The task-kind check above is the same rule asked of the
-        # declaration before any IO; this one asks it of the object.
-        #
-        # ``MarkerReference`` is named here, which is the one coupling left: the
-        # root has to know its workflow's reference TYPE to build one, exactly as
-        # ``stages/enrichment.py`` names ``EnrichmentReference``. The registry
-        # still chooses the workflow; what it cannot yet do is hand over a
-        # reference builder, so a second ASSIGNMENT workflow with a different
-        # reference carrier would need this line.
+        # ``core.interpret.interpret`` rather than ``wf.interpret``: it guards the
+        # RETURNED shape against the declared task kind. ``MarkerReference`` is
+        # the one coupling left: the registry cannot yet hand over a reference
+        # builder.
         assignment = core_interpret.interpret(ev, wf, wf_marker.MarkerReference(
             label=str(meta.get("cell_type", "Unknown")),
             # Sorted, not the frozenset's own order: ``interpret`` re-freezes it
@@ -709,20 +536,12 @@ def build(study: Study, unit: str) -> UnitBuild:
 def _with_pctile(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Put ``within_cluster_pctile`` back into the v1 marker rows.
 
-    ``core/compat.V1_DROPPED`` omits it, and gives the reason: it is derived from
-    the glm_coef RANK, v2 carries no rank anywhere, and re-deriving one inside the
-    projection would mean re-implementing a rule the band does not use in the layer
-    whose job is to make no decisions. That reasoning is about ``core/``. The v1
-    *file* is a different question: ``pipeline/serialize._evidence_from_dict`` reads
-    the key unconditionally, so a file written without it does not load at all, and
-    ``stages/notes.py`` reads it off the loaded object. Until those two stop asking
-    for it, the generated view has to carry it, and the pipeline -- which owns that
-    view -- is where it is put back rather than in the adapter that decided not to.
+    ``core/compat.V1_DROPPED`` omits it, but ``pipeline/serialize._evidence_from_dict``
+    reads the key unconditionally and ``stages/notes.py`` reads it off the loaded
+    object, so the v1 file must carry it.
 
-    The value is ``agent/verdict.py``'s, unchanged: ``(n-1-rank)/(n-1)`` over the
-    rows in statistic-descending order, 1.0 for a single row. Inserted after
-    ``p_value`` so the key order is the committed files' and a rebuild is a no-op on
-    disk rather than a reformat.
+    ``(n-1-rank)/(n-1)`` over the rows in statistic-descending order, 1.0 for a
+    single row, inserted after ``p_value`` so a rebuild is a no-op on disk.
     """
     n = len(rows)
     out: list[dict[str, Any]] = []

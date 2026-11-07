@@ -1,10 +1,8 @@
 """The ``panoscope`` console script: ``run``, ``build``, ``explain``, ``doctor``.
 
-Thin by design. Every verb delegates to code that already exists and is already
-tested; this module only parses arguments and prints. Heavy imports (pandas,
-streamlit, the pipeline) happen *inside* the verb that needs them, so ``panoscope
-doctor`` still answers on an install that is missing the ``app`` or ``agent``
-extras — which is exactly the install you are trying to diagnose.
+Thin: every verb delegates and this module only parses arguments and prints. Heavy
+imports happen *inside* the verb that needs them, so ``panoscope doctor`` still
+answers on an install missing the ``app`` or ``agent`` extras.
 """
 
 from __future__ import annotations
@@ -92,35 +90,23 @@ def _cmd_build(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 # explain
 # --------------------------------------------------------------------------- #
-# The interpretive question ``explain`` answers -- *what IS this unit?* -- its entity
-# column and the whole composition root now live in ``pipeline/records.py``, because
-# ``panoscope build`` needs the same one. They were here while only ``explain`` went
-# through ``core/``; a second copy on the pipeline side is how the file on disk and
-# the view on screen start disagreeing about a band.
+# The composition root ``explain`` renders lives in ``pipeline/records.py``, shared
+# with ``panoscope build``.
 
 
 def _cmd_explain(args: argparse.Namespace) -> int:
     """Render the interpretation record for one unit.
 
-    The record is **built**, not read: ``panoscope explain`` goes through the same
-    adapter, reader, method and ``core/`` functions the pipeline does, so every
-    number on screen traces to the method's own table rather than to a JSON somebody
-    could have edited. ``--json`` still emits the committed per-unit file verbatim,
-    which is the v1 *compatibility view* (``core/compat.py``) and a different
-    artifact from the record; ``--record`` emits the record itself.
+    The record is **built**, not read, through the same functions the pipeline uses.
+    ``--json`` emits the committed v1 per-unit file (``core/compat.py``'s view);
+    ``--record`` emits the record itself.
     """
     # ``require`` names the typo and lists the real studies. ``Study.open``
     # deliberately never validates, so a mistyped --study was reported as an
     # existing study with no units -- blaming the unit for a study-id error.
     study = Study.open(_resolve_study_id(args.study)).require()
-    # Stage 0, the same gate ``build`` runs. ``explain`` BUILDS the record, so a
-    # store missing a capability frame does not produce a smaller record -- it
-    # produces a complete-looking one with the frame silently absent. With
-    # ``inputs/panel.parquet`` removed, ``build`` refuses and names the file while
-    # ``explain`` printed "band Very High / verify FALSE" and a frames line
-    # carrying detect/annotation/clusters and no panel at all. The panel-absence
-    # rule rests on that frame, and CLAUDE.md documents this command as the way to
-    # read the interpretation record.
+    # Stage 0, the same gate ``build`` runs: a store missing a capability frame
+    # must refuse, not render a complete-looking record without that frame.
     from panoscope.pipeline.stages.validate import validate
 
     try:
@@ -158,11 +144,8 @@ def _cmd_explain(args: argparse.Namespace) -> int:
 def _band_from(record: Any) -> str:
     """The band, read back off the record's own spine.
 
-    Every ``confidence``-step decision notes the band AFTER that step as its outcome
-    (``core/verdict.py``), so the last one is the band and the ones before it are how
-    it got there. Read rather than re-derived: a renderer that recomputed the band
-    could disagree with the record it is rendering, which is the one disagreement a
-    reader has no way to notice.
+    The last ``confidence``-step decision's outcome (``core/verdict.py``); read, never
+    re-derived, so the renderer cannot disagree with the record.
     """
     steps = [d for d in record.decisions if d.step == "confidence"]
     return steps[-1].outcome if steps else "(no band decision)"
@@ -255,14 +238,9 @@ def _render_record(study: Study, built: Any) -> list[str]:
         out.append(f"  - {i.subject.display()}: outside {i.measured.frame}")
     if not never:
         out.append("  (none among this label's canonical markers)")
-    # The read-level fact, which is about the READ rather than this label's canon:
-    # a reader who saw only the list above would take "(0)" for "nothing was missed".
-    #
-    # Only the names this list did NOT already print. ``entities_outside_frame`` is
-    # a superset of the rows enumerated above, so appending its full count read as
-    # a SECOND set -- on c6, 49 named genes plus "49 more", which totals 98 when
-    # the answer is 49. The sentence exists to stop an undercount; it must not
-    # create an overcount.
+    # The read-level fact, which is about the READ rather than this label's canon.
+    # Only names the list above did not already print (``entities_outside_frame``
+    # is a superset), so nothing is counted twice.
     shown = {i.subject.display() for i in never}
     extra = [e for e in r.entities_outside_frame if str(e) not in shown]
     if extra:

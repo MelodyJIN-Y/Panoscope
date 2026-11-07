@@ -1,36 +1,24 @@
 """Retrieval over the corpus: a stated ranking, a floor, and three outcomes.
 
 ARCHITECTURE §10.4 sketches *"hybrid score (BM25 + dense, weighted RRF) -> relevance
-floor"*. This is the floor and the honest half of the score, and not the rest. A
-linear scan over a per-study corpus of hundreds of records is what the data volume
-warrants; a vector index here would be a dependency, an embedding model to version in
-the corpus stamp, and a ranking nobody can read off the record -- bought with nothing
-measured to justify it. §10.4's own reason for putting BM25 first survives intact:
-**gene symbols break embedding search**, so lexical matching is the anchor, not the
-fallback.
+floor"*. This is the floor and a lexical score only: a linear scan suits a per-study
+corpus of hundreds of records, and **gene symbols break embedding search**, so
+lexical matching is the anchor. BM25 + RRF is the upgrade path once corpus size or
+measured ranking quality justifies it.
 
-**The ranking is stated, not inferred.** A term in the title is worth
-:data:`TITLE_WEIGHT`, a term anywhere else is worth 1, each query term counts once,
-and ties break on URI. Every one of those is a number a reviewer can see on the
-:class:`Hit`, which is the property that matters: a score nobody can reconstruct is a
-relevance judgement smuggled in as arithmetic.
+**The ranking is stated, not inferred.** A title term is worth :data:`TITLE_WEIGHT`,
+any other term 1, each query term counts once, ties break on URI -- all visible on
+the :class:`Hit`.
 
-**Three outcomes, the same three as everywhere else.**
+**Three outcomes:**
 
 * :attr:`Support.FOUND` -- records cleared the floor.
-* :attr:`Support.NONE_FOUND` -- the corpus was searched and nothing cleared it. This
-  is thin literature, concretely: *n records searched, none matched*.
+* :attr:`Support.NONE_FOUND` -- the corpus was searched and nothing cleared it: thin
+  literature, *n records searched, none matched*.
 * :attr:`Support.NOT_BUILT` -- there was nothing to search. Not a finding at all.
 
-The middle and the last are one ``if`` apart and read identically in a sentence unless
-something keeps them apart, which is ``5b7ab08`` again at the retrieval layer.
-
-**A hit is topical, never corroboration** (§8.2's Caution). A paper retrieved for a
-triple is relevant to it; it is not evidence the marker works in your assay, and
-:attr:`Retrieval.reads_as` says so rather than leaving the inference to the reader.
-Nothing in this module produces a number that could reach a confidence band: a score
-here orders evidence, which is exactly what reference and literature data are allowed
-to do, and supplies no value.
+**A hit is topical, never corroboration** (§8.2): :attr:`Retrieval.reads_as` says so.
+A score here orders evidence and supplies no value.
 """
 
 from __future__ import annotations
@@ -133,15 +121,11 @@ def search(corpus: Corpus, terms: Iterable[str], *,
            limit: int = DEFAULT_LIMIT) -> Traced[Retrieval]:
     """Rank the corpus against ``terms``. Deterministic, offline, no LLM call.
 
-    ``NOT_BUILT`` is decided on the corpus having neither records nor misses -- a
-    corpus whose every lookup came back empty *was* built, and its silence is the
-    productive kind. That single condition is the difference between "we looked and
-    the literature is thin" and "nobody has looked", and §10.4's *no support found*
-    may only ever be said about the first.
+    ``NOT_BUILT`` means the corpus has neither records nor misses; a corpus whose
+    every lookup came back empty *was* built, and only that one is thin literature.
     """
     t = Trace()
-    # ponytail: linear scan, one pass, no index. See the module docstring for why
-    # BM25 + RRF is the upgrade path and what has to be true before it is worth it.
+    # ponytail: linear scan, one pass, no index; BM25 + RRF is the upgrade path
     wanted = tuple(dict.fromkeys(
         w for term in terms for w in _TOKEN.findall(str(term).casefold())
     ))

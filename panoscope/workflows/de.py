@@ -1,69 +1,29 @@
 """The DE workflow: *does this result make sense?* -- and the surface that answers it.
 
 **This workflow does not run differential expression.** It reads someone else's DE
-result and audits it. That is not a limitation to apologise for; it is the entire
-basis on which the assessment is worth anything, because a module that ran the
-analysis would be grading its own homework.
+result and audits it.
 
-``TaskKind.COMPARISON``, and therefore **no band**. §9.1: there is no label space, so
-there is no alternative for the remaining probability mass to sit on and a unit-level
-band is *undefined*, not merely unhelpful. ``Finding`` has no field to put one in and
-``UISpec.__post_init__`` refuses a ``LabelBandHeader`` on this task kind, so the rule
-is structural rather than reviewed. What the header carries instead is the checks and
-what blocked them.
+``TaskKind.COMPARISON``, therefore **no band** (§9.1): ``Finding`` has no field for
+one and ``UISpec.__post_init__`` refuses a ``LabelBandHeader``. The header carries
+the checks and what blocked them.
 
-**The four computable checks (ARCHITECTURE §9.7).** "Does this result make sense?" is
-not rhetorical; it is four questions, declared in :data:`CHECKS` and computed by the
-four functions below:
+**The four checks (ARCHITECTURE §9.7)**, declared in :data:`CHECKS`:
 
-1. :func:`panel_scoping` -- a volcano on 280 genes is not a genome-wide volcano.
-   K of N tested, and which canonical genes for the affected process were never
-   measured. The panel-absence rule applied to a comparison.
-2. :func:`replicate_confound` -- **the one that matters most.** Is the effect driven
-   by one replicate or section? With a single biological replicate this returns
-   *cannot be settled*, naming what is missing. §9.7 calls that the clearest
-   demonstration of the refusal behaviour, and it is the honest output: a
-   condition-level claim from one biological replicate is not weakly supported, it is
-   unsupportable, and a number quoted beside it would be worse than no number.
-3. :func:`composition_vs_expression` -- did the gene change, or did the cell-type
-   mixture change? Two different claims that the measurement usually cannot separate.
+1. :func:`panel_scoping` -- K of N tested, and which canonical genes for the affected
+   process were never measured.
+2. :func:`replicate_confound` -- is the effect driven by one replicate or section?
+   From a result table alone this is *cannot be settled*, naming what is missing.
+3. :func:`composition_vs_expression` -- did the gene change, or the mixture?
 4. :func:`cross_method_coherence` -- does the DE result agree with the spatial result
-   about the same subject? **This delegates to** ``core/reconcile.py``, which already
-   joins on ``Subject.key`` and distinguishes a genuine conflict from "could not be
-   compared". Reimplementing that lattice gate here would be a second copy of the
-   project's whole thesis, and the copy nobody updates is always the one that governs.
+   about the same subject? Delegates to ``core/reconcile.py``.
 
-**Three states, not two**, and they are not this module's.
-``types/contracts.CheckState`` has ``CANNOT_BE_SETTLED`` beside
-``OK`` and ``FLAGGED`` for the same reason ``measured.py`` has four states and not
-two: "we checked and it is fine" and "we could not check" are opposite readings that
-a boolean renders identically, and the second is the one the biologist must act on.
-Every unsettled result carries ``missing`` -- the named things that would settle it --
-because "insufficient information" is not actionable and "a second biological
-replicate" is. The vocabulary lives in ``types/`` because every workflow's checks
-need it and ``core/propagate.py`` emits it; owning it here made the next workflow's
-three-valued check an import from a sibling workflow, or a third copy.
+Three check states, not two (``types/contracts.CheckState``): every
+``CANNOT_BE_SETTLED`` carries ``missing``, the named things that would settle it.
 
-**What this module does NOT own.** Not the lattice (``types/measured.py``), not the
-join (``core/reconcile.py``), not the effect-size ladder
-(``methods/seurat_de.BAND_EDGES`` declares its own, and this module never reads it:
-there is no unit band for it to feed). ``interpret`` is composition. If this file
-ever computes a statistic, the layering has inverted.
-
-**Registered.** ``panoscope/workflows/__init__.py`` registers this workflow and
-``panoscope/methods/__init__.py`` registers TWO methods into it -- ``edger`` and
-``seurat_de``. Those lines were deliberately absent until there was a DE artifact to
-answer the question against, because a workflow registered against nothing shows up
-in every listing as a question the study can be asked. What landed with them is a
-declared-synthetic table
-(``data/studies/synthetic_multisample_fixture/inputs/de_edger.csv``) and the
-composition root that runs these four checks on it, ``pipeline/stages/de.py``.
-
-Two methods rather than one, because that is what makes ARCHITECTURE §4's claim
-checkable rather than asserted: the root picks between them by asking each whether
-it can read the table, and nothing here or in ``core/`` knows either exists. Where
-they differ is in their DECLARATIONS -- edgeR's unit of replication is the sample,
-Seurat's is the cell -- and that difference reaches no branch in this file.
+Not owned here: the lattice, the join, the effect-size ladder. Two methods register
+into this workflow (``edger``, ``seurat_de``), picked by schema in
+``pipeline/stages/de.py``; their difference is in their declarations and reaches no
+branch here.
 """
 
 from __future__ import annotations
@@ -95,13 +55,9 @@ WORKFLOW_ID: str = "de-interpretation"
 SURFACE_ID: str = "contrasts"
 
 # --------------------------------------------------------------------------- #
-# The replicate frame, named once. §9.5: "the design's replicate counts are the
-# condition frame", and a count below the floor makes the UNIT underpowered, not
-# the items. The floor and the Coverage label live HERE and not in the method,
-# because "you cannot separate condition from batch with one replicate" is a
-# property of the QUESTION -- every DE method registering here inherits it --
-# and not of Seurat. ``methods/seurat_de.py`` imports both and writes the
-# Coverage at load time, where the adapter's sample count is first-hand.
+# The replicate frame, named once (§9.5): too few replicates makes the UNIT
+# underpowered. A property of the QUESTION, so it lives here; the DE methods
+# import both and write the Coverage at load time.
 # --------------------------------------------------------------------------- #
 REPLICATE_COVERAGE: str = "biological replicates"
 REPLICATE_FLOOR: int = 2
@@ -136,18 +92,9 @@ CHECKS: tuple[Check, ...] = (
 class DEAudit:
     """Everything the four checks need that a DE result table cannot supply.
 
-    Passed in rather than looked up, because this layer does no IO. Every field is
-    *absent by default*, which is why the checks refuse rather than assume: a default
-    sample count, a default abundance or an assumed spatial side would each turn a
-    refusal into a quiet answer.
-
-    ``world`` is here for the reason ``MarkerReference.world`` is, and under the same
-    protest: deciding whether a canonical gene was *never measured* or *tested and
-    absent* needs frame membership, and ``NormalisedEvidence`` carries frames only as
-    digests. Deriving the frames from what the result reported would be wrong in the
-    one direction that matters -- every unreported gene would come back
-    NEVER_MEASURED, collapsing the productive half of the lattice into "we don't
-    know".
+    Passed in (this layer does no IO); every field is *absent by default*, so the
+    checks refuse rather than assume. ``world`` is here, as ``MarkerReference.world``
+    is, because telling *never measured* from *tested absent* needs frame membership.
     """
 
     world: MeasuredWorld = MeasuredWorld()
@@ -167,14 +114,9 @@ class DEAudit:
 def panel_scoping(ev: NormalisedEvidence, audit: DEAudit) -> Traced[CheckResult]:
     """A DE result on a targeted panel is not a transcriptome-wide result.
 
-    States K of N -- how many panel genes this unit has a result for, against the
-    panel the apparatus actually had -- and then the half that needs a curated list
-    to even ask: which canonical genes for the affected process were never on the
-    panel. Those are named, because "some markers were missing" is not something a
-    biologist can act on and "CD3E and PTPRC were never on this panel" is.
-
-    With no gene frame declared the check refuses. A denominator guessed here is a
-    panel size asserted rather than read, and panel size is dynamic across studies.
+    States K of N against the panel the apparatus had, and names the affected
+    process's canonical genes that were never on the panel. With no gene frame
+    declared the check refuses rather than guessing a denominator.
     """
     t = Trace()
     anchor = (ref(ev.unit_subject),)
@@ -240,18 +182,10 @@ def panel_scoping(ev: NormalisedEvidence, audit: DEAudit) -> Traced[CheckResult]
 def replicate_confound(ev: NormalisedEvidence, audit: DEAudit) -> Traced[CheckResult]:
     """Is the effect driven by one replicate or section? §9.7's headline behaviour.
 
-    Reads the unit's own capability verdict, which is where the design already lives:
-    ``NormalisedEvidence.unit_measured`` carries "too few replicates" because that is
-    a property of the unit and not of any gene in it, and ``methods/seurat_de.py``
-    writes the :class:`Coverage` at load time from the adapter's first-hand sample
-    count. Nothing is re-derived here and nothing is assumed.
-
-    **This check cannot return OK from a result table alone, and says so.** Even with
-    enough replicates, a FindAllMarkers table reports one number per gene for the
-    whole unit; which replicate drives it is not in the file. The honest output is
-    *cannot be settled*, with the per-sample results named as what is missing --
-    ``core/concordance.py`` is what computes it once they exist. An OK here would be
-    a check that passed because it never ran.
+    Reads the unit's own capability verdict (``unit_measured``, written by the method
+    at load from the adapter's sample count). Never OK from a result table alone: it
+    reports one number per gene per unit, so the per-sample results are named as
+    missing (``core/concordance.py`` computes it once they exist).
     """
     t = Trace()
     anchor = (ref(ev.unit_subject),)
@@ -314,33 +248,16 @@ def composition_vs_expression(ev: NormalisedEvidence,
                               audit: DEAudit) -> Traced[CheckResult]:
     """Did the gene change, or did the cell-type mixture change?
 
-    Two different claims, and §9.7 says the measurement usually cannot separate them.
-    The lever is this unit's abundance across the arms being compared, which is not
-    in a DE table and must be supplied.
-
-    **No threshold is invented.** Any difference in this unit's share of cells
-    between the arms means the two claims are confounded -- an expression change and
-    a composition change produce the same number, and nothing in this result says
-    which. Identical shares are the only case where the per-cell reading stands on
-    its own. A tolerance here would be a number that looked like it came from an
-    analysis nobody ran.
+    The lever is this unit's abundance across the arms, which must be supplied. **No
+    threshold is invented**: any difference in share confounds the two claims;
+    identical shares are the only case where the per-cell reading stands.
     """
     t = Trace()
     anchor = (ref(ev.unit_subject),)
 
-    # THE CONDITION GATE, before the abundance one. ``audit.abundance`` is this
-    # unit's share of CELLS per arm, and cells are what segmentation produces -- so
-    # with the segmentation version declared unknown, a difference in share between
-    # arms cannot be attributed: it is a mixture change, or it is two segmentations
-    # counting differently, and this result does not say which. That is a real
-    # dependency rather than one invented to give ``core/propagate.py`` a caller,
-    # and it is the one ``propagate``'s own module docstring names:
-    # ``requires(conditions, COMPOSITION, "segmentation")``.
-    #
-    # First, because ``CANNOT_BE_SETTLED`` from ``requires`` means the question
-    # could not be ASKED. Supplying abundance would not rescue it, so refusing for
-    # want of abundance underneath an unknown segmentation would name the smaller
-    # gap and hide the larger one.
+    # THE CONDITION GATE, before the abundance one: a share of CELLS depends on
+    # segmentation, so with segmentation unknown the question cannot be ASKED,
+    # and that larger gap must not be hidden behind missing abundance.
     gate = t.absorb(requires(ev.conditions, COMPOSITION, "segmentation"))
     if not gate.settled:
         return t.done(gate)
@@ -396,15 +313,9 @@ def cross_method_coherence(ev: NormalisedEvidence,
                            audit: DEAudit) -> Traced[CheckResult]:
     """Does the DE result say the same thing as the spatial result about one subject?
 
-    The join, the lattice gate and the §9.11 question-sameness mapping all live in
-    ``core/reconcile.py``; this function supplies the DE side and reads the outcomes.
-    A second implementation of that gate here would be a second place where "the
-    other method never measured it" could be mistaken for "the other method
-    disagrees", which is the one mistake the four states exist to make impossible.
-
-    The two workflows ask different questions, so ``reconcile`` can only return
-    COHERENT, TENSION or NOT_COMPARABLE -- never AGREE. A spatial coefficient does
-    not corroborate a fold change; it can sit with it or pull against it.
+    The join, the lattice gate and the §9.11 question-sameness mapping live in
+    ``core/reconcile.py``; this supplies the DE side. Different questions, so only
+    COHERENT, TENSION or NOT_COMPARABLE -- never AGREE.
     """
     t = Trace()
     anchor = (ref(ev.unit_subject),)
@@ -491,17 +402,9 @@ class DEInterpretation:
     def interpret(self, ev: NormalisedEvidence, reference: Any) -> Traced[Finding]:
         """One unit's DE evidence, audited by the four checks. **No band, ever.**
 
-        ``Finding`` rather than ``Assignment`` is the type-level form of the no-band
-        rule: a comparison has no label space, so there is no shape in which this
-        could carry one.
-
-        ``verify`` is deterministic and is never offered to a model. An item is
-        exempt only when it was observed *and* no check flagged this unit *and* every
-        check was settled -- which, from a result table alone, never happens, because
-        the replicate check cannot be settled from one. That is the intended shape: a
-        condition-level reading of a single-replicate DE result is re-check-this by
-        construction, and the summary says so rather than leaving the biologist to
-        infer it from a small number.
+        ``verify`` is deterministic: an item is exempt only when observed, no check
+        flagged the unit and every check settled -- never true from a result table
+        alone, since the replicate check cannot settle.
         """
         t = Trace()
         audit: DEAudit = reference if isinstance(reference, DEAudit) else DEAudit()
@@ -525,18 +428,10 @@ class DEInterpretation:
                    reference: Any) -> Traced[RivalResult]:
         """For a COMPARISON the rival is a CONFOUND, and it comes from the data (§9.6).
 
-        No reference list is consulted and none would help: the alternative account
-        of a fold change is "one replicate drove it" or "the mixture changed", and
-        only the design and the data separate those. ``alternative`` is therefore
-        matched against the registered check ids rather than against a curated rival
-        space, and an unrecognised one is reported as unasked rather than settled.
-
-        ``separated_by`` stays empty even when a check returns OK, and that gap is
-        worth naming rather than papering over: ``RivalResult.separated_by`` holds
-        ``EvidenceItem``\\s, but what rules out a design confound is the *design* -- a
-        second replicate, an unchanged abundance -- and there is no evidence item to
-        point at. An empty ``undecidable`` is the signal that the check settled it;
-        the sentence saying how is on the :class:`CheckResult`.
+        ``alternative`` is matched against the registered check ids; an unrecognised
+        one is reported as unasked. ``separated_by`` stays empty even on OK: a design
+        confound is ruled out by the design, not an evidence item; the how is on the
+        :class:`CheckResult`.
         """
         t = Trace()
         audit: DEAudit = reference if isinstance(reference, DEAudit) else DEAudit()
@@ -571,24 +466,10 @@ class DEInterpretation:
     def uispec(self) -> UISpec:
         """The review surface this question requires.
 
-        A ``ConfoundChecklistHeader``, which has no band slot: on a COMPARISON a
-        unit-level band is a category error, and ``UISpec.__post_init__`` raises
-        ``DegradedUpward`` on the other combination, so the rule is enforced before a
-        pixel is drawn rather than reviewed afterwards.
-
-        Four blocks, one per measurement state, so a never-measured gene is a row
-        that says so. The ``direction`` column exists because a comparison's answer
-        is a ranked set *with direction*, and a down-regulated gene is a result, not
-        a weak one.
-
-        **No plots are declared, for two separate reasons.** The general one is
-        marker's: a ``PlotSpec`` is a promise to draw, and R4 makes it conditional on
-        a conditionality builder that can state the cell count and the artifact sha;
-        those belong to the view layer and have not landed. The specific one is
-        §13.6 -- the fold-change-against-spatial-coefficient plot "belongs to
-        reconciliation, not to either workflow", so declaring it here would take a
-        figure away from the layer that owns it. A volcano, when it lands, refuses to
-        draw without the panel denominator the scope line carries.
+        A ``ConfoundChecklistHeader`` (no band slot). Four blocks, one per measurement
+        state; a ``direction`` column because a down-regulated gene is a result.
+        No plots: a ``PlotSpec`` needs a conditionality builder (R4), and the
+        fold-change-vs-spatial plot belongs to reconciliation (§13.6).
         """
         return UISpec(
             workflow_id=SURFACE_ID,
@@ -649,18 +530,9 @@ def _finding_item(item: EvidenceItem, confounded: bool,
                   results: tuple[CheckResult, ...]) -> FindingItem:
     """One evidence item, tiered by the measurement and demoted by the unit's checks.
 
-    The tier is almost entirely a function of the measurement -- ``permitted_tiers``
-    allows only SUPPORTED/SUGGESTIVE where a number exists, only NOT_SUPPORTED on a
-    tested absence, only UNTESTABLE otherwise -- and the one judgement left is
-    SUPPORTED versus SUGGESTIVE. Here that judgement is made by the unit's checks and
-    not by the size of the number, which is the right shape for a COMPARISON: a large
-    fold change under a single-replicate design is not better supported than a small
-    one, it is unsupportable in the same way.
-
-    ``verify`` follows: re-check anything observed-but-confounded and anything that
-    could not be tested. A tested absence is NOT flagged -- it was asked and it was
-    answered, and flagging it would make a real refusal indistinguishable from an
-    answer the biologist already has.
+    ``permitted_tiers`` fixes the tier except SUPPORTED vs SUGGESTIVE, which the
+    unit's checks decide, not the size of the number. ``verify`` flags anything
+    observed-but-confounded or untestable; a tested absence is not flagged.
     """
     m = item.measured
     if m.carries_number:
@@ -682,11 +554,8 @@ def _summary(ev: NormalisedEvidence, items: tuple[FindingItem, ...],
              results: tuple[CheckResult, ...]) -> str:
     """Deterministic prose, built from the items and the checks. NOT narration.
 
-    It must render identically with the model offline, so it carries no adjective the
-    counts do not license. Per-item counts are the header for a task kind with no
-    band (§9.1), and the unsettled checks are spelled out with what is missing --
-    because a refusal that does not name what would settle it is indistinguishable
-    from the tool being broken.
+    Renders identically offline: per-item counts as the header (§9.1), and each
+    unsettled check with what is missing.
     """
     n = {t: sum(1 for i in items if i.tier is t) for t in Tier}
     head = (f"{ev.unit}: {len(items)} item(s) -- {n[Tier.SUPPORTED]} supported, "

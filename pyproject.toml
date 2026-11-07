@@ -10,46 +10,21 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"          # panoscope/types/ uses enum.StrEnum (3.11+)
 dependencies = [
-    "pandas>=2,<4",                 # dev runs 3.0.x; see NOTE below
+    "pandas>=2,<4",                 # dev runs 3.0.x
     "pyarrow>=14,<26",
     "numpy>=1.26,<3",
     "pyyaml>=6",
 ]
 
-# NOTE on upper bounds. IMPLEMENTATION.md §8 pinned pandas>=2,<3, plotly<7 and an
-# unbounded pyarrow. Development actually runs pandas 3.0.5, plotly 7.0.0 and
-# pyarrow 25.0.1 with the whole offline suite green, so those bounds would have
-# made a clean `pip install` resolve something nobody has tested. Widened to the
-# next major instead of removed: an unbounded UI/dataframe pin is the
-# reproducibility hazard §8 warns about, a stale one is just a lie.
-
-# Upper bounds on EVERY extra, per §8. Each bound is the next major above a version
-# this project has actually run; the exact set lives in requirements.lock. The one
-# exception is called out rather than hidden.
+# Upper bounds on every dependency and extra (IMPLEMENTATION §8): each is the next
+# major above a version this project has run; the exact set is requirements.lock.
 [project.optional-dependencies]
-# Floor is 1.63, not 1.59: the UI now passes `width="stretch"` instead of the
-# deprecated `use_container_width=True` (removal announced for 2025-12-31,
-# already past), and 1.63.0 is the oldest release this was verified against.
-# Claiming 1.59 would be an untested bound, which is the thing §8 warns about.
+# streamlit 1.63 is the oldest verified with `width="stretch"`.
 app     = ["streamlit>=1.63,<2", "plotly>=5.20,<8"]
 agent   = ["anthropic>=0.40,<2", "mcp>=1.2,<3", "python-dotenv>=1,<2"]
 export  = ["python-docx>=1.1,<2", "fpdf2>=2.7,<3"]
-# BUILD-side only, and that asymmetry is deliberate. ARCHITECTURE §5.1 makes a
-# SpatialData (scverse) .zarr store THE on-disk format for spatial evidence:
-# Shapes for cells, Points for transcripts, table.obsm["X_umap"], and
-# `table.var_names` as the measured set -- which is what makes the panel-absence
-# rule structural rather than a file we assemble.
-#
-# `panoscope/data/spatial.py` READS a Points element with pyarrow alone, because
-# a Points element is parquet underneath. pyarrow is a core dependency above, so
-# drawing from a store needs no extra at all. These two are needed to WRITE a
-# store and for scverse interop -- which is exactly where §5.1 puts them, "behind
-# a panoscope[spatial] extra with the legacy tidy reader retained".
-#
-# Bounds now read off a working install (spatialdata 0.8.0, zarr 3.4.2), like
-# every other line here. §5.1's sequencing note asked that the zarr reader be
-# validated against the tidy adapter on the same study; it is --
-# tests/test_spatial_points.py checks all 840 committed hexbin frames bin-for-bin.
+# BUILD-side only: writing a SpatialData store and scverse interop (ARCHITECTURE
+# §5.1). Reading Points needs only pyarrow (panoscope/data/spatial.py).
 spatial = ["spatialdata>=0.8,<1", "zarr>=3,<4"]
 dev     = ["pytest>=8,<10", "pytest-cov>=5,<8", "ruff>=0.5,<1", "mypy>=1.10,<2"]
 
@@ -57,9 +32,8 @@ dev     = ["pytest>=8,<10", "pytest-cov>=5,<8", "ruff>=0.5,<1", "mypy>=1.10,<2"]
 panoscope = "panoscope.cli:main"
 
 [tool.hatch.build.targets.wheel]
-# Everything under panoscope/ ships, which is what keeps panoscope/skills/*/SKILL.md
-# and panoscope/assets/*.png alive under a site-packages install. They are read at
-# runtime via package-relative paths, so losing them is a silent runtime break.
+# Everything under panoscope/ ships, including skills/*/SKILL.md and assets/*.png,
+# which are read at runtime via package-relative paths.
 packages = ["panoscope"]
 
 [tool.hatch.build]
@@ -67,16 +41,8 @@ packages = ["panoscope"]
 exclude = ["studies", "Raw_data_*", "jazzPanda output", "handoff", "context", "tests"]
 
 # --------------------------------------------------------------------------- #
-# pytest config lives here, not in pytest.ini. IMPLEMENTATION.md §7 Phase B says
-# "delete pytest.ini", and the reason is one setting it carried: `pythonpath = .`
-# put the repo root on sys.path for every run, so no local run ever exercised the
-# INSTALLED package and every "works because cwd is the repo root" bug stayed
-# invisible. That is exactly what the out-of-tree CI job exists to catch, and
-# while the setting was here the job was testing something no developer ever ran.
-#
-# It is gone, and nothing needed it: `tests/` is a package and pytest puts the
-# rootdir on sys.path for a rooted test package, so `from tests.conftest import
-# ...` still resolves. `panoscope` resolves because it is installed.
+# No `pythonpath = .`: tests run against the INSTALLED package (pytest still puts
+# the rootdir on sys.path for the `tests` package).
 # --------------------------------------------------------------------------- #
 [tool.pytest.ini_options]
 testpaths = ["tests"]

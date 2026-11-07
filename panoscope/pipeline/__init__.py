@@ -1,20 +1,11 @@
 """Panoscope per-dataset pipeline.
 
-One command per dataset (`panoscope build --study <id>`) that turns a
-dataset's raw inputs (jazzPanda markers, panel list, cluster key, + viz sources)
-into a self-contained ``data/studies/<id>/`` tree the UI reads with no live
-recomputation. Deterministic where it can be, live-cited only where it must be;
-jazzPanda is never run — its output is a consumed input.
+``panoscope build --study <id>`` turns a dataset's raw inputs (method output, panel,
+cluster key, viz sources) into a self-contained ``data/studies/<id>/`` tree the UI
+reads with no live recomputation. The method is never run; its output is a consumed
+input, and every persisted value traces to it, the panel, or the cluster key.
 
-This package is built in slices. Slice 1 (here): the scaffold, input validation,
-and the deterministic per-cluster VERDICT persistence (verdicts.csv + per-cluster
-JSON) plus the dataset manifest. Later slices add the viz precompute (density,
-umap, expr) and the live-cited notes.
-
-Every persisted value traces to jazzPanda, the panel, or the cluster key — the
-confident floor holds on disk exactly as it does in the engine.
-
-Entry point: ``panoscope build --study <id>`` (see :mod:`pipeline.run`).
+Entry point: :mod:`panoscope.pipeline.run`.
 """
 
 from __future__ import annotations

@@ -1,32 +1,12 @@
 """The two things every platform adapter needs and must not reimplement: the file
 digest, and §6.3's fourth blocker.
 
-There is no base *class* here, and that is the point. ``PlatformAdapter`` is a
-``Protocol`` (``types/contracts.py``) so an adapter declares its contract by having
-the attributes, not by inheriting; a base class would put an import edge back between
-the registry and its entries and make an out-of-tree adapter impossible. What is
-shared is *behaviour nobody should write twice*, and that is exactly two functions.
+No base *class*: ``PlatformAdapter`` is a ``Protocol`` (``types/contracts.py``).
 
-**Why ``declared_clustering`` lives here rather than in each adapter.** §6.3's fourth
-blocker is the only conditional one: an undeclared clustering mode blocks the study
-when, and only when, there is more than one sample. ``Conditions`` deliberately
-carries no sample count (see ``conditions.py``), so the check cannot live there, and
-the adapter is the one object that holds the count first-hand. But "cannot live in
-``Conditions``" is not "must be copied into every adapter": a second platform that
-got the ``> 1`` wrong -- or that defaulted to ``"joint"`` because its vendor usually
-does -- would silently make cluster 3 in sample A the same population as cluster 3 in
-sample B, which is wrong under independent clustering and *invisible under either*,
-because the labels match whichever answer is true. One implementation, one test.
-
-**A single sample is not a guess.** With one sample there is nothing to cluster
-jointly, nothing to integrate and nothing to compare across, so the three modes are
-the same statement and ``"independent"`` is a tautology rather than a default. The
-mode is only unknowable -- and therefore blocking -- once a second sample exists.
-
-**An unrecognised mode string raises too.** ``"batch-corrected"`` in a manifest is not
-a declaration of one of the three things the contract names; it is a word the writer
-hoped would be understood. Accepting it would let an undeclared study pass the
-blocker by typo, which is the failure mode the blocker exists to catch.
+**``declared_clustering``** lives here so no adapter can get it wrong on its own.
+An undeclared clustering mode blocks the study when, and only when, there is more
+than one sample (``Conditions`` carries no sample count). With one sample
+``"independent"`` is a tautology, not a default. An unrecognised mode string raises.
 """
 
 from __future__ import annotations
@@ -45,32 +25,17 @@ CLUSTERING_MODES: Final[tuple[str, ...]] = ("joint", "independent", "integrated"
 class UndeclaredSamples(UndeclaredClustering):
     """The same blocker, hit one level earlier: the sample LIST is undeclared.
 
-    ``declared_clustering`` can only ask "more than one sample?" once something has
-    answered "which samples?". When a store has per-sample inputs on disk and neither
-    its manifest nor its cell table names them, an adapter that answers "one, named
-    after the store" does not produce a gap — it produces the wrong answer, and a
-    confidently single-sample store takes the ``"independent"`` tautology below and
-    stamps a clustering mode that was never declared onto every record.
-
-    A subclass of ``UndeclaredClustering`` rather than a sibling, because every caller
-    that already renders the fourth blocker as a checklist line (``agent/intake.py``,
-    ``XeniumAdapter.validate``) must render this one the same way. A new exception
-    type would have walked straight past those handlers as a traceback.
+    Per-sample inputs on disk with no samples named must not become "one sample,
+    therefore independent". A subclass of ``UndeclaredClustering`` so every caller
+    that renders the fourth blocker as a checklist line renders this one too.
     """
 
 
 def digest(path: str | Path) -> str:
     """sha256 over the file's BYTES, for ``ReadingRecord.sha256``.
 
-    Over the bytes rather than over the parsed table on purpose: "the same inputs"
-    has to be a statement about the file that was actually read, not about what a
-    parser made of it. A pandas upgrade that changed a dtype inference would move a
-    digest taken over the frame, and the golden record would then report an input
-    change that never happened.
-
-    Streamed (``hashlib.file_digest``) because a store's tables are not guaranteed
-    small, and reading one whole file into memory to hash it is how a reader that
-    works on the 280-gene demo falls over on a real transcriptome.
+    Over the bytes, not the parsed table, so a parser upgrade cannot move it.
+    Streamed, since a store's tables are not guaranteed small.
     """
     with open(path, "rb") as fh:
         return hashlib.file_digest(fh, "sha256").hexdigest()

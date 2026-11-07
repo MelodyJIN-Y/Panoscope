@@ -1,33 +1,17 @@
 """The method registry: one entry per way of producing evidence.
 
-Data, not types, like ``SHAPES`` / ``RULES`` / ``FLAGS`` -- adding a method is an
-import and one ``register`` call at the bottom of this module. Nothing in ``core/``
-branches on which method produced a number, because everything downstream reads
-``NormalisedEvidence`` and never a raw method table.
+Adding a method is an import and one ``register`` call at the bottom of this module.
+Nothing in ``core/`` branches on which method produced a number; everything
+downstream reads ``NormalisedEvidence``.
 
-**The one thing this registry is for.** ``contracts.py`` makes ``does_not_measure``
-and ``assumptions`` *present* -- a Protocol can do no more than that, since a missing
-attribute is the only thing structural typing can see. :func:`register` makes them
-**non-empty**, and that is the check the whole design rests on. A method that
-declares no limits is one whose output reads as having none: a ``glm_coef`` with no
-``does_not_measure`` beside it is indistinguishable from a fold change, and the
-confidence assessment silently stops being an audit of someone else's output. The
-check lives at the registration chokepoint rather than only in a test so that it also
-bites an out-of-tree plugin, which no test in this repo will ever see.
+* :func:`register` makes ``does_not_measure`` and ``assumptions`` **non-empty** (the
+  Protocol can only make them present), at the chokepoint so it also bites an
+  out-of-tree plugin. A method that declares no limits reads as having none.
+* **A method registers INTO a workflow**: ``module.workflow`` must name a registered
+  workflow; an orphan method is refused.
+* **Duplicate names raise** (``DuplicateRegistration``, from ``types/uispec.py``).
 
-**A method registers INTO a workflow.** :func:`register` resolves
-``module.workflow`` against ``panoscope.workflows`` and refuses an id nobody
-registered. An orphan method is worse than a missing one: it loads, produces
-evidence, and has no question to answer with it, so the evidence surfaces under
-whatever surface a caller happened to pick.
-
-**Duplicate names raise.** ``DuplicateRegistration`` is reused from
-``types/uispec.py``; see the workflow registry's docstring for why import order is
-not an acceptable tie-break.
-
-The registry holds *instances*, not classes. A declaration a later import could
-rebind is a declaration nothing downstream can trust, which is why
-``methods/jazzpanda.py`` builds its ``MODULE`` from a frozen dataclass.
+The registry holds frozen *instances*, not classes.
 """
 
 from __future__ import annotations
