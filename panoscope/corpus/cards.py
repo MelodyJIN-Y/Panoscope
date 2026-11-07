@@ -116,7 +116,7 @@ def note(c: Card, corpus: Corpus) -> dict:
 
     ``verify`` is always False here: literature, dissent included, never sets it (D1).
     """
-    first = next(iter(c.consensus or c.dissent or c.own), None)
+    first = next(iter(c.consensus or c.dissent), None)   # never this dataset's own paper
     rec = next(iter(corpus.find(first.uri)), None) if first else None
     pmid = first.uri[5:] if first and first.uri.startswith("pmid:") else None
     summary = c.headline + (f'. "{first.span}"' if first else "")

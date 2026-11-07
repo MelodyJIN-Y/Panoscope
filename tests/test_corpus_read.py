@@ -110,6 +110,31 @@ def test_relation_gates_are_code_not_model():
     assert R.relation("POSTN in fibroblasts", "NOT_EXPRESSED_IN", "", rx) is None
     assert R.relation("POSTN in fibroblasts", "MARKS", "", rx) == "EXPRESSED_IN"
     assert R.relation("POSTN marker of fibroblasts", "MARKS", "", rx) == "MARKS"
+    span = "POSTN was higher in fibroblasts than in basal cells"
+    assert R.relation(span, "ENRICHED_VS", "luminal cells", rx) == "EXPRESSED_IN"
+    assert R.relation(span, "ENRICHED_VS", "basal cells", rx) == "ENRICHED_VS"
+
+
+def test_p1_keeps_only_verbatim_quotes_and_a_biofluid_specimen_closes_the_paper(tmp_path):
+    stub = Stub(setting={"tissue": "human lung tissue", "specimen": "Serum was collected."})
+    corpus, receipt = _read(_corpus(tmp_path, full=FULL + "\nSerum was collected."), stub)
+    assert [s.field for s in corpus.settings] == ["specimen"] and receipt.rejected == 1
+    assert stub.calls == ["P1"] and _ledger(corpus)["pmid:1"] == "NON_TISSUE"
+
+
+def test_headline_counts_species_stated_papers_at_the_study_modality(tmp_path):
+    base, _ = _read(_corpus(tmp_path), Stub([MARK]))
+    st = base.statements[0]
+    recs = tuple(SourceRecord(uri=f"pmid:{i}", title="t", abstract=ABSTRACT, via="Europe PMC",
+                              year=2026) for i in (2, 3))
+    other = Statement(**{**{f: getattr(st, f) for f in st.__slots__}, "uri": "pmid:2",
+                         "modality_match": "BULK"})
+    unstated = Statement(**{**{f: getattr(st, f) for f in st.__slots__}, "uri": "pmid:3",
+                            "flags": ("SPECIES_UNSTATED",)})
+    corpus = Corpus(records=(*base.records, *recs), queries=base.queries,
+                    statements=(st, other, unstated))
+    assert cards.card(corpus, "POSTN", "Fibroblasts").headline.startswith(
+        "1 in-window paper(s) at the study modality (this assay), 2 in window in all")
 
 
 def test_unaccounted_sentences_are_re_asked_once_then_count_as_unextracted(tmp_path):
@@ -153,6 +178,7 @@ def test_release_paper_renders_apart_and_is_never_counted(tmp_path):
     assert c.headline.startswith("0 in-window paper(s)")
     assert "own papers (not counted)" in c.headline
     assert "This dataset's own papers:" in c.lines() and c.window == () == c.consensus
+    assert cards.note(c, corpus)["pmid"] is None        # never the note's citation
 
 
 def test_card_shows_consensus_and_dissent_and_labels_wider_rungs(tmp_path):
@@ -248,3 +274,38 @@ def test_report_reads_the_corpus_version_keyed_by_study():
     _demo_corpus()
     status = report._provenance(cfg.DATASET_ID)["corpus_status"]
     assert status.startswith("B") and "2 statement(s)" in status and "version" in status
+
+
+def test_celltype_notes_come_from_cards_when_a_corpus_exists(tmp_tree, monkeypatch):
+    from panoscope.agent import config as cfg
+    from panoscope.agent import loop as agent_loop
+    from panoscope.pipeline.stages import notes as notes_stage
+
+    _demo_corpus()
+    monkeypatch.setattr(agent_loop, "chat", lambda *a, **k: pytest.fail("no model call"))
+    got = notes_stage.run_celltype_notes(cfg.DATASET_ID, root=tmp_tree)
+    first = got[cfg.CLUSTER_ORDER[0]]
+    assert first["pmid"] == "7" and first["dissent"] == 1 and first["verify"] is False
+    others = [n for n in got.values() if n["cell_type"] != first["cell_type"]]
+    assert others and all("cannot settle" in n["summary"] for n in others)
+
+
+def test_reconcile_stamps_a_lookup_only_when_the_search_was_complete():
+    from panoscope.agent import config as cfg
+    from panoscope.agent import memory
+    from panoscope.agent.types import Note, ScopeRef, Tension
+
+    rows = (QueryRun("q", "C1", "ACTA2", "Fibroblasts", total=0),
+            QueryRun("hgnc", "vocab:hgnc", "ACTA2", total=1, retrieved=1),
+            QueryRun("census", "census", "ACTA2", total=0))
+    note = Note(id="n", claim="x", scope="dataset", scope_ref=ScopeRef(cfg.DATASET_ID, None),
+                basis="paper", status="firm", subject_cell_type="Fibroblasts",
+                subject_markers=("ACTA2",), tension=Tension((), (), True, "", ""), author="",
+                created_at="", trigger="override", supersedes=None)
+    stamp = []
+    for extra in ((), (QueryRun("q2", "C2", "ACTA2", "Fibroblasts",
+                                status=QueryStatus.FAILED),)):
+        save(Corpus(queries=(*rows, *extra), version=CorpusVersion(
+            cfg.DATASET_ID, (), (), "stub", "h", built_at="B")), corpus_path(cfg.DATASET_ID))
+        stamp.append(memory.reconcile(note).looked_up_at)
+    assert stamp == ["B", ""]       # complete and empty is thin; a gap is no lookup at all
