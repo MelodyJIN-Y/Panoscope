@@ -211,3 +211,13 @@ def test_every_de_table_loads_each_on_its_own_methods_statistic(tmp_path: Path) 
     assert set(written["de_seurat"]) == {"c1", "c2"}
     rec = json.loads(written["de_seurat"]["c1"].read_text(encoding="utf-8"))
     assert "avg_log2FC" in json.dumps(rec) and "seurat_de" in json.dumps(rec)
+
+
+def test_a_de_table_is_found_by_its_columns_not_only_its_name(tmp_path: Path) -> None:
+    """A recognised Seurat table not named de_*.csv is still built, never skipped."""
+    from types import SimpleNamespace
+
+    t = tmp_path / "findallmarkers.csv"
+    t.write_text("gene,cluster,avg_log2FC,p_val_adj\nSYNG01,c1,2.0,1.0e-04\n",
+                 encoding="utf-8")
+    assert de_stage.de_result_paths(SimpleNamespace(inputs=tmp_path)) == [t]

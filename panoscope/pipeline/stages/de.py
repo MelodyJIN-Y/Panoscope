@@ -5,8 +5,8 @@ as ``stages/verdicts.py`` does ASSIGNMENT and ``stages/enrichment.py``
 CHARACTERISATION.
 
 **The method is chosen by SCHEMA, not by filename**, through ``methods.recognise``.
-Every ``de_*.csv`` is built; the glob names the KIND of result, the schema names the
-method, and that method's declared ``statistic_name`` is the column read.
+Every ``de_*.csv`` and every table a DE method recognises is built; the schema names
+the method, and that method's declared ``statistic_name`` is the column read.
 
 **Check 4 takes the marker evidence** passed in, not rebuilt here.
 
@@ -31,8 +31,16 @@ ENTITY_COLUMN: str = "gene"
 
 
 def de_result_paths(study: Any) -> list[Path]:
-    """Every DE table this study ships, sorted; empty when it has none (not an error)."""
-    return sorted(Path(study.inputs).glob(DE_GLOB))
+    """Every DE table this study ships, sorted; empty when it has none (not an error).
+
+    A table a DE method recognises counts under any name, since ``run`` lists the
+    workflow as available off the same recognition."""
+    from panoscope import methods
+    from panoscope.workflows.de import WORKFLOW_ID
+
+    recognised = {p for p, m in methods.recognise_inputs(study.inputs).items()
+                  if m is not None and m.workflow == WORKFLOW_ID}
+    return sorted(recognised | set(Path(study.inputs).glob(DE_GLOB)))
 
 
 def _method_for(path: Path, table: Any) -> Any:
