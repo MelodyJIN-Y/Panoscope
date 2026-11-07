@@ -90,10 +90,8 @@ never read by a biologist; renaming one to improve prose is how a badge stops
 rendering against a green test. The English is the part that was wrong, and the
 English is the part that moved.
 
-Thresholds are duplicated from ``agent/config`` rather than imported -- ``core/`` does
-not import ``agent/`` -- and ``test_thresholds_match_the_live_config`` fails the moment
-the two diverge. A duplicated constant with a test is a smaller problem than an
-inverted layering.
+The thresholds below are the one copy: ``core/`` does not import ``agent/``, and
+``methods/jazzpanda.BAND_EDGES`` is derived from :data:`CONFIDENCE_BANDS`.
 """
 
 from __future__ import annotations

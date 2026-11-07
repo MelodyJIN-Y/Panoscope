@@ -22,7 +22,7 @@ The harness writes raw per-field output to JSON; the scorer reads only that JSON
 
 | Kind | Fields | Why |
 |---|---|---|
-| `pure` | `cell_type`, `band`, `band_basis`, `demotions`, `driver`, `verify_record`, `measured_states` | computed by `agent/verdict.py::verdict_for_cluster` and `core/measure.py::measure`, whose arguments are a cluster id and the study files. No prose, no model, no history. |
+| `pure` | `cell_type`, `band`, `band_basis`, `demotions`, `driver`, `verify_record`, `measured_states` | computed by `pipeline/v1_verdicts.py::verdict_for` and `core/measure.py::measure`, whose arguments are a cluster id and the study files. No prose, no model, no history. |
 | `seam` | `verify_response` | **Closed since 2026-11-04.** `agent/loop.py::_assemble` used to set `AgentResponse.verify` to `_text_asks_verify(text) or _cluster_verify_default(cluster)`, and `_text_asks_verify` was a **substring test over the model's prose**. It now calls `_verify_default(cluster, skill)`, which does not take prose as an argument. The field is kept so the seam cannot reopen unnoticed. |
 
 The seam was found by reading `agent/loop.py:1246`, not by running anything. The harness
