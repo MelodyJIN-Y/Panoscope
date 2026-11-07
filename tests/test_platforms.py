@@ -3,7 +3,7 @@ end-to-end read of the real demo store.
 
 Three groups, and the third is the point of the other two.
 ``test_the_demo_store_reads_into_normalised_evidence`` takes the committed Xenium
-study through ``XeniumAdapter`` and ``read_tidy`` into ``core.measure.measure_unit``
+study through ``XeniumAdapter`` and jazzPanda's ``load`` into ``core.measure.measure_unit``
 and asserts the four states come out on real data. Everything above it pins one thing
 that demonstration depends on, so that when it breaks the failure names a cause
 instead of just saying the numbers moved.
@@ -530,7 +530,8 @@ def test_the_demo_store_reads_into_normalised_evidence(demo: Study) -> None:
 
     observed = next(i for i in ev.items if i.measured.state is MeasuredState.OBSERVED)
     assert observed.statistic is not None
-    assert "pearson" in [k for k, _ in observed.corroborating]
+    assert sorted(k for k, _ in observed.corroborating) == sorted(
+        ("pearson", "max_gc_corr", "max_gg_corr"))
 
     # The unit's own verdict precedes every item's, because it explains them.
     assert traced.decisions[0].refs == (ev.unit_subject.key,)
@@ -645,7 +646,7 @@ def test_the_missing_sample_blocker_counts_what_can_still_be_compared(
 def test_a_control_probe_never_enters_the_absence_universe(tmp_path: Path) -> None:
     """A control is EXCLUDED from interpretation, not refused by a frame.
 
-    ``read_tidy`` builds the absence-enumeration universe from every entity the
+    ``read_tidy`` builds the entity universe from every entity the
     method named, before any unit check, so a control row entered it and every
     frame was then asked about it. Both gene frames refuse a control -- correctly --
     which put it in ``entities_outside_frame`` and into the count ``panoscope

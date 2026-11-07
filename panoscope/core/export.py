@@ -145,7 +145,7 @@ ASSIGNMENT_COLUMNS: tuple[Column, ...] = (
 
 # --------------------------------------------------------------------------- #
 # CHARACTERISATION -- 14 columns, one row per surfaced pathway
-# (agent/enrichment.py ENRICHMENT_CSV_COLUMNS). The row is a (unit, item) pair:
+# (the committed enrichment.csv). The row is a (unit, item) pair:
 # untestable sets are not exported, because they were never a surfaced call.
 # --------------------------------------------------------------------------- #
 CHARACTERISATION_COLUMNS: tuple[Column, ...] = (

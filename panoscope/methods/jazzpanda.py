@@ -255,7 +255,7 @@ class JazzPandaSpatialGLM:
     rival_space: Literal["reference", "data", "none"] = "reference"
 
     # MANDATORY-ADJACENT: the declaration that makes TESTED_ABSENT reachable at all.
-    # ``platforms/tidy.py`` defines this flag and defaults it to False, because for a
+    # A method that does not declare it enumerates no absences, because for a
     # table truncated to the top N rows the unnamed entities were cut off, not tested,
     # and enumerating them would fabricate measured absences. jazzPanda's top_result
     # is not truncated: the assumption above -- "each gene is assigned to at most ONE
