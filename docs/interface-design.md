@@ -232,7 +232,7 @@ band from  glm_coef ≥ 10 · corroborated by pearson 0.62 · 0 demotions   ⌄
 
 ### 2.6 CHARACTERISATION — no label space, therefore no unit band
 
-This replaces an earlier enrichment header that borrowed the assignment header and emitted `<h1>{cell_type}</h1><span class="cf">{ce.confidence} enrichment</span>`. **That is a unit-level confidence band on a task with no label space.** It was the clearest instance of R2 being violated by inheritance; `census_html` in `ui/surface.py` refuses it.
+This replaces an earlier enrichment header that borrowed the assignment header and emitted `<h1>{cell_type}</h1><span class="cf">{ce.confidence} enrichment</span>`. **That is a unit-level confidence band on a task with no label space.** It was the clearest instance of R2 being violated by inheritance; `UISpec.__post_init__` and `label_band_html` now refuse it, and `census_html` renders the counts below.
 
 ```
 CLUSTER 1 · 4,812 cells   ·   Tumor  (call imported from the marker workflow; not re-derived here)
@@ -417,7 +417,7 @@ The stub matters for the paper: a reader can **see the gate acting**, rather tha
 
 ## 3. The UISpec contract
 
-`panoscope/ui_spec/spec.py` — Python 3.11+, all frozen. This is the declaration a **workflow** makes so its review surface is generated rather than hand-built.
+Built as `panoscope/types/uispec.py` — Python 3.11+, all frozen. This is the declaration a **workflow** makes so its review surface is generated rather than hand-built.
 
 ```python
 """UISpec — the machine-readable declaration a workflow makes about its review surface.
@@ -800,7 +800,7 @@ def degraded_spec(artifact: "ArtifactHandle") -> UISpec:
     )
 ```
 
-**The degradation principle, stated for the paper:** an unregistered analysis type degrades toward *making no claim*, never toward *reusing another task kind's claim*. The current `ui/enrichment_table.py` is the counter-example — it degraded upward by importing the assignment header and inheriting a confidence band it had no right to. `UISpec.__post_init__` now makes that construction impossible.
+**The degradation principle, stated for the paper:** an unregistered analysis type degrades toward *making no claim*, never toward *reusing another task kind's claim*. `ui/enrichment_table.py` was the counter-example — it degraded upward by importing the assignment header and inheriting a confidence band it had no right to. `UISpec.__post_init__` now makes that construction impossible.
 
 ### 3.2 The registrations that exist
 
