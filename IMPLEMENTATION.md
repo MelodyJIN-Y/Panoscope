@@ -251,6 +251,10 @@ One frame per entity kind: `GENE` → the panel; `CELL_TYPE` → the annotation 
 design levels meeting the replicate floor; `GENE_SET` → the collection. **Detectability is a second
 `GENE` frame**, not a special case.
 
+A missing annotation label set is the starting state, not a blocker: build and validate pass, review
+opens on annotation, and the `CELL_TYPE` frame is empty or partial until the biologist calls clusters.
+The four states apply to it as to any frame.
+
 ### 2.3 Evidence
 
 ```python
@@ -406,9 +410,15 @@ class Field:
     provenance: Provenance
 
 @dataclass(frozen=True, slots=True)
+class DiseaseState:                                      # every field declared-unknown OK; never guessed
+    value: Field; subtype: Field; stage: Field
+    treatment: Field                                    # naive | treated | unknown
+
+@dataclass(frozen=True, slots=True)
 class Conditions:
     assay: Field; modality: Field; tissue: Field        # tissue as an ontology id
     method: Field; segmentation: Field; fixation: Field
+    disease_state: DiseaseState
     frames: tuple[FrameRef, ...]                        # replaces panel_hash + panel_genes
 
 @dataclass(frozen=True, slots=True)

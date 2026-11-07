@@ -14,7 +14,7 @@ It is built for a wet-lab biologist reading a **targeted spatial panel** (e.g. a
 - **Confident floor.** Every pathway, score, q-value, and leading-edge gene must trace to the enrichment result or the panel. Never invent a pathway, a statistic, or a gene. If it is not in the source, do not state it.
 - **Open ceiling.** The biological meaning of an enriched program is a literature-grounded direction, not a fact. Label it as a direction.
 - **Panel-coverage rule (the headline catch).** A Hallmark set has ~200 genes, but only the genes on the panel were ever measured. Enrichment is computed over that panel-scoped subset only. ALWAYS state how many of the set's genes were on the panel (`K` of `N`), and say plainly: **panel-scoped, not genome-wide**. A set with too few panel genes, or driven by too few genes, is untestable — do not call it enriched.
-- **Cite everything, with real references.** Every interpretive (biological) claim about a program must carry a citation to a real paper, looked up **live** through a literature connector (PubMed / bioRxiv). Never write a PMID from memory: a fabricated citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the literature is thin; do not invent a reference.
+- **Cite everything, with real references.** Every interpretive (biological) claim about a program must carry a citation to a real paper, looked up from a real source (PubMed / bioRxiv) at build or top-up. Never write a PMID from memory: a fabricated citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the literature is thin; do not invent a reference.
 - **Defer to the biologist, always.** The tool informs and preserves the decision; it never overrides the cell-type call. Enrichment that disagrees with the cell type is reported as a tension, not a correction.
 - **When evidence is thin the rubric sets `verify = TRUE`; say "re-check this."** A program driven by two genes on a curated panel is a hypothesis, not a finding. The flag arrives already decided — report it, never choose it.
 
@@ -67,12 +67,12 @@ it, or offer to change it.
 After each cluster, read the whole set together: which programs recur across clusters, and do the enriched programs cohere with the compartment structure (epithelial / stromal / immune / endothelial). A program enriched in one cluster is cluster-specific; one enriched across many is a shared/atmospheric signal (or panel bias). State recurrence as a count, never as a stronger per-cluster claim.
 
 ## Step 6: Literature grounding and citation
-When you state what a program *is* or *does* biologically, look it up **live** and cite a real, resolvable PMID the biologist can open. Prefer tissue-specific evidence. When the literature is thin, say so; never invent a reference.
+When you state what a program *is* or *does* biologically, look it up from a real source and cite a real, resolvable PMID the biologist can open. Prefer tissue-specific evidence. When the literature is thin, say so; never invent a reference.
 
 ## Outputs
 
 ### Output 1: Per-pathway biology note (cited)
-For each enriched (and suggestive) program in a cluster, one crisp clause: what the program is and why it is relevant to THIS cluster's cell-type identity (concordant, or a flagged cross-lineage tension). Cite exactly **one real, live-looked-up PubMed paper** per note (never from memory). Do **not** restate the score/q/coverage (they are already shown). Keep it to one sentence; never use an em dash. If the program is cross-lineage for this cell type, say so plainly. A note whose literature is thin says so and carries no citation.
+For each enriched (and suggestive) program in a cluster, one crisp clause: what the program is and why it is relevant to THIS cluster's cell-type identity (concordant, or a flagged cross-lineage tension). Cite exactly **one real PubMed paper, looked up from a real source** per note (never from memory). Do **not** restate the score/q/coverage (they are already shown). Keep it to one sentence; never use an em dash. If the program is cross-lineage for this cell type, say so plainly. A note whose literature is thin says so and carries no citation.
 
 ### Output 2: Per-cluster enrichment summary (cited)
 One or two sentences naming the cluster's dominant program(s) and what they say about its state, anchored to the cell-type call, always carrying the panel-scoped caveat. One real PMID if a supporting paper exists; none if thin.

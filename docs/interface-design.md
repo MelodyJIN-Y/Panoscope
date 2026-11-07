@@ -188,7 +188,7 @@ transcript detections · CDK1 · 50 µm hex bins, area-normalised tx/µm², √ 
 
 ### 2.5 ASSIGNMENT — one label from a label space
 
-**Header** — the current `ui/verdict_header.py` is right except for one omission: a label drawn from a label space is only meaningful relative to that space, so the header must name the runner-up and the item that separated them. `agent/discriminate.py` already computes this (`Discrimination`, `settleable_on_panel`, `settle_line`), so it is deterministic Tier-A content, not model output.
+**Header** — `label_band_html` in `ui/surface.py`. A label drawn from a label space is only meaningful relative to that space, so the header must name the runner-up and the item that separated them. `agent/discriminate.py` already computes this (`Discrimination`, `settleable_on_panel`, `settle_line`), so it is deterministic Tier-A content, not model output.
 
 ```
 CLUSTER 1 · 4,812 cells                                          [agreed ✓]
@@ -232,7 +232,7 @@ band from  glm_coef ≥ 10 · corroborated by pearson 0.62 · 0 demotions   ⌄
 
 ### 2.6 CHARACTERISATION — no label space, therefore no unit band
 
-This replaces the construction at `ui/enrichment_table.py:178-182`, which today does `from ui.verdict_header import _idline` and emits `<h1>{cell_type}</h1><span class="cf">{ce.confidence} enrichment</span>`. **That is a unit-level confidence band on a task with no label space.** It is the clearest existing instance of R2 being violated by inheritance.
+This replaces an earlier enrichment header that borrowed the assignment header and emitted `<h1>{cell_type}</h1><span class="cf">{ce.confidence} enrichment</span>`. **That is a unit-level confidence band on a task with no label space.** It was the clearest instance of R2 being violated by inheritance; `census_html` in `ui/surface.py` refuses it.
 
 ```
 CLUSTER 1 · 4,812 cells   ·   Tumor  (call imported from the marker workflow; not re-derived here)
@@ -689,7 +689,8 @@ class UISpec:
 
 
 # --------------------------------------------------------------------------- #
-# The method declaration (registers INTO a workflow)
+# The method declaration (registers INTO a workflow). Built as the MethodModule
+# protocol in types/contracts.py; this sketch is its design, not its code.
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class MethodSpec:
@@ -737,7 +738,7 @@ class ViewModel:
 
 ### 3.1 The registry, and graceful degradation
 
-`panoscope/ui_spec/registry.py`:
+Design sketch. As built: `workflows.register(Workflow)` and `methods.register(MethodModule)` (each refuses a duplicate id; a method naming an unregistered workflow is refused), and `degraded_spec` in `types/uispec.py`.
 
 ```python
 _WORKFLOWS: dict[str, UISpec] = {}
@@ -802,6 +803,8 @@ def degraded_spec(artifact: "ArtifactHandle") -> UISpec:
 **The degradation principle, stated for the paper:** an unregistered analysis type degrades toward *making no claim*, never toward *reusing another task kind's claim*. The current `ui/enrichment_table.py` is the counter-example — it degraded upward by importing the assignment header and inheriting a confidence band it had no right to. `UISpec.__post_init__` now makes that construction impossible.
 
 ### 3.2 The registrations that exist
+
+Design sketch of the marker registration; as built it lives in `workflows/marker.py` and `methods/jazzpanda.py` through the two `register` calls above.
 
 ```python
 # panoscope/workflows/markers.py
@@ -998,6 +1001,8 @@ Split it: **the shell owns scope, the review surface owns focus.**
 | **Argument** | chat thread, pinned views, skeptic pass, holistic refinements | mutable, disposable | `ui/chat_store.py`, session state |
 | **Decision** | the biologist's committed call | **append-only, versioned** | `context/decisions/decision_log.jsonl`; `interp/review_state.json` becomes a projection |
 
+**When the biologist calls a label**, the same deterministic band is computed for that label and shown beside the original assessment. The claim layer stays immutable; the biologist's call drives everything downstream.
+
 Two invariants: **layer 2 never writes layer 3 implicitly** (no natural-language commit — "ok, call it CAF" is a *proposal*; the existing `_looks_like_override` → `NoteDraft` → two-tap confirm discipline extends to the decision, and **no LLM parse appears anywhere in the state machine**), and **layer 3 never mutates layer 1** (overrides are applied at composition, which `ui/data_access.py:composed_verdicts` / `override_info` already does correctly).
 
 ### 5.2 State diagram
@@ -1009,7 +1014,7 @@ Two invariants: **layer 2 never writes layer 3 implicitly** (no natural-language
    ┌────────┐   accept (1 tap, unflagged)          ┌────────────┐  │
    │        │ ───────────────────────────────────► │  ACCEPTED  │  │
    │        │   accept a FLAGGED call (2 taps +    └────────────┘  │
-   │        │   drafted validation note + live          │          │
+   │        │   drafted validation note +               │          │
    │  OPEN  │   literature reconciliation)              │          │
    │        │                                           │          │
    │        │   override (2 taps: scope, basis;     ┌──────────────┐
@@ -1043,14 +1048,14 @@ Today `_triage_bucket` in `ui/summary.py` has only needs / review / signed. `DEF
 
 ### 5.3 Numbered steps
 
-1. **Open the unit.** The agent posts its interpretation before any question: call, band, driving markers with their jazzPanda numbers, and the literature basis, each claim carrying a real, live-fetched citation. *For flagged (`verify`) clusters, open evidence-first*: evidence and caveats rendered, the call one tap away. This preserves "the agent posts its interpretation first" while reducing anchoring — and it gives the paper a measurable: override rate and time-to-commit with vs without the call revealed.
+1. **Open the unit, evidence first — every cluster, not only flagged ones.** Markers with their measurement states and jazzPanda numbers, the reference canonical lists and the literature basis render first, each literature claim carrying a real citation looked up from a real source at build or top-up, never from memory. The marker skill's proposal (call and band) is one tap away. This reduces anchoring — and it gives the paper a measurable: override rate and time-to-commit with vs without the proposal revealed.
 2. **Argue.** The biologist questions; the agent answers under the grounding gate. Each turn is a `AgentResponse` with its `GroundingSidecar`. The authority spine (§2.9) makes the epistemic profile of each answer scannable.
 3. **Pin evidence.** Clicking a marker pins it; views redraw. Nothing is recomputed — pinning is a viewing control.
 4. **Attach an exhibit.** A view can be attached as a *receipt*: `{view, subject, bin_um, artifact_sha}` — a deterministic pointer that re-renders the same figure, **not a bitmap**. One tap, on the figure. This is how an exploration becomes evidence without exploration becoming state.
 5. **(Optional) pressure test.** For flagged or contested clusters, one tap runs `agent/skeptic.py:pressure_test` — the double-reading analogue, cheaper than a committee.
 6. **The agent may propose, never commit.** A natural-language override produces a `NoteDraft` with its `Tension` already computed. The commit control is **disabled while an unconfirmed draft is open** ("save or discard the note first"), so a decision can never cite knowledge that was never written.
 7. **Commit, in the commit bar, on the unit page.** The identical component is mounted on the Summary board for the trivial cases, backed by one store — so a clean 9-cluster set can be closed without opening nine pages, while a contested one is decided where its evidence is.
-8. **On override, the reconciliation fires.** The agent uses the biologist's call **and** cross-checks the literature, reporting agreement and dissent with real citations. The dissent is retained in the record and **prints in the report even when the biologist wins**. Never a bare "got it"; never a silent overrule.
+8. **On override, the reconciliation fires.** The agent uses the biologist's call **and** cross-checks the literature, reporting agreement and dissent with real citations. The dissent is retained in the record and **prints in the report even when the biologist wins**. Dissent is a display flag: it never sets `verify`, which comes from the rubric alone. Never a bare "got it"; never a silent overrule.
 9. **The decision is written as an event.** Append-only. `interp/review_state.json` (today `{"dataset", "reviewed": {}, "saved_at"}`) becomes a replayable projection of the ledger.
 10. **Holistic re-check.** After each commit, the set-level board recomputes its reconciliation items (spillover, recurring programs, override dissent) — the skill's mandated holistic review, surfaced as unresolved count, contradictions, and staleness.
 11. **Export.** One heavy confirm: the unresolved list, the version freeze, a report id, the dataset manifest sha. This is the only near-irreversible act.
@@ -1106,14 +1111,14 @@ Agreement is an **attestation**, not a claim.
 - **Record it.** Without it you cannot distinguish "a label no human ever read" from "a label a named human endorsed on this version at this time." That distinction is exactly what is missing from current annotation practice, where a cell type ships as a bare string in `obs` with no actor, date, evidence or dissent.
 - **It writes no note.** No new claim → nothing enters the lab knowledge layer, nothing is citable as evidence later.
 - **It never moves a number.** A grounding test, not a promise: no decision record may be an input to `agent/verdict.py`, and *N* accepts must leave `confidence_score` byte-identical. Never render agreement as an aggregate that reads like confidence ("8/9 confirmed").
-- **The asymmetry rule.** *Accepting a call the system flagged is itself a claim* — "we looked and it holds despite the flag" — so it writes a validation note with a live literature reconciliation. Accepting an unflagged call is a tick. The line is principled: the note exists exactly when the human act contradicts the system's own caution, which is when it carries information.
+- **The asymmetry rule.** *Accepting a call the system flagged is itself a claim* — "we looked and it holds despite the flag" — so it writes a validation note with a literature reconciliation. Accepting an unflagged call is a tick. The line is principled: the note exists exactly when the human act contradicts the system's own caution, which is when it carries information.
 
 ### 5.7 Friction budget
 
 | Act | Interaction | Justification |
 |---|---|---|
 | Accept unflagged call | **1 tap**, reversible | minimum viable commit; recorded with actor + claim_sha |
-| Accept flagged (`verify`) call | 2 taps + read the drafted claim and live tension | contradicts the system's caution → note + literature check |
+| Accept flagged (`verify`) call | 2 taps + read the drafted claim and its tension | contradicts the system's caution → note + literature check |
 | Override, cluster scope | 2 taps (scope, basis) + confirm | tension precomputed at draft, so confirm is instant |
 | Override, dataset/lab scope | +1 explicit scope confirm | scope is enforced and will fire elsewhere — blast radius pays |
 | Defer | 1 tap + reason code (auto-filled from `discriminate.py`) | must state what would resolve it |
@@ -1201,4 +1206,4 @@ Ranked *cut-first to cut-last*. Cut from the top.
 | `ClusterEnrichment.confidence` field | Keep in the artifact, **structurally undrawable** via `CensusHeader` having no band slot; deprecate at the next `pipeline_version` | Tests and artifacts read it; the fix is to make the category error impossible to render, not to break the schema |
 | Difference maps for paired contrasts | **Refused by default**; two panels on a locked shared scale | A difference is a derived quantity (R5); it renders only when the pipeline emits a difference artifact with its own conditionality |
 
-**Key files this document touches:** `app.py:286` · `ui/data_access.py` (→ `panoscope/core/read.py`) · `ui/spatial_stage.py:74,101,626,647,835` · `ui/evidence_table.py` · `ui/enrichment_table.py:171-186` · `ui/verdict_header.py` · `ui/state.py:47-56` · `ui/summary.py:1142,1328` · `ui/report.py` · `agent/types.py` · `agent/config.py:132-195` · `agent/discriminate.py` · `pipeline/store.py:209-251` · `pipeline/paths.py:107` · `data/studies/xenium_hbreast_sample1/manifest.json` · `requirements.txt`
+**Key files this document touches:** `app.py:286` · `ui/data_access.py` (→ `panoscope/core/read.py`) · `ui/spatial_stage.py:74,101,626,647,835` · `ui/evidence_table.py` · `ui/enrichment_table.py` · `ui/surface.py` · `ui/state.py:47-56` · `ui/summary.py:1142,1328` · `ui/report.py` · `agent/types.py` · `agent/config.py:132-195` · `agent/discriminate.py` · `pipeline/store.py:209-251` · `pipeline/paths.py:107` · `data/studies/xenium_hbreast_sample1/manifest.json` · `requirements.txt`

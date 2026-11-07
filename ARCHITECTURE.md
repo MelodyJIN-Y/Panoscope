@@ -305,7 +305,7 @@ same four-state shape as the measurement lattice in §9.5.
 | --- | --- |
 | the measured set (structural — it *is* the panel file) | fixation |
 | clustering mode, when more than one sample | segmentation |
-| tissue (the corpus scoping key) | |
+| tissue (the corpus scoping key) | disease state, and each of its qualifiers |
 | platform / assay | |
 
 Blocking is consistent with the fail-loud discipline elsewhere: an undeclared clustering mode is
@@ -313,6 +313,15 @@ already a validation failure. The line exists so intake does not teach people to
 working from a collaborator's section may genuinely not know the segmentation version, and forcing an
 answer is worse than a declared unknown. Downstream, a check reading an unknown field returns *cannot
 be settled* and names what is missing.
+
+**Disease state** is a value plus three qualifiers — subtype, treatment (`naive` · `treated` ·
+`unknown`) and stage — each a field with its own provenance. None is ever guessed: an undeclared subtype
+or treatment status is a declared unknown, and the literature window says so (§8.1).
+
+**A missing annotation label set is the starting state, not a blocker.** A fresh study usually arrives
+as clusters with no names. It builds and validates; review opens on annotation — markers per cluster,
+and the biologist calls each one. Until then the cell-type capability frame is empty or partial, and the
+four states of §9.5 apply to it: an uncalled cluster is not a cell type tested and found absent.
 
 ### 6.4 Interaction: checklist, then a short targeted chat
 
@@ -325,12 +334,13 @@ The failure mode is a biologist losing patience in a twenty-question interview.
 3. **Chat only about ticked items and blocking gaps**, propose-and-confirm rather than interrogate.
 4. **Stop early.** Everything optional is skippable and addable later; the study artifact is editable.
 
-Optional context, gathered when offered: research background; papers of particular interest (cheap for
-the biologist, high value for the corpus); lab conventions and known caveats, stored as lab-scoped
-claims at setup rather than surfacing mid-session; and expected cell types — **stored as a claim to
-test, never as context feeding the call.** A stated prior the agent can agree or disagree with is
+Optional context, gathered when offered: research background; disease state; papers of particular
+interest (cheap for the biologist, high value for the corpus); lab conventions and known caveats,
+stored as lab-scoped claims at setup rather than surfacing mid-session; and expected cell types —
+**stored as a claim to test, never as context feeding the call.** A stated prior the agent can agree or disagree with is
 valuable; the same text as input would anchor the interpretation and defeat the independent audit. It
-also provides a sycophancy probe on real data (§16.5).
+also provides a sycophancy probe on real data (§16.5). Expected types may widen the literature scope
+alongside the reference view, never alone, and never enter the label or rival space.
 
 ### 6.5 Where it runs
 
@@ -475,7 +485,29 @@ tissue -> candidate cell types -> marker genes (incl. off-panel)
 ```
 
 Off-panel canonical markers arrive because they are edges from the cell type, not because they appeared
-in the results. Cost scales with the candidate cell-type set, not with panel size.
+in the results.
+
+**Scope is a union, capped.** The genes are the reference walk above plus each cluster's top ~10 method
+markers, each crossed with the candidate cell types. No other panel gene is prebuilt; one is topped up
+on request (a note that names it, a rival outside the set), and a top-up writes a **new** corpus
+version. Cost scales with the candidate cell-type set and the cluster count, not with panel size.
+
+**Narrow window first.** Each triple is searched in the study's exact setting before anything wider,
+and every statement carries the rung it was found at, labelled where it is shown:
+
+| Rung | Setting |
+| --- | --- |
+| W0 | exact window: tissue, disease state, cell type (W0* while disease state is undeclared) |
+| W1 | the study's setting, no cell-type resolution |
+| W2 | same tissue, other disease state or treatment |
+| W3 | same cell type, other tissue |
+| W4 | other species |
+| W5 | in vitro |
+
+Widening is per triple and labelled, never silent; beyond W5 there is no rung.
+
+**Built once per study**, after the reference view and before review opens. Never ranked by citation
+count (§15).
 
 ### 8.2 What the disagreements buy
 
@@ -483,6 +515,8 @@ in the results. Cost scales with the candidate cell-type set, not with panel siz
 - **Edge with thin or absent literature here** — a weak prior, and it should read that way
 - **Edge whose literature qualifies it** — the qualification travels with the edge every time it is used
 - **Edge the tissue literature contradicts** — surfaced as tension, not resolved
+
+Literature dissent is a display flag. It never sets `verify`, which comes from the rubric alone (§11.1).
 
 **Caution.** Attaching literature to an edge can look like validation. A paper retrieved for a triple is
 topically relevant, not confirmation the marker works in your assay. The paper's own context is
@@ -819,7 +853,7 @@ that escalate.
 
 **Never let the model decide `verify`.** Offering a model an "insufficient information" option has been
 measured to make frontier models perform *worse than random* on analytical questions. `verify` comes
-from the deterministic rubric, always.
+from the deterministic rubric, always. Literature dissent does not count toward it; it is shown as a flag.
 
 Generator model, version, access date and mode go in the report header.
 
@@ -1172,7 +1206,7 @@ extras and credential status. Structured logs with a correlation id per turn.
 | Operation | Budget |
 | --- | --- |
 | Reference view build (one tissue) | < 2 min, cached thereafter |
-| Corpus build (~20 cell types) | < 30 min, resumable |
+| Corpus build (~20 cell types, scope per §8.1) | < 30 min, resumable |
 | Dataset load (5k panel, 500k cells, no images) | < 10 s |
 | Retrieval per turn | < 300 ms |
 | Full deterministic run per dataset | < 5 min |

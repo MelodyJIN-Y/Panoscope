@@ -156,7 +156,7 @@ class Note:
 
 On cluster re-open the opening re-composes from three grounded sources, tension kept visible:
 (a) the deterministic `OpeningInterpretation` (call, confidence, drivers with jazzPanda numbers,
-off-panel notes, live citations) — the confident floor, unchanged; (b) the in-scope notes from
+off-panel notes, citations looked up from a real source at build or top-up, never from memory) — the confident floor, unchanged; (b) the in-scope notes from
 `apply_notes`, now **anchored** so each renders where its subject lives (§4.6); (c) every applied note
 shown as `[note:id]` with its attached tension (agree/dissent PMIDs).
 

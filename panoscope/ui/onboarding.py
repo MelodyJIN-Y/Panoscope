@@ -246,7 +246,7 @@ def _hero_visual_html() -> str:
     <div class="pano-hc-row"><span class="g">LUM</span><span class="v">glm 18.00</span></div>
     <div class="pano-hc-row"><span class="g">POSTN</span><span class="v">glm 15.80</span></div>
     <div class="pano-hc-row off"><span class="g">COL1A1</span><span class="v">not measured</span></div>
-    <div class="pano-hc-cite">cited to live literature</div>
+    <div class="pano-hc-cite">cited to real literature</div>
   </div>
 </div>
 """
@@ -257,11 +257,11 @@ _HERO_TEXT = """
   <h1 class="pano-ob-h1">Turn <span class="accent">jazzPanda</span> markers into a call you can trust.</h1>
   <p class="pano-ob-lead">Ask about a cluster in plain language; Panoscope answers with a cell-type call,
   a confidence level, and the evidence behind it. Every number traces to jazzPanda's spatial output, and
-  every literature claim carries a real, live-fetched PubMed citation.</p>
+  every literature claim carries a real PubMed citation, never one from memory.</p>
   <div class="pano-ob-feats">
     <span class="pano-ob-feat"><b>Grounded</b> · every number traces to source</span>
     <span class="pano-ob-feat"><b>Panel-absence catch</b> · off-panel ≠ absent</span>
-    <span class="pano-ob-feat"><b>Live citations</b> · real PubMed, never from memory</span>
+    <span class="pano-ob-feat"><b>Real citations</b> · looked up in PubMed, never from memory</span>
   </div>
 </div>
 """
@@ -335,7 +335,7 @@ def _run_progress(names: list[str]) -> None:
         (f"Reading jazzPanda output ({read})…", 0.28),
         ("Applying the panel-absence rule to the gene panel…", 0.52),
         ("Scoring confidence from spatial glm_coef…", 0.72),
-        ("Grounding cell-type notes with live citations…", 0.9),
+        ("Grounding cell-type notes with looked-up citations…", 0.9),
         (_ready_line(), 1.0),
     ]
     bar = st.progress(0.0, text="Starting…")

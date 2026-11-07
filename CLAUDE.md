@@ -80,9 +80,9 @@ a re-listed set of states — the second list is the one nobody updates.
 - **But measured absence *is* evidence.** A marker that was measured and peaked elsewhere argues against
   a rival. Do not collapse the four states into "unknown".
 - Cite everything. Every claim names its source.
-- **Citations must be real and looked up live.** Never write a PMID or DOI from memory. A fabricated
-  citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the
-  literature is thin.
+- **Citations must be real, looked up from a real source at build or top-up, never from memory.**
+  Never write a PMID or DOI from memory. A fabricated citation is the worst possible failure, worse than
+  no citation. If a lookup returns nothing, say the literature is thin.
 - When evidence is insufficient, set `verify = TRUE` and say re-check this. **`verify` comes from the
   deterministic rubric — never offer the model the choice.**
 - No overclaiming. The tool accumulates the lab's knowledge; it does not learn on its own.

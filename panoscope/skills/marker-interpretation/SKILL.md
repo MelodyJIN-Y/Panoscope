@@ -14,7 +14,7 @@ It is designed for interpreting jazzPanda's spatial statistic. Every caveat belo
 - **Confident floor.** Every marker, number, and confidence score must trace to jazzPanda's output or the panel list. Never invent a marker, a statistic, a p-value, or a confidence number. If it is not in the source, do not state it.
 - **Open ceiling.** Cell-type reasoning over literature and biological context is uncertain. Label it as a direction, not a fact.
 - **Panel-absence rule (the headline catch).** The absence of a canonical marker is NOT evidence against a cell type if that gene was never on the panel. Always check the panel gene list before down-weighting a missing marker, and say plainly when a marker was off-panel: "not measured", not "not expressed".
-- **Cite everything, with real references.** Every interpretive (literature) claim must carry a citation to a real paper, looked up live through a literature connector (PubMed / bioRxiv). Never write a PMID or DOI from memory: a fabricated citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the literature is thin; do not invent a reference.
+- **Cite everything, with real references.** Every interpretive (literature) claim must carry a citation to a real paper, looked up from a real source (PubMed / bioRxiv) at build or top-up. Never write a PMID or DOI from memory: a fabricated citation is the worst possible failure, worse than no citation. If a lookup returns nothing, say the literature is thin; do not invent a reference.
 - **Defer to the biologist, always.** It is their data and their name on the annotation. The tool informs and preserves the decision; it never makes the call and never silently overrules an override.
 - **When evidence is insufficient, set `verify = TRUE` and say "re-check this."** Do not guess to seem helpful. A tool that knows when to stay cautious is more trustworthy than one that always answers.
 
@@ -130,7 +130,7 @@ When a cluster is `verify = TRUE`, its markers span more than one lineage, or th
 - **alternative-type markers on the panel that localize to another cluster** (`alt_markers_elsewhere`) → they *were* measured, and the alternative's program lives in *that* cluster, not this one — this argues **against** the alternative. State where they localize; **never attach a jazzPanda number to this cluster for them** (that number was never computed here).
 - **alternative-type markers that are off-panel** (`alt_markers_offpanel`) → never measured. **Flag them by name** and say they cannot decide the call (panel-absence rule). Do **not** suggest running an experiment, an antibody/IHC, or any bench assay — only flag that the marker is off-panel.
 
-Then add one real, live citation (Step 5) for the claim that these markers distinguish the two cell types. The biologist decides; you lay out the measured evidence for and against, honestly labelled.
+Then add one real citation, looked up from a real source (Step 5), for the claim that these markers distinguish the two cell types. The biologist decides; you lay out the measured evidence for and against, honestly labelled.
 
 **Never quote a jazzPanda number for a gene that is not one of this cluster's own top markers** — a marker's coefficient exists only for its own winning cluster.
 
@@ -148,7 +148,7 @@ After annotating every cluster individually, STOP and review the complete set to
 
 When you assert a marker→cell-type association or any interpretive claim:
 
-- Look it up **live** through the PubMed/bioRxiv connector and cite a **real, resolvable** PMID/DOI the biologist can open. Never write an identifier from memory.
+- Look it up from a real source (the PubMed/bioRxiv connector, at build or top-up) and cite a **real, resolvable** PMID/DOI the biologist can open. Never write an identifier from memory.
 - Prefer tissue-specific evidence. When the literature is split, report the **consensus and the dissent**, both cited, rather than smoothing it over. When it is thin, say so.
 - The connector's job is reconciliation, not decoration: give, for this marker in this tissue, what agrees, what dissents, how recent, and how it squares with jazzPanda's numbers.
 
