@@ -220,6 +220,16 @@ def test_an_absence_block_renders_its_header_at_zero():
     assert "every canonical marker for this label is on panel" in html
 
 
+def test_an_empty_canonical_list_never_claims_every_canonical_marker_is_on_panel():
+    """No label, or a label with no curated list: there is no canonical set to be on panel."""
+    built = et.unit_build("c1")._replace(canonical=frozenset())
+    rows = [r for r in et.rows_for("c1", built)
+            if r.state is not MeasuredState.NEVER_MEASURED]
+    html = surface.table_html(et.spec_for(built), rows)
+    assert "NEVER MEASURED - 0 off panel" in html
+    assert "every canonical marker for this label is on panel" not in html
+
+
 def test_the_ribbon_counts_every_state_against_the_unit_total(rows):
     html = surface.ribbon_html(MARKERS, rows)
     n_never = sum(1 for r in rows if r.state is MeasuredState.NEVER_MEASURED)

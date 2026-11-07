@@ -166,6 +166,7 @@ def _run_one(path: Path, study: Any, marker_evidence: dict[str, Any],
             # a default for either would be a number nobody measured. The checks
             # refuse and name what would settle them.
             spatial=_spatial_side(spatial, world) if spatial is not None else None,
+            tested_whole_frame=method.tests_whole_frame,
         )
         finding = core_interpret.interpret(ev, wf, audit)
         record = core_record.build(

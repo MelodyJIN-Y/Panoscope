@@ -406,6 +406,14 @@ def test_the_surface_can_say_never_measured_and_declares_the_four_checks():
     assert {c.key for c in spec.header.checks} == {c.id for c in de.WORKFLOW.checks()}
 
 
+def test_the_statistic_column_is_labelled_by_the_matched_method():
+    """edgeR reports logFC and Seurat avg_log2FC; the surface names whichever ran."""
+    def stat(m):
+        return next(c for c in de.WORKFLOW.uispec(m).columns if c.key == "statistic")
+    assert (stat(edger.MODULE).label, stat(edger.MODULE).unit) == ("logFC", "logFC")
+    assert stat(seurat_de.MODULE).label == "avg_log2FC"
+
+
 # --------------------------------------------------------------------------- #
 # Check 1: panel scoping
 # --------------------------------------------------------------------------- #
@@ -518,7 +526,7 @@ def test_coherence_runs_through_reconcile_and_keeps_conflict_apart_from_silence(
     """
     ev = loaded.value["c1"]
     traced = de.cross_method_coherence(
-        ev, de.DEAudit(world=WORLD, spatial=_spatial_side()))
+        ev, de.DEAudit(world=WORLD, spatial=_spatial_side(), tested_whole_frame=True))
     r = traced.value
 
     assert r.state is de.CheckState.FLAGGED
@@ -529,6 +537,17 @@ def test_coherence_runs_through_reconcile_and_keeps_conflict_apart_from_silence(
     assert {"reconcile:tension", "reconcile:not_comparable",
             "reconcile:coherent"} <= rules
     assert "reconcile:agree" not in rules
+
+
+def test_a_method_that_prefilters_genes_makes_no_tested_absence_from_silence(loaded):
+    """Seurat pre-filters (min.pct, logfc.threshold): a panel gene missing from its
+    table may never have been tested, so ACTA2's silence is not a measured absence."""
+    assert seurat_de.MODULE.tests_whole_frame is False
+    r = de.cross_method_coherence(loaded.value["c1"], de.DEAudit(
+        world=WORLD, spatial=_spatial_side(),
+        tested_whole_frame=seurat_de.MODULE.tests_whole_frame)).value
+    assert "TENSION" not in r.headline
+    assert any("ACTA2" in m and "never_measured" in m for m in r.missing)
 
 
 def test_coherence_refuses_when_there_is_no_second_method(loaded):

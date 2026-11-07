@@ -34,26 +34,23 @@ OFF_PANEL_CANONICAL_FALLBACK: dict[str, tuple[str, ...]] = {
 }
 
 
-def _annotation_path(dataset_id: Optional[str] = None) -> Path:
-    return (
-        cfg.DATA_DIR_PATH / "studies" / (dataset_id or cfg.DATASET_ID)
-        / "interp" / "annotation.json"
-    )
+def _annotation_path(dataset_id: str, root: Path) -> Path:
+    return root / "studies" / dataset_id / "interp" / "annotation.json"
 
 
 def load_annotation(dataset_id: Optional[str] = None) -> dict[str, dict]:
-    """Resolve ``None`` to the current study BEFORE caching, so studies never share an entry."""
-    return _load_annotation_cached(dataset_id or cfg.DATASET_ID)
+    """Resolve root and study BEFORE caching, so two roots' same-id studies never share an entry."""
+    return _load_annotation_cached(str(cfg.DATA_DIR_PATH), dataset_id or cfg.DATASET_ID)
 
 
 @lru_cache(maxsize=8)
-def _load_annotation_cached(dataset_id: str) -> dict[str, dict]:
+def _load_annotation_cached(root: str, dataset_id: str) -> dict[str, dict]:
     """cluster -> {cell_type, cell_type_short, category, lineage, canonical_markers, offpanel_canonical}.
 
     Reads the per-dataset annotation (``interp/annotation.json``) when present and
     fills every cluster it does not name from the fallback below.
     """
-    path = _annotation_path(dataset_id)
+    path = _annotation_path(dataset_id, Path(root))
     stored: dict[str, dict] = {}
     if path.exists():
         try:
@@ -67,7 +64,7 @@ def _load_annotation_cached(dataset_id: str) -> dict[str, dict]:
     # ONLY for the bundled demo dataset; any OTHER dataset reads "not yet called"
     # until the biologist (or the skill's proposal) names it, so it never inherits
     # demo cell types (even if it happens to reuse c1/c2/... ids).
-    is_bundled_demo = (dataset_id or cfg.DATASET_ID) == cfg.BUNDLED_DEMO_ID
+    is_bundled_demo = dataset_id == cfg.BUNDLED_DEMO_ID
     out: dict[str, dict] = dict(stored)
     for c in cfg.CLUSTER_ORDER:
         if c in out:

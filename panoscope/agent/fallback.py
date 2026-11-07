@@ -33,6 +33,7 @@ from panoscope.agent.types import (
     Source,
 )
 from panoscope.agent.compose import composed_verdict_for, computed_call
+from panoscope.data.study import NOT_YET_CALLED
 
 # Two decimals is inside the grounding checker's 1e-2 tolerance. One constant so
 # prose and sidecar never drift.
@@ -157,6 +158,18 @@ def _whose_call(cluster: str, shown: str) -> str:
     return f" (your call, replacing the computed {computed})"
 
 
+def _not_called(v: ClusterVerdict, opening: bool = False) -> AgentResponse:
+    """A unit with no band: no confidence word and no re-check -- there is no claim."""
+    who = ("is not yet called" if v.cell_type == NOT_YET_CALLED
+           else f"is your call, {v.cell_type}, which the build had no label to assess")
+    return AgentResponse(
+        text=(f"{v.cluster} {who}: there is no band and nothing to re-check. The "
+              "markers table lists what was measured here; the call is yours."),
+        sources=(), verify=False, grounding=_sidecar((), ()),
+        used_fallback=True, opening=opening,
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Opening interpretation fallback
 # --------------------------------------------------------------------------- #
@@ -168,7 +181,10 @@ def fallback_opening(cluster: str) -> AgentResponse:
 
     KeyError if ``cluster`` is unknown (propagated from the verdict engine).
     """
-    op = composed_verdict_for(cluster).opening
+    v = composed_verdict_for(cluster)
+    if not v.confidence:
+        return _not_called(v, opening=True)
+    op = v.opening
     drivers = op.driving_markers
     notes = op.offpanel_notes
     # The biologist's call WITH the tension visible: say whose call it is and what
@@ -615,6 +631,8 @@ def fallback_answer(query: str, cluster: str) -> Optional[AgentResponse]:
     if intent is None:
         return None
     v = composed_verdict_for(cluster)
+    if not v.confidence:
+        return _not_called(v)
     if intent == "settle":
         # The settle answer needs the query text (to pick up a named alternative),
         # so it is built here rather than through the ClusterVerdict-only table.
@@ -636,6 +654,8 @@ def generic_fallback(cluster: str) -> AgentResponse:
     KeyError if ``cluster`` is unknown (propagated from the verdict engine).
     """
     v = composed_verdict_for(cluster)
+    if not v.confidence:
+        return _not_called(v)
     drivers = v.opening.driving_markers
     if drivers:
         return _call_answer(v, (

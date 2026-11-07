@@ -472,7 +472,8 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             ev = dataclasses.replace(ev, unit_measured=dataclasses.replace(
                 ev.unit_measured,
                 coverage=ev.unit_measured.coverage + (replicate,)))
-        verdict = core_verdict.assess(ev.items, canonical, replicate)
+        called = str(meta.get("cell_type", "")) not in ("", NOT_YET_CALLED)
+        verdict = core_verdict.assess(ev.items, canonical, replicate, called)
         # §14's *evaluability + transfer*, run per unit because the frames and the
         # label are the unit's. ``claims`` and ``conditions`` are read once above.
         claims_t = _claims_used(
@@ -505,6 +506,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             # that gets hashed would make byte-stability depend on PYTHONHASHSEED.
             canonical=tuple(sorted(canonical)),
             world=world,
+            called=called,
         )).value
         out[unit] = UnitBuild(
             record=record, evidence=ev, verdict=verdict.value, canonical=canonical,

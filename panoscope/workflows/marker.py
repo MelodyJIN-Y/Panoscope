@@ -52,6 +52,7 @@ class MarkerReference:
     rivals: tuple[tuple[str, tuple[str, ...]], ...] = ()   # alternative -> its markers
     world: MeasuredWorld = field(default_factory=MeasuredWorld)
     rival_floor: int = 1
+    called: bool = True     # False: the unit has no label yet, so no band
 
     def canonical_for(self, alternative: str) -> tuple[str, ...] | None:
         """The rival's marker list, or ``None`` if nobody curated one.
@@ -92,7 +93,7 @@ class MarkerInterpretation:
         t = Trace()
         ref_: MarkerReference = reference
         verdict = t.absorb(_assess(ev.items, frozenset(ref_.canonical),
-                                   _replicate_coverage(ev)))
+                                   _replicate_coverage(ev), called=ref_.called))
 
         drivers = tuple(i for i in ev.items if i.measured.carries_number)
         unmeasured = tuple(i for i in ev.items if not i.measured.carries_number)
@@ -248,6 +249,9 @@ def _rationale(ev: NormalisedEvidence, reference: MarkerReference,
     blocked = tuple(i for i in ev.items
                     if i.measured.state is MeasuredState.NEVER_MEASURED)
     driver = verdict.driver
+    if not reference.called:
+        return (f"{ev.unit} is not yet called: no label, so no band, on {observed} "
+                f"of {len(ev.items)} item(s) carrying a measurement.")
     head = (
         f"{ev.unit} reads as {reference.label} at {verdict.band} "
         f"({verdict.basis}), on {observed} of {len(ev.items)} item(s) carrying a "

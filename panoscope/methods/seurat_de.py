@@ -120,6 +120,18 @@ class SeuratDE:
         "measurement",
     )
 
+    #: Whether a panel gene missing from the table was tested (TESTED_ABSENT) or may
+    #: never have been (not evidence). Seurat's FindAllMarkers reference: min.pct
+    #: "only test genes that are detected in a minimum fraction of min.pct cells",
+    #: logfc.threshold "Limit testing to genes which show, on average, at least X-fold
+    #: difference", and return.thresh/only.pos drop tested genes from the output.
+    tests_whole_frame: bool = False
+    tested_set: str = (
+        "genes pre-filtered by min.pct and logfc.threshold were never tested, and "
+        "return.thresh and only.pos drop tested genes from the table, so a panel gene "
+        "missing here cannot be read as tested and unchanged"
+    )
+
     # ARCHITECTURE §9.6: for a COMPARISON the rival is a CONFOUND, and the space of
     # confounds comes from the DATA and the design -- per-sample consistency, effect
     # within cell type, driving-cell concentration -- never from a reference list.

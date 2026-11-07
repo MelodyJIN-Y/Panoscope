@@ -55,6 +55,9 @@ RULES: dict[str, Rule] = _rules(
     Rule("measure:coverage_floor", "measure",
          "K of N fell below a declared floor; demoted to underpowered"),
     # -- step: confidence (core.verdict.assess) --
+    Rule("band:not_called", "confidence",
+         "the unit has no label yet: no band, and no verify, because there is no "
+         "call to assess"),
     Rule("band:no_canonical_driver", "confidence",
          "no canonical marker supports the call"),
     Rule("band:driver_nosig", "confidence", "the driving marker is NoSig"),

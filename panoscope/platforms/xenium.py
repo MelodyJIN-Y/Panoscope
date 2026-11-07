@@ -591,8 +591,10 @@ class XeniumAdapter:
             problems.append(str(exc))
             return problems
 
-        if len(samples) > 1:
-            on_disk = self.sample_inputs(store)
+        on_disk = self.sample_inputs(store)
+        # Per-sample marker tables feed the marker workflow only: a study with no
+        # marker result at all (DE-only, enrichment-only) is not missing them.
+        if len(samples) > 1 and (on_disk or (store.inputs / "markers_top.csv").is_file()):
             missing = [s for s in samples if s not in on_disk]
             if missing:
                 # What the MISSING tables cost, counted: two readable sections

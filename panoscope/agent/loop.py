@@ -279,8 +279,10 @@ def _global_interpretation_lines() -> str:
             continue
         flag = "  [VERIFY — re-check]" if v.verify else ""
         drivers = ", ".join(v.key_markers[:3])
+        band = (f"{v.confidence} confidence" if v.confidence
+                else "NO BAND (no label to assess; state no confidence)")
         lines.append(
-            f"  {c}: {_called(c, v.cell_type)} — {v.confidence} confidence{flag}"
+            f"  {c}: {_called(c, v.cell_type)} — {band}{flag}"
             f" (drivers: {drivers})"
         )
     return "\n".join(lines)

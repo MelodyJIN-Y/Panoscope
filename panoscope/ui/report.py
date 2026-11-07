@@ -605,7 +605,8 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
     lines.append(("overview", ""))  # rendered as a table by the doc builders
 
     for s in report.sections:
-        head = f"{s.cluster} · {s.cell_type} ({s.confidence})" + ("  [re-check]" if s.verify else "")
+        head = (f"{s.cluster} · {s.cell_type}" + (f" ({s.confidence})" if s.confidence else "")
+                + ("  [re-check]" if s.verify else ""))
         if s.excluded:
             head += "  [EXCLUDED BY THE BIOLOGIST]"
         lines.append(("h2", head))
@@ -784,7 +785,8 @@ def default_cluster_summary(s: ClusterSection) -> str:
     settle line, never-measured markers, undecidables and notes. PMIDs inline.
     """
     ident = (
-        f"Identity — {s.cluster} is {s.cell_type} at {s.confidence} confidence"
+        f"Identity — {s.cluster} is {s.cell_type}"
+        + (f" at {s.confidence} confidence" if s.confidence else ", with no band")
         + (" (flagged to re-check)" if s.verify else "")
         + f", driven by {s.driver_line}."
     )

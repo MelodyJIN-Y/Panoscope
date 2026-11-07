@@ -8,6 +8,7 @@ dir (never the real data/studies tree) and checks the artifacts + faithful read.
 
 from __future__ import annotations
 
+import csv
 import json
 
 import pandas as pd
@@ -162,6 +163,25 @@ def _fresh_study(tmp_path, monkeypatch) -> None:
     layout.clear_cache()
 
 
+def _no_band_anywhere(cluster: str) -> None:
+    """Chat, Summary and report say "not yet called" with no confidence word and no re-check."""
+    from panoscope.agent import fallback
+    from panoscope.ui import report, summary
+
+    for r in (fallback.fallback_opening(cluster), fallback.match("how confident?", cluster),
+              fallback.generic_fallback(cluster)):
+        assert "not yet called" in r.text and not r.verify, r.text
+        assert "confidence" not in r.text and "re-check this" not in r.text, r.text
+    v = summary.da.composed_verdicts()[0]
+    head = summary._ws_head_html(v.cluster, v.cell_type, v.confidence, v.verify)
+    assert "re-check" not in head and 'class="cf' not in head and summary._conf_badge("") == ""
+    rep = report.build_report_from_sources()
+    text = report.default_cluster_summary(rep.sections[0]) + "".join(
+        t for k, t in report._section_lines(rep) if k != "meta")  # meta: study-wide counts
+    assert "not yet called" in text
+    assert "confidence" not in text.lower() and "re-check" not in text
+
+
 def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_path, monkeypatch):
     """No label set is the starting state: the build passes and the biologist calls."""
     from panoscope.agent import loop as agent_loop
@@ -184,10 +204,19 @@ def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_pat
     for c in clusters:
         v = store.load_verdict(c, "fresh")
         assert v.cell_type == NOT_YET_CALLED, c
+        # No label, no claim: no band, no score anchor, nothing to re-check.
+        assert (v.confidence, v.confidence_score, v.verify) == ("", None, False), c
+        assert "confidence" not in v.notes.lower() and "re-check this" not in v.notes
+    rows = list(csv.DictReader(paths.verdicts_csv("fresh").open()))
+    assert {(r["confidence"], r["confidence_score"], r["verify"]) for r in rows} == {
+        ("", "", "FALSE")}
+    recs = list((paths.interp_dir("fresh") / "records" / "assignment").glob("*.json"))
+    assert len(recs) == 9 and all('"band:not_called"' in p.read_text() for p in recs)
     assert store.load_review_state("fresh") == {}  # nothing signed off: every unit OPEN
     assert EntityKind.CELL_TYPE not in {f.kind for f in XeniumAdapter().frames(Study.open("fresh"))}
     with cfg.use_study("fresh"):  # the chat's opening reads the label; none is not a crash
         assert data.cell_type_for("c1") == NOT_YET_CALLED
+        _no_band_anywhere("c1")
 
     pipeline_run.run("fresh")  # the proposal already ran; a rebuild does not re-ask
     assert len(asked) == 9

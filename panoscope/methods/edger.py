@@ -115,6 +115,17 @@ class EdgeR:
         "measurement",
     )
 
+    #: Whether a panel gene missing from the table was tested. edgeR's topTags
+    #: reference: n is the "maximum number of genes/tags to return" (default 10) and
+    #: p.value keeps "Only tags with adjusted p-values equal or lower than specified";
+    #: genes removed by expression filtering before fitting were never tested.
+    tests_whole_frame: bool = False
+    tested_set: str = (
+        "genes filtered by expression before fitting were never tested, and topTags "
+        "returns at most n genes under its p.value cutoff, so a panel gene missing "
+        "here cannot be read as tested and unchanged"
+    )
+
     # ARCHITECTURE §9.6: for a COMPARISON the rival is a CONFOUND, and the space of
     # confounds comes from the DATA and the design, never from a reference list.
     rival_space: Literal["reference", "data", "none"] = "data"

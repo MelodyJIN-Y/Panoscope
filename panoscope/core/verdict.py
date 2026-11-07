@@ -76,6 +76,8 @@ REPLICATE_COVERAGE_FLOOR: tuple[int, int] = (1, 2)
 REPLICATE_COVERAGE_WHAT: str = "subjects_comparable"
 
 LOW_BAND: str = "Low"
+#: The band of a unit with no label: nothing to assess, so no band and no verify.
+NO_BAND: str = ""
 FRAGILE_CAP_BAND: str = "Medium-High"
 FRAGILE_FLOOR_BAND: str = "Medium"
 
@@ -241,7 +243,7 @@ def _verify(band: str, driver: EvidenceItem | None, fragile: bool,
 # Public API
 # --------------------------------------------------------------------------- #
 def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str],
-           replicate: Coverage | None = None) -> Traced[Verdict]:
+           replicate: Coverage | None = None, called: bool = True) -> Traced[Verdict]:
     """Band and ``verify`` for one unit, with the decision behind every adjustment.
 
     ``canonical`` is the label's curated marker set, passed in (``core/`` does no IO). It
@@ -255,8 +257,17 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str],
     could not be asked. It only subtracts, supplies no value, and records nothing when it
     clears its floor. ``None`` means "never asked", never "asked and fine";
     ``pipeline/records.py`` writes the reason into ``undecidable``.
+
+    ``called=False`` (the unit has no label yet): :data:`NO_BAND` and no verify --
+    there is no claim to assess or to re-check.
     """
     t = Trace()
+    if not called:
+        t.note("band:not_called", "no band",
+               ("the unit has no label yet, so there is no call to assess",), ())
+        return t.done(Verdict(band=NO_BAND, basis="not yet called", verify=False,
+                              demotions=(), driver=None,
+                              fragile=False, replicate_coverage=replicate))
     canon = frozenset(g.upper() for g in canonical)
 
     # "Assigned markers" in the old sense: the ones that produced a number. An item

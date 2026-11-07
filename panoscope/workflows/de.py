@@ -105,6 +105,9 @@ class DEAudit:
     # the serialised record.
     abundance: tuple[tuple[str, float], ...] = ()
     spatial: Side | None = None                      # the other method, SAME unit
+    #: The method's declared ``tests_whole_frame``. False: a panel gene missing from
+    #: the table may never have been tested, so its silence is not TESTED_ABSENT.
+    tested_whole_frame: bool = False
     relationship: Relationship = Relationship.PARTLY_INDEPENDENT
 
 
@@ -332,7 +335,10 @@ def cross_method_coherence(ev: NormalisedEvidence,
 
     mine = Side(module=ev.module, workflow=WORKFLOW_ID,
                 task_kind=TaskKind.COMPARISON, unit=ev.unit,
-                authority=Authority.MEASUREMENT, items=ev.items, world=audit.world)
+                authority=Authority.MEASUREMENT, items=ev.items,
+                # An empty world reads a silent gene as NEVER_MEASURED ("cannot speak
+                # to it") when the method did not test every gene in the frame.
+                world=audit.world if audit.tested_whole_frame else MeasuredWorld())
     joined = t.absorb(reconcile(audit.spatial, mine, audit.relationship))
 
     tension = joined.with_outcome(Agreement.TENSION)
@@ -463,14 +469,16 @@ class DEInterpretation:
         next to the ones that fired."""
         return CHECKS
 
-    def uispec(self) -> UISpec:
-        """The review surface this question requires.
+    def uispec(self, method: Any = None) -> UISpec:
+        """The review surface this question requires; the statistic column is
+        labelled with the matched ``method``'s own statistic (logFC, avg_log2FC).
 
         A ``ConfoundChecklistHeader`` (no band slot). Four blocks, one per measurement
         state; a ``direction`` column because a down-regulated gene is a result.
         No plots: a ``PlotSpec`` needs a conditionality builder (R4), and the
         fold-change-vs-spatial plot belongs to reconciliation (§13.6).
         """
+        stat = method.statistic_name if method is not None else "effect size"
         return UISpec(
             workflow_id=SURFACE_ID,
             title="Contrasts",
@@ -496,8 +504,8 @@ class DEInterpretation:
             ),
             columns=(
                 ColumnSpec("gene", "Gene", ColumnKind.TEXT),
-                ColumnSpec("statistic", "avg_log2FC", ColumnKind.NUMBER,
-                           unit="avg_log2FC", align="right"),
+                ColumnSpec("statistic", stat, ColumnKind.NUMBER,
+                           unit=stat, align="right"),
                 ColumnSpec("direction", "Direction", ColumnKind.DIRECTION),
                 ColumnSpec("detection", "Detected in", ColumnKind.COVERAGE_BAR,
                            unit="pct", align="right"),

@@ -187,6 +187,20 @@ def _header_values(cluster: str) -> dict:
     }
 
 
+def spec_for(built: Any) -> Any:
+    """The declared surface; with no canonical list (no label, or none curated) the
+    off-panel block must not claim every canonical marker is on panel."""
+    import dataclasses
+
+    spec = marker_workflow.WORKFLOW.uispec()
+    if built.canonical:
+        return spec
+    return dataclasses.replace(spec, blocks=tuple(
+        dataclasses.replace(b, empty_text="no canonical marker list for this unit, "
+                                          "so none to look for off panel")
+        if b.key == "never_measured" else b for b in spec.blocks))
+
+
 def rows_for(cluster: str, built: Any) -> list[surface.SurfaceRow]:
     """Every item in this unit's record, adapted; the declared blocks decide placement,
     so nothing is filtered here."""
@@ -341,7 +355,7 @@ def render_evidence_table(cluster: str) -> None:
         )
         return
 
-    spec = marker_workflow.WORKFLOW.uispec()
+    spec = spec_for(built)
     rows = rows_for(cluster, built)
     by_key = {r.key: r.values["gene"] for r in rows}
 

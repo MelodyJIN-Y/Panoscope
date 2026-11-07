@@ -746,3 +746,17 @@ def test_an_unfilled_sample_column_is_not_a_sample_named_nan(tmp_path, monkeypat
     samples = XeniumAdapter().samples(Study.open(cfg.DATASET_ID))
     assert "nan" not in samples, samples
     assert samples == [cfg.DATASET_ID], samples
+
+
+def test_a_multi_sample_de_only_study_is_not_blocked_by_missing_marker_tables(
+    tmp_path: Path,
+) -> None:
+    """Per-sample marker tables are a marker-workflow input; a DE-only study has none."""
+    store = _store(tmp_path, "deonly",
+                   manifest={"platform": "Xenium", "tissue": "t", "clusters": ["c1"],
+                             "samples": ["s1", "s2"], "clustering_mode": "joint"},
+                   panel=["AAA", "BBB"])
+    pd.DataFrame([("AAA", "c1", 2.5, 1e-6)],
+                 columns=["gene", "cluster", "logFC", "FDR"]).to_csv(
+        store.inputs / "de_edger.csv", index=False)
+    assert not any("per-sample marker table" in p for p in ADAPTER.validate(store))

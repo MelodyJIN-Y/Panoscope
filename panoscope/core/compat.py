@@ -517,6 +517,8 @@ def _headline(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...],
     """The opening sentence. Its no-driver half collapsed the same three reasons
     :func:`_no_canonical_reason` keeps apart, one function above where the demotion
     sentence did -- and this is the sentence the biologist reads first."""
+    if not band:
+        return f"{cell_type}: no label, so no band; the biologist makes the call."
     if drivers:
         d = drivers[0]
         return (
@@ -528,6 +530,8 @@ def _headline(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...],
 
 def _notes(cell_type: str, band: str, drivers: tuple[dict[str, Any], ...],
            demotions: tuple[str, ...], fragile: bool, verify: bool) -> str:
+    if not band:
+        return f"{cell_type}: no label, so no band and nothing to re-check."
     parts: list[str] = []
     if drivers:
         bits = ", ".join(
@@ -627,7 +631,8 @@ def to_v1_assignment(evidence: NormalisedEvidence, verdict: Verdict,
         "cell_type": label.cell_type,
         "cell_type_short": label.cell_type_short,
         "confidence": verdict.band,
-        "confidence_score": SCORE_MAP[verdict.band],
+        # No band, no score anchor: an uncalled unit writes an empty cell, not 0.
+        "confidence_score": SCORE_MAP.get(verdict.band),
         "key_markers": [r["gene"] for r in rows[:5]],
         "notes": _notes(label.cell_type, verdict.band, drivers, tuple(demotions),
                         verdict.fragile, verdict.verify),

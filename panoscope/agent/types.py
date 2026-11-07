@@ -12,7 +12,7 @@ from typing import Literal, Optional
 # --------------------------------------------------------------------------- #
 # Closed vocabularies
 # --------------------------------------------------------------------------- #
-Confidence = Literal["Very High", "High", "Medium-High", "Medium", "Low"]
+Confidence = Literal["Very High", "High", "Medium-High", "Medium", "Low", ""]  # "": not yet called
 MarkerRole = Literal["supports", "expected_absent", "off_panel"]
 Scope = Literal["cluster", "dataset", "lab"]
 Basis = Literal["paper", "own_validation", "convention"]
@@ -110,7 +110,7 @@ class ClusterVerdict:
     cell_type: str
     cell_type_short: str
     confidence: Confidence
-    confidence_score: float                # fixed band anchor {0.95,0.85,0.70,0.55,0.30}
+    confidence_score: Optional[float]      # fixed band anchor {0.95,..,0.30}; None: no band
     key_markers: tuple[str, ...]           # top 3-5 by glm_coef
     notes: str                             # grounded rationale, cites glm_coef/pearson
     category: str

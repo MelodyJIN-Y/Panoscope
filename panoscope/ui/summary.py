@@ -455,7 +455,9 @@ def _render_signoff_card(st, cluster: str) -> None:
 
 # --- Row + board rendering -------------------------------------------------- #
 def _conf_badge(confidence: str) -> str:
-    """Confidence as a soft, ramp-coloured badge."""
+    """Confidence as a soft, ramp-coloured badge; none for a unit with no band."""
+    if not confidence:
+        return ""
     css, _ = fmt.confidence_chip(confidence)          # e.g. "cf-vh"
     level = css.replace("cf-", "") or "m"
     return f'<span class="pano-cfb pano-cfb-{html.escape(level)}">{html.escape(confidence)}</span>'
@@ -616,7 +618,8 @@ def _ws_head_html(cluster: str, cell_type: str, confidence: str, verify: bool) -
         f'<div class="pano-ws-head"><span class="dot" style="background:{color}"></span>'
         f'<span class="cid">{html.escape(cluster)}</span>'
         f'<span class="ct">{html.escape(cell_type)}</span>'
-        f'<span class="cf {css}">{html.escape(confidence)}</span>{flag}</div>'
+        + (f'<span class="cf {css}">{html.escape(confidence)}</span>' if confidence else "")
+        + f'{flag}</div>'
     )
 
 
