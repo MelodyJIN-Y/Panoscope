@@ -190,3 +190,16 @@ def test_the_synonym_table_does_not_follow_the_demo_into_another_study():
         )
     # ...and a study's OWN annotated type is never gated, on any study.
     assert D._normalize_cell_type("Stromal") == "Stromal"
+
+
+def test_an_ontology_synonym_never_shadows_the_labs_own(monkeypatch):
+    """With the Cell Ontology cached, "T-cell" (a CL exact synonym of "T cell") shares
+    "T cell"'s comparison key; the lab's synonym for the demo's own label must still win."""
+    import os
+    from pathlib import Path
+
+    cl = Path(os.environ["PANOSCOPE_REFERENCE_DIR"]) / "cl" / "2026-06-08" / "cl-basic.obo"
+    cl.parent.mkdir(parents=True)
+    cl.write_text('format-version: 1.2\n\n[Term]\nid: CL:0000084\nname: T cell\n'
+                  'synonym: "T-cell" EXACT []\n')
+    assert dsc._normalize_cell_type("T cell") == "T_Cells"

@@ -146,9 +146,13 @@ def _canon_key(s: str) -> str:
 
 
 def _synonyms() -> dict[str, str]:
-    """Comparison-key -> cell type, from the study's reference view (ontology and lab
-    synonyms). A study with no synonym list resolves only its own annotated types."""
-    return {_canon_key(syn): t for syn, t in annotation._view().synonyms()}
+    """Comparison-key -> annotated cell type, from the study's reference view (lab then
+    ontology synonyms; the first that reaches an annotated type wins a shared key)."""
+    kmap, out = _key_by_canon(), {}
+    for syn, t in annotation._view().synonyms():
+        if target := kmap.get(_canon_key(t)):
+            out.setdefault(_canon_key(syn), target)
+    return out
 
 
 def _key_by_canon() -> dict[str, str]:
@@ -166,8 +170,7 @@ def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
         return kmap[key]
     # Only to a type this study annotated: an unrecognised word stays unrecognised and
     # ``discriminate`` declines it by name rather than substituting a label.
-    target = _synonyms().get(key)
-    return kmap.get(_canon_key(target)) if target else None
+    return _synonyms().get(key)
 
 
 def _canonical_types_for(gene: str) -> tuple[str, ...]:
