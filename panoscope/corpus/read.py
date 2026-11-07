@@ -203,7 +203,8 @@ def _p1(run: _Run, rec: SourceRecord, reader: Reader, receipt: Receipt) -> str:
     closed = ""
     if isinstance(ex, dict) and _locate(rec, str(ex.get("quote") or "")) is not None:
         closed = f"P1_EXCLUDED:{ex.get('reason') or 'excluded'}: {ex['quote']}"
-    elif _BIOFLUID.search(_setting(run.corpus, rec.uri, "specimen")):
+    elif (_BIOFLUID.search(_setting(run.corpus, rec.uri, "specimen"))
+          and not _setting(run.corpus, rec.uri, "tissue")):    # biofluid only, no tissue too
         closed = "NON_TISSUE"
     if closed:
         run.commit(ledger=(*(d for d in run.corpus.ledger if d.id != rec.uri),

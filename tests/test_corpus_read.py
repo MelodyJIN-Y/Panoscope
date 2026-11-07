@@ -136,6 +136,13 @@ def test_p1_keeps_only_verbatim_quotes_and_a_biofluid_specimen_closes_the_paper(
     assert stub.calls == ["P1"] and _ledger(corpus)["pmid:1"] == "NON_TISSUE"
 
 
+def test_a_paper_with_tissue_as_well_as_a_biofluid_is_read_not_closed(tmp_path):
+    stub = Stub([MARK], setting={"tissue": "human breast cancer tissue",
+                                 "specimen": "Serum was collected."})
+    corpus, _ = _read(_corpus(tmp_path, full=FULL + "\nSerum was collected."), stub)
+    assert stub.calls[:2] == ["P1", "P2"] and _ledger(corpus)["pmid:1"] == "READ:1:0"
+
+
 def test_headline_counts_species_stated_papers_at_the_study_modality(tmp_path):
     base, _ = _read(_corpus(tmp_path), Stub([MARK]))
     st = base.statements[0]
