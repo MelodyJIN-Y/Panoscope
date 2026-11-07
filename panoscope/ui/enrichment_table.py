@@ -40,8 +40,6 @@ Streamlit is imported lazily so ``import ui.enrichment_table`` needs no server.
 
 from __future__ import annotations
 
-import html
-
 import streamlit as st  # module-level for the @st.fragment chat wrapper
 
 from panoscope.agent import config as cfg
@@ -58,9 +56,6 @@ from panoscope.ui import format as fmt
 from panoscope.ui import state
 from panoscope.ui import surface
 
-_METHOD_LABEL = {"jazzpanda_enrichment": "jazzPanda competitive test"}
-
-
 @st.fragment
 def _pathway_chat_fragment(cluster: str) -> None:
     """The Pathways chat as a fragment: a chat turn re-renders only this pane, not the
@@ -76,24 +71,8 @@ def _short(gene_set: str) -> str:
 # Styling (reuses theme tokens + the global .cf-* confidence pills)
 # --------------------------------------------------------------------------- #
 _ENR_CSS = """
-.pano-enr-eyebrow { font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-  letter-spacing: .1em; color: var(--faint); margin: 0 0 10px; }
 .pano-enr-empty { font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 16px 4px;
   border: 1px dashed var(--hair); border-radius: 10px; text-align: center; }
-
-/* Cross-cluster themes (side column) */
-.pano-th-h { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--ink); margin: 2px 0 10px; }
-.pano-th-card { background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; padding: 2px 15px; margin-bottom: 14px; }
-.pano-th-item { display: grid; grid-template-columns: 16px 1fr; gap: 9px; padding: 11px 0; border-bottom: 1px solid var(--hair2); }
-.pano-th-item:last-child { border-bottom: 0; }
-.pano-th-check { color: var(--accent); font-weight: 700; font-size: 12px; }
-.pano-th-body { font-size: 12px; color: var(--muted); line-height: 1.55; }
-.pano-recur { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 0; }
-.pano-recur-chip { font-family: var(--mono); font-size: 10.5px; color: var(--ink); background: var(--hair2);
-  border-radius: 6px; padding: 3px 8px; }
-.pano-recur-chip .c { color: var(--accent); font-weight: 600; }
-.pano-enr-pinhint { font-family: var(--mono); font-size: 11px; color: var(--faint);
-  border: 1px dashed var(--hair); border-radius: 10px; text-align: center; padding: 22px 16px; margin-top: 14px; }
 """
 
 # --------------------------------------------------------------------------- #
@@ -104,26 +83,6 @@ _ENR_CSS = """
 # the score, the q and the K of N are read off `PathwayEvidence`, and the state is
 # read off the same gates `agent/enrichment.py` already applied to produce the tier.
 # --------------------------------------------------------------------------- #
-def _state_of(p: PathwayEvidence) -> MeasuredState:
-    """Which of the four states this set is in, from the gates that made its tier.
-
-    ``enriched`` and ``suggestive`` both carry a number, so both are OBSERVED -- the
-    enriched/suggestive split is a question about how cautious this lab is, not about
-    whether the set was measured, and the surface keeps those separate concerns
-    separate (the split shows in the header census, the state shows in the block).
-
-    The two ways a set can fail are NOT the same fact and do not share a row:
-    below the capability floor is UNDERPOWERED and argues nothing; scored, reported
-    and above the q bar is TESTED_ABSENT and argues against the program running here.
-
-    A row for which the test returned NO q was reaching the last line and reading
-    as TESTED_ABSENT, so ``_reason`` told the biologist "absence IS evidence
-    here" about a set that was never scored. The split now has one spelling, on
-    the evidence object itself, so this surface and the census cannot drift.
-    """
-    return p.measured_state
-
-
 def _reason(p: PathwayEvidence, mstate: MeasuredState) -> str:
     """Why this row is in this state -- the hover on the hatch, named not implied.
 
@@ -175,7 +134,7 @@ def _row(cluster: str, p: PathwayEvidence) -> surface.SurfaceRow:
     None iff the state is not OBSERVED* -- read off ``Measured.carries_number``,
     so UNDERPOWERED withholds its number too.
     """
-    mstate = _state_of(p)
+    mstate = p.measured_state  # the four-state split lives on the evidence object
     observed = mstate is MeasuredState.OBSERVED
     return surface.SurfaceRow(
         key=_key_of(p),
@@ -277,34 +236,10 @@ def _render_center(st, ce: ClusterEnrichment) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Side column: cross-cluster themes
-# --------------------------------------------------------------------------- #
-def _render_themes(st, themes) -> None:
-    st.markdown('<div style="height:26px"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="pano-th-h">Cross-cluster themes</div>', unsafe_allow_html=True)
-    notes = "".join(
-        f'<div class="pano-th-item"><div class="pano-th-check">&#10003;</div>'
-        f'<div class="pano-th-body">{html.escape(n)}</div></div>'
-        for n in themes.coherence_notes
-    )
-    st.markdown(f'<div class="pano-th-card">{notes}</div>', unsafe_allow_html=True)
-    recur = "".join(
-        f'<span class="pano-recur-chip">{html.escape(_short(t.gene_set))} '
-        f'<span class="c">&times;{t.n_clusters}</span></span>'
-        for t in themes.recurring[:12]
-    )
-    if recur:
-        st.markdown(f'<div class="pano-th-card"><div class="pano-recur">{recur}</div></div>',
-                    unsafe_allow_html=True)
-
-
-# --------------------------------------------------------------------------- #
 # Public: the page
 # --------------------------------------------------------------------------- #
 def render_pathways_page() -> None:
     """Render the Pathways page in the 3-pane marker-genes shell."""
-    import streamlit as st
-
     st.markdown(f"<style>{_ENR_CSS}</style>", unsafe_allow_html=True)
 
     if not da.enrichment_available():
@@ -323,6 +258,3 @@ def render_pathways_page() -> None:
         _render_center(st, da.enrichment_for(cluster))
     with chat_col:
         _pathway_chat_fragment(cluster)
-
-
-__all__ = ["render_pathways_page"]

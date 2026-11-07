@@ -28,6 +28,7 @@ running server.
 
 from __future__ import annotations
 
+import datetime
 import html
 import re
 from typing import Any, Optional
@@ -52,9 +53,7 @@ _SRC_NAME: dict[str, str] = {
     "panel": "panel",
     "lit": "PubMed",
     "mem": "note",
-}
-# Fixed left-to-right order for the condensed line (grounded floor first).
-_SRC_ORDER: tuple[str, ...] = ("jz", "panel", "lit", "mem")
+}  # dict order is the condensed line's left-to-right order (grounded floor first)
 
 # Session key for the ask input (namespaced so no other pane collides).
 #
@@ -220,7 +219,7 @@ def render_conversation(cluster: str) -> None:
         "and saves it to My notes.</div>",
         unsafe_allow_html=True,
     )
-    _render_risk_flag(cluster)
+    _render_second_opinion(cluster)
 
     with st.container(key="conv_thread"):
         _render_thread(cluster)
@@ -262,20 +261,14 @@ div[class*="st-key-conv_"] [data-testid="InputInstructions"] { display: none !im
 """
 
 
-def _render_risk_flag(cluster: str) -> None:
-    """The deterministic RISK FLAG: a numbers-only triage light auto-shown on a
-    verify-flagged call. An instant self-check ("is this call solid?"), not an agent.
-    Testing a rival cell-type idea is a chat action (see the ask box)."""
-    verdict = _verdict_or_none(cluster)
-    if bool(getattr(verdict, "verify", False)):
-        _render_second_opinion(cluster)
-
-
 def _render_second_opinion(cluster: str) -> None:
-    """The deterministic RISK FLAG: a numbers-only triage light (challenges + verdict).
+    """The deterministic RISK FLAG: a numbers-only triage light (challenges + verdict),
+    auto-shown on a verify-flagged call only.
 
     Not an agent — a grounded screen over jazzPanda numbers, shown instantly. The live
     agent is the on-demand pressure-test."""
+    if not getattr(_verdict_or_none(cluster), "verify", False):
+        return
     import streamlit as st
 
     try:
@@ -500,7 +493,7 @@ def _sources_line_html(sources: tuple[Source, ...]) -> str:
     prose and cited PMIDs stay clickable via the buttons below.
     """
     kinds_present = {s.kind for s in sources}
-    names = [_SRC_NAME[k] for k in _SRC_ORDER if k in kinds_present]
+    names = [n for k, n in _SRC_NAME.items() if k in kinds_present]
     if not names:
         return ""
     spans = f'<span class="sep">{chr(0x00B7)}</span>'.join(
@@ -629,9 +622,9 @@ def process_pending(cluster: str) -> None:
     if not query:
         return
     st.session_state.pop(pkey, None)  # clear first so an error can't loop
-    if _looks_like_override(query):
+    if _OVERRIDE_HINT.search(query):
         spinner = "Drafting your note and cross-checking the literature… (this takes a moment)"
-    elif _looks_like_rival(query):
+    elif _RIVAL_HINT.search(query):
         spinner = "⚖ Testing this against the current call…"
     else:
         spinner = "Reading the literature…"
@@ -649,10 +642,6 @@ _OVERRIDE_HINT = re.compile(
 )
 
 
-def _looks_like_override(query: str) -> bool:
-    return bool(_OVERRIDE_HINT.search(query or ""))
-
-
 # Heuristic used ONLY to pick the spinner label (the agent still decides what to run):
 # does the message look like the biologist proposing a rival cell type?
 _RIVAL_HINT = re.compile(
@@ -661,11 +650,6 @@ _RIVAL_HINT = re.compile(
     r"instead of|\bvs\.?\b|versus|actually (?:a |an |the )|looks like|resembl",
     re.IGNORECASE,
 )
-
-
-def _looks_like_rival(query: str) -> bool:
-    """True if the message reads like a rival cell-type suggestion (spinner label only)."""
-    return bool(_RIVAL_HINT.search(query or ""))
 
 
 def _run_agent_turn(cluster: str, query: str) -> None:
@@ -765,7 +749,7 @@ def _scope_static_label(draft: Any, cluster: str) -> str:
 
 
 def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
-    """A segmented-control (or radio fallback) over (label, value) options.
+    """A segmented control over (label, value) options.
 
     Seeds from ``default_value`` (the agent's proposal); the widget key carries the
     draft nonce so a NEW draft starts fresh. Returns the chosen enum value.
@@ -775,20 +759,9 @@ def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
     label_by_val = {val: lab for lab, val in opts}
     default_label = label_by_val.get(default_value, labels[0])
     st.markdown(f'<div class="draft-lbl">{html.escape(label)}</div>', unsafe_allow_html=True)
-    seg = getattr(st, "segmented_control", None)
-    if callable(seg):
-        picked = seg(
-            label, labels, default=default_label, key=key, label_visibility="collapsed"
-        )
-    else:  # pragma: no cover - older Streamlit without segmented_control
-        picked = st.radio(
-            label,
-            labels,
-            index=labels.index(default_label),
-            horizontal=True,
-            key=key,
-            label_visibility="collapsed",
-        )
+    picked = st.segmented_control(
+        label, labels, default=default_label, key=key, label_visibility="collapsed"
+    )
     return val_by_label.get(picked, default_value)
 
 
@@ -897,7 +870,7 @@ def _save_to_user_memory(note: Any) -> bool:
         cluster = note.scope_ref.cluster if getattr(note, "scope_ref", None) else None
         user_memory.record({
             "id": f"um_{note.id}",
-            "date": _today_iso(),
+            "date": datetime.date.today().isoformat(),
             "from": cfg.DATASET_ID,
             "cluster": cluster,
             "cell_type": cell_type,
@@ -933,13 +906,6 @@ def _dataset_label() -> str:
             return cfg.DATASET_ID
         except Exception:  # noqa: BLE001
             return ""
-
-
-def _today_iso() -> str:
-    """Today's date as an ISO ``YYYY-MM-DD`` string (the only clock call in this pane)."""
-    import datetime
-
-    return datetime.date.today().isoformat()
 
 
 def _saved_line(note: Any, *, mem_saved: bool = False) -> str:
@@ -1004,16 +970,13 @@ def _rerun(st: Any, *, scope: Optional[str] = None) -> None:
     """Rerun the script, or just the current fragment when ``scope='fragment'`` (so a chat
     turn re-renders only the chat pane, not the whole app). Falls back to a full rerun if
     scoping is unsupported or we are not inside a fragment."""
-    rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if not callable(rerun):
-        return
     if scope:
         try:
-            rerun(scope=scope)
+            st.rerun(scope=scope)
             return
-        except Exception:  # noqa: BLE001 - not in a fragment / older API -> full rerun
+        except Exception:  # noqa: BLE001 - not in a fragment -> full rerun
             pass
-    rerun()
+    st.rerun()
 
 
 def _scroll_thread_to_bottom(nonce: Any) -> None:
@@ -1044,6 +1007,3 @@ def _scroll_thread_to_bottom(nonce: Any) -> None:
         )
     except Exception:  # noqa: BLE001 - auto-scroll is a nicety; never break the pane
         pass
-
-
-__all__ = ["render_conversation"]

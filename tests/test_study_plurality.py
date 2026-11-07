@@ -113,7 +113,7 @@ def test_palette_covers_any_unit_count():
     from panoscope.ui import format as fmt
 
     with cfg.use_study(MINI):
-        palette = fmt.cluster_palette()
+        palette = {c: fmt.cluster_color(c) for c in cfg.CLUSTER_ORDER}
         assert len(palette) == 3
         assert len(set(palette.values())) == 3, "units must not collapse to one colour"
 

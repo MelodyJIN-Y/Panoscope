@@ -101,25 +101,6 @@ def _full_record(cond: Conditionality) -> str:
 # --------------------------------------------------------------------------- #
 # Grounded fragments (read from files; never asserted)
 # --------------------------------------------------------------------------- #
-def _manifest() -> dict:
-    """The ACTIVE study's manifest, for artifact sha256s. ``{}`` if unreadable.
-
-    ``Study.manifest`` rather than a reader of our own: it is already cached per
-    study (and forgotten by ``study.clear_cache()`` with every other per-study
-    derivation), and it reads the manifest under THAT study's data root instead of
-    re-resolving its id under the ambient one.
-
-    What was here was an ``lru_cache(maxsize=1)`` over a zero-argument read — one
-    slot shared by every study, so whichever study drew a figure first kept
-    supplying its digest under the SECOND study's plots, for an artifact the second
-    study does not have. ``_panel_scope()`` stayed correct per study, which is what
-    made it dangerous rather than obvious: the caption read as internally
-    consistent, so nothing in it invited doubt. R4 says a plot with no
-    conditionality record refuses to draw; this one drew with someone else's.
-    """
-    return cfg.current_study().manifest
-
-
 @_per_study
 def _read_density_index() -> dict:
     """The density precompute index, parsed. RAISES if it cannot be read.
@@ -146,7 +127,8 @@ def _density_index() -> dict:
 
 def _sha(artifact: str) -> str:
     """``viz/cells.csv sha256 219a4588`` — provenance, or '' if unknown."""
-    rec = (_manifest().get("artifacts") or {}).get(artifact) or {}
+    # Study.manifest: cached per study, so a caption never carries another study's digest.
+    rec = (cfg.current_study().manifest.get("artifacts") or {}).get(artifact) or {}
     digest = str(rec.get("sha256", ""))
     return f"{artifact} sha256 {digest[:8]}" if digest else ""
 
@@ -410,15 +392,3 @@ def dotplot_cond(
         ),
         provenance=_sha("viz/expr.parquet"),
     )
-
-
-__all__ = [
-    "render_panel",
-    "cell_map_cond",
-    "cluster_umap_cond",
-    "feature_umap_cond",
-    "gene_density_cond",
-    "set_density_cond",
-    "leading_edge_umap_cond",
-    "dotplot_cond",
-]

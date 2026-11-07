@@ -336,8 +336,6 @@ def test_the_set_density_count_comes_from_the_frames_that_were_summed(tmp_path):
 
     genes = ("SYNG01", "SYNG02", "SYNG03")
     with cfg.use_study(Study(id="partprepped", data_root=tmp_path)):
-        # the declaration still names all three, which is what counted 3 of 3
-        assert set(genes) <= set(da.available_density_markers())
         # ground truth: what the sum actually summed
         hb = da.leading_edge_density(genes, 50)
         assert hb is not None and not hb.empty  # the figure really draws

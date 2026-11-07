@@ -89,8 +89,6 @@ _PLASMA = [
     [0.8, "#FCA636"],
     [1.0, "#F0F921"],
 ]
-_DENSITY_COLORSCALE = _PLASMA
-_EXPR_COLORSCALE = _PLASMA    # feature UMAP + dotplot share the same ramp
 
 # Panel heights. The tissue panels (cell map / density) are square-locked images
 # (7520×5470 µm ⇒ W:H ≈ 1.375); the ratio lock does the shaping, this is only the
@@ -225,7 +223,7 @@ def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
     wide the container is or how coarse the density bin is — a viewing control can
     never stretch the tissue. ``autorange="reversed"`` flips y so the map reads
     top-down like the physical slide. Axes stay hidden (a map, not a chart), and
-    ``autoScale2d`` is removed from the toolbar (see ``_plot_config``) so the user
+    ``autoScale2d`` is removed from the toolbar (see ``_PLOT_CONFIG``) so the user
     cannot unlock the ratio.
     """
     axis_x = dict(
@@ -260,22 +258,8 @@ def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
     )
 
 
-def _plot_config() -> dict[str, Any]:
-    """Plotly display config: the view is LOCKED — no zoom, no pan, no toolbar.
-
-    A biologist reads the signal in place; dragging or scroll-zoom could push the
-    tissue out of frame, which is only annoying here. Zoom/pan are disabled at the
-    axis level (``fixedrange``) and via ``dragmode=False``; ``scrollZoom`` and
-    ``doubleClick`` are off and the mode bar is hidden. Hover tooltips stay on, so
-    per-cell / per-bin values remain readable.
-    """
-    return {
-        "displaylogo": False,
-        "displayModeBar": False,
-        "scrollZoom": False,
-        "doubleClick": False,
-        "staticPlot": False,   # keep hover; only zoom/pan are disabled
-    }
+# Plotly display config: the view is LOCKED (no zoom, pan or toolbar); hover stays on.
+_PLOT_CONFIG: dict[str, Any] = {"displayModeBar": False, "scrollZoom": False, "doubleClick": False}
 
 
 def _panel_title(html: str) -> None:
@@ -532,7 +516,7 @@ def _render_cell_map(cluster: str) -> None:
             n_bg_drawn=len(bg),
             n_bg_total=int((~sel_mask).sum()),
         ),
-        config=_plot_config(),
+        config=_PLOT_CONFIG,
         key=f"pano_cellmap_{cluster}",
     )
 
@@ -593,7 +577,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
                 n_bg_drawn=n_bg_drawn,
                 n_bg_total=n_bg_total,
             ),
-            config=_plot_config(),
+            config=_PLOT_CONFIG,
             key=f"pano_umap_feature_{cluster}_{gene}",
         )
         return
@@ -613,7 +597,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
             n_bg_drawn=n_bg_drawn,
             n_bg_total=n_bg_total,
         ),
-        config=_plot_config(),
+        config=_PLOT_CONFIG,
         # Two different panels reach this draw: Row 1's cluster UMAP, and the
         # honest fallback for a gene with no exported expression column. Same
         # figure, same conditionality -- so without distinct keys the second one
@@ -720,7 +704,7 @@ def _umap_feature(
                 marker=dict(
                     size=2.4,
                     color=pos_sqrt,
-                    colorscale=_EXPR_COLORSCALE,
+                    colorscale=_PLASMA,
                     cmin=0.0,
                     cmax=float(gene_max ** 0.5) or float(pos_sqrt.max()),
                     opacity=0.92,
@@ -833,7 +817,7 @@ def _render_density_frame(
             y=gy,
             z=z,
             customdata=cd,
-            colorscale=_DENSITY_COLORSCALE,
+            colorscale=_PLASMA,
             zmin=0.0,
             zmax=cmax,
             zsmooth=False,
@@ -856,7 +840,7 @@ def _render_density_frame(
     # carries the ramp and the units once (see _render_density_controls). The
     # conditionality caption is per-panel — the bin µm and the colour maximum it
     # states are this panel's.
-    cnd.render_panel(fig, cond, config=_plot_config(), key=key)
+    cnd.render_panel(fig, cond, config=_PLOT_CONFIG, key=key)
 
 
 # --------------------------------------------------------------------------- #
@@ -940,7 +924,7 @@ def _render_dotplot(genes: list[str], cluster: str,
                 sizeref=sizeref,
                 sizemin=3,
                 color=mean_sqrt,
-                colorscale=_EXPR_COLORSCALE,
+                colorscale=_PLASMA,
                 cmin=0.0,
                 cmax=cmax_sqrt,
                 showscale=True,
@@ -1007,7 +991,7 @@ def _render_dotplot(genes: list[str], cluster: str,
             n_expr_cells=len(da.marker_expr_df()),
             n_total=len(da.cells_df()),
         ),
-        config=_plot_config(),
+        config=_PLOT_CONFIG,
         key=f"pano_dotplot_{cluster}",
     )
     _legend_line("dot size = % of cells expressing · colour = mean expression")
@@ -1119,6 +1103,3 @@ def render_spatial_stage(cluster: str) -> None:
     _panel_title("Expression across clusters")
     _render_dotplot(markers, cluster,
                     n_selected=len(state.get_selected_markers(cluster)))
-
-
-__all__ = ["render_spatial_stage"]

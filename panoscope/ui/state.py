@@ -10,8 +10,7 @@ Marker selection is a **multi-select**: the biologist toggles genes on/off via a
 subtle borderless dot per evidence row, and the spatial grid draws small-multiples
 for the selected set. ``selected_markers`` is an *ordered* list (selection order is
 preserved), capped for legibility only when rendering small-multiples
-(``active_markers(cap=…)``). The legacy single-pin API is kept as a thin alias over
-``selected_markers[0]`` so callers that predate multi-select keep working.
+(``active_markers(cap=…)``).
 
 Streamlit is imported lazily inside functions (``_ss()``) so this module imports
 cleanly with no server running — importing ``ui.state`` never requires a live
@@ -34,8 +33,6 @@ K_SELECTED_PATHWAYS = "selected_pathways"
 K_BIN_UM = "bin_um"
 K_CHAT_THREAD = "chat_thread"
 K_PENDING_DRAFT = "pending_draft"
-K_PAPER_OPEN = "paper_open"
-K_ACTIVE_PMID = "active_pmid"
 K_OPENING_POSTED = "opening_posted"
 K_INITIALIZED = "_ui_initialized"
 
@@ -85,8 +82,6 @@ _DEFAULTS: dict[str, Any] = {
     K_BIN_UM: DEFAULT_BIN_UM,
     K_CHAT_THREAD: dict,        # {cluster_id: [msg, ...]} — one thread per cluster
     K_PENDING_DRAFT: dict,      # {cluster_id: NoteDraft} — note awaiting confirm
-    K_PAPER_OPEN: False,
-    K_ACTIVE_PMID: None,
     K_OPENING_POSTED: dict,     # {cluster_id: True} — opening interp posted once
 }
 
@@ -288,14 +283,6 @@ def is_marker_selected(cluster: str, gene: str) -> bool:
     return gene in _ss().get(K_SELECTED_MARKERS, {}).get(cluster, [])
 
 
-def clear_markers(cluster: str) -> None:
-    """Clear ``cluster``'s marker selection (fresh empty list)."""
-    ss = _ss()
-    by = dict(ss.get(K_SELECTED_MARKERS, {}))
-    by[cluster] = []
-    ss[K_SELECTED_MARKERS] = by
-
-
 def active_markers(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
     """Markers selected for ``cluster``, capped for small-multiples legibility.
 
@@ -306,21 +293,6 @@ def active_markers(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
     if cap is not None and cap > 0:
         return selected[:cap]
     return selected
-
-
-def active_marker(cluster: str) -> Optional[str]:
-    """First marker selected for ``cluster`` (or None) — single-marker convenience."""
-    selected = get_selected_markers(cluster)
-    return selected[0] if selected else None
-
-
-# --------------------------------------------------------------------------- #
-# Legacy pin API — per-cluster aliases for callers that pin a single marker (e.g.
-# the agent may pin a marker to back a chat answer). Still a pure viewing control.
-# --------------------------------------------------------------------------- #
-def get_pinned_marker(cluster: str) -> Optional[str]:
-    """Back-compat: the first marker selected for ``cluster`` (alias of active_marker)."""
-    return active_marker(cluster)
 
 
 def set_pinned_marker(cluster: str, gene: Optional[str]) -> None:
@@ -337,16 +309,6 @@ def set_pinned_marker(cluster: str, gene: Optional[str]) -> None:
     elif gene not in by.get(cluster, []):
         by[cluster] = list(by.get(cluster, [])) + [gene]
     ss[K_SELECTED_MARKERS] = by
-
-
-def toggle_pin(cluster: str, gene: str) -> None:
-    """Back-compat alias of :func:`toggle_marker` for one cluster."""
-    toggle_marker(cluster, gene)
-
-
-def unpin_marker(cluster: str) -> None:
-    """Back-compat: clear ``cluster``'s marker selection (alias of clear_markers)."""
-    clear_markers(cluster)
 
 
 # --------------------------------------------------------------------------- #
@@ -462,79 +424,3 @@ def get_pending_draft(cluster: str) -> Any:
 def clear_pending_draft(cluster: str) -> None:
     """Drop ``cluster``'s pending draft (after Save or Discard)."""
     _drafts().pop(cluster, None)
-
-
-# --------------------------------------------------------------------------- #
-# Citation paper drawer (opened from the holistic-review / opening citations)
-# --------------------------------------------------------------------------- #
-def is_paper_open() -> bool:
-    """True if the citation paper drawer is open."""
-    return bool(_ss().get(K_PAPER_OPEN, False))
-
-
-def get_active_pmid() -> Optional[str]:
-    """Return the PMID whose paper the drawer is showing, or None."""
-    return _ss().get(K_ACTIVE_PMID)
-
-
-def open_paper(pmid: str) -> None:
-    """Open the citation paper drawer on a given PMID."""
-    ss = _ss()
-    ss[K_ACTIVE_PMID] = pmid
-    ss[K_PAPER_OPEN] = True
-
-
-def close_paper() -> None:
-    """Close the citation paper drawer (leaves the last pmid for re-open)."""
-    _ss()[K_PAPER_OPEN] = False
-
-
-__all__ = [
-    # keys / vocabularies
-    "BIN_SIZES_UM",
-    "default_unit",
-    "DEFAULT_BIN_UM",
-    "DEFAULT_MARKER_CAP",
-    # lifecycle
-    "init_state",
-    # cluster
-    "get_selected_cluster",
-    "set_selected_cluster",
-    # selected pathways (enrichment multi-select viewing control — no recompute)
-    "get_selected_pathways",
-    "toggle_pathway",
-    "is_pathway_selected",
-    "set_selected_pathways",
-    "active_pathways",
-    # marker multi-select (viewing controls — no recompute)
-    "get_selected_markers",
-    "set_selected_markers",
-    "toggle_marker",
-    "is_marker_selected",
-    "clear_markers",
-    "active_markers",
-    "active_marker",
-    # legacy pin aliases (back-compat over selected_markers — no recompute)
-    "get_pinned_marker",
-    "set_pinned_marker",
-    "toggle_pin",
-    "unpin_marker",
-    # bin (viewing control — no recompute)
-    "get_bin_um",
-    "set_bin_um",
-    # chat
-    "get_chat_thread",
-    "append_message",
-    "clear_chat_thread",
-    "opening_was_posted",
-    "mark_opening_posted",
-    "reset_opening_posted",
-    "set_pending_draft",
-    "get_pending_draft",
-    "clear_pending_draft",
-    # citation paper drawer
-    "is_paper_open",
-    "get_active_pmid",
-    "open_paper",
-    "close_paper",
-]

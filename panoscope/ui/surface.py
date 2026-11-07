@@ -373,15 +373,14 @@ def ribbon_html(spec: UISpec, rows: Sequence[SurfaceRow]) -> str:
             f'<span class="pano-sf-key">of {total}</span></div>')
 
 
-def column_header_html(spec: UISpec, *, skip_first: bool = False) -> str:
-    cols = spec.columns[1:] if skip_first else spec.columns
+def column_header_html(spec: UISpec) -> str:
     cells = "".join(
         f'<div class="pano-sf-cell a-{c.align}">{_esc(c.label)}'
         + (f'<span class="pano-sf-unit">{_esc(c.unit)}</span>' if c.unit else "")
         + "</div>"
-        for c in cols
+        for c in spec.columns
     )
-    grid = _grid_style(spec.columns, skip_first=skip_first)
+    grid = _grid_style(spec.columns)
     return f'<div class="pano-sf-head" style="{grid}">{cells}</div>'
 
 
@@ -761,12 +760,3 @@ def _render_pinnable_row(st, spec: UISpec, row: SurfaceRow, on_select, selected)
                 st.rerun()
         with c_rest:
             st.markdown(row_html(spec, row, skip_first=True), unsafe_allow_html=True)
-
-
-__all__ = [
-    "SurfaceRow", "NothingToClick", "SpecCarriesCode",
-    "render_surface", "header_html", "table_html", "row_html", "cell_html",
-    "ribbon_html", "block_html", "column_header_html", "rows_for",
-    "label_band_html", "census_html", "checklist_html", "provenance_html",
-    "method_limits_html",
-]

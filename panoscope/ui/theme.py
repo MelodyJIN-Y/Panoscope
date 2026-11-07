@@ -397,6 +397,3 @@ def inject_css() -> None:
     import streamlit as st
 
     st.markdown(f"<style>{_css()}</style>", unsafe_allow_html=True)
-
-
-__all__ = ["TOKENS", "inject_css"]

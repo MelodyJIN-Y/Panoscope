@@ -1,47 +1,17 @@
-"""Left pane — the cluster rail (c1..c9).
-
-A light, borderless clickable **list**: one row per cluster is a small confidence
-dot beside a chromeless cell-type button. The selected row is accent-highlighted
-(an accent left-bar + bold name). Selecting a row sets ``state.selected_cluster``
-and nothing else — the rail is navigation, never a computation. Every value shown
-(cell type, confidence band, verify flag) is read straight off the cached
-``ClusterVerdict`` produced by ``agent.verdict`` via ``ui.data_access``; this
-module invents nothing.
-
-Rendering strategy (Streamlit): the whole list lives inside a real
-``st.container(key="pano_rail")`` — which emits a genuine wrapper element
-(``.st-key-pano_rail``) that actually contains its child buttons, unlike a
-``st.markdown('<div>')`` block (which auto-closes empty and cannot wrap later
-widgets). The theme's ``.st-key-pano_rail`` rules then de-chrome those buttons
-into light list rows and give the selected (``type="primary"``) row an accent —
-no brittle absolute-overlay, no heavy button box. The confidence dot is plain
-HTML in the row's left column.
-
-All borderless styling lives in ``ui.theme``; this module emits only markup and
-the ``pano-raildot`` span. Streamlit is imported lazily inside ``render_rail`` so
-``import ui.cluster_rail`` needs no running server.
-"""
+"""Left pane — the cluster rail: one chromeless button per cluster, read off the
+composed verdicts. Selecting a row sets ``state.selected_cluster`` and nothing else."""
 
 
 from __future__ import annotations
 
 from panoscope.agent import config as cfg
 from typing import Optional
-from panoscope.agent.types import ClusterVerdict
 
 from panoscope.ui import data_access, state
 
 # The rail dot is the cluster button's CSS ``::before`` (coloured per cluster in
 # ui/theme.py to match that cluster's colour in the cell map, UMAP, and dot plot),
 # so the dot beside a cluster name is a single visual key across the whole app.
-
-
-def _cluster_label(cluster: str) -> str:
-    """Human cell-type name for a cluster from the authoritative key (fallback: id)."""
-    entry = cfg.CLUSTER_KEY.get(cluster)
-    if entry:
-        return entry["cell_type"].replace("_", " ")
-    return cluster
 
 
 def render_rail() -> Optional[str]:
@@ -73,18 +43,14 @@ def render_rail() -> Optional[str]:
 
     with st.container(key="pano_rail"):
         for cluster in cfg.CLUSTER_ORDER:
-            verdict: Optional[ClusterVerdict] = verdicts.get(cluster)
             is_sel = cluster == selected
 
             # Show the cluster id alongside the cell type (e.g. "c1 Tumor") — the
             # id is how every other surface (spatial views, chat, notes) refers to
             # the cluster, so the rail names it the same way.
-            if verdict is not None:
-                # display_cell_type reflects a confirmed override (else the computed call).
-                name = f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
-                label = f"{name}  ⚑" if verdict.verify else name
-            else:
-                label = f"{cluster} {_cluster_label(cluster)}"
+            # display_cell_type reflects a confirmed override (else the computed call).
+            name = f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
+            label = f"{name}  ⚑" if verdicts[cluster].verify else name
 
             # One chromeless button per cluster. The colour dot is the button's
             # ``::before`` (theme, coloured per cluster via the ``st-key-rail_cN``
@@ -102,6 +68,3 @@ def render_rail() -> Optional[str]:
             )
 
     return state.get_selected_cluster()
-
-
-__all__ = ["render_rail"]

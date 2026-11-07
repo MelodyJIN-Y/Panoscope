@@ -317,7 +317,7 @@ def test_the_renderer_never_invents_a_column_the_spec_did_not_declare():
 def test_the_adapter_keeps_the_two_ways_of_failing_apart():
     """Below the capability floor and tested-but-not-reported are different facts:
     one argues nothing, the other argues against the program running here."""
-    states = {p.gene_set: et._state_of(p) for p in _ce().all_tested}
+    states = {p.gene_set: p.measured_state for p in _ce().all_tested}
     assert states["HALLMARK_E2F_TARGETS"] is MeasuredState.OBSERVED
     assert states["HALLMARK_APICAL_SURFACE"] is MeasuredState.UNDERPOWERED
     assert states["HALLMARK_MYOGENESIS"] is MeasuredState.TESTED_ABSENT
@@ -346,15 +346,15 @@ def test_a_set_the_test_never_scored_is_not_tested_absent():
         "other reason and the test would prove nothing"
     )
 
-    state = et._state_of(unscored)
+    state = unscored.measured_state
     assert state is MeasuredState.NEVER_MEASURED, state
     assert "absence IS evidence" not in et._reason(unscored, state)
 
     # ...and the row that WAS scored still argues, or the fix cost the productive half.
     scored = _pathway("HALLMARK_MYOGENESIS", tier="untestable", q=0.9,
                       panel_hits=40, leading=12)
-    assert et._state_of(scored) is MeasuredState.TESTED_ABSENT
-    assert "absence IS evidence" in et._reason(scored, et._state_of(scored))
+    assert scored.measured_state is MeasuredState.TESTED_ABSENT
+    assert "absence IS evidence" in et._reason(scored, scored.measured_state)
 
 
 def test_the_adapter_withholds_a_number_where_the_state_forbids_one():

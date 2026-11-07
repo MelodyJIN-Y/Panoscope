@@ -101,13 +101,6 @@ def test_clean_cluster_has_no_settle_line(report):
     assert c1.settle == ""
 
 
-def test_report_html_has_links_and_sections(report):
-    html = R.report_html(report)
-    assert "pubmed.ncbi.nlm.nih.gov" in html  # a PMID was linkified
-    assert "Interpretation summary" in html
-    assert "Cross-cluster review" in html
-
-
 def test_docx_export_is_valid_and_has_content(report):
     from docx import Document
 
@@ -191,9 +184,8 @@ def test_a_divergence_reaches_the_exported_document_and_stays_on_its_own_unit():
     c1, c2 = (s for s in model.sections if s.cluster in ("c1", "c2"))
     assert c1.undecidable == (_DIVERGED,)
     assert c2.undecidable == ()
-    # The on-page HTML and the editable working space carry it too: three exports,
-    # and a caveat in one of them is a caveat the other two are silent about.
-    assert "read differently" in R.report_html(model)
+    # The editable working space carries it too: a caveat in one export is a caveat
+    # the other is silent about.
     assert "read differently" in R.default_cluster_summary(c1)
     assert "read differently" not in R.default_cluster_summary(c2)
 
@@ -343,10 +335,6 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
     assert with_off, "no section carries an off-panel marker; the fixture cannot show this"
     s = with_off[0]
     genes = [g for g, _m in s.off_panel]
-
-    html = R.report_html(report)
-    assert all(g in html for g in genes), f"{genes} missing from the HTML report"
-    assert "never measured" in html.lower()
 
     text = R.default_cluster_summary(s)
     assert all(g in text for g in genes), f"{genes} missing from the working document"
@@ -567,7 +555,7 @@ def test_the_header_carries_the_provenance_section_14_asks_for() -> None:
     """
     rep = R.ReportModel(
         dataset="d", generated_at="", n_clusters=0, n_flagged=0, panel_size=1,
-        sections=(), coherence_notes=(), refinements=(), set_is_coherent=True,
+        sections=(), coherence_notes=(), refinements=(),
         dataset_notes=(), tissue="t", platform="p",
         frames=(("panel:d", "abc123def456"),), reference_releases=(),
         corpus_status="", generator="", spec_version="0.1",

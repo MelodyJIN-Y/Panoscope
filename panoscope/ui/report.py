@@ -21,7 +21,6 @@ Design boundaries:
 """
 from __future__ import annotations
 
-import html as _html
 import re as _re
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -61,7 +60,6 @@ class ClusterSection:
     confidence: str
     verify: bool
     driver_line: str  # "ERBB2 (glm_coef 21.44, pearson 0.59), ..." or key markers
-    rationale: str
     biology: str
     biology_pmid: str  # "" when none
     settle: str        # "" unless there is a genuine rival to settle
@@ -104,7 +102,6 @@ class ReportModel:
     sections: tuple[ClusterSection, ...]
     coherence_notes: tuple[str, ...]
     refinements: tuple[str, ...]
-    set_is_coherent: bool
     dataset_notes: tuple[NoteLine, ...]  # dataset/lab-scoped notes, shown once
     tissue: str = ""                     # header context (from the manifest)
     platform: str = ""                   # header context (from the manifest)
@@ -409,7 +406,6 @@ def build_report(
                 verify=v.verify,
                 excluded=bool(getattr(v, "exclude", False)),
                 driver_line=_driver_line(v),
-                rationale=v.notes,
                 biology=str(ct_note.get("summary") or ""),
                 biology_pmid=str(ct_note.get("pmid") or ""),
                 settle=_settle_for(v.cluster, v.verify, v.cell_type),
@@ -431,14 +427,12 @@ def build_report(
 
     coherence_notes: tuple[str, ...] = ()
     refinements: tuple[str, ...] = ()
-    set_is_coherent = True
     if holistic is not None:
         coherence_notes = tuple(holistic.coherence_notes)
         refinements = tuple(
             f"{r.cluster}: {r.from_call} → {r.to_call} — {r.rationale}"
             for r in holistic.refinements
         )
-        set_is_coherent = bool(holistic.set_is_coherent)
 
     return ReportModel(
         dataset=dataset,
@@ -450,7 +444,6 @@ def build_report(
         sections=tuple(sections),
         coherence_notes=coherence_notes,
         refinements=refinements,
-        set_is_coherent=set_is_coherent,
         dataset_notes=dataset_notes,
         tissue=tissue,
         platform=platform,
@@ -638,7 +631,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
 
 
 # --------------------------------------------------------------------------- #
-# Header + overview table — shared by the on-page HTML and the documents. The
+# Header + overview table — shared by the documents. The
 # overview table is the skill's Output 1 lead: the confirmed call per cluster.
 # --------------------------------------------------------------------------- #
 _OVERVIEW_COLS = ("Cluster", "Cell type", "Lineage", "Confidence", "Top markers")
@@ -690,152 +683,6 @@ def overview_rows(report: ReportModel) -> list[tuple[str, str, str, str, str]]:
 
 
 # --------------------------------------------------------------------------- #
-# On-page review region (HTML) — pure builder + Streamlit renderer
-# --------------------------------------------------------------------------- #
-_PMID_RE = _re.compile(r"PMID:(\d+)")
-_CONF_COLOR = {
-    "Very High": "#1a7f43",
-    "High": "#2f9e57",
-    "Medium-High": "#b8860b",
-    "Medium": "#c26a1a",
-    "Low": "#b23b3b",
-}
-
-
-def _linkify(text: str) -> str:
-    """Escape text, then turn PMID:xxxx into a real PubMed link."""
-    esc = _html.escape(text)
-    return _PMID_RE.sub(
-        r'<a href="https://pubmed.ncbi.nlm.nih.gov/\1/" target="_blank">PMID:\1</a>', esc
-    )
-
-
-def _chip(conf: str) -> str:
-    color = _CONF_COLOR.get(conf, "#666")
-    return (
-        f'<span style="background:{color};color:#fff;padding:1px 8px;border-radius:9px;'
-        f'font-size:11px;font-weight:600">{_html.escape(conf)}</span>'
-    )
-
-
-def _note_html(nl: NoteLine) -> str:
-    tension = (
-        f'<div style="font-size:11px;color:var(--muted,#777)">{_linkify(nl.tension)}</div>'
-        if nl.tension
-        else ""
-    )
-    return (
-        f'<div style="border-left:2px solid var(--accent,#3b6fd4);padding:4px 10px;margin:6px 0">'
-        f'<div>{_html.escape(nl.claim)}</div>'
-        f'<div style="font-size:11px;color:var(--muted,#777)">'
-        f'{_html.escape(nl.scope)} · basis: {_html.escape(nl.basis)} · {_html.escape(nl.status)} · '
-        f'{_html.escape(nl.author)} · {_html.escape(nl.date)}</div>{tension}</div>'
-    )
-
-
-def overview_table_html(report: ReportModel) -> str:
-    """The confirmed-call-per-cluster overview table as a self-contained HTML block."""
-    th = "".join(
-        '<th style="text-align:left;padding:5px 10px;border-bottom:1px solid var(--hair,#e3e3e3);'
-        'font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#777)">'
-        f'{_html.escape(c)}</th>'
-        for c in _OVERVIEW_COLS
-    )
-    trs: list[str] = []
-    for cluster, ct, lineage, conf, markers in overview_rows(report):
-        name = ct.replace("  (re-check)", "")
-        flag = ' <span style="color:#b23b3b;font-size:10px">⚑</span>' if "(re-check)" in ct else ""
-        trs.append(
-            '<tr style="border-bottom:1px solid var(--hair,#f0f0f0)">'
-            f'<td style="padding:5px 10px;font-family:var(--mono,monospace);font-size:12px">{_html.escape(cluster)}</td>'
-            f'<td style="padding:5px 10px;font-weight:600">{_html.escape(name)}{flag}</td>'
-            f'<td style="padding:5px 10px;font-size:12px;color:var(--muted,#777)">{_html.escape(lineage)}</td>'
-            f'<td style="padding:5px 10px">{_chip(conf)}</td>'
-            f'<td style="padding:5px 10px;font-size:12px;font-variant-numeric:tabular-nums">{_html.escape(markers)}</td>'
-            "</tr>"
-        )
-    return (
-        '<table style="border-collapse:collapse;width:100%;margin:6px 0 14px">'
-        f'<thead><tr>{th}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
-    )
-
-
-def report_html(report: ReportModel) -> str:
-    """The interpretation summary as a self-contained HTML string (pure): a header, the
-    confirmed-call overview table, then the per-cluster detail (identity + programs)."""
-    parts: list[str] = ['<div style="font-size:13px">']
-    parts.append(
-        '<p style="font-size:12px;color:var(--muted,#777);letter-spacing:.04em;'
-        'text-transform:uppercase;margin-bottom:4px">Interpretation summary</p>'
-    )
-    for h in _header_meta(report):
-        parts.append(f'<p style="color:var(--muted,#777);margin:0 0 2px;font-size:12px">{_html.escape(h)}</p>')
-    parts.append(overview_table_html(report))
-    for s in report.sections:
-        flag = ' <span style="color:#b23b3b;font-size:11px">⚑ re-check</span>' if s.verify else ""
-        parts.append(
-            f'<div style="border:1px solid var(--hair,#e3e3e3);border-radius:9px;padding:10px 12px;margin:8px 0">'
-            f'<div style="display:flex;gap:8px;align-items:center">'
-            f'<strong>{_html.escape(s.cluster)} · {_html.escape(s.cell_type)}</strong>{_chip(s.confidence)}{flag}</div>'
-            f'<div style="font-size:12px;margin-top:5px"><em>Drivers:</em> {_linkify(s.driver_line)}</div>'
-        )
-        if s.biology:
-            bio = s.biology + (f" (PMID:{s.biology_pmid})" if s.biology_pmid else "")
-            parts.append(f'<div style="font-size:12px;margin-top:4px"><em>Biology:</em> {_linkify(bio)}</div>')
-        if s.enrichment:
-            conf = f" ({_html.escape(s.enrichment_census)})" if s.enrichment_census else ""
-            parts.append(
-                f'<div style="font-size:12px;margin-top:4px"><em>Programs{conf}, panel-scoped:</em> '
-                f'{_linkify(s.enrichment)}</div>'
-            )
-        if s.settle:
-            parts.append(
-                f'<div style="font-size:12px;margin-top:4px;color:var(--accent,#3b6fd4)">'
-                f'<em>What would settle it:</em> {_linkify(s.settle)}</div>'
-            )
-        if s.off_panel:
-            names = ", ".join(_html.escape(g) for g, _m in s.off_panel)
-            parts.append(
-                f'<div style="font-size:12px;margin-top:4px">'
-                f'<em>Never measured ({len(s.off_panel)} off panel):</em> {names}'
-                f' &mdash; absent from the capability frame, so their absence is '
-                f'not evidence against this call.</div>'
-            )
-        for u in s.undecidable:
-            parts.append(
-                f'<div style="font-size:12px;margin-top:4px">'
-                f'<em>Not settled by this measurement:</em> {_linkify(u)}</div>'
-            )
-        for nl in s.notes:
-            parts.append(_note_html(nl))
-        parts.append("</div>")
-
-    # Cross-cluster review recap (the report's own copy of Step 4).
-    parts.append('<div style="margin-top:14px"><strong>Cross-cluster review</strong>')
-    for c in report.coherence_notes:
-        parts.append(f'<div style="font-size:12px;margin-top:4px">{_linkify(c)}</div>')
-    for r in report.refinements:
-        parts.append(f'<div style="font-size:12px;margin-top:4px">↳ {_linkify(r)}</div>')
-    parts.append("</div>")
-
-    if report.dataset_notes:
-        parts.append('<div style="margin-top:14px"><strong>My notes (dataset / all datasets)</strong>')
-        for nl in report.dataset_notes:
-            parts.append(_note_html(nl))
-        parts.append("</div>")
-
-    parts.append("</div>")
-    return "".join(parts)
-
-
-def render_report_html(report: ReportModel) -> None:
-    """Render the review region into the Summary page."""
-    import streamlit as st
-
-    st.markdown(report_html(report), unsafe_allow_html=True)
-
-
-# --------------------------------------------------------------------------- #
 # Downloadable documents (.docx + PDF) — deterministic, no network
 # --------------------------------------------------------------------------- #
 _PDF_MAP = {
@@ -858,8 +705,7 @@ def _note_text(nl: NoteLine) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Clickable PMID links in the exported documents (the on-page HTML already links
-# them). A ``PMID:xxxx`` token becomes a hyperlink to its PubMed record in both the
+# Clickable PMID links in the exported documents. A ``PMID:xxxx`` token becomes a hyperlink to its PubMed record in both the
 # .docx and the PDF, so every cited claim in the report is one click from the paper.
 # --------------------------------------------------------------------------- #
 _PMID_LINK_RE = _re.compile(r"PMID:\s*(\d+)", _re.IGNORECASE)
@@ -1297,24 +1143,3 @@ def working_pdf(sections, *, report_model: ReportModel | None = None, **kw) -> b
     overview = overview_rows(report_model) if report_model else None
     lines = _working_lines(sections, header=header, has_overview=overview is not None, **kw)
     return _lines_to_pdf(lines, overview=overview)
-
-
-__all__ = [
-    "NoteLine",
-    "note_scope_label",
-    "ClusterSection",
-    "ReportModel",
-    "build_report",
-    "build_report_from_sources",
-    "overview_rows",
-    "overview_table_html",
-    "report_html",
-    "render_report_html",
-    "report_to_docx",
-    "report_to_pdf",
-    "default_cluster_summary",
-    "global_check_text",
-    "caveats_text",
-    "working_docx",
-    "working_pdf",
-]

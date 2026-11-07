@@ -77,6 +77,3 @@ def save_all(threads: dict) -> None:
             json.dump(raw, fh, ensure_ascii=False)
     except Exception:  # noqa: BLE001 - losing the transcript must not break the app
         pass
-
-
-__all__ = ["load_all", "save_all"]

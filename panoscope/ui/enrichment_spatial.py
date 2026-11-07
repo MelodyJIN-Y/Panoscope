@@ -28,6 +28,7 @@ from panoscope.ui import data_access as da
 from panoscope.ui import state
 from panoscope.ui.spatial_stage import (
     _MAX_BG_POINTS,
+    _PLOT_CONFIG,
     _TISSUE_HEIGHT,
     _base_layout,
     _downsample_bg,
@@ -36,7 +37,6 @@ from panoscope.ui.spatial_stage import (
     _inject_stage_css,
     _legend_line,
     _panel_title,
-    _plot_config,
     _render_cell_map,
     _render_density_controls,
     _render_density_frame,
@@ -154,7 +154,7 @@ def _render_set_feature_umap(program: str, cluster: str, genes: tuple[str, ...])
             n_bg_drawn=len(view) - int(sel_mask.sum()),
             n_bg_total=int((~sel_mask).sum()),
         ),
-        config=_plot_config(),
+        config=_PLOT_CONFIG,
         key=f"pano_le_umap_{cluster}_{program}",
     )
 
@@ -216,6 +216,3 @@ def render_pathways_spatial(cluster: str, pathways: list) -> None:
         # genes" while 24 were selected. ``spatial_stage._render_dotplot`` takes
         # ``n_selected`` for exactly this; the markers path passes it.
         _render_dotplot(all_genes[:14], cluster, n_selected=len(all_genes))
-
-
-__all__ = ["render_pathways_spatial"]

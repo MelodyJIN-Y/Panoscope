@@ -95,33 +95,6 @@ def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     assert info["new_call"] == "CAF" and info["computed_call"] == "Stromal" and info["dissent"] == 1
 
 
-def test_overview_table_column_order_and_grounding() -> None:
-    """The overview merges the marker call and the enriched programs into one row
-    per cluster: columns in order, and every value is a projection of the verdicts
-    (+ enrichment records) — nothing invented."""
-    verdicts = da.all_verdicts()
-    try:
-        enr_map = {ce.cluster: ce for ce in da.all_enrichments()}
-    except Exception:  # noqa: BLE001 - no enrichment slice (fresh clone) -> marker-only overview
-        enr_map = {}
-    out = summary._overview_table_html(verdicts, enr_map)
-
-    order = ["Cluster", "Cell type", "Conf.", "Key markers", "Enriched programs"]
-    positions = [out.index(f">{label}<") for label in order]
-    assert positions == sorted(positions), "overview columns are out of order"
-
-    # Grounded: each cluster's cell type and key markers appear verbatim.
-    for v in verdicts:
-        assert html.escape(v.cell_type) in out
-        for g in v.key_markers:
-            assert html.escape(str(g)) in out
-
-    # Enriched program names, when present, come from the enrichment records only.
-    for ce in enr_map.values():
-        for p in ce.enriched[:4]:
-            assert html.escape(summary._short(p.gene_set)) in out
-
-
 # --------------------------------------------------------------------------- #
 # Sign-off board — the review cockpit that replaced the manuscript editor.
 # --------------------------------------------------------------------------- #
@@ -193,41 +166,6 @@ def test_triage_bucket_routing() -> None:
     assert summary._triage_bucket(v1, {}, {}, {}) == summary._BUCKET_REVIEW
     # a proposed refinement pulls an otherwise-solid call into needs-you
     assert summary._triage_bucket(v1, {}, {"c1": object()}, {}) == summary._BUCKET_NEEDS
-
-
-def test_evidence_strength_is_a_grounded_projection() -> None:
-    """The row's evidence-strength line reads the top driver's gene + glm + pearson and
-    the marker count straight from the verdict — nothing invented."""
-    v = da.verdict_for("c1")
-    top = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[0]
-    out = summary._evidence_strength_html(v)
-    assert html.escape(top.gene) in out
-    assert f"{top.glm_coef:.1f}" in out
-    # the count is labelled "genes" (all genes jazzPanda assigned to the cluster), not
-    # "markers" — those are not all drivers, and calling them markers overstates evidence.
-    assert f"{len(v.evidence)} genes" in out
-
-
-def test_reconciliation_items_are_grounded() -> None:
-    """Every reconciliation cue is a projection of real evidence: any marker it names as
-    'localizes better with another cluster' actually carries that caveat in some verdict."""
-    verdicts = da.all_verdicts()
-    try:
-        themes = da.pathway_themes()
-    except Exception:  # noqa: BLE001
-        themes = None
-    items = summary._reconciliation_items(verdicts, themes, {})
-    assert isinstance(items, list)
-    # collect markers that genuinely carry the spillover caveat
-    real_spill = {
-        e.gene
-        for v in verdicts
-        for e in v.evidence
-        if e.gene in v.key_markers and any("localizes better" in str(c) for c in e.caveats)
-    }
-    # the spillover cue appears iff some marker really carries the caveat (grounded)
-    has_spill_cue = any("may localize to another cluster" in body for _ic, body in items)
-    assert has_spill_cue == bool(real_spill)
 
 
 def test_board_renders_headless() -> None:

@@ -133,25 +133,9 @@ def markers_df() -> pd.DataFrame:
 
 
 @_cache_data(show_spinner=False)
-def panel_df() -> pd.DataFrame:
-    """The panel table (280 analyzed genes): gene, ensembl_id, annotation."""
-    return agent_data.load_panel()
-
-
-@_cache_data(show_spinner=False)
 def panel_names() -> list[str]:
     """Sorted list of panel gene names (for autocomplete / search)."""
-    return sorted(panel_df()["gene"].astype(str).tolist())
-
-
-def panel_contains(gene: str) -> bool:
-    """The panel-absence primitive (pass-through; O(1), already cached upstream)."""
-    return agent_data.panel_contains(gene)
-
-
-def panel_annotation(gene: str) -> Optional[str]:
-    """Panel annotation for a gene, or None off-panel (pass-through)."""
-    return agent_data.panel_annotation(gene)
+    return sorted(agent_data.load_panel()["gene"].astype(str).tolist())
 
 
 # --------------------------------------------------------------------------- #
@@ -195,25 +179,6 @@ def hexbins(gene: str, bin_um: float = 50) -> pd.DataFrame:
         except spatial.StoreUnavailable:
             pass  # a directory that is not a readable store -- use the frames
     return agent_data.get_density(gene, int(bin_um))
-
-
-@_cache_data(show_spinner=False)
-def available_density_markers() -> list[str]:
-    """Markers that have precomputed density frames (from the density _index).
-
-    Falls back to the demo marker set (each precomputed by the density step) if
-    the index is missing or unparseable.
-    """
-    try:
-        if _density_index().exists():
-            with open(_density_index()) as fh:
-                idx = json.load(fh)
-            genes = idx.get("genes") or idx.get("markers")
-            if isinstance(genes, list):
-                return [str(g) for g in genes]
-    except Exception:
-        pass
-    return list(cfg.DEMO_MARKERS)
 
 
 # --------------------------------------------------------------------------- #
@@ -664,12 +629,6 @@ def celltype_note_for(verdict: Any) -> dict:
     return note if (not described or described == showing) else {}
 
 
-def celltype_summary(cluster: str) -> str:
-    """The short grounded cell-type summary for a cluster, or '' if not available."""
-    note = celltype_notes().get(cluster) or {}
-    return str(note.get("summary") or "")
-
-
 def holistic():
     """The cross-cluster holistic review (Step 4), with confirmed overrides applied.
 
@@ -845,13 +804,6 @@ def withheld_notes() -> list[Note]:
     return [n for n in memory.read_notes() if not n.scope_ref.dataset and n.scope != "lab"]
 
 
-def notes_in_scope(cluster: Optional[str]) -> list[Note]:
-    """Notes whose scope fires for the given cluster (fresh read; the scope gate)."""
-    from panoscope.agent import memory
-
-    return memory.apply_notes(cluster)
-
-
 def save_note_draft(draft: Any, trigger: str = "override") -> Note:
     """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a note.
 
@@ -914,49 +866,3 @@ def clear_signoff(cluster: str, at: str = "") -> None:
             store.save_review_state(reviewed, saved_at=at)
     except Exception:  # noqa: BLE001 - a failed write must never crash the board
         pass
-
-
-__all__ = [
-    "markers_df",
-    "panel_df",
-    "panel_names",
-    "panel_contains",
-    "panel_annotation",
-    "cells_df",
-    "cluster_cells_df",
-    "umap_df",
-    "hexbins",
-    "available_density_markers",
-    "marker_expr_df",
-    "marker_expr_col",
-    "available_expr_markers",
-    "expr_by_cluster",
-    "gene_notes",
-    "gene_note",
-    "verdict_for",
-    "all_verdicts",
-    "verdict_csv",
-    "celltype_notes",
-    "celltype_note_for",
-    "celltype_summary",
-    "holistic",
-    "enrichment_for",
-    "all_enrichments",
-    "pathway_themes",
-    "enrichment_available",
-    "pathway_notes",
-    "pathway_note",
-    "get_agent",
-    "read_notes",
-    "withheld_notes",
-    "notes_in_scope",
-    "save_note_draft",
-    "composed_verdicts",
-    "display_cell_type",
-    "display_verdict_for",
-    "override_info",
-    "anchored_notes",
-    "signed_off",
-    "mark_signed_off",
-    "clear_signoff",
-]

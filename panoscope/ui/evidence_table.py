@@ -536,7 +536,3 @@ def render_evidence_table(cluster: str) -> None:
                             {r.key for r in rows} | {_unit_key(cluster)})
     if conc:
         st.markdown(conc, unsafe_allow_html=True)
-
-
-__all__ = ["render_evidence_table", "rows_for", "unit_build", "FLAG_COPY",
-           "ConcLine", "concordance_lines", "concordance_html"]

@@ -98,8 +98,8 @@ V1_DROPPED: tuple[Dropped, ...] = (
         "'confidence is glm_coef DIRECT ... There is NO within-cluster percentile.' "
         "v2 carries no rank and no percentile anywhere, so emitting one would mean "
         "re-implementing a deleted rule inside the compat layer. Its only reader, "
-        "ui/format.pct_fmt, has zero call sites (it appears in __all__ and nowhere "
-        "else), so nothing on screen changes. §10 names it: 'a vestigial percentile'.",
+        "ui/format.pct_fmt, had zero call sites and has been deleted, so nothing "
+        "on screen changes. §10 names it: 'a vestigial percentile'.",
     ),
     Dropped(
         "opening.driving_markers[].within_cluster_pctile",

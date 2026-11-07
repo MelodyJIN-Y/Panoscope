@@ -43,11 +43,6 @@ from panoscope.ui import state
 # Copy + export metadata. Constants so prose never drifts.
 # --------------------------------------------------------------------------- #
 _TITLE = "Interpretation summary"
-_SUB = (
-    "Both workflows in one report — the marker-gene calls and the gene-set programs, "
-    "drafted per cluster for you to edit and export. Every number is jazzPanda's, every "
-    "biology claim is live-cited, nothing here recomputes a value."
-)
 
 # The interpretation report, in the two formats a biologist reaches for: an editable
 # Word document and a locked PDF. Both lead with the confirmed-call overview table.
@@ -71,15 +66,8 @@ _ED_MAX_PX = 1600
 _SEC_OVERALL = "overall"
 _SEC_CAVEATS = "caveats"
 _SEC_NOTES = "labnotes"
-_DATASET_SECTIONS = ((_SEC_CAVEATS, "Caveats"), (_SEC_NOTES, "My notes"))
 _ED_GLOBAL = "global"   # editor name for the cross-cluster check (lives on Overall)
 _K_ACTIVE = "sum_active_section"  # which rail item is focused
-
-# Overview table columns (merged marker + enrichment). (label, width%)
-_OVERVIEW_COLS = (
-    ("Cluster", 9), ("Cell type", 16), ("Conf.", 11),
-    ("Key markers", 28), ("Enriched programs", 36),
-)
 
 # --------------------------------------------------------------------------- #
 # Styling. Reuses the theme tokens (var(--sans) etc.) + the global .cf-* pills.
@@ -121,15 +109,6 @@ div[class*="st-key-savrow_"] button:hover { filter: brightness(1.06); }
 .st-key-pano_rail { position: sticky; top: 68px; align-self: start;
   border: 1px solid var(--hair); border-radius: 14px; background: var(--paper);
   padding: 7px 10px 14px; }
-/* Group labels are wrapped in keyed containers FORCED to a real row (Streamlit
-   otherwise collapses a custom-markdown element to ~0 height in the flex rail). The
-   label sits at the TOP of its row (flex-start) with clear empty space BELOW it, so
-   the next item's selected box can never rise up and cover the label. */
-.st-key-pano_rail div[class*="st-key-raillbl_"] { min-height: 30px !important; margin: 8px 0 0 !important;
-  display: flex !important; flex-direction: column !important; justify-content: flex-start !important;
-  overflow: hidden !important; }
-.pano-rail-lbl { font-family: var(--mono); font-size: 9px; text-transform: uppercase;
-  letter-spacing: .14em; color: var(--faint); font-weight: 700; padding: 2px 9px 0; margin: 0; }
 /* Non-cluster rows keep the dot's SLOT (transparent) so every label lines up with
    the dotted cluster rows below — no ragged left edge. */
 .st-key-nav_overall button::before, .st-key-nav_caveats button::before,
@@ -177,23 +156,13 @@ div[class*="st-key-refbtn_"] button:hover { background: var(--accent-soft) !impo
 .pano-sum-table tbody td { padding: 12px 13px; border-bottom: 1px solid var(--hair2); vertical-align: top; }
 .pano-sum-table tbody tr:last-child td { border-bottom: 0; }
 .pano-sum-table tbody tr:hover td { background: #FAFCFC; }
-.pano-sum-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-                margin-right: 8px; vertical-align: middle; }
 .pano-sum-cid { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink); vertical-align: middle; }
 .pano-sum-ct { font-size: 13.5px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; }
-.pano-sum-km { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.6; word-break: break-word; }
-.pano-sum-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
 .pano-enr-le { font-family: var(--mono); font-size: 10px; color: var(--faint); line-height: 1.55;
   word-break: break-word; display: block; margin-top: 3px; }
-.pano-sum-dash { color: var(--faint); }
 .pano-sum-flag { font-family: var(--mono); font-size: 9.5px; font-weight: 600; color: var(--absent);
   background: var(--absent-bg); padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
 .pano-sum-table .cf { font-size: 10px; padding: 2px 8px; }
-.pano-ovflag { color: var(--absent); font-size: 11px; margin-left: 6px; }
-.pano-ov-lab { font-family: var(--mono); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em;
-  font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px;
-  border-radius: 4px; margin-left: 6px; vertical-align: middle; }
-.pano-ov-was { font-family: var(--mono); font-size: 9.5px; color: var(--faint); margin-top: 3px; }
 
 /* Focused editor. */
 .pano-ed-hr { border: 0; border-top: 1px solid var(--hair); margin: 24px 0 4px; }
@@ -241,12 +210,6 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .pano-lead .prog { color: var(--muted); }
 .pano-lead .need { color: var(--absent); font-weight: 600; }
 .pano-lead .sep { color: var(--hair); margin: 0 8px; }
-/* Reconciliation: one calm line, neutral surface, no coloured left border. */
-.pano-recon-line { font-size: 11.5px; line-height: 1.55; color: var(--muted); background: var(--paper);
-  border: 1px solid var(--hair); border-radius: 10px; padding: 9px 13px; margin: 0 0 14px; max-width: 100%; }
-.pano-recon-line .ic { color: var(--faint); font-weight: 700; margin-right: 6px; }
-.pano-recon-line .cid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
-.pano-recon-line b { color: var(--ink); font-weight: 600; }
 /* The table's contained surface: a white card with a soft shadow, width-capped so
    the columns stay tight instead of sprawling across the viewport. */
 .st-key-pano_tblcard { background: var(--paper); border: 1px solid var(--hair); border-radius: 14px;
@@ -339,69 +302,11 @@ div[class*="st-key-wsw_"] textarea:focus { border-color: var(--accent) !importan
 .pano-ovw ul { margin: 0; padding-left: 19px; }
 .pano-ovw li { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: 5px 0; }
 .pano-ovw li::marker { color: var(--accent); }
-/* Column header. */
-.pano-th { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
-  color: var(--faint); font-weight: 600; padding: 6px 0 8px; }
-.st-key-pano_thead { border-bottom: 1px solid var(--hair); }
-/* Rows: hairline separators, a real row rhythm, subtle state tints (never a side border). */
-div[class*="st-key-trow_"] { border-bottom: 1px solid var(--hair2); padding: 2px 0; }
-div[class*="st-key-trowneed_"] { background: #FCFAF3; }               /* needs action — a warm wash */
-div[class*="st-key-trowdone_"] .pano-tc, div[class*="st-key-trowdone_"] .pano-tcell { opacity: .42; }
-div[class*="st-key-trow_"]:hover, div[class*="st-key-trowneed_"]:hover { background: var(--accent-soft); }
-/* Cells. */
-.pano-tc { display: flex; align-items: center; gap: 9px; min-height: 34px; }
-.pano-tc .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
-.pano-tc .ct { font-size: 13.5px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; }
-.pano-tc .yours { font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .04em;
-  font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
-.pano-tc .flag { color: var(--absent); font-size: 11px; }
-.pano-tcell { font-size: 12px; color: var(--muted); display: flex; align-items: center; min-height: 34px; }
-.pano-tcell.mono { font-family: var(--mono); font-size: 11.5px; }
-.pano-tcell .g { color: var(--ink); font-weight: 600; margin-right: 7px; }
-.pano-tcell .r { color: var(--faint); margin-left: 3px; }
-.pano-tsub { font-size: 11px; color: var(--muted); line-height: 1.5; margin: -4px 0 6px 0; padding-left: 1px; }
-.pano-tsub .warn { color: var(--absent); font-weight: 600; }
-.pano-tsub b { color: var(--ink); font-weight: 600; }
-/* Cluster id — a borderless mono link that drills into the evidence. */
-div[class*="st-key-tdrill_"] { display: flex; align-items: center; }
-div[class*="st-key-tdrill_"] button { min-height: 0 !important; padding: 4px 0 !important; border: 0 !important;
-  background: transparent !important; box-shadow: none !important; color: var(--muted) !important;
-  font-family: var(--mono) !important; font-size: 12px !important; font-weight: 600 !important; text-align: left !important; }
-div[class*="st-key-tdrill_"] button:hover { color: var(--accent) !important; }
-/* Sign-off checkbox sits FIRST, as a checklist (the instruction says "tick each call"). */
-div[class*="st-key-tact_"] { display: flex; justify-content: center; align-items: center; }
-/* Checkbox-style toggle: a bare glyph (☐ / ✓ teal), matching the app's dot language. */
-div[class*="st-key-tact_"] button { min-height: 0 !important; padding: 3px 6px !important;
-  border: 0 !important; background: transparent !important; box-shadow: none !important;
-  color: var(--muted) !important; font-size: 19px !important; line-height: 1 !important; border-radius: 6px !important; }
-div[class*="st-key-tact_"] button:hover { color: var(--accent) !important; background: var(--accent-soft) !important; }
-div[class*="st-key-tact_done_"] button { color: var(--accent) !important; }
-/* A flagged row shows a static ⚠ in the checklist column; its action is on the sub-line. */
-.pano-tflag { color: var(--absent); font-size: 15px; text-align: center; width: 100%; }
-/* Sub-line for a flagged / to-refine row: reason text beside a compact action button. */
-.pano-tsub2 { font-size: 11px; color: var(--muted); line-height: 1.5; padding: 0 0 6px 2px; display: flex; align-items: center; min-height: 30px; }
-.pano-tsub2 .warn { color: var(--absent); font-weight: 600; }
-.pano-tsub2 b { color: var(--ink); font-weight: 600; }
-div[class*="st-key-tsubact_"] { display: flex; justify-content: flex-start; align-items: center; }
-div[class*="st-key-tsubact_"] button { min-height: 0 !important; padding: 5px 12px !important;
-  border: 1px solid var(--absent) !important; color: var(--absent) !important; background: var(--absent-bg) !important;
-  box-shadow: none !important; font-family: var(--mono) !important; font-size: 10px !important; font-weight: 700 !important;
-  border-radius: 7px !important; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
-div[class*="st-key-tsubact_"] button:hover { background: var(--absent) !important; color: #fff !important; }
-div[class*="st-key-tsubact_refine_"] button { border-color: var(--accent) !important; color: var(--accent) !important;
-  background: var(--accent-soft) !important; }
-div[class*="st-key-tsubact_refine_"] button:hover { background: var(--accent) !important; color: #fff !important; }
 /* Drill-down back link. */
 div[class*="st-key-backlink"] button { min-height: 0 !important; padding: 3px 0 !important; border: 0 !important;
   background: transparent !important; box-shadow: none !important; color: var(--faint) !important;
   font-family: var(--mono) !important; font-size: 11px !important; font-weight: 600 !important; }
 div[class*="st-key-backlink"] button:hover { color: var(--accent) !important; }
-/* Kept for the tested evidence-strength helper (drill-down / reuse). */
-.pano-str { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 4px; line-height: 1.5; }
-.pano-str-gene { color: var(--ink); font-weight: 600; }
-.pano-str-num { color: var(--muted); }
-.pano-str-n { color: var(--faint); }
-.pano-str-cav { color: var(--muted); }
 /* Contested sign-off confirm card (basis toggle + confirm). Per-cluster key
    (sofcard_<cluster>) so several can render at once without a duplicate-key crash. */
 div[class*="st-key-sofcard_"] { border: 1px solid var(--hair); border-radius: 11px;
@@ -421,72 +326,6 @@ def _short(gene_set: str) -> str:
     return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
-def _dot_id(cluster: str) -> str:
-    color = fmt.cluster_color(cluster)
-    return (f'<span class="pano-sum-dot" style="background:{color}"></span>'
-            f'<span class="pano-sum-cid">{html.escape(cluster)}</span>')
-
-
-def _conf_pill(confidence: str) -> str:
-    css, _ = fmt.confidence_chip(confidence)
-    return f'<span class="cf {css}">{html.escape(confidence)}</span>'
-
-
-def _markers_cell(v: ClusterVerdict) -> str:
-    if not v.key_markers:
-        return '<span class="pano-sum-dash">—</span>'
-    return f'<span class="pano-sum-km">{" · ".join(html.escape(str(g)) for g in v.key_markers)}</span>'
-
-
-def _programs_cell(ce) -> str:
-    """Top enriched programs + their leading-edge genes, compact. Dash if none."""
-    if ce is None or not ce.enriched:
-        return '<span class="pano-sum-dash">no program clears the gate</span>'
-    progs = " · ".join(_short(p.gene_set) for p in ce.enriched[:4])
-    le: list[str] = []
-    for p in ce.enriched[:3]:
-        for g in p.leading_edge:
-            if g not in le:
-                le.append(g)
-    le_html = f'<span class="pano-enr-le">{" · ".join(html.escape(g) for g in le[:9])}</span>' if le else ""
-    return f'<span class="pano-sum-desc">{html.escape(progs)}</span>{le_html}'
-
-
-def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, overrides: dict = None) -> str:
-    """The one scannable map: per cluster, the marker call and the enriched programs.
-    A confirmed cell-type override shows the new call with a 'yours' tag and the computed
-    call it replaced (tension visible), never a silent swap."""
-    overrides = overrides or {}
-    cols = "".join(f'<col style="width:{w}%">' for _, w in _OVERVIEW_COLS)
-    head = "".join(f"<th>{html.escape(label)}</th>" for label, _ in _OVERVIEW_COLS)
-    rows = []
-    for v in verdicts:
-        ce = enr_map.get(v.cluster)
-        flag = ' <span class="pano-ovflag" title="flagged for re-check">⚑</span>' if v.verify else ""
-        ct = f'<span class="pano-sum-ct">{html.escape(v.cell_type)}</span>'
-        ov = overrides.get(v.cluster)
-        if ov:
-            ct += (f' <span class="pano-ov-lab" title="override; computed: '
-                   f'{html.escape(ov["computed_call"])}">override</span>')
-            was = f'was {html.escape(ov["computed_call"])}'
-            if ov["dissent"]:
-                was += f' · {ov["dissent"]} lit. dissent'
-            ct += f'<div class="pano-ov-was">{was}</div>'
-        rows.append(
-            "<tr>"
-            f"<td>{_dot_id(v.cluster)}</td>"
-            f"<td>{ct}{flag}</td>"
-            f"<td>{_conf_pill(v.confidence)}</td>"
-            f"<td>{_markers_cell(v)}</td>"
-            f"<td>{_programs_cell(ce)}</td>"
-            "</tr>"
-        )
-    return (
-        '<div class="pano-sum-tablewrap"><table class="pano-sum-table">'
-        f"<colgroup>{cols}</colgroup><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
-    )
-
-
 # --------------------------------------------------------------------------- #
 # Sign-off board — the Overall pane's hero. A review cockpit: the whole call-set
 # triaged into what needs the biologist vs what is signed off, each row grounded
@@ -495,19 +334,7 @@ def _overview_table_html(verdicts: list[ClusterVerdict], enr_map: dict, override
 _BUCKET_NEEDS = "needs"
 _BUCKET_REVIEW = "review"
 _BUCKET_SIGNED = "signed"
-_BUCKET_LABELS = {
-    _BUCKET_NEEDS: "Needs you",
-    _BUCKET_REVIEW: "To review",
-    _BUCKET_SIGNED: "Signed off",
-}
 _SIGNOFF_SLOT = "signoff::{}"  # pending-draft slot for a contested sign-off's note
-
-
-def _rerun(st) -> None:
-    """Rerun the script (new + legacy Streamlit API)."""
-    rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if callable(rerun):
-        rerun()
 
 
 def _refinements_by_cluster() -> dict:
@@ -519,28 +346,6 @@ def _refinements_by_cluster() -> dict:
         return {r.cluster: r for r in refs}
     except Exception:  # noqa: BLE001 - no holistic slice -> no refinements
         return {}
-
-
-def _evidence_strength_html(v: ClusterVerdict) -> str:
-    """A compact, grounded read of how strong a call's evidence is: the top driver
-    (gene, glm coef, pearson), the assigned-marker count, and the strongest caveat if
-    any. A projection of ``v.evidence`` — never a computed or invented value."""
-    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
-    if not ev:
-        return '<div class="pano-str">no marker evidence recorded</div>'
-    top = ev[0]
-    caveat = ""
-    for e in ev[:6]:
-        if e.caveats:
-            caveat = f' · <span class="pano-str-cav">{html.escape(str(e.caveats[0]))}</span>'
-            break
-    return (
-        '<div class="pano-str">'
-        f'<span class="pano-str-gene">{html.escape(top.gene)}</span> '
-        f'<span class="pano-str-num">glm {top.glm_coef:.1f} · r {top.pearson:.2f}</span> · '
-        f'<span class="pano-str-n">{len(v.evidence)} genes</span>{caveat}'
-        "</div>"
-    )
 
 
 def _flag_reason(v: ClusterVerdict) -> str:
@@ -571,16 +376,6 @@ def _triage_bucket(v: ClusterVerdict, signed, refinements, overrides) -> str:
     return _BUCKET_REVIEW
 
 
-def _evidence_compact(v: ClusterVerdict) -> str:
-    """The 'key evidence' cell: the top driver's gene + glm·pearson, grounded and compact."""
-    ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
-    if not ev:
-        return '<span class="pano-tcell">—</span>'
-    top = ev[0]
-    return (f'<span class="pano-tcell mono"><span class="g">{html.escape(top.gene)}</span> '
-            f'{top.glm_coef:.1f}<span class="r"> · r{top.pearson:.2f}</span></span>')
-
-
 def _lead_html(n_signed: int, n_total: int, n_needs: int) -> str:
     """One plain-language instruction + progress — tells the biologist what to do, in
     sentence case (no mono-uppercase noise). Grounded counts."""
@@ -593,25 +388,6 @@ def _lead_html(n_signed: int, n_total: int, n_needs: int) -> str:
             f'<span class="prog">{n_signed} of {n_total} done</span>{need}</div>')
 
 
-def _table_subline_html(v: ClusterVerdict, override, refinement, is_signed: bool) -> str:
-    """A grounded reason line beneath a flagged / to-refine / dissenting row (none when the
-    row is clean or already signed off)."""
-    if is_signed:
-        return ""
-    bits: list[str] = []
-    if refinement is not None:
-        bits.append(f'refine &rarr; <b>{html.escape(refinement.to_call)}</b> · '
-                    f'{html.escape(refinement.rationale)}')
-    if v.verify:
-        bits.append(f'<span class="warn">flagged</span> — {html.escape(_flag_reason(v))}')
-    if override is not None and override.get("dissent"):
-        bits.append(f'override — {override["dissent"]} lit. dissent '
-                    f'(was {html.escape(override["computed_call"])})')
-    if not bits:
-        return ""
-    return '<div class="pano-tsub">' + " &nbsp;·&nbsp; ".join(bits) + "</div>"
-
-
 def _signoff_claim(v: ClusterVerdict, override) -> str:
     """The grounded validation claim a contested sign-off records in My notes."""
     if override is not None and override.get("dissent"):
@@ -621,47 +397,6 @@ def _signoff_claim(v: ClusterVerdict, override) -> str:
     top = f"top marker {ev[0].gene}" if ev else "its top marker"
     return (f"Confirmed {v.cell_type} for {v.cluster} despite being flagged "
             f"({_flag_reason(v)}; {top}). Reviewed and accepted.")
-
-
-# --- Reconciliation strip (grounded cross-cluster cues) -------------------- #
-def _reconciliation_items(verdicts: list[ClusterVerdict], themes, overrides: dict) -> list:
-    """Grounded cross-cluster cues as compact ``(icon, html)`` items for a one-line strip.
-    Every cue projects real evidence — spillover caveats, enrichment themes, override
-    dissent — nothing invented. Returns [] when there is nothing cross-cluster to weigh."""
-    items: list = []
-    spill = [
-        e.gene
-        for v in verdicts
-        for e in sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[:8]
-        if e.gene in v.key_markers and any("localizes better" in str(c) for c in e.caveats)
-    ]
-    if spill:
-        genes = ", ".join(html.escape(g) for g in spill[:5])
-        items.append(("⇄", f'<b>{len(spill)}</b> marker(s) may localize to another cluster '
-                           f'<span class="cid">({genes})</span>'))
-    recurring = [
-        r for r in (list(getattr(themes, "recurring", ()) or []) if themes else [])
-        if getattr(r, "n_clusters", 0) >= 3
-    ]
-    if recurring:
-        names = ", ".join(html.escape(_short(r.gene_set)) for r in recurring[:3])
-        items.append(("◇", f'<b>{len(recurring)}</b> program(s) recur across clusters '
-                           f'<span class="cid">({names})</span>'))
-    for c, o in sorted(overrides.items()):
-        if o.get("dissent"):
-            items.append(("⚖", f'<span class="cid">{html.escape(c)}</span> '
-                               f'{html.escape(o["new_call"])} override — '
-                               f'<b>{o["dissent"]}</b> lit. dissent'))
-    return items
-
-
-def _reconciliation_line_html(items: list) -> str:
-    """The reconciliation as ONE calm line on a neutral surface (no coloured border), or
-    '' when there is nothing to reconcile."""
-    if not items:
-        return ""
-    body = ' &nbsp;·&nbsp; '.join(f'<span class="ic">{ic}</span> {txt}' for ic, txt in items)
-    return f'<div class="pano-recon-line">{body}</div>'
 
 
 # --- Sign-off actions (on_click handlers) ---------------------------------- #
@@ -735,7 +470,7 @@ def _render_signoff_card(st, cluster: str) -> None:
         no = c_no.button("Cancel", key=f"sof_no_{cluster}", width="stretch")
     if no:
         state.clear_pending_draft(slot)
-        _rerun(st)
+        convo._rerun(st)
     elif ok:
         edited = dataclasses.replace(draft, basis=basis, scope="cluster", cluster=cluster,
                                      status="firm")
@@ -745,16 +480,10 @@ def _render_signoff_card(st, cluster: str) -> None:
         except Exception:  # noqa: BLE001 - surface nothing, never crash the board
             pass
         state.clear_pending_draft(slot)
-        _rerun(st)
+        convo._rerun(st)
 
 
 # --- Row + board rendering -------------------------------------------------- #
-# Quiet-table columns: (label, width fraction). Sums to 1.0. The checkbox leads (a
-# left checklist — "tick each call"); the rest are content-sized so it reads dense.
-_TBL_COLS = (("", 0.05), ("Cluster", 0.09), ("Cell type", 0.32), ("Conf.", 0.18),
-             ("Key evidence", 0.36))
-
-
 def _conf_badge(confidence: str) -> str:
     """Confidence as a soft, ramp-coloured badge (grounded label; the colour is the
     design-system confidence band, projected — no value invented)."""
@@ -896,121 +625,6 @@ def _handle_table_actions(st, verdicts: list[ClusterVerdict], overrides: dict,
         if r is not None:
             _draft_refinement(r)
         _pop("accept")
-
-
-def _accept_refine_button(st, refinement) -> None:
-    with st.container(key=f"tact_refine_{refinement.cluster}"):
-        st.button(f"Accept {refinement.to_call}", key=f"acc_{refinement.cluster}",
-                  on_click=_draft_refinement, args=(refinement,),
-                  help="Draft this refinement as a cell-type override; confirm below.")
-
-
-def _sign_control(st, v: ClusterVerdict, override, signed_rec, contested: bool) -> None:
-    """The row's sign-off control (called inside its column): a checkbox-style toggle for a
-    clean call, a 'Confirm' for a flagged/contested one, or a checked ✓ (click to reopen)."""
-    if signed_rec is not None:
-        at = str(signed_rec.get("at", "") or "")
-        tip = f"Signed {at[11:16]} — click to reopen" if len(at) >= 16 else "Signed — click to reopen"
-        with st.container(key=f"tact_done_{v.cluster}"):
-            st.button("✓", key=f"sgn_{v.cluster}", on_click=_undo_sign_off, args=(v.cluster,), help=tip)
-    elif contested:
-        # A flagged call can't be ticked off — it needs the Confirm flow (on its
-        # sub-line). The checklist column shows a static ⚠ so it reads as "not yet".
-        st.markdown('<div class="pano-tflag" title="needs a closer look before sign-off">⚠</div>',
-                    unsafe_allow_html=True)
-    else:
-        with st.container(key=f"tact_{v.cluster}"):
-            st.button("☐", key=f"sgn_{v.cluster}", on_click=_sign_off_clean, args=(v.cluster,),
-                      help="Sign off — mark reviewed and accepted.")
-
-
-def _render_table_head(st) -> None:
-    with st.container(key="pano_thead"):
-        cols = st.columns([w for _, w in _TBL_COLS])
-        for col, (label, _w) in zip(cols, _TBL_COLS):
-            col.markdown(f'<div class="pano-th">{html.escape(label)}</div>', unsafe_allow_html=True)
-
-
-def _render_table_row(st, v: ClusterVerdict, override, signed_rec, refinement) -> None:
-    """One table row: cluster (drill link) · cell type · confidence · key evidence ·
-    sign-off control, with a grounded reason sub-line and any pending confirm card below.
-    Signed rows recede; rows that need action carry a subtle warm wash (never a border)."""
-    is_signed = signed_rec is not None
-    contested = bool(v.verify or (override and override.get("dissent")))
-    needs = contested or refinement is not None
-    rowkey = (f"trowdone_{v.cluster}" if is_signed
-              else f"trowneed_{v.cluster}" if needs else f"trow_{v.cluster}")
-    with st.container(key=rowkey):
-        cols = st.columns([w for _, w in _TBL_COLS], vertical_alignment="center")
-        with cols[0]:  # the checklist tick (or ⚠ for a flagged row)
-            _sign_control(st, v, override, signed_rec, contested)
-        with cols[1], st.container(key=f"tdrill_{v.cluster}"):
-            st.button(v.cluster, key=f"drill_{v.cluster}", on_click=_set_active, args=(v.cluster,),
-                      help="See this cluster's evidence + write-up")
-        color = fmt.cluster_color(v.cluster)
-        yours = ' <span class="yours">override</span>' if override else ""
-        cols[2].markdown(
-            f'<div class="pano-tc"><span class="dot" style="background:{color}"></span>'
-            f'<span class="ct">{html.escape(v.cell_type.replace("_", " "))}</span>{yours}</div>',
-            unsafe_allow_html=True)
-        cols[3].markdown(f'<div class="pano-tcell">{_conf_badge(v.confidence)}</div>',
-                         unsafe_allow_html=True)
-        cols[4].markdown(f'<div class="pano-tc">{_evidence_compact(v)}</div>', unsafe_allow_html=True)
-    # A flagged / to-refine row: its grounded reason beside a compact action button.
-    if not is_signed and needs:
-        _render_row_subline(st, v, override, refinement, contested)
-    _render_signoff_card(st, v.cluster)
-    if refinement is not None:
-        from panoscope.ui import conversation as convo
-
-        convo._render_draft_card(v.cluster, thread_key=f"holistic::{v.cluster}",
-                                 trigger="holistic_review")
-
-
-def _subline_reason_html(v: ClusterVerdict, override, refinement) -> str:
-    """The grounded reason text for a needs-action row (no wrapper)."""
-    bits: list[str] = []
-    if refinement is not None:
-        bits.append(f'refine &rarr; <b>{html.escape(refinement.to_call)}</b> · '
-                    f'{html.escape(refinement.rationale)}')
-    if v.verify:
-        bits.append(f'<span class="warn">flagged</span> — {html.escape(_flag_reason(v))}')
-    if override is not None and override.get("dissent"):
-        bits.append(f'override — {override["dissent"]} lit. dissent '
-                    f'(was {html.escape(override["computed_call"])})')
-    return " &nbsp;·&nbsp; ".join(bits)
-
-
-def _render_row_subline(st, v: ClusterVerdict, override, refinement, contested: bool) -> None:
-    """The reason line under a flagged / to-refine row, with its action button beside it —
-    Confirm & sign off for a flagged call, or Accept <refinement> for a subtype sharpening."""
-    tc, bc = st.columns([0.66, 0.34], vertical_alignment="center")
-    with tc:
-        st.markdown(f'<div class="pano-tsub2">{_subline_reason_html(v, override, refinement)}</div>',
-                    unsafe_allow_html=True)
-    with bc:
-        if contested:
-            with st.container(key=f"tsubact_{v.cluster}"):
-                st.button("Confirm & sign off", key=f"sgn_{v.cluster}", on_click=_begin_signoff,
-                          args=(v.cluster, _signoff_claim(v, override)),
-                          help="Confirm this flagged call — writes a validation note and clears the flag.")
-        elif refinement is not None:
-            with st.container(key=f"tsubact_refine_{v.cluster}"):
-                st.button(f"Accept {refinement.to_call}", key=f"acc_{v.cluster}",
-                          on_click=_draft_refinement, args=(refinement,),
-                          help="Draft this refinement as a cell-type override; confirm below.")
-
-
-def _render_table(st, verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
-                  refinements: dict) -> None:
-    """The clinical review table, held in one contained surface: every call in stable
-    cluster order, one sign-off control per row, action rows washed and flagged with a
-    grounded reason. ``verdicts`` are the COMPOSED verdicts."""
-    with st.container(key="pano_tblcard"):
-        _render_table_head(st)
-        for v in verdicts:
-            _render_table_row(st, v, overrides.get(v.cluster), signed.get(v.cluster),
-                              refinements.get(v.cluster))
 
 
 def _render_drilldown_actions(st, v: ClusterVerdict, override, signed_rec, refinement) -> None:
@@ -1161,25 +775,6 @@ def _skey(name: str) -> str:
     return f"{name}__{tag}"
 
 
-def _reset_ws_all(defaults: dict, dataset: str) -> None:
-    """on_click: re-draft EVERY region from its freshest auto-seed AND drop the saved
-    edits on disk, so 're-draft from latest' is a true reset. Pops the mounted widget
-    key so the visible editor re-seeds from the new default."""
-    import streamlit as st
-
-    for name, default in defaults.items():
-        st.session_state[_skey(f"wsval_{name}")] = default
-        st.session_state.pop(_skey(f"wsw_{name}"), None)
-    st.session_state.pop(_skey("_sum_saved_snapshot"), None)
-    st.session_state.pop(_skey("_sum_saved_at"), None)
-    try:
-        from panoscope.pipeline import store
-
-        store.save_summary_edits({}, dataset, saved_at="")
-    except Exception:  # noqa: BLE001 - clearing the disk copy is best-effort
-        pass
-
-
 def _autoheight(text: str, *, min_lines: int) -> int:
     """Pixel height that fits ``text``: hard newlines plus ~``_WRAP_CHARS``-char soft
     wraps, floored at ``min_lines`` and capped so a huge paste can't make a page-tall
@@ -1253,13 +848,6 @@ def _save_button(st, name: str) -> None:
 
 def _eyebrow(st, text: str) -> None:
     st.markdown(f'<div class="pano-ed-eyebrow">{html.escape(text)}</div>', unsafe_allow_html=True)
-
-
-def _rail_label(st, text: str) -> None:
-    """A rail group label in a keyed container (so its spacing margin is honoured
-    and never overflows onto the next button)."""
-    with st.container(key=f"raillbl_{text.lower()}"):
-        st.markdown(f'<div class="pano-rail-lbl">{html.escape(text)}</div>', unsafe_allow_html=True)
 
 
 def _render_lab_note_cards(st, notes: list) -> None:
@@ -1608,6 +1196,3 @@ def render_summary_page() -> None:
                         "report.</div>", unsafe_allow_html=True)
             _render_lab_note_cards(st, da.read_notes())
             _render_withheld_notes(st, da.withheld_notes())
-
-
-__all__ = ["render_summary_page"]

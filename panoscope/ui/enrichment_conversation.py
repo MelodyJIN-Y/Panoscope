@@ -296,6 +296,3 @@ def _history(cluster: str) -> list[dict]:
         elif role == "agent":
             out.append({"role": "assistant", "content": msg.get("text", "")})
     return out
-
-
-__all__ = ["render_pathway_conversation"]

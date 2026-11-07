@@ -215,10 +215,9 @@ def test_lab_note_rendered_in_another_study_names_the_study_that_formed_it() -> 
         # "all datasets" is still true and still said; it is no longer said alone
         assert "all datasets" in span
 
-        # every surface the span ships through: the on-page/HTML report, the
-        # .docx/PDF text, and the Summary note board.
+        # every surface the span ships through: the .docx/PDF text and the
+        # Summary note board.
         line = report._note_line(arrived[0])
-        assert STUDY_A in report._note_html(line)
         assert STUDY_A in report._note_text(line)
 
         st = _FakeSt()

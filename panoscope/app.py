@@ -31,7 +31,6 @@ from panoscope.ui import (
     evidence_table,
     nav,
     onboarding,
-    paper_drawer,
     spatial_stage,
     state,
     summary,
@@ -324,8 +323,6 @@ def _kill_cross_page_bleed() -> None:
 
 def _examine_body() -> None:
     """The 3-pane review surface: rail | verdict + evidence + spatial | chat."""
-    if state.is_paper_open():
-        paper_drawer.render_paper_drawer()
     # Narrower center (the spatial figures letterbox less horizontally) so the chat
     # pane gets more room; the rail stays fixed.
     rail_col, center_col, chat_col = st.columns([216, 664, 474], gap="small")
