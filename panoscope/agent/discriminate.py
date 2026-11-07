@@ -145,22 +145,11 @@ def _canon_key(s: str) -> str:
     return s.strip().upper().replace(" ", "").replace("_", "").replace("-", "")
 
 
-# Common wet-lab synonyms -> canonical map key. Kept small and unambiguous.
-# Breast-demo labels: applied only for the bundled demo (see _normalize_cell_type).
-_ALIASES: dict[str, str] = {
-    "CAF": "Stromal",
-    "FIBROBLAST": "Stromal",
-    "FIBROBLASTS": "Stromal",
-    "MACROPHAGE": "Macrophages",
-    "TAM": "Macrophages",
-    "TAMS": "Macrophages",
-    "TCELL": "T_Cells",
-    "BCELL": "B_Cells",
-    "DC": "Dendritic",
-    "DENDRITICCELL": "Dendritic",
-    "MAST": "Mast_Cells",
-    "ENDOTHELIUM": "Endothelial",
-}
+def _synonyms() -> dict[str, str]:
+    """Comparison-key -> cell type, from the study's reference view (ontology and lab
+    synonyms). A study with no synonym list resolves only its own annotated types."""
+    return {_canon_key(syn): t for syn, t in annotation._view().synonyms()}
+
 
 def _key_by_canon() -> dict[str, str]:
     """Comparison-key -> canonical cell-type name, over the dataset's annotated types."""
@@ -175,11 +164,10 @@ def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
     kmap = _key_by_canon()
     if key in kmap:
         return kmap[key]
-    # Synonyms are demo content: off the demo an unrecognised word stays unrecognised
-    # and ``discriminate`` declines it by name rather than substituting a label.
-    if annotation._is_bundled_demo():
-        return _ALIASES.get(key)
-    return None
+    # Only to a type this study annotated: an unrecognised word stays unrecognised and
+    # ``discriminate`` declines it by name rather than substituting a label.
+    target = _synonyms().get(key)
+    return kmap.get(_canon_key(target)) if target else None
 
 
 def _canonical_types_for(gene: str) -> tuple[str, ...]:
@@ -191,7 +179,7 @@ def _lineage_keys_for(call_A: str) -> tuple[str, ...]:
     """Comparison-keys that name the CALL's own lineage: its type name plus any alias
     that maps to it (for Stromal: STROMAL, CAF, FIBROBLAST, FIBROBLASTS)."""
     keys = {_canon_key(call_A)}
-    keys.update(k for k, t in _ALIASES.items() if t == call_A)
+    keys.update(k for k, t in _synonyms().items() if t == call_A)
     return tuple(k for k in keys if k)
 
 

@@ -1,0 +1,13 @@
+synonym,cell_type
+CAF,Stromal
+fibroblast,Stromal
+fibroblasts,Stromal
+macrophage,Macrophages
+TAM,Macrophages
+TAMs,Macrophages
+T cell,T_Cells
+B cell,B_Cells
+DC,Dendritic
+dendritic cell,Dendritic
+mast,Mast_Cells
+endothelium,Endothelial

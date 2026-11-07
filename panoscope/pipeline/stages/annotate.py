@@ -69,7 +69,7 @@ def _parse(text: str) -> Optional[dict]:
 
 
 def _record(cluster: str, obj: dict) -> dict:
-    """Build the annotation record. The canonical slot stays empty whatever the model said.
+    """Build the annotation record. It has no canonical slot: the reference view owns those.
 
     Takes no markers on purpose -- see the module docstring -- so no observed marker can
     be promoted into the canonical slot either.
@@ -80,8 +80,6 @@ def _record(cluster: str, obj: dict) -> dict:
         "cell_type_short": str(obj["cell_type_short"]),
         "category": str(obj["category"]),
         "lineage": str(obj["lineage"]),
-        "canonical_markers": [],
-        "offpanel_canonical": [],
     }
 
 

@@ -182,3 +182,58 @@ def test_doctor_reports_each_source_release(cache, capsys):
 @pytest.mark.parametrize("src", [CellOntology(), CellMarker(""), PanglaoDB("")])
 def test_live_fetch_lands_in_the_cache(cache, src):
     assert src.fetch().is_file()
+
+
+def test_cellmarker_narrows_to_normal_rows_and_carries_the_cl_id(cache):
+    _xlsx(CellMarker("Breast").path, (*CM_HEADER, "cellontology_id"), [
+        ("Human", "Breast", "Normal", "Fibroblast", "POSTN", "11111111", "CL_0000057"),
+        ("Human", "Breast", "Breast Cancer", "Fibroblast", "FAP", "22222222", ""),
+    ])
+    normal = list(CellMarker("Breast", normal=True).edges())
+    assert [(e.subject.id, e.qualifier("cl_id")) for e in normal] == [("POSTN", "CL:0000057")]
+    assert [e.subject.id for e in CellMarker("Breast", normal=False).edges()] == ["FAP"]
+    assert len(list(CellMarker("Breast").edges())) == 2          # undeclared: not narrowed
+
+
+def test_a_refused_cellmarker_fetch_says_to_download_it_in_a_browser(cache, monkeypatch):
+    def down(req, timeout):
+        raise OSError("403")
+
+    monkeypatch.setattr(S.urllib.request, "urlopen", down)
+    with pytest.raises(SourceUnavailable, match="in a browser, save Cell_marker_All.xlsx"):
+        CellMarker("").fetch()
+
+
+def test_uberon_candidates_keep_only_uberon_terms_and_offline_is_unavailable(monkeypatch):
+    class Page(io.BytesIO):
+        def __enter__(self):
+            return self
+
+    body = (b'{"response": {"docs": [{"obo_id": "UBERON:0000310", "label": "breast"},'
+            b'{"obo_id": "NCIT:C12971", "label": "Breast"},'
+            b'{"obo_id": "UBERON:0000310", "label": "breast"}]}}')
+    seen = []
+    monkeypatch.setattr(S.urllib.request, "urlopen",
+                        lambda req, timeout: seen.append(req.full_url) or Page(body))
+    assert S.uberon_candidates("breast") == [("UBERON:0000310", "breast")]
+    S.uberon_candidates("UBERON:0000310")
+    assert "queryFields=obo_id" in seen[-1] and "queryFields" not in seen[0]
+
+    def down(req, timeout):
+        raise OSError("offline")
+
+    monkeypatch.setattr(S.urllib.request, "urlopen", down)
+    with pytest.raises(SourceUnavailable):
+        S.uberon_candidates("breast")
+
+
+def test_a_cellmarker_cl_id_joins_its_name_to_the_ontology_term(cache):
+    from panoscope.reference import view
+
+    (p := CellOntology().path).parent.mkdir(parents=True)
+    p.write_text(OBO)
+    _xlsx(CellMarker("Breast").path, (*CM_HEADER, "cellontology_id"), [
+        ("Human", "Breast", "Normal", "Fibro-like cell", "POSTN", "11111111", "CL_0000002")])
+    g = S.build(srcs=(CellOntology(), CellMarker("Breast"))).value
+    v = view.View(g, index=view._index(g))
+    assert v.canonical("fibrocyte") == ("POSTN",)          # CL synonym -> CL id <- cl_id

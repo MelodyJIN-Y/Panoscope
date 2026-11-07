@@ -75,11 +75,6 @@ def cell_type_for(cluster: str, dataset_id: Optional[str] = None) -> str:
     return load_annotation(dataset_id)[cluster]["cell_type"]
 
 
-def _is_bundled_demo(dataset_id: Optional[str] = None) -> bool:
-    """Whether we are reading the bundled demo study (discriminate's demo synonyms)."""
-    return (dataset_id or cfg.DATASET_ID) == cfg.BUNDLED_DEMO_ID
-
-
 def _view(dataset_id: Optional[str] = None):
     """This study's reference view."""
     from panoscope.data.study import Study

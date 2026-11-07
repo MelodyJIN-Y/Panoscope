@@ -24,7 +24,10 @@ import csv
 import gzip
 import hashlib
 import io
+import json
 import os
+import re
+import urllib.parse
 import urllib.request
 import zipfile
 from xml.etree import ElementTree
@@ -222,6 +225,7 @@ class PanglaoDB:
     """
 
     organ: str
+    species: str = "Hs"                    # the file's own token; "Mm" for mouse
 
     release: ClassVar[str] = "27_Mar_2020"
     licence: ClassVar[str] = (
@@ -234,8 +238,6 @@ class PanglaoDB:
     url: ClassVar[str] = (
         "https://panglaodb.se/markers/PanglaoDB_markers_27_Mar_2020.tsv.gz"
     )
-    species: ClassVar[str] = "Hs"          # human; the file's own token
-
     @property
     def name(self) -> str:
         """Organ-scoped, because the reference view is per tissue (§7.1, §8.1)."""
@@ -571,6 +573,8 @@ class CellMarker:
     """
 
     tissue: str
+    normal: bool | None = None     # True: "Normal" rows only; False: disease rows; None: all
+    species: str = "Human"
 
     release: ClassVar[str] = "2.0"
     licence: ClassVar[str] = (
@@ -579,7 +583,6 @@ class CellMarker:
     )
     redistributable: ClassVar[bool] = False
     citation: ClassVar[str] = "doi:10.1093/nar/gkac947"
-    species: ClassVar[str] = "Human"
     url: ClassVar[str] = ("http://bio-bigdata.hrbmu.edu.cn/CellMarker/"
                           "CellMarker_download_files/file/Cell_marker_All.xlsx")
 
@@ -598,10 +601,8 @@ class CellMarker:
 
     def _rows(self) -> Iterator[dict[str, str]]:
         if not self.path.is_file():
-            raise SourceUnavailable(
-                f"{self.name}: {self.path} is not present. CellMarker is fetched, "
-                "never bundled -- run `panoscope reference fetch`."
-            )
+            raise SourceUnavailable(f"{self.name}: {self.path} is not present. {_CM_BROWSER}"
+                                    .format(url=self.url, path=self.path))
         rows = _xlsx_rows(self.path)
         header = next(rows, [])
         _require(self.name, self.path, header, _CM_REQUIRED)
@@ -610,7 +611,9 @@ class CellMarker:
             row = dict(zip(header, vals))
             if (row.get("species") == self.species
                     and row.get("tissue_class", "").lower() == want
-                    and row.get("Symbol") and row.get("cell_name")):
+                    and row.get("Symbol") and row.get("cell_name")
+                    and (self.normal is None
+                         or (row.get("cancer_type", "").lower() == "normal") == self.normal)):
                 yield row
 
     def nodes(self) -> Iterator[Node]:
@@ -624,6 +627,11 @@ class CellMarker:
             quals = [("tissue", self.tissue), ("species", self.species)]
             if r.get("cancer_type"):
                 quals.append(("cancer_type", r["cancer_type"]))
+            # ponytail: column name from the 2.0 paper's file layout; unverified against
+            # the real file until one is read. Absent, names join through CL synonyms.
+            cl = r.get("cellontology_id", "").replace("_", ":")
+            if cl.startswith("CL:"):
+                quals.append(("cl_id", cl))
             yield Edge(
                 subject=Entity(EntityKind.GENE, r["Symbol"]), predicate="marks",
                 object=Entity(EntityKind.CELL_TYPE, r["cell_name"]),
@@ -638,8 +646,16 @@ class CellMarker:
                                 Provenance.STATED))
 
     def fetch(self, *, timeout: float = 300.0) -> Path:
-        return _download(self.name, self.url, self.path,
-                         lambda b: zipfile.is_zipfile(io.BytesIO(b)), timeout)
+        try:
+            return _download("cellmarker", self.url, self.path,
+                             lambda b: zipfile.is_zipfile(io.BytesIO(b)), timeout)
+        except SourceUnavailable as exc:
+            raise SourceUnavailable(f"{exc} "
+                                    + _CM_BROWSER.format(url=self.url, path=self.path)) from exc
+
+
+_CM_BROWSER = ("The CellMarker site often refuses automated downloads: open {url} in a "
+               "browser, save Cell_marker_All.xlsx as {path}, and Panoscope reads it from there.")
 
 
 # --------------------------------------------------------------------------- #
@@ -709,6 +725,78 @@ class LabCurated:
     def conditions(self) -> Conditions:
         return _stamp(self, f"lab:tissue:{self.tissue}",
                       Condition("lab-curated list", Provenance.STATED))
+
+
+@dataclass(frozen=True, slots=True)
+class LabSynonyms:
+    """A lab-provided ``synonym, cell_type`` CSV: structure only, like the Cell Ontology's
+    synonyms. Never a marker; cites the file by its digest."""
+
+    file: Path
+
+    licence: ClassVar[str] = "lab"
+    redistributable: ClassVar[bool] = False
+    name: ClassVar[str] = "lab-synonyms"
+
+    @property
+    def release(self) -> str:
+        p = Path(self.file)
+        return hashlib.sha256(p.read_bytes()).hexdigest()[:12] if p.is_file() else "unread"
+
+    def _rows(self) -> list[dict[str, str]]:
+        p = Path(self.file)
+        if not p.is_file():
+            raise SourceUnavailable(f"{self.name}: {p} is not present")
+        with p.open(newline="", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            _require(self.name, p, [(c or "").strip().lower() for c in reader.fieldnames or ()],
+                     frozenset({"synonym", "cell_type"}))
+            rows = [{(k or "").strip().lower(): (v or "").strip() for k, v in r.items()}
+                    for r in reader]
+        return [r for r in rows if r["synonym"] and r["cell_type"]]
+
+    def nodes(self) -> Iterator[Node]:
+        return iter(())
+
+    def edges(self) -> Iterator[Edge]:
+        rows = self._rows()
+        digest = hashlib.sha256(Path(self.file).read_bytes()).hexdigest()
+        for r in rows:
+            yield Edge(subject=Entity(EntityKind.CELL_TYPE, r["synonym"]), predicate="synonym",
+                       object=Entity(EntityKind.CELL_TYPE, r["cell_type"]),
+                       source=f"lab@{digest[:12]}", citation=f"file:sha256:{digest}",
+                       licence=self.licence)
+
+    def conditions(self) -> Conditions:
+        raise NotClaimable("a synonym list is structure only; it has no conditions")
+
+
+# --------------------------------------------------------------------------- #
+# Tissue words -> UBERON candidates, looked up live in EBI OLS4 at intake
+# --------------------------------------------------------------------------- #
+OLS_SEARCH = "https://www.ebi.ac.uk/ols4/api/search"
+UBERON_ID = re.compile(r"UBERON:\d{7}")
+
+
+def uberon_candidates(text: str, *, timeout: float = 20.0) -> list[tuple[str, str]]:
+    """``(UBERON id, label)`` terms matching the biologist's tissue words or typed id,
+    from EBI OLS4. Offline is :class:`SourceUnavailable`, never an empty answer."""
+    text = text.strip()
+    q = {"q": text, "ontology": "uberon", "type": "class", "rows": "10"}
+    if UBERON_ID.fullmatch(text):
+        q |= {"queryFields": "obo_id", "exact": "true"}
+    req = urllib.request.Request(f"{OLS_SEARCH}?{urllib.parse.urlencode(q)}",
+                                 headers={"User-Agent": "Panoscope/0.1 (tissue lookup)",
+                                          "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            docs = json.load(resp)["response"]["docs"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise SourceUnavailable(f"tissue lookup (EBI OLS4) failed: {exc}. The study keeps "
+                                "its tissue words; organ-keyed sources stay unread.") from exc
+    return list(dict.fromkeys((str(d["obo_id"]), str(d["label"])) for d in docs
+                              if UBERON_ID.fullmatch(str(d.get("obo_id", "")))
+                              and d.get("label")))
 
 
 # --------------------------------------------------------------------------- #

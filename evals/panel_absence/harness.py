@@ -53,7 +53,7 @@ ARMS = ("bare", "panel", "panel_rule", "panoscope")
 TOP_MARKERS = 12
 #: The reference release the expected outcomes were derived against (A19): a
 #: different canonical coverage would silently flip them, so a mismatch refuses.
-REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5"}
+REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5", "lab-synonyms": "8ee3e438ec96"}
 
 
 # --------------------------------------------------------------------------- #

@@ -103,3 +103,55 @@ def test_a_corrected_tissue_rebuilds_the_view(tmp_path) -> None:
     (s.dir / "manifest.json").write_text(json.dumps({"dataset_id": "s", "tissue": "b"}))
     study_mod.clear_cache()
     assert view.for_study(s).canonical("T cell") == ("MS4A1",)
+
+
+def test_a_tissue_id_chosen_at_intake_keys_the_organ_sources_beside_prose(tmp_path, monkeypatch):
+    ref = tmp_path / "ref"
+    monkeypatch.setenv("PANOSCOPE_REFERENCE_DIR", str(ref))
+    _kidney_cache(ref)
+    assert view.for_study(_study(tmp_path, "a", "kidney")).canonical("podocyte") == ()
+    v = view.for_study(_study(tmp_path, "b", "kidney", tissue_id=KIDNEY))
+    assert v.canonical("podocyte") == ("NPHS2",)
+    assert v.scope == ("panglaodb:kidney: species Hs (undeclared; read as human)",)
+
+
+def test_names_join_on_case_and_plural_never_fuzzily(tmp_path):
+    lab = "cell_type,gene,tissue\nMacrophages,CD68,t\nT cells,CD3E,t\n"
+    s = _study(tmp_path, "s", "t", lab)
+    (s.dir / view.LAB_SYNONYMS).write_text("synonym,cell_type\nTAM,Macrophages\n")
+    v = view.for_study(s)
+    assert v.canonical("macrophage") == ("CD68",)
+    assert v.canonical("TAM") == () and ("TAM", "Macrophages") in v.synonyms()  # names a rival only
+    assert v.canonical("T cell") == ("CD3E",)
+    assert v.canonical("Macrophage-like") == ()                 # never fuzzy
+    assert ("lab-synonyms", v.releases[1][1]) in v.releases
+
+
+def test_a_cl_id_joins_a_source_name_to_the_ontology_term(tmp_path, monkeypatch):
+    ref = tmp_path / "ref"
+    monkeypatch.setenv("PANOSCOPE_REFERENCE_DIR", str(ref))
+    _kidney_cache(ref)
+    lab = "cell_type,gene,tissue\nPodocytes,PODXL,k\n"
+    v = view.for_study(_study(tmp_path, "s", "k", lab))
+    assert v.canonical("glomerular visceral epithelial cell") == ("PODXL",)  # plural -> CL id
+
+
+def test_only_a_sources_own_canonical_markers_become_off_panel_absences(tmp_path, monkeypatch):
+    ref = tmp_path / "ref"
+    monkeypatch.setenv("PANOSCOPE_REFERENCE_DIR", str(ref))
+    p = ref / "panglaodb" / PanglaoDB.release / PanglaoDB.filename
+    p.parent.mkdir(parents=True)
+    p.write_bytes(gzip.compress(b"species\tofficial gene symbol\tcell type\torgan\tcanonical marker\n"
+                                b"Hs\tNPHS2\tpodocyte\tKidney\t1\nHs\tACTB\tpodocyte\tKidney\t0\n"))
+    v = view.for_study(_study(tmp_path, "k", KIDNEY))
+    assert v.markers("podocyte") == ("NPHS2",)
+
+
+def test_disease_state_narrows_what_carries_it_and_the_rest_say_so(tmp_path):
+    srcs, scope = view._sources({"tissue": "t", "tissue_id": KIDNEY, "disease_state": "healthy",
+                                 "species": "zebrafish"}, tmp_path)
+    assert not any(isinstance(s, PanglaoDB) for s in srcs)       # no source carries the species
+    assert scope == ("species 'zebrafish': no organ-keyed source carries it, none read",)
+    srcs, scope = view._sources({"tissue_id": KIDNEY, "disease_state": "healthy"}, tmp_path)
+    assert scope == ("panglaodb:kidney: species Hs (undeclared; read as human); "
+                     "carries no disease state, not narrowed",)

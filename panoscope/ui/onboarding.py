@@ -16,6 +16,7 @@ import base64
 import hashlib
 import html
 import json
+import shutil
 import time
 from pathlib import Path
 
@@ -23,9 +24,12 @@ import streamlit as st
 
 from panoscope import methods, platforms
 from panoscope.agent import intake
+from panoscope.agent import loop as agent_loop
 from panoscope.data import layout
 from panoscope.data import study as study_mod
 from panoscope.data.study import Study
+from panoscope.reference import sources as ref_sources
+from panoscope.reference import view as ref_view
 from panoscope.types.contracts import UndeclaredClustering
 
 from panoscope.agent import profile as agent_profile
@@ -331,10 +335,11 @@ _KEY_OF = {"assay": "platform"}  # checklist field -> manifest key, where they d
 
 
 def _stage(folder: Path) -> Study:
-    """Link the folder's files (and its ``samples/`` subfolder) into a study under the user root.
+    """Link the folder's files (and its ``samples/`` subfolder) into a study under the user root,
+    and copy its ``reference/lab_markers.csv`` (the lab list is the study's own release).
 
-    Copies nothing. The id carries a hash of the resolved path, so two folders sharing a
-    name never share a study.
+    The id carries a hash of the resolved path, so two folders sharing a name never share
+    a study.
     """
     folder = folder.resolve()
     sid = f"{folder.name}-{hashlib.sha1(str(folder).encode()).hexdigest()[:8]}"
@@ -345,6 +350,10 @@ def _stage(folder: Path) -> Study:
         wanted = (p.is_file() and p.name != "manifest.json") or (p.is_dir() and p.name == "samples")
         if wanted and not (dst.is_symlink() or dst.exists()):
             dst.symlink_to(p.resolve())
+    lab = folder / "reference" / "lab_markers.csv"
+    if lab.is_file():
+        (store.dir / ref_view.LAB_FILE).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(lab, store.dir / ref_view.LAB_FILE)
     if not store.exists:
         own = folder / "manifest.json"
         man = {**(json.loads(own.read_text()) if own.is_file() else {}), "dataset_id": store.id}
@@ -380,9 +389,40 @@ def _apply(store: Study, draft: intake.Draft, answers: dict[str, str]) -> bool:
             continue
         if value.strip() and field not in intake.BACKGROUND:
             stated[field] = draft.condition(field).value
-    _write_manifest(store, _state({**store.manifest, "background": draft.background.to_manifest()},
-                                  stated))
+    man = {**store.manifest, "background": draft.background.to_manifest()}
+    if "tissue" in stated:                 # a re-stated tissue drops the old ontology id
+        gone = ("tissue_id", "tissue_label")
+        man = {k: v for k, v in man.items() if k not in gone}
+        man["stated"] = [k for k in man.get("stated") or () if k not in gone]
+    _write_manifest(store, _state(man, stated))
     return ok
+
+
+def _render_tissue_id(store: Study) -> None:
+    """Optional: pin the stated tissue to a UBERON id, which keys the organ-scoped sources.
+    Looked up live in EBI OLS4 on a click; without one the view is the lab list and CL."""
+    if tid := store.manifest.get("tissue_id"):
+        st.caption(f"Tissue ontology id: {tid} ({store.manifest.get('tissue_label', '')}), stated")
+        return
+    q = st.text_input("Tissue ontology id (optional): tissue words or a UBERON id",
+                      key="ob_uberon_q", placeholder=store.tissue or "")
+    if st.button("Look up UBERON", key="ob_uberon_find"):
+        try:
+            st.session_state["ob_uberon"] = ref_sources.uberon_candidates(q or store.tissue or "")
+        except ref_sources.SourceUnavailable as exc:
+            st.warning(str(exc))
+    found = st.session_state.get("ob_uberon")
+    if found == []:
+        st.caption("No UBERON term matched; the study keeps its tissue words.")
+    if not found:
+        return
+    pick = st.selectbox("UBERON term", found, index=None, key="ob_uberon_pick",
+                        format_func=lambda c: f"{c[1]} ({c[0]})")
+    if pick and st.button("Use this tissue id", key="ob_uberon_use"):
+        _write_manifest(store, _state(store.manifest,
+                                      {"tissue_id": pick[0], "tissue_label": pick[1]}))
+        st.session_state.pop("ob_uberon", None)
+        st.rerun()
 
 
 def _build(store: Study) -> None:
@@ -433,6 +473,10 @@ def _render_folder_intake() -> None:
                     for f in intake.BACKGROUND}
         if st.form_submit_button("Apply", key="ob_apply") and _apply(store, draft, answers):
             st.rerun()
+    if store.tissue:
+        _render_tissue_id(store)
+    if not agent_loop.has_model_key():
+        st.caption("no proposal: no model key. Every cluster opens not yet called, yours to call.")
     if draft.missing:
         st.warning("Blocked until declared: " + ", ".join(draft.missing))
     elif st.button("Build  →", key="ob_build", type="primary"):

@@ -164,9 +164,9 @@ def test_normalize_cell_type_variants():
 def test_the_synonym_table_does_not_follow_the_demo_into_another_study():
     """Demo labels, reaching into a dataset that does not use them.
 
-    Every target in ``_ALIASES`` is a key of the bundled breast demo's annotation,
-    which is why ``annotation._is_bundled_demo`` gates the curated marker tables
-    one file over. This table was not gated, so on any other study "CAF" was
+    The synonyms are the demo's own lab list (``inputs/reference/lab_synonyms.csv``,
+    read through the reference view). They were once a code table that was not
+    gated, so on any other study "CAF" was
     silently translated to "Stromal" -- a label that study may never have had --
     and the rival test then ran against a name the biologist did not say.
 

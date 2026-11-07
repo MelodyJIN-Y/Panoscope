@@ -67,7 +67,7 @@ UNIT = "c1"
 TOP_N = 8
 #: The reference release the expected outcomes were derived against (A19): a
 #: different canonical coverage would silently flip them, so a mismatch refuses.
-REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5"}
+REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5", "lab-synonyms": "8ee3e438ec96"}
 MODELS = ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5")
 OFF_PANEL_CANDIDATES = ("ALB", "UMOD", "NPHS2", "INS", "MYH7")
 CONTEXT = "dataset:xenium_hbreast_sample1"

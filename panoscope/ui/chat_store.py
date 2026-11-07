@@ -16,10 +16,15 @@ from types import SimpleNamespace
 
 
 def _path():
+    """Beside the study, except a study inside the repo (the demo): there, under the user
+    data root, so a transcript never lands in the checkout."""
     from panoscope.agent import config as cfg
-    from panoscope.pipeline import paths
+    from panoscope.data import layout
 
-    return paths.interp_dir(cfg.DATASET_ID) / "chat_threads.json"
+    root, repo = layout.resolve_data_root(), layout._package_repo_root()
+    if root == repo or repo in root.parents:
+        root = layout.user_data_root()
+    return layout.interp_dir(cfg.DATASET_ID, root) / "chat_threads.json"
 
 
 def _msg_to_dict(msg: dict) -> dict:

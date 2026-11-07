@@ -98,7 +98,7 @@ from panoscope.reference import view  # noqa: E402
 TOP_N = 6
 #: The reference release the expected outcomes were derived against (A19): a
 #: different canonical coverage would silently flip them, so a mismatch refuses.
-REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5"}
+REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5", "lab-synonyms": "8ee3e438ec96"}
 MODELS = ("claude-haiku-4-5",)
 #: Cell types this study has no canonical marker set for. Checked at build time
 #: against the live annotation, never assumed -- a type that turned out to HAVE a

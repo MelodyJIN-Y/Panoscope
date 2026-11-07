@@ -74,7 +74,7 @@ def test_the_models_canonical_markers_never_reach_the_record():
     """§15: canonical lists are reference data. A proposal names a label, nothing more."""
     rec = annotate._record("c1", annotate._parse(_GOOD))
     assert rec["cell_type"] == "Tumor"
-    assert rec["canonical_markers"] == [] and rec["offpanel_canonical"] == []
+    assert "canonical_markers" not in rec and "offpanel_canonical" not in rec
 
 
 def test_record_cannot_see_the_measurement():

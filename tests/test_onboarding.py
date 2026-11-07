@@ -175,6 +175,10 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
 
     monkeypatch.setattr(agent_loop, "chat", no_model)
     monkeypatch.setattr(agent_loop, "has_model_key", lambda: False)
+    from panoscope.reference import sources as ref_sources
+
+    monkeypatch.setattr(ref_sources, "uberon_candidates",
+                        lambda text: [("UBERON:0000310", "breast")])
 
     at = AppTest.from_file(str(Path(panoscope.__file__).parent / "app.py"), default_timeout=300)
     at.session_state["active_page"] = "upload"
@@ -185,6 +189,10 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     at.text_input(key="ob_f_tissue").input("human breast cancer")
     at.button(key="ob_apply").click().run()
     assert "tissue             human breast cancer  (stated" in at.code[0].value
+    assert "no proposal: no model key" in "\n".join(c.value for c in at.caption)
+    at.button(key="ob_uberon_find").click().run()
+    at.selectbox(key="ob_uberon_pick").select(("UBERON:0000310", "breast")).run()
+    at.button(key="ob_uberon_use").click().run()
     at.button(key="ob_build").click().run()
     assert not at.exception, [str(e.value) for e in at.exception]
 
@@ -196,7 +204,8 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     assert at.session_state[state.K_STUDY] == (str(root), sid)
     built = Study(id=sid, data_root=root)
     assert built.manifest["tissue"] == "human breast cancer" and len(built.units) == 9
-    assert built.manifest["stated"] == ["platform", "tissue"]  # survives the build
+    assert built.manifest["stated"] == ["platform", "tissue", "tissue_id", "tissue_label"]
+    assert (built.manifest["tissue_id"], built.manifest["tissue_label"]) == ("UBERON:0000310", "breast")
     assert (at.query_params["study"], at.query_params["root"]) == ([sid], [str(root)])
     assert "not yet called" in "\n".join(m.value for m in at.markdown)
     at.session_state["active_page"] = "markers"
@@ -243,7 +252,11 @@ def test_staging_keeps_two_same_named_folders_apart_and_links_samples(tmp_path, 
         (d / "samples" / "s1").mkdir(parents=True)
         (d / "samples" / "s2").mkdir()
         (d / "samples" / "s1" / "markers_top.csv").write_text("gene\n")
+    (a / "reference").mkdir()
+    (a / "reference" / "lab_markers.csv").write_text("cell_type,gene,tissue\nT cell,CD3E,t\n")
     sa, sb = onboarding._stage(a), onboarding._stage(b)
+    lab = sa.dir / "inputs" / "reference" / "lab_markers.csv"
+    assert lab.is_file() and not lab.is_symlink() and not (sb.dir / "inputs" / "reference").exists()
     assert sa.id != sb.id
     assert (sa.inputs / "samples" / "s1" / "markers_top.csv").is_file()
     assert sa.manifest["samples"] == ["s1", "s2"]
@@ -260,3 +273,17 @@ def test_user_studies_default_to_the_home_root_unless_the_env_names_one(tmp_path
     assert layout.user_data_root() == (tmp_path / "home" / ".panoscope" / "data").resolve()
     monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path / "elsewhere"))
     assert layout.user_data_root() == (tmp_path / "elsewhere").resolve()
+
+
+def test_the_demo_chat_transcript_is_written_under_the_user_root_not_the_repo(tmp_path, monkeypatch):
+    from panoscope.data import layout
+    from panoscope.ui import chat_store
+
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path / "user"))
+    try:
+        layout.set_session_root(layout._package_repo_root() / "data")
+        assert chat_store._path().is_relative_to((tmp_path / "user").resolve())
+        layout.set_session_root(tmp_path / "elsewhere")
+        assert chat_store._path().is_relative_to((tmp_path / "elsewhere").resolve())
+    finally:
+        layout.set_session_root(None)
