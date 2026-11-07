@@ -45,11 +45,15 @@ from typing import Any, Optional
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from panoscope.agent import annotation as A, data as D  # noqa: E402
+from panoscope.agent import annotation as A, config as cfg, data as D  # noqa: E402
+from panoscope.reference import view  # noqa: E402
 
 MODELS = ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5")
 ARMS = ("bare", "panel", "panel_rule", "panoscope")
 TOP_MARKERS = 12
+#: The reference release the expected outcomes were derived against (A19): a
+#: different canonical coverage would silently flip them, so a mismatch refuses.
+REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5"}
 
 
 # --------------------------------------------------------------------------- #
@@ -65,13 +69,12 @@ class Item:
 
 
 def build_items() -> list[Item]:
+    view.check_pinned(cfg.current_study(), REFERENCE_PIN)
     key = json.loads((REPO / "data/studies/xenium_hbreast_sample1/inputs/cluster_key.json").read_text())
     items: list[Item] = []
     for cluster, meta in key.items():
         ct = meta["cell_type"]
-        canon = set(A.CANONICAL_MARKERS_FALLBACK.get(ct, ())) | set(
-            A.OFF_PANEL_CANONICAL_FALLBACK.get(ct, ())
-        )
+        canon = set(A.canonical_markers(ct)) | set(A.offpanel_canonical(ct))
         off = tuple(sorted(g for g in canon if not D.panel_contains(g)))
         if not off:
             continue  # nothing to misread; the item cannot exhibit the failure

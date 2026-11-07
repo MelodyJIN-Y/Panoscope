@@ -98,6 +98,10 @@ def _isolate_context(tmp_path_factory, monkeypatch):
     """
     monkeypatch.setenv("PANOSCOPE_CONTEXT_DIR",
                        str(tmp_path_factory.mktemp("context")))
+    # Same for fetched reference data: a source cached on this machine must not
+    # change a canonical list the suite asserts on.
+    monkeypatch.setenv("PANOSCOPE_REFERENCE_DIR",
+                       str(tmp_path_factory.mktemp("reference")))
     # Injection beats the environment, and a previous test may have set one.
     from panoscope.agent import tools as _tools
 

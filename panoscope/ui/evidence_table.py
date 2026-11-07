@@ -195,9 +195,12 @@ def spec_for(built: Any) -> Any:
     spec = marker_workflow.WORKFLOW.uispec()
     if built.canonical:
         return spec
+    label = built.label.cell_type
+    why = ("no label yet" if label in ("", NOT_YET_CALLED)
+           else f"{label} is not in reference data for this tissue")
     return dataclasses.replace(spec, blocks=tuple(
-        dataclasses.replace(b, empty_text="no canonical marker list for this unit, "
-                                          "so none to look for off panel")
+        dataclasses.replace(b, empty_text=f"no canonical marker list for this unit "
+                                          f"({why}), so none to look for off panel")
         if b.key == "never_measured" else b for b in spec.blocks))
 
 

@@ -60,9 +60,14 @@ from panoscope.types.measured import Coverage, Frame, MeasuredWorld  # noqa: E40
 from panoscope.types.subject import EntityKind, gene, subject  # noqa: E402
 from panoscope.types.subject import unit as unit_entity  # noqa: E402
 from panoscope.workflows import de  # noqa: E402
+from panoscope.agent import config as cfg  # noqa: E402
+from panoscope.reference import view  # noqa: E402
 
 UNIT = "c1"
 TOP_N = 8
+#: The reference release the expected outcomes were derived against (A19): a
+#: different canonical coverage would silently flip them, so a mismatch refuses.
+REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5"}
 MODELS = ("claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5")
 OFF_PANEL_CANDIDATES = ("ALB", "UMOD", "NPHS2", "INS", "MYH7")
 CONTEXT = "dataset:xenium_hbreast_sample1"
@@ -113,6 +118,7 @@ class Study:
 
 
 def build_study() -> Study:
+    view.check_pinned(cfg.current_study(), REFERENCE_PIN)
     panel = frozenset(D.load_panel()["gene"].astype(str))
     panel_frame = Frame(EntityKind.GENE, "panel:xenium_hbreast", panel)
     clusters = Frame(EntityKind.UNIT, "annotation:xenium_hbreast",

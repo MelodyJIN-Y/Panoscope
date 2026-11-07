@@ -21,7 +21,6 @@ is the bug; either answer is fine.
 
 from __future__ import annotations
 
-import json
 import shutil
 from collections import Counter
 from pathlib import Path
@@ -335,11 +334,12 @@ def _one_unit_built_two_ways(tmp_path: Path, name: str, *, dropout: bool) -> Stu
     dst = tmp_path / "studies" / name
     shutil.copytree(Study.open(FIXTURE).dir, dst)
 
-    ann_path = dst / "interp" / "annotation.json"
-    ann = json.loads(ann_path.read_text(encoding="utf-8"))
-    ann["clusters"]["c1"]["canonical_markers"] = ["SYNG01", "SYNG02", "SYNG03"]
-    ann["clusters"]["c1"]["offpanel_canonical"] = []
-    ann_path.write_text(json.dumps(ann, indent=2), encoding="utf-8")
+    lab = dst / "inputs" / "reference" / "lab_markers.csv"   # c1's label's canonical list
+    rows = [r for r in lab.read_text(encoding="utf-8").splitlines()
+            if not r.startswith("Synthetic Type A,")]
+    tissue = rows[1].split(",", 2)[2]
+    lab.write_text("\n".join(rows + [f"Synthetic Type A,SYNG0{i},{tissue}"
+                                     for i in (1, 2, 3)]) + "\n", encoding="utf-8")
 
     if dropout:
         p = dst / "inputs" / "samples" / "sampleB" / "markers_top.csv"

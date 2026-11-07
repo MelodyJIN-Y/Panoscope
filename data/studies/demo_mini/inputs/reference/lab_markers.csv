@@ -1,0 +1,25 @@
+cell_type,gene,tissue
+HER2+ Breast Tumor Epithelial,ERBB2,human breast cancer
+HER2+ Breast Tumor Epithelial,KRT7,human breast cancer
+HER2+ Breast Tumor Epithelial,KRT8,human breast cancer
+HER2+ Breast Tumor Epithelial,KRT18,human breast cancer
+HER2+ Breast Tumor Epithelial,KRT19,human breast cancer
+HER2+ Breast Tumor Epithelial,EPCAM,human breast cancer
+HER2+ Breast Tumor Epithelial,MUC1,human breast cancer
+HER2+ Breast Tumor Epithelial,GATA3,human breast cancer
+Cancer-Associated Fibroblast,LUM,human breast cancer
+Cancer-Associated Fibroblast,POSTN,human breast cancer
+Cancer-Associated Fibroblast,CCDC80,human breast cancer
+Cancer-Associated Fibroblast,DCN,human breast cancer
+Cancer-Associated Fibroblast,COL1A1,human breast cancer
+Cancer-Associated Fibroblast,FAP,human breast cancer
+Cancer-Associated Fibroblast,PDGFRA,human breast cancer
+Cancer-Associated Fibroblast,VIM,human breast cancer
+Cancer-Associated Fibroblast,FN1,human breast cancer
+Macrophages,LYZ,human breast cancer
+Macrophages,CD68,human breast cancer
+Macrophages,FCER1G,human breast cancer
+Macrophages,CSF1R,human breast cancer
+Macrophages,MRC1,human breast cancer
+Macrophages,ITGAM,human breast cancer
+Macrophages,ADGRE1,human breast cancer

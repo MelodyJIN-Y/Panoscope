@@ -314,6 +314,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     from panoscope.core import record as core_record
     from panoscope.core import verdict as core_verdict
     from panoscope.platforms.tidy import read_tidy
+    from panoscope.reference import view as reference_view
     from panoscope.types.measured import MeasuredWorld
     from panoscope.types.outputs import TaskKind
     from panoscope.types.subject import EntityKind, gene, subject
@@ -404,10 +405,15 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
     claims, claims_absent = _claim_store(study)
     conditions = adapter.standing_conditions(study)
     claim_context = f"dataset:{study.id}"
+    ref_view = reference_view.for_study(study)
 
     out: dict[str, UnitBuild] = {}
     for unit, ev in loaded.value.items():
         meta = study.unit_labels.get(unit, {})
+        # The canonical list comes from the study's reference view, never from the
+        # annotation: a label no source marks in this tissue has none (§7.3).
+        label = str(meta.get("cell_type", NOT_YET_CALLED))
+        canon_list = ref_view.canonical(label)
         # Taken BEFORE the off-panel canonical absences are appended below. Those
         # are reference-selected -- the annotation's canonical list, not anything
         # the method reported -- so counting them would make the replicate
@@ -417,13 +423,12 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         n_method_subjects = len({i.subject.key for i in ev.items})
 
         # Reference data, selecting which absences are worth reporting and nothing
-        # else: the canonical markers this study's annotation lists for the label.
+        # else: the canonical markers the reference view lists for the label.
         # The lattice decides what each one IS -- a gene named here that the panel
         # does measure comes back tested-absent, not never-measured.
         reported = frozenset().union(*(f.members for f in ev.reported)) \
             if ev.reported else frozenset()
-        # DERIVED from the canonical list, not only the pre-filtered
-        # ``offpanel_canonical`` (honoured first): on-panel canonical markers are
+        # DERIVED from the canonical list: on-panel canonical markers are
         # already in ``ev.items``, so the de-dup leaves the off-panel ones.
         # Identity is stripped and case-folded, as ``Frame.contains`` does, so a
         # spelling difference cannot add an OBSERVED gene a second time.
@@ -432,8 +437,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
 
         seen = {_norm(i.subject.one("g").id) for i in ev.items}
         wanted: list[str] = []
-        for g in (*meta.get("offpanel_canonical", ()),
-                  *meta.get("canonical_markers", ())):
+        for g in ref_view.markers(label):
             if _norm(g) not in seen:
                 seen.add(_norm(g))
                 wanted.append(str(g))
@@ -451,8 +455,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             + tuple(t.value for t in absences)
         ))
 
-        canonical = frozenset(str(g).upper()
-                              for g in meta.get("canonical_markers", ()))
+        canonical = frozenset(str(g).upper() for g in canon_list)
         # The §9.10 K of N goes INTO the band, not beside it. Splicing the
         # concordance decisions into the record after assessing the pooled items
         # is what let "comparable on 1 of 12 subjects" and "comparable on 9 of 12"

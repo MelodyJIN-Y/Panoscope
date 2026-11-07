@@ -33,6 +33,7 @@ from panoscope.pipeline.stages.enrichment import run_enrichment
 from panoscope.pipeline.stages.prep import run_prep
 from panoscope.pipeline.stages.validate import validate
 from panoscope.pipeline.stages.verdicts import run_verdicts
+from panoscope.reference import view as reference_view
 
 # Legacy raw-input sources copied into <id>/inputs/ for provenance.
 _RAW_SOURCES: dict[str, Path] = {
@@ -352,6 +353,8 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
         inputs=inputs,
         artifacts=artifacts,
         workflows=workflows,
+        reference=dict(reference_view.for_study(
+            Study(id=dataset_id, data_root=ddir.parent.parent)).releases),
     )
     paths.manifest_json(dataset_id, root).write_text(
         json.dumps(man, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"

@@ -143,21 +143,23 @@ def get(name: str) -> ReferenceSource | None:
     return SOURCES.get(name)
 
 
-def build(names: tuple[str, ...] = ()) -> Traced[Graph]:
-    """Read the named sources (all registered ones by default) into one graph.
+def build(names: tuple[str, ...] = (), *, srcs: tuple = ()) -> Traced[Graph]:
+    """Read the named sources (all registered ones by default) into one graph; ``srcs``
+    reads those instances, in order, instead of the registry (a per-study view).
 
     Never merges: two sources holding a node for one gene contribute two nodes. An
     unreadable source lands in ``Graph.unavailable`` with its reason.
     """
     t = Trace()
-    chosen = names or tuple(sorted(SOURCES))
+    reg = {s.name: s for s in srcs} or SOURCES
+    chosen = names or (tuple(reg) if srcs else tuple(sorted(SOURCES)))
     nodes: list[Node] = []
     edges: list[Edge] = []
     consulted: list[str] = []
     unavailable: list[str] = []
 
     for name in chosen:
-        src = SOURCES.get(name)
+        src = reg.get(name)
         if src is None:
             unavailable.append(name)
             t.note("reference:source_unavailable", name,
@@ -648,8 +650,9 @@ _LAB_REQUIRED = frozenset({"cell_type", "gene", "tissue"})
 
 @dataclass(frozen=True, slots=True)
 class LabCurated:
-    """A lab-provided CSV (``cell_type, gene, tissue`` + optional ``note``, ``citation``),
-    scoped to one tissue. Without a citation an edge cites the file by its digest."""
+    """A lab-provided CSV (``cell_type, gene, tissue`` + optional ``note``, ``citation``,
+    ``canonical`` yes/no), scoped to one tissue. Without a citation an edge cites the
+    file by its digest."""
 
     file: Path
     tissue: str
@@ -693,6 +696,8 @@ class LabCurated:
             quals = [("tissue", self.tissue)]
             if r.get("note"):
                 quals.append(("note", r["note"]))
+            if r.get("canonical", "").lower() == "no":   # a supporting marker, as PanglaoDB flags
+                quals.append(("canonical", "no"))
             yield Edge(
                 subject=Entity(EntityKind.GENE, r["gene"]), predicate="marks",
                 object=Entity(EntityKind.CELL_TYPE, r["cell_type"]),

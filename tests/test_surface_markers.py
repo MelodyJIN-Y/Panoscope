@@ -228,6 +228,7 @@ def test_an_empty_canonical_list_never_claims_every_canonical_marker_is_on_panel
     html = surface.table_html(et.spec_for(built), rows)
     assert "NEVER MEASURED - 0 off panel" in html
     assert "every canonical marker for this label is on panel" not in html
+    assert "not in reference data for this tissue" in html
 
 
 def test_the_ribbon_counts_every_state_against_the_unit_total(rows):

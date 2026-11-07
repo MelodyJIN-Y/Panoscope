@@ -91,9 +91,14 @@ from panoscope.agent import annotation, discriminate, memory  # noqa: E402
 from panoscope.agent import data as D  # noqa: E402
 from panoscope.agent import fallback  # noqa: E402
 from panoscope.agent.grounding_check import GroundingChecker  # noqa: E402
+from panoscope.agent import config as cfg  # noqa: E402
 from panoscope.pipeline.v1_verdicts import verdict_for as verdict_for_cluster  # noqa: E402
+from panoscope.reference import view  # noqa: E402
 
 TOP_N = 6
+#: The reference release the expected outcomes were derived against (A19): a
+#: different canonical coverage would silently flip them, so a mismatch refuses.
+REFERENCE_PIN = {"lab:human breast cancer": "2058dab2bcd5"}
 MODELS = ("claude-haiku-4-5",)
 #: Cell types this study has no canonical marker set for. Checked at build time
 #: against the live annotation, never assumed -- a type that turned out to HAVE a
@@ -135,6 +140,7 @@ def _human(cell_type: str) -> str:
 
 
 def build_turns() -> list[Turn]:
+    view.check_pinned(cfg.current_study(), REFERENCE_PIN)
     clusters = sorted(D.load_cluster_key())
     calls = {c: verdict_for_cluster(c).cell_type for c in clusters}
     unsettleable = tuple(t for t in UNSETTLEABLE_CANDIDATES

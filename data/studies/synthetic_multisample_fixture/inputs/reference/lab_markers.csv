@@ -1,0 +1,13 @@
+cell_type,gene,tissue
+Synthetic Type A,SYNG01,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type A,CANON_A1,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type A,CANON_A2,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type A,CANON_A3,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type A,CANON_A4,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type A,CANON_A5,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type B,SYNG10,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type B,CANON_B1,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type B,CANON_B2,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type B,CANON_B3,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type B,CANON_B4,"none -- synthetic fixture, not derived from any specimen"
+Synthetic Type B,CANON_B5,"none -- synthetic fixture, not derived from any specimen"

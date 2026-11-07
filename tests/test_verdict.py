@@ -87,11 +87,12 @@ def test_offpanel_map_asserts_all_off_panel():
     """
     from panoscope.agent import annotation
 
-    live = annotation.OFF_PANEL_CANONICAL_FALLBACK
-    assert live, "the off-panel canonical map is empty; the invariant would pass vacuously"
-    for cell_type, genes in live.items():
-        for g in genes:
-            assert data.panel_contains(g) is False, f"{g} for {cell_type} is on-panel"
+    # The map now lives in the demo's lab list (reference view); its order is the
+    # note order the golden output pins.
+    live = annotation.offpanel_canonical("Stromal")
+    assert live == ("COL1A1", "COL1A2", "DCN", "VIM", "FAP")
+    for g in live:
+        assert data.panel_contains(g) is False, f"{g} for Stromal is on-panel"
 
 
 # --------------------------------------------------------------------------- #

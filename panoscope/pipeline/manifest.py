@@ -24,6 +24,7 @@ sha256_file = digest
 DERIVED_KEYS: frozenset[str] = frozenset({
     "dataset_id", "generated_at", "pipeline_version", "panel_gene_count",
     "n_cells", "clusters", "views_available", "inputs", "artifacts", "workflows",
+    "reference",
 })
 """The keys a build recomputes from the files. Everything else was declared."""
 
@@ -44,13 +45,15 @@ def build_manifest(
     clustering_mode: str | None = None,
     declared: dict[str, Any] | None = None,
     workflows: tuple[str, ...] | None = None,
+    reference: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Assemble the manifest dict. ``generated_at`` is an ISO-8601 string.
 
     ``inputs`` maps a logical name -> {file, sha256}; ``artifacts`` maps a
     tree-relative path -> {sha256, ...}. ``samples`` and ``clustering_mode`` are
     written only when declared, never invented. ``workflows`` lists the workflows
-    whose inputs the study ships. Every key of ``declared`` (the
+    whose inputs the study ships; ``reference`` the release of each reference source
+    the view read (factual layer). Every key of ``declared`` (the
     existing manifest) outside :data:`DERIVED_KEYS` survives the rebuild.
 
     Raises ``ValueError`` on an undeclared ``tissue`` or ``platform`` (§6.3 blockers).
@@ -89,6 +92,8 @@ def build_manifest(
     )
     if workflows is not None:
         built["workflows"] = list(workflows)
+    if reference is not None:
+        built["reference"] = dict(reference)
 
     for key, value in (declared or {}).items():
         if key not in DERIVED_KEYS and key not in built:
