@@ -687,15 +687,17 @@ class LabCurated:
                              f"lab@{self.release}")
 
     def edges(self) -> Iterator[Edge]:
-        digest = f"file:sha256:{hashlib.sha256(Path(self.file).read_bytes()).hexdigest()}"
-        for r in self._rows():
+        rows = list(self._rows())        # SourceUnavailable before the file is hashed
+        digest = hashlib.sha256(Path(self.file).read_bytes()).hexdigest()
+        for r in rows:
             quals = [("tissue", self.tissue)]
             if r.get("note"):
                 quals.append(("note", r["note"]))
             yield Edge(
                 subject=Entity(EntityKind.GENE, r["gene"]), predicate="marks",
                 object=Entity(EntityKind.CELL_TYPE, r["cell_type"]),
-                source=f"lab@{self.release}", citation=r.get("citation") or digest,
+                source=f"lab@{digest[:12]}",
+                citation=r.get("citation") or f"file:sha256:{digest}",
                 licence=self.licence, qualifiers=tuple(quals),
             )
 

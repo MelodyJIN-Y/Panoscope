@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import io
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -108,10 +110,31 @@ def test_cellmarker_refuses_a_file_without_its_columns(cache):
         list(CellMarker("Breast").edges())
 
 
-@pytest.mark.parametrize("src", [CellOntology(), CellMarker("Breast")])
-def test_an_unfetched_source_is_unavailable_not_empty(cache, src):
+@pytest.mark.parametrize("src", [CellOntology(), CellMarker("Breast"),
+                                 LabCurated(Path("/nonexistent/lab.csv"), "Breast")])
+@pytest.mark.parametrize("read", ["nodes", "edges"])
+def test_an_unfetched_source_is_unavailable_not_empty(cache, src, read):
     with pytest.raises(SourceUnavailable):
-        list(src.nodes())
+        list(getattr(src, read)())
+
+
+def test_marker_sources_are_not_redistributable():
+    """The licence gate keys on this flag; flipping it lets the file into the repo."""
+    assert CellMarker.redistributable is False and LabCurated.redistributable is False
+
+
+def test_a_fetch_that_returns_the_wrong_file_is_refused_and_writes_nothing(
+        cache, monkeypatch):
+    """A 403 page saved as the release would parse as "this source has no rows"."""
+    class Page(io.BytesIO):
+        def __enter__(self):
+            return self
+
+    monkeypatch.setattr(S.urllib.request, "urlopen",
+                        lambda req, timeout: Page(b"<html>403 Forbidden</html>"))
+    with pytest.raises(SourceUnavailable):
+        CellOntology().fetch()
+    assert not CellOntology().path.exists()
 
 
 def test_lab_list_scopes_to_tissue_and_cites_the_file_when_the_row_does_not(tmp_path):
