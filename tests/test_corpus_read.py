@@ -141,6 +141,7 @@ def test_a_paper_with_tissue_as_well_as_a_biofluid_is_read_not_closed(tmp_path):
                                  "specimen": "Serum was collected."})
     corpus, _ = _read(_corpus(tmp_path, full=FULL + "\nSerum was collected."), stub)
     assert stub.calls[:2] == ["P1", "P2"] and _ledger(corpus)["pmid:1"] == "READ:1:0"
+    assert [s.rung for s in corpus.statements] == ["W0*"]     # its spans keep their rung
 
 
 def test_headline_counts_species_stated_papers_at_the_study_modality(tmp_path):

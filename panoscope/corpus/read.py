@@ -174,6 +174,12 @@ def _setting(corpus: Corpus, uri: str, field: str) -> str:
 _BIOFLUID = re.compile(r"\b(serum|plasma|urine|CSF|cerebrospinal|saliva|biofluid)\b", re.I)
 
 
+def _biofluid_only(corpus: Corpus, uri: str) -> bool:
+    """P1's specimen names a biofluid and P1 found no tissue: tumour plus plasma is tissue too."""
+    return bool(_BIOFLUID.search(_setting(corpus, uri, "specimen"))
+                and not _setting(corpus, uri, "tissue"))
+
+
 def _p1(run: _Run, rec: SourceRecord, reader: Reader, receipt: Receipt) -> str:
     """Record the paper's setting once: "ok", "closed" (excluded or biofluid) or "failed"."""
     q = f"P1 setting of {rec.uri}"
@@ -203,8 +209,7 @@ def _p1(run: _Run, rec: SourceRecord, reader: Reader, receipt: Receipt) -> str:
     closed = ""
     if isinstance(ex, dict) and _locate(rec, str(ex.get("quote") or "")) is not None:
         closed = f"P1_EXCLUDED:{ex.get('reason') or 'excluded'}: {ex['quote']}"
-    elif (_BIOFLUID.search(_setting(run.corpus, rec.uri, "specimen"))
-          and not _setting(run.corpus, rec.uri, "tissue")):    # biofluid only, no tissue too
+    elif _biofluid_only(run.corpus, rec.uri):
         closed = "NON_TISSUE"
     if closed:
         run.commit(ledger=(*(d for d in run.corpus.ledger if d.id != rec.uri),
@@ -267,7 +272,7 @@ def _statement(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str, 
     analyte, res = modality(f"{span}\n{meth}")
     r = rung(Facets(tissue=tissue, cell_type=bool(cell) or None, disease=disease,
                     in_vivo=in_vivo, species=sp,
-                    biofluid=bool(_BIOFLUID.search(f"{span}\n{s('specimen')}")),
+                    biofluid=bool(_BIOFLUID.search(span)) or _biofluid_only(corpus, rec.uri),
                     resolution=res), disease_declared=bool(ctx.disease_state))
     flags = [f for f, on in (
         ("SAME_DATASET", bool(ctx.release_pmid) and rec.uri == f"pmid:{ctx.release_pmid}"),
