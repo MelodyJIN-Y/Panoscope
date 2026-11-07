@@ -146,9 +146,20 @@ def methods(rec: SourceRecord) -> str:
     return "\n".join(out)
 
 
+_SPACES: Final = str.maketrans(dict.fromkeys("\xa0\u2002\u2003\u2004\u2005\u2006\u2007"
+                                             "\u2008\u2009\u200a\u202f", " "))
+
+
+def _find(text: str, quote: str, start: int = 0, end: int | None = None) -> int:
+    """``str.find``, but a no-break or thin space in the source matches a plain one; one
+    character for one, so the offset still slices the source's own characters."""
+    return text.translate(_SPACES).find(quote.translate(_SPACES), start,
+                                        len(text) if end is None else end)
+
+
 def _locate(rec: SourceRecord, quote: str) -> tuple[str, int] | None:
     for sec in ("title", "abstract", "full_text"):
-        if quote and (i := rec.text(sec).find(quote)) >= 0:
+        if quote and (i := _find(rec.text(sec), quote)) >= 0:
             return sec, i
     return None
 
@@ -185,7 +196,8 @@ def _p1(run: _Run, rec: SourceRecord, reader: Reader, receipt: Receipt) -> str:
             receipt.rejected += 1
             log.warning("P1 %s quote for %s not verbatim, dropped: %r", f, rec.uri, quote)
             continue
-        settings.append(Setting(rec.uri, f, quote, at[1], at[1] + len(quote), at[0]))
+        src = rec.text(at[0])[at[1]:at[1] + len(quote)]
+        settings.append(Setting(rec.uri, f, src, at[1], at[1] + len(quote), at[0]))
     run.commit(settings=tuple(settings))
     ex = got.get("exclude")
     closed = ""
@@ -294,7 +306,8 @@ def _p2(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str,
     for i, st in enumerate(got.get("statements") or []):
         span = str(st.get("span") or "")
         sec, a, b = where.get(str(st.get("passage")), ("", 0, 0))
-        at = rec.text(sec).find(span, a, b) if sec and span else -1
+        at = _find(rec.text(sec), span, a, b) if sec and span else -1
+        span = rec.text(sec)[at:at + len(span)] if at >= 0 else span
         entry = frame.get(str(st.get("cell_type") or "").casefold())
         rel = relation(span, str(st.get("relation") or ""), str(st.get("comparator") or ""),
                        gene_rx) if at >= 0 else None

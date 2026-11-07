@@ -104,6 +104,20 @@ def test_a_span_not_verbatim_or_not_naming_its_cell_type_is_rejected(tmp_path):
     assert corpus.statements == () and receipt.rejected == 2
 
 
+def test_a_quote_typed_with_plain_spaces_binds_to_a_source_with_thin_or_no_break_ones(tmp_path):
+    from dataclasses import replace
+
+    p = _corpus(tmp_path)
+    src = ABSTRACT.replace("human breast", "human breast").replace("cancer tissue",
+                                                                       "cancer\xa0tissue")
+    save(replace(load(p), records=tuple(replace(r, abstract=src) for r in load(p).records)), p)
+    corpus, receipt = _read(p, Stub([MARK], setting={"tissue": "human breast cancer tissue"}))
+    (st,) = corpus.statements
+    assert receipt.rejected == 0 and st.span == src[st.start:st.end] and " " in st.span
+    assert [s.quote for s in corpus.settings if s.field == "tissue"] == ["human breast "
+                                                                         "cancer\xa0tissue"]
+
+
 def test_relation_gates_are_code_not_model():
     rx = R.matcher(POSTN)
     assert R.relation("POSTN signaling in fibroblasts", "MARKS", "", rx) == "STATE_ASSOCIATED"
