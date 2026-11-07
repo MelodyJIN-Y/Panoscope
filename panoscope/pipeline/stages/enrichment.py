@@ -45,6 +45,7 @@ arranges and serialises.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -177,7 +178,7 @@ def write_records(
         # demo's enrichment result lives outside the study tree, and an absolute path
         # in a hashed record makes byte-stability a property of whose laptop produced
         # it.
-        record_path=_relpath(path, study.dir),
+        record_path=os.path.relpath(path, study.dir),
     ).value.record
 
     loaded = method.load(str(path), adapter, study)
@@ -206,12 +207,6 @@ def write_records(
 
     _report_divergence(enrichments, loaded.value, interp)
     return written
-
-
-def _relpath(path: Path, base: Path) -> str:
-    import os
-
-    return os.path.relpath(path, base)
 
 
 def _panel_hits(ev) -> dict[str, int]:

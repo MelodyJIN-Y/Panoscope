@@ -13,7 +13,7 @@ The confident-floor contract (never violated here):
   before it is returned. An answer that fails the floor is NEVER emitted: the
   loop repairs it once (feeding the violations back to the model), and if the
   repair still fails it discards the model answer and returns a deterministic,
-  fully-grounded fallback from :class:`agent.fallback.FallbackStore`.
+  fully-grounded fallback from :func:`agent.fallback.match`.
 * **Deterministic fallback for every network call.** Every Anthropic API call
   and every MCP literature call is wrapped so a failure, timeout, or missing key
   degrades to a grounded fallback — an exception NEVER reaches the UI.
@@ -724,8 +724,6 @@ class _Ledger:
             self._record_literature(data)
         elif tool_name == "memory_read":
             self._record_notes(data)
-        elif tool_name == "memory_write":
-            self._record_note_write(data)
         elif tool_name == "memory_draft":
             self._record_draft(data)
 
@@ -805,10 +803,6 @@ class _Ledger:
                 if isinstance(n, dict) and n.get("id"):
                     self.notes.append(str(n["id"]))
 
-    def _record_note_write(self, data: Any) -> None:
-        if isinstance(data, dict) and data.get("id"):
-            self.notes.append(str(data["id"]))
-
     def _record_draft(self, data: Any) -> None:
         """Capture a proposed (unsaved) note + its tension citations.
 
@@ -865,50 +859,25 @@ class PanoscopeAgent:
 
     Parameters
     ----------
-    cluster:
-        The active cluster (c1..c9), or None until :meth:`set_cluster`.
-    model:
-        Anthropic model id; defaults to :data:`agent.config.PRIMARY_MODEL`.
     api_key:
         Explicit key; defaults to ``ANTHROPIC_API_KEY`` from the environment/.env.
     literature_verifier:
         Callable ``(pmid)->bool`` the grounding gate uses to resolve citations.
         Defaults to the live MCP connector (fabricated PMIDs fail closed).
-    fallback_store:
-        The deterministic fallback source; defaults to a fresh
-        :class:`agent.fallback.FallbackStore`.
     """
 
     def __init__(
         self,
-        cluster: Optional[str] = None,
         *,
-        model: Optional[str] = None,
         api_key: Optional[str] = None,
         literature_verifier: Optional[Callable[[str], bool]] = None,
-        fallback_store: Optional[fb.FallbackStore] = None,
     ) -> None:
         load_dotenv()
-        self._cluster = cluster if cluster in cfg.KNOWN_CLUSTERS else None
-        self._model = model or cfg.PRIMARY_MODEL
+        self._model = cfg.PRIMARY_MODEL
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self._fallback = fallback_store or fb.FallbackStore()
         self._verifier = literature_verifier or _default_literature_verifier
         self._checker = GroundingChecker(literature_verifier=self._verifier)
         self._client: Optional[Any] = None
-
-    # -- cluster context ---------------------------------------------------- #
-    def set_cluster(self, cluster: str) -> None:
-        """Set the active cluster (c1..c9). Unknown ids raise KeyError."""
-        if cluster not in cfg.KNOWN_CLUSTERS:
-            raise KeyError(
-                f"[loop] unknown cluster {cluster!r}; known: {sorted(cfg.KNOWN_CLUSTERS)}"
-            )
-        self._cluster = cluster
-
-    @property
-    def cluster(self) -> Optional[str]:
-        return self._cluster
 
     # -- Anthropic client (lazy, guarded) ---------------------------------- #
     def _get_client(self) -> Optional[Any]:
@@ -934,13 +903,13 @@ class PanoscopeAgent:
         The opening ALWAYS passes the grounding floor; on any enrichment failure
         it degrades cleanly to the pure verdict opening.
         """
-        target = cluster or self._cluster
+        target = cluster
         if target is None:
-            raise KeyError("[loop] no cluster set; call set_cluster() first")
+            raise KeyError("[loop] no cluster given")
         if target not in cfg.KNOWN_CLUSTERS:
             raise KeyError(f"[loop] unknown cluster {target!r}")
 
-        base = self._fallback.opening(target)  # deterministic, grounded
+        base = fb.fallback_opening(target)  # deterministic, grounded
 
         # Fast path: the pipeline's precomputed, live-cited cell-type note. Its PMID
         # was verified live at build time and the base is grounded by construction,
@@ -1114,21 +1083,21 @@ class PanoscopeAgent:
         reaches the caller. ``skill`` selects the interpretation contract (marker vs
         enrichment) loaded into the system prompt.
         """
-        target = cluster or self._cluster
+        target = cluster
         if target is None or target not in cfg.KNOWN_CLUSTERS:
             # No valid cluster context -> generic grounded fallback (never crash).
             target = target if target in cfg.KNOWN_CLUSTERS else cfg.CLUSTER_ORDER[0]
-            return self._fallback.match(query or "", target)
+            return fb.match(query or "", target)
 
         client = self._get_client()
         if client is None:
             # No live model -> deterministic grounded fallback for this query.
-            return self._fallback.match(query or "", target)
+            return fb.match(query or "", target)
 
         try:
             return self._run_loop(client, query or "", target, history, skill)
         except Exception:  # noqa: BLE001 - the loop must never raise into the UI
-            return self._fallback.match(query or "", target)
+            return fb.match(query or "", target)
 
     # -- pressure-test (second-opinion skeptic) ---------------------------- #
     def pressure_test(self, cluster: Optional[str] = None) -> AgentResponse:
@@ -1138,7 +1107,7 @@ class PanoscopeAgent:
         Falls back to the deterministic skeptic (agent/skeptic.py) with no model, on any
         error, or if the live answer fails the floor — so the biologist always gets a
         grounded second opinion, never a spinner and never an ungrounded one."""
-        target = cluster or self._cluster
+        target = cluster
         if target is None or target not in cfg.KNOWN_CLUSTERS:
             target = target if target in cfg.KNOWN_CLUSTERS else cfg.CLUSTER_ORDER[0]
             return self._deterministic_skeptic_response(target)
@@ -1166,7 +1135,7 @@ class PanoscopeAgent:
         try:
             rep = skeptic.second_opinion(cluster)
         except Exception:  # noqa: BLE001 - last-ditch: a plain grounded fallback
-            return self._fallback.match("", cluster)
+            return fb.match("", cluster)
 
         numbers: list[tuple[str, str, float]] = []
         markers: list[str] = []
@@ -1217,7 +1186,7 @@ class PanoscopeAgent:
             reply = self._safe_create(client, system, messages)
             if reply is None:
                 # Model call failed -> deterministic fallback.
-                return self._fallback.match(query, cluster)
+                return fb.match(query, cluster)
 
             text_now, tool_uses = _split_reply(reply)
             if text_now:
@@ -1282,7 +1251,7 @@ class PanoscopeAgent:
         """
         text = (text or "").strip()
         if not text:
-            return self._fallback.match(query, cluster)
+            return fb.match(query, cluster)
 
         candidate = self._assemble(text, ledger, cluster, skill)
         result = self._checker.check(candidate.text, candidate.grounding, cluster)
@@ -1296,7 +1265,7 @@ class PanoscopeAgent:
             return repaired
 
         # Repair failed the floor too -> deterministic grounded fallback.
-        return self._fallback.match(query, cluster)
+        return fb.match(query, cluster)
 
     def _repair(
         self,
@@ -1514,11 +1483,6 @@ def _default_agent() -> PanoscopeAgent:
     return _DEFAULT_AGENT
 
 
-def set_cluster(cluster_id: str) -> None:
-    """Set the active cluster on the module-level default agent."""
-    _default_agent().set_cluster(cluster_id)
-
-
 def opening_interpretation(cluster: str) -> AgentResponse:
     """Opening interpretation for ``cluster`` via the default agent."""
     return _default_agent().opening_interpretation(cluster)
@@ -1543,17 +1507,10 @@ def pressure_test(cluster: str) -> AgentResponse:
     return _default_agent().pressure_test(cluster)
 
 
-def sources_of(resp: AgentResponse) -> list[Source]:
-    """Return the Source chips of a response (UI helper)."""
-    return list(resp.sources)
-
-
 __all__ = [
     "PanoscopeAgent",
     "build_system_prompt",
-    "set_cluster",
     "opening_interpretation",
     "chat",
     "pressure_test",
-    "sources_of",
 ]

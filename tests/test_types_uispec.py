@@ -27,9 +27,9 @@ from panoscope.types.outputs import TaskKind
 from panoscope.types.uispec import (
     _REQUIRED_COND, BlankWhereNoNumber, BlockSpec, CensusHeader, ColumnKind,
     ColumnSpec, Conditionality, ConfoundChecklistHeader, DegradedUpward,
-    DuplicateRegistration, HeaderKind, LabelBandHeader, MethodSpec,
+    HeaderKind, LabelBandHeader,
     NowhereToSayNeverMeasured, PlotKind, PlotSpec, ProvenanceOnlyHeader, UISpec,
-    UndrawableFigure, degraded_spec, register_method, register_workflow, resolve,
+    UndrawableFigure, degraded_spec,
 )
 
 COND = dict(
@@ -58,18 +58,6 @@ def _spec(**kw) -> UISpec:
         blocks=(SUPPORTING_BLOCK, NEVER_BLOCK),
     )
     return UISpec(**{**base, **kw})
-
-
-@pytest.fixture(autouse=True)
-def _isolated_registry():
-    """The registries are module-level and shared. A test that registers must not
-    leave a workflow behind for the next one to trip over."""
-    w, m = dict(U._WORKFLOWS), dict(U._METHODS)
-    yield
-    U._WORKFLOWS.clear()
-    U._WORKFLOWS.update(w)
-    U._METHODS.clear()
-    U._METHODS.update(m)
 
 
 # --------------------------------------------------------------------------- #
@@ -126,8 +114,7 @@ def test_plot_subject_kinds_are_registered_shapes():
 
 def test_no_spec_type_can_carry_a_computation():
     """"Plots render, they do not derive", structurally: there is nowhere to put a
-    formula. ``MethodSpec.status_rule`` is the single exception and runs server-side
-    only, so no renderer ever decides what counts as measured.
+    formula, so no renderer ever decides what counts as measured.
     """
     offenders = []
     for name in dir(U):
@@ -135,8 +122,7 @@ def test_no_spec_type_can_carry_a_computation():
         if not (isinstance(obj, type) and dataclasses.is_dataclass(obj)):
             continue
         for f in dataclasses.fields(obj):
-            if "Callable" in str(f.type) and (obj, f.name) != (MethodSpec,
-                                                               "status_rule"):
+            if "Callable" in str(f.type):
                 offenders.append(f"{obj.__name__}.{f.name}")
     assert not offenders, "code in a renderer-facing spec: " + ", ".join(offenders)
 
@@ -268,55 +254,8 @@ def test_a_text_column_need_not_hatch():
 
 
 # --------------------------------------------------------------------------- #
-# The method declaration
+# The degraded surface
 # --------------------------------------------------------------------------- #
-def _method(**kw) -> MethodSpec:
-    base = dict(
-        method_id="jazzpanda_spatial_glm", workflow_id="markers",
-        display_name="jazzPanda spatial GLM",
-        assumptions=("multivariate spatial GLM across all panel genes, "
-                     "not per-cluster DE",),
-        outputs=("glm_coef (spatial GLM Estimate, primary ranking)", "pearson"),
-        does_not_measure=("per-cluster differential expression",),
-    )
-    return MethodSpec(**{**base, **kw})
-
-
-@pytest.mark.parametrize("empty", ["assumptions", "does_not_measure"])
-def test_a_method_must_declare_its_limits(empty):
-    """CLAUDE.md makes both mandatory, and they are the point of the object: a
-    method that declares no limits is one whose output reads as having none."""
-    with pytest.raises(ValueError):
-        _method(**{empty: ()})
-
-
-# --------------------------------------------------------------------------- #
-# The registry and the degraded surface
-# --------------------------------------------------------------------------- #
-def test_resolve_never_raises_for_an_unregistered_workflow():
-    """Graceful degradation is a requirement, not a nicety: it is what makes the
-    registry safe to extend."""
-    s = resolve("nobody_registered_this", "weird_output.csv", ("gene", "score"))
-    assert s.header.kind is HeaderKind.PROVENANCE_ONLY
-    assert s.task_kind is None
-
-
-def test_resolve_returns_the_registered_surface():
-    register_workflow(_spec())
-    assert resolve("markers", "x.csv", ()).title == "Marker genes"
-
-
-def test_duplicate_registration_is_loud():
-    """Last-write-wins between two import-time registrations is decided by import
-    order, which is decided by nothing -- and the loser fails at render time."""
-    register_workflow(_spec())
-    with pytest.raises(DuplicateRegistration):
-        register_workflow(_spec())
-    register_method(_method())
-    with pytest.raises(DuplicateRegistration):
-        register_method(_method())
-
-
 def test_the_degraded_surface_claims_nothing():
     """Rules 1-5 of ``degraded_spec``, as one assertion each. Nothing is called
     detected and -- critically -- nothing is called absent, because an unregistered

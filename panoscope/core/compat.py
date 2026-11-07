@@ -199,29 +199,13 @@ UNREPRESENTABLE_BUCKETS: frozenset[str] = frozenset(
 #: :data:`V1_UNREPRESENTABLE` because it is the same kind of debt and not the same
 #: kind of object: every entry above is an item BUCKET, two-sided against
 #: ``_v1_bucket``, while this is a statement about the unit. It gets its own id and
-#: its own longhand reason rather than a bucket the classifier never returns.
+#: its own reason rather than a bucket the classifier never returns.
+#:
+#: The reason: v1 carries two of the replicate read's three outcomes in ``notes``;
+#: the never-askable one is omitted because writing it would move the committed demo
+#: bytes. It is not lost -- ``pipeline/records._concordance`` writes it into
+#: ``InterpretationRecord.undecidable``, which explain, the UI and the report show.
 V1_NO_REPLICATE_SHAPE: str = "replicate_read_never_askable"
-
-V1_NO_REPLICATE_REASON: str = (
-    "ARCHITECTURE 9.10's replicate read has three outcomes and v1 carries two of "
-    "them, in the one free-text field it has (`notes`, which "
-    "with_v1_replicate_read extends): a unit whose subjects genuinely read "
-    "differently across sections, and a unit the comparison was ASKED of and could "
-    "compare nothing on. The third -- the question was never askable, because the "
-    "study holds one sample, or declares independent clustering, or has no "
-    "per-sample marker tables -- is omitted, and the omission is forced rather than "
-    "chosen: Verdict.replicate_coverage is None there, which is exactly the state "
-    "that leaves the band untouched, and the nine committed demo files are 10's "
-    "frozen reference. The demo is single-sample, so every one of its units is in "
-    "that third state, and writing the sentence would move the bytes the "
-    "equivalence gate reads as the definition of `unchanged`. It is not lost: "
-    "pipeline/records._concordance writes the reason -- naming the sample count, "
-    "the clustering mode or the missing tables -- into "
-    "InterpretationRecord.undecidable, panoscope explain prints it, the markers "
-    "page renders it, and ui/report.py carries it into the exported document. The "
-    "v1 row says nothing, which is silence rather than a claim; an invented "
-    "sentence there would be the claim."
-)
 
 
 class NoV1Shape(ValueError):

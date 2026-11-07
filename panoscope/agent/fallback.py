@@ -723,39 +723,23 @@ def generic_fallback(cluster: str) -> AgentResponse:
 
 
 # --------------------------------------------------------------------------- #
-# FallbackStore, a thin, stateless facade over the three fallback layers.
+# match: canned answer if one fits, else the generic grounded fallback.
 # --------------------------------------------------------------------------- #
-class FallbackStore:
-    """Facade the loop calls: opening, canned-answer match, or generic fallback.
+def match(query: str, cluster: str) -> AgentResponse:
+    """Best available fallback for a free-text query on ``cluster``.
 
-    Stateless and deterministic. Holds no data of its own, every response is
-    (re)built from the verdict engine on demand, so it can never go stale relative
-    to the jazzPanda output the way a frozen JSON blob could.
+    Tries the canned demo-beat answers first; on no match, returns the generic
+    grounded fallback so the caller ALWAYS gets a valid, grounded response.
     """
-
-    def opening(self, cluster: str) -> AgentResponse:
-        """Pre-baked opening interpretation for ``cluster``."""
-        return fallback_opening(cluster)
-
-    def match(self, query: str, cluster: str) -> AgentResponse:
-        """Best available fallback for a free-text query on ``cluster``.
-
-        Tries the canned demo-beat answers first; on no match, returns the generic
-        grounded fallback so the caller ALWAYS gets a valid, grounded response.
-        """
-        canned = fallback_answer(query, cluster)
-        if canned is not None:
-            return canned
-        return generic_fallback(cluster)
-
-    def generic(self, cluster: str) -> AgentResponse:
-        """The last-resort grounded fallback for ``cluster``."""
-        return generic_fallback(cluster)
+    canned = fallback_answer(query, cluster)
+    if canned is not None:
+        return canned
+    return generic_fallback(cluster)
 
 
 __all__ = [
     "fallback_opening",
     "fallback_answer",
     "generic_fallback",
-    "FallbackStore",
+    "match",
 ]

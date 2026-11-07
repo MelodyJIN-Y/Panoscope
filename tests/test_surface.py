@@ -264,9 +264,8 @@ def test_every_row_resolves_to_its_subject_key():
 # 4. Plots render, they do not derive
 # --------------------------------------------------------------------------- #
 def test_a_declaration_carrying_a_callable_is_refused():
-    """``MethodSpec.status_rule`` is the one callable in the spec module and it runs
-    server-side. One leaking into a column means the renderer is about to decide
-    what counts as measured."""
+    """A callable leaking into a column means the renderer is about to decide what
+    counts as measured."""
     bad = ColumnSpec("statistic", "z", ColumnKind.NUMBER)
     object.__setattr__(bad, "unit", lambda row: row.values["statistic"] * 2)
     spec = dataclasses.replace(MARKER, columns=(*MARKER.columns, bad))

@@ -8,9 +8,9 @@ Grounding-floor coverage:
   only from agent.data, never fabricated).
 * ``get_spatial('density','LUM')`` reports the precomputed frame as available and
   never recomputes.
-* ``memory_write`` -> ``memory_read`` round-trips a c2-scoped note through a tmp
-  context dir, with an injected (stubbed) literature_search so no network is used
-  and the note is born with real-citation tension.
+* A note written via ``memory.create_note`` round-trips through ``memory_read``
+  in a tmp context dir, with an injected (stubbed) literature_search so no network
+  is used and the note is born with real-citation tension.
 * Every tool goes through ``dispatch`` and returns ``{ok, data, sources, error}``.
 * ``literature_search`` returns ``ok=True`` with >=1 real PMID when the connector
   is up, OR ``ok=False`` gracefully when offline (never a fabricated PMID).
@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from panoscope.agent import data as _data
+from panoscope.agent import memory
 from panoscope.agent import tools
 from panoscope.agent.types import Citation
 
@@ -107,10 +108,9 @@ def test_dispatch_unknown_tool_fails_cleanly():
 
 def test_tool_schemas_match_dispatch():
     names = {s["name"] for s in tools.TOOL_SCHEMAS}
-    # Every model-facing schema has a dispatch entry. The reverse need NOT hold:
-    # memory_write stays dispatchable (save paths/tests) but is deliberately not
-    # exposed to the model, so it cannot persist a note the biologist has not
-    # confirmed — the model drafts (memory_draft) and the UI saves.
+    # Every model-facing schema has a dispatch entry. No model-facing tool
+    # persists a note the biologist has not confirmed — the model drafts
+    # (memory_draft) and the UI saves.
     assert names <= set(tools._DISPATCH)
     assert "memory_write" not in names
     assert "memory_draft" in names
@@ -244,54 +244,51 @@ def test_get_spatial_cell_map():
 
 
 # --------------------------------------------------------------------------- #
-# 6 + 7. memory_write -> memory_read round-trip (c2-scoped)
+# 6. create_note -> memory_read round-trip (c2-scoped)
 # --------------------------------------------------------------------------- #
+def _write_note(**kw):
+    """Persist a note the way the UI save path does (scope enforced at birth)."""
+    return memory.create_note(
+        literature_search=tools._literature_search_fn(),
+        base_dir=tools._MEMORY_BASE_DIR,
+        **kw,
+    )
+
+
 def test_memory_write_then_read_roundtrip(isolated_memory):
     tools.set_literature_search(_stub_search)
 
-    write_env = tools.dispatch(
-        "memory_write",
-        {
-            "claim": "In our breast TME, LUM marks CAFs in this cluster",
-            "scope": "cluster",
-            "basis": "own_validation",
-            "cluster": "c2",
-            "subject_cell_type": "Stromal",
-            "subject_markers": ["LUM"],
-        },
+    note = _write_note(
+        claim="In our breast TME, LUM marks CAFs in this cluster",
+        scope="cluster",
+        basis="own_validation",
+        cluster="c2",
+        subject_cell_type="Stromal",
+        subject_markers=["LUM"],
     )
-    _assert_envelope(write_env)
-    assert write_env["ok"] is True
-    note_id = write_env["data"]["id"]
-    assert write_env["data"]["cluster"] == "c2"
-    assert write_env["data"]["scope"] == "cluster"
     # reconciled against the stub -> tension carries the real agree/dissent PMIDs.
-    tension = write_env["data"]["tension"]
-    assert tension["thin"] is False
-    assert "40000001" in tension["agree"]
-    assert "40000002" in tension["dissent"]
-    # cited on write (kind="mem").
-    assert write_env["sources"][0]["kind"] == "mem"
-    assert write_env["sources"][0]["ref"] == note_id
+    assert note.tension.thin is False
+    assert "40000001" in [c.pmid for c in note.tension.agree]
+    assert "40000002" in [c.pmid for c in note.tension.dissent]
 
-    # read back for c2 -> the note fires.
+    # read back for c2 -> the note fires, cited as kind="mem".
     read_env = tools.dispatch("memory_read", {"cluster": "c2"})
     _assert_envelope(read_env)
     assert read_env["ok"] is True
     ids = [n["id"] for n in read_env["data"]["notes"]]
-    assert note_id in ids
+    assert note.id in ids
+    assert any(
+        s["kind"] == "mem" and s["ref"] == note.id for s in read_env["sources"]
+    )
 
 
 def test_memory_read_scope_enforced_other_cluster(isolated_memory):
     tools.set_literature_search(_stub_search)
-    tools.dispatch(
-        "memory_write",
-        {
-            "claim": "c2-only stromal convention",
-            "scope": "cluster",
-            "basis": "convention",
-            "cluster": "c2",
-        },
+    _write_note(
+        claim="c2-only stromal convention",
+        scope="cluster",
+        basis="convention",
+        cluster="c2",
     )
     # a cluster-scoped note must NOT fire for a different cluster.
     other = tools.dispatch("memory_read", {"cluster": "c5"})
@@ -301,19 +298,13 @@ def test_memory_read_scope_enforced_other_cluster(isolated_memory):
 
 def test_memory_write_cluster_scope_requires_cluster(isolated_memory):
     tools.set_literature_search(_stub_search)
-    env = tools.dispatch(
-        "memory_write",
-        {"claim": "no cluster given", "scope": "cluster", "basis": "convention"},
-    )
-    assert env["ok"] is False
-    assert "cluster" in env["error"].lower()
+    with pytest.raises(ValueError, match="(?i)cluster"):
+        _write_note(claim="no cluster given", scope="cluster", basis="convention")
 
 
 def test_memory_write_invalid_scope_fails(isolated_memory):
-    env = tools.dispatch(
-        "memory_write", {"claim": "x", "scope": "galaxy", "basis": "convention"}
-    )
-    assert env["ok"] is False
+    with pytest.raises(ValueError):
+        _write_note(claim="x", scope="galaxy", basis="convention")
 
 
 # --------------------------------------------------------------------------- #
@@ -530,15 +521,12 @@ def test_old_envelope_without_the_field_means_not_looked_up():
 def test_note_payload_carries_looked_up_at(isolated_memory):
     """memory_read's model-facing payload carries it too (same collapse, same field)."""
     tools.set_literature_search(_empty_search)
-    tools.dispatch(
-        "memory_write",
-        {
-            "claim": "LUM marks CAFs here",
-            "scope": "cluster",
-            "basis": "own_validation",
-            "cluster": "c2",
-            "subject_markers": ["LUM"],
-        },
+    _write_note(
+        claim="LUM marks CAFs here",
+        scope="cluster",
+        basis="own_validation",
+        cluster="c2",
+        subject_markers=["LUM"],
     )
     env = tools.dispatch("memory_read", {"cluster": "c2"})
     assert env["data"]["notes"], "no note came back"

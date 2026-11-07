@@ -52,7 +52,7 @@ from typing import Any, Callable, Optional, Union
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
-from panoscope.platforms.xenium import NO_SIGNAL, is_no_signal
+from panoscope.platforms.xenium import is_no_signal
 from panoscope.types.record import GENERATED_FIELDS
 
 # --------------------------------------------------------------------------- #
@@ -87,11 +87,6 @@ _STAT_SYNONYMS: tuple[tuple[str, str], ...] = (
     (r"coef(?:ficient)?", "glm_coef"),
     (r"pearson(?:[\s_-]*corr(?:elation)?)?", "pearson"),
 )
-_STAT_KEYWORD_RE = re.compile(
-    "|".join(f"(?:{pat})" for pat, _ in _STAT_SYNONYMS), re.IGNORECASE
-)
-
-
 def _canonical_stat(keyword: str) -> Optional[str]:
     """Return the canonical stat name for a matched prose keyword, or None."""
     low = keyword.strip().lower()
@@ -111,11 +106,7 @@ _GENE_TOKEN_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,9})\b")
 # A signed decimal number (no thousands separators expected in these stats).
 _NUMBER = r"[-+]?\d+(?:\.\d+)?"
 
-# A gene-shaped token used inside the stat-claim pattern (not anchored on \b at
-# both ends here; the surrounding pattern anchors it).
-_GENE_SHAPE = r"[A-Z][A-Z0-9]{1,9}"
-
-# The stat keyword alternation, reused inside the stat-claim pattern.
+# The stat keyword alternation.
 #
 # DERIVED from ``_STAT_SYNONYMS``, not repeated. This was a verbatim copy of
 # that table, and the copy is what "the second list is the one nobody updates"
@@ -123,46 +114,14 @@ _GENE_SHAPE = r"[A-Z][A-Z0-9]{1,9}"
 # returning None for a keyword the extractor had just matched.
 _STAT_ALT = "|".join(f"(?:{pat})" for pat, _ in _STAT_SYNONYMS)
 
-# The stat-claim pattern: a gene token, then (within a short gap of connective
-# words like "at"/"of"/"="/":") a stat keyword, then (within a short gap) a
-# number. This models "LUM glm 17.998", "LUM at glm_coef 17.998",
-# "LUM pearson = 0.91" while refusing to reach across a whole sentence into a
-# trailing PMID. The gaps allow a few connective tokens but not arbitrary prose.
-_GAP = r"(?:[\s:=,()\-]|of|at|is|was|=)*"
-# The gene group is case-SENSITIVE (real symbols are upper-case: ERBB2, LUM),
-# via the inline (?-i:...) flag, so lowercase connective words ("with", "at")
-# never match as a gene. The stat keyword and gap stay case-insensitive.
-_STAT_CLAIM_RE = re.compile(
-    rf"(?-i:\b(?P<gene>{_GENE_SHAPE})\b)"
-    rf"{_GAP}"
-    rf"(?P<stat>{_STAT_ALT})"
-    rf"{_GAP}"
-    rf"(?P<value>{_NUMBER})\b",
-    re.IGNORECASE,
-)
-
-# A bare "<stat> <number>" pair, with NO gene in the pattern. The gene is bound
-# afterwards, by position, in ``_extract_stat_claims``.
-#
-# ``_STAT_CLAIM_RE`` above required gene -> stat -> number in one match, and
-# ``finditer`` consumes the gene, so in the app's OWN opening format --
-# "LUM (glm_coef 18.00, pearson 0.91)" -- only the glm_coef was ever extracted.
-# The pearson was checked against nothing. Every stat after the first, for every
-# gene, in every answer, was ungrounded: a fabricated "pearson 0.99" and even
-# "pearson 42.0" (outside the coefficient's possible range) both passed.
-#
-# It also could not see a stat stated in ordinary English. The gap allowed only
-# punctuation and of/at/is/was, so "ERBB2 has a glm coefficient of 99.9"
-# extracted NOTHING -- fabricated number and fabricated gene together -- and
-# that is the register the skill contract tells the model to write in.
+# A bare "<stat> <number>" pair, with NO gene in the pattern; the gene is bound
+# by position in ``_stat_matches``, so every stat in "LUM (glm_coef 18.00,
+# pearson 0.91)" and a stat stated in ordinary English are both checked.
 _STAT_VALUE_RE = re.compile(
     rf"(?P<stat>{_STAT_ALT})[\s:=,()\-]*(?:of|at|is|was|=)?[\s:=,()\-]*"
     rf"(?P<value>{_NUMBER})\b",
     re.IGNORECASE,
 )
-
-#: A gene-shaped token anywhere in the text, case-SENSITIVE.
-_GENE_AT_RE = re.compile(rf"(?-i:\b({_GENE_SHAPE})\b)")
 
 #: How far back a stat will look for the gene it belongs to. Wide enough for
 #: "ERBB2 has a glm coefficient of" and for the second stat in a parenthetical,
@@ -544,18 +503,14 @@ class ExtractedClaims:
 class Extractor:
     """Extract genes, gene-bound numbers, PMIDs/DOIs and note refs from prose.
 
-    The sidecar (if given) is used ONLY to widen the gene vocabulary so a marker
-    named in the manifest is recognised even when the prose casing is odd. It is
-    NEVER used to skip a prose number: everything checkable is pulled from the
-    prose so a poisoned number that is absent from the sidecar still surfaces.
+    Everything checkable is pulled from the prose, never from the sidecar, so a
+    poisoned number that is absent from the sidecar still surfaces.
     """
 
     def __init__(self, source: SourceIndex) -> None:
         self._src = source
 
-    def extract(
-        self, text: str, sidecar_markers: tuple[str, ...] = ()
-    ) -> ExtractedClaims:
+    def extract(self, text: str) -> ExtractedClaims:
         # Mask citation/note spans so their digits never become numeric claims
         # (a PMID's digits must never be read as a "gene stat").
         masked = _mask_spans(
@@ -692,7 +647,7 @@ class Extractor:
         Stopword tokens (PMID, GLM, THE, ...) are skipped when looking for the
         gene, so "glm_coef" never binds to the word GLM inside itself.
         """
-        genes = [(m.start(), m.group(1)) for m in _GENE_AT_RE.finditer(text)
+        genes = [(m.start(), m.group(1)) for m in _GENE_TOKEN_RE.finditer(text)
                  if m.group(1) not in _STOPWORD_TOKENS]
         out: list[dict] = []
         for m in _STAT_VALUE_RE.finditer(text):
@@ -701,8 +656,7 @@ class Extractor:
             gene = None
             if prior:
                 pos, name = prior[-1]
-                # Within reach, and nothing between the gene and the stat that
-                # is itself a gene (that gene would be the real subject).
+                # The nearest preceding gene, if within reach.
                 if at - pos <= _STAT_BIND_WINDOW:
                     gene = name
             out.append({
@@ -751,31 +705,6 @@ class Extractor:
 
 
 # --------------------------------------------------------------------------- #
-# LiteratureVerifier — wraps the injected resolver callable
-# --------------------------------------------------------------------------- #
-class LiteratureVerifier:
-    """Resolve PMIDs/DOIs through an injected callable.
-
-    The callable takes an identifier string and returns a truthy value iff the
-    identifier resolves to a REAL literature record (via a live connector or a
-    frozen-real cassette). If no callable is injected, EVERY identifier is
-    unresolved — we never assume a citation is real. Fail closed.
-    """
-
-    def __init__(self, resolver: Optional[Callable[[str], bool]] = None) -> None:
-        self._resolver = resolver
-
-    def resolves(self, ident: str) -> bool:
-        if self._resolver is None:
-            return False
-        try:
-            return bool(self._resolver(ident))
-        except Exception:
-            # A resolver that errors cannot vouch for the citation -> unresolved.
-            return False
-
-
-# --------------------------------------------------------------------------- #
 # GroundingChecker — the gate
 # --------------------------------------------------------------------------- #
 class GroundingChecker:
@@ -820,7 +749,7 @@ class GroundingChecker:
     ) -> None:
         self._src = source or SourceIndex()
         self._extractor = Extractor(self._src)
-        self._lit = LiteratureVerifier(literature_verifier)
+        self._resolver = literature_verifier
         self._known_notes = known_notes
         self._claims = claims
         self._claim_context = claim_context or f"dataset:{cfg.DATASET_ID}"
@@ -845,8 +774,7 @@ class GroundingChecker:
         depend on it because ``get_marker`` is keyed by gene.
         """
         text = answer_text or ""
-        sidecar_markers = _sidecar_markers(sidecar)
-        claims = self._extractor.extract(text, sidecar_markers)
+        claims = self._extractor.extract(text)
 
         violations: list[Violation] = []
         violations += self._check_numbers(claims)
@@ -962,10 +890,20 @@ class GroundingChecker:
         return out
 
     # -- citations ---------------------------------------------------------- #
+    def _resolves(self, ident: str) -> bool:
+        """True iff the injected resolver vouches for ``ident``. Fail closed: no
+        resolver, or a resolver that errors, leaves every citation unresolved."""
+        if self._resolver is None:
+            return False
+        try:
+            return bool(self._resolver(ident))
+        except Exception:
+            return False
+
     def _check_citations(self, claims: ExtractedClaims) -> list[Violation]:
         out: list[Violation] = []
         for pmid in claims.pmids:
-            if not self._lit.resolves(pmid):
+            if not self._resolves(pmid):
                 out.append(
                     Violation(
                         kind="citation",
@@ -976,7 +914,7 @@ class GroundingChecker:
                     )
                 )
         for doi in claims.dois:
-            if not self._lit.resolves(doi):
+            if not self._resolves(doi):
                 out.append(
                     Violation(
                         kind="citation",
@@ -1316,16 +1254,3 @@ def _mask_spans(text: str, patterns) -> str:
     return "".join(chars)
 
 
-# --------------------------------------------------------------------------- #
-# Sidecar helpers
-# --------------------------------------------------------------------------- #
-def _sidecar_markers(sidecar) -> tuple[str, ...]:
-    """Best-effort read of marker names from a sidecar (localization aid only)."""
-    if sidecar is None:
-        return ()
-    markers = getattr(sidecar, "markers", None)
-    if markers is None and isinstance(sidecar, dict):
-        markers = sidecar.get("markers")
-    if not markers:
-        return ()
-    return tuple(str(m) for m in markers)

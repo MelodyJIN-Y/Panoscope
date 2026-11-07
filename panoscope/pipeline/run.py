@@ -1,10 +1,10 @@
 """Pipeline entrypoint — one run per dataset.
 
-    python -m pipeline.run --dataset xenium_hbreast_sample1           # deterministic
-    python -m pipeline.run --dataset xenium_hbreast_sample1 --notes   # + live notes
+    panoscope build --study xenium_hbreast_sample1           # deterministic
+    panoscope build --study xenium_hbreast_sample1 --notes   # + live notes
 
 Deterministic path (default, no network): validate inputs (Stage 0) -> copy raw
-inputs for provenance -> collect viz frames into the tree -> persist verdicts +
+inputs for provenance -> persist verdicts +
 verdicts.csv (Stage 4) -> write the Step-4 interp artifacts (holistic.json +
 calibration.md) -> write the manifest. ``--notes`` additionally runs the one LIVE
 stage (real-PubMed cell-type + per-marker biology notes) before the manifest, so
@@ -13,7 +13,6 @@ those files are hashed into it too.
 
 from __future__ import annotations
 
-import argparse
 import json
 import shutil
 from datetime import datetime, timezone
@@ -37,7 +36,6 @@ from panoscope.pipeline.stages.enrichment import run_enrichment
 from panoscope.pipeline.stages.prep import run_prep
 from panoscope.pipeline.stages.validate import validate
 from panoscope.pipeline.stages.verdicts import run_verdicts
-from panoscope.pipeline.stages.viz import collect_viz
 
 # Legacy raw-input sources copied into <id>/inputs/ for provenance.
 _RAW_SOURCES: dict[str, Path] = {
@@ -224,8 +222,7 @@ def run(
     fixture, every number tracing honestly to method output -- the wrong
     specimen's. That is the confident floor satisfied per value and violated per
     study, which is its worst form, and nothing printed. Scoping here rather than
-    in ``cli.py`` covers every caller: the CLI, ``python -m panoscope.pipeline.run``
-    and the tests.
+    in ``cli.py`` covers every caller: the CLI and the tests.
 
     The scope resolves the study at its CANONICAL location, not under ``root``.
     ``root`` means *write the tree here*, not *read it from here*: the inputs are
@@ -271,7 +268,8 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     run_prep(dataset_id, root)  # raw .Rds -> tidy inputs (no-op if already present)
     validate(dataset_id)
     inputs = _copy_inputs(dataset_id, root)
-    vdir = collect_viz(dataset_id, root)  # ensure viz frames live in the tree
+    vdir = paths.viz_dir(dataset_id, root)
+    (vdir / "hexbin").mkdir(parents=True, exist_ok=True)
     _ensure_annotation(dataset_id, root)  # marker-skill cell types (no-op if present)
     verdicts = run_verdicts(dataset_id, root)
     _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
@@ -340,14 +338,7 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
         panel_n = 0
 
     # n_cells comes from agent.data, scoped to the tree we just BUILT rather than
-    # the canonical one ``run`` scoped: collect_viz has by now MOVED the frames into
-    # it, so this is the only read in the build that must look at the destination.
-    #
-    # This used to go through a private _read_tree_frame() helper, because
-    # agent.data froze its paths at import -- to the legacy location, before
-    # collect_viz moved the frames -- which produced two confirmed first-run
-    # manifest bugs. Now that the readers resolve against the current study at call
-    # time, re-scoping for this one read is enough and the workaround is gone.
+    # the canonical one ``run`` scoped: the viz frames live in the destination.
     with cfg.use_study(Study(id=dataset_id, data_root=ddir.parent.parent)):
         try:
             n_cells: Optional[int] = int(len(data.load_cells()))
@@ -379,20 +370,3 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
         json.dumps(man, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     return ddir
-
-
-def main() -> None:
-    ap = argparse.ArgumentParser(description="Run the Panoscope per-dataset pipeline.")
-    ap.add_argument("--dataset", default=cfg.DATASET_ID, help="dataset id")
-    ap.add_argument(
-        "--notes",
-        action="store_true",
-        help="also run the LIVE notes stage (real-PubMed cell-type + per-marker biology)",
-    )
-    args = ap.parse_args()
-    ddir = run(args.dataset, notes=args.notes)
-    print(f"[pipeline] wrote {ddir}" + (" (+ live notes)" if args.notes else ""))
-
-
-if __name__ == "__main__":
-    main()

@@ -68,8 +68,3 @@ def verdict_for(unit: str) -> ClusterVerdict:
             f"{cfg.current_study().id!r}; the method found: {sorted(built)}"
         )
     return built[unit]
-
-
-def all_verdicts() -> list[ClusterVerdict]:
-    """Every unit in ``cfg.CLUSTER_ORDER``. Raises on a unit the method never saw."""
-    return [verdict_for(u) for u in cfg.CLUSTER_ORDER]

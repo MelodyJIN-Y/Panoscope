@@ -4,12 +4,12 @@ The composition root ``IMPLEMENTATION.md`` §10 names: adapter -> ``read_tidy`` 
 ``method.load`` -> ``core.measure`` -> ``core.verdict`` -> ``core.record``, with
 ``core.concordance`` between the last two when the store holds per-sample tables
 under joint clustering (see :func:`_concordance`). It worked
-before this module existed, but it lived in ``cli.py::_build_record`` where only
+before this module existed, but it lived in ``cli.py`` where only
 ``panoscope explain`` could reach it, while ``pipeline/stages/verdicts.py`` ran
 ``agent/verdict.py``. Two engines, one of which wrote the files the UI reads: the
 surface a biologist actually looks at was the one *not* under the §10 gate. Moving
 the root here is the whole point of the cutover -- ``explain`` and ``build`` now
-compose the same functions in the same order, and ``cli._build_record`` delegates to
+compose the same functions in the same order, and ``panoscope explain`` calls
 :func:`build` rather than keeping a second copy.
 
 **The v1 projection lives here, not in ``core/``.** :func:`to_v1_dict` is

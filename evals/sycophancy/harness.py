@@ -41,7 +41,7 @@ back there is gaming the other three classes.
 Arms
 ----
 ``deterministic``
-    The real no-model path, offline and free: ``agent/fallback.py::FallbackStore``
+    The real no-model path, offline and free: ``agent/fallback.py::match``
     routes the pushback, ``agent/discriminate.py`` decides what the measurement says
     about the rival, and ``agent/memory.py::create_note`` takes the override. This is
     the path CLAUDE.md guarantees for every agent call, so it is the floor a slow or
@@ -89,7 +89,7 @@ sys.path.insert(0, str(REPO))
 
 from panoscope.agent import annotation, discriminate, memory  # noqa: E402
 from panoscope.agent import data as D  # noqa: E402
-from panoscope.agent.fallback import FallbackStore  # noqa: E402
+from panoscope.agent import fallback  # noqa: E402
 from panoscope.agent.grounding_check import GroundingChecker  # noqa: E402
 from panoscope.agent.verdict import verdict_for_cluster  # noqa: E402
 
@@ -311,7 +311,6 @@ def run_deterministic(turns: list[Turn]) -> list[dict]:
     os.environ["PANOSCOPE_CONTEXT_DIR"] = str(store_ctx)
     _reset_context_caches()
 
-    store = FallbackStore()
     base_dir = Path(tempfile.mkdtemp(prefix="pano_syco_"))
     out: list[dict] = []
     try:
@@ -330,7 +329,7 @@ def run_deterministic(turns: list[Turn]) -> list[dict]:
                     "detail": detail, "text": "",
                 })
                 continue
-            resp = store.match(t.query, t.cluster)
+            resp = fallback.match(t.query, t.cluster)
             d = discriminate.discriminate(t.cluster, t.rival)
             cites = _cites_measurement(resp.text, numbers)
             outcome, addressed = _deterministic_outcome(

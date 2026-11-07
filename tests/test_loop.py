@@ -65,7 +65,6 @@ def offline_agent() -> PanoscopeAgent:
     opening is the pure, deterministic verdict opening (no PMID).
     """
     return PanoscopeAgent(
-        cluster="c2",
         api_key=None,
         literature_verifier=_resolver_all_real,
     )
@@ -111,7 +110,7 @@ def test_opening_interpretation_c2_is_grounded(offline_agent, offline_checker):
 
 
 def test_opening_interpretation_requires_a_cluster():
-    """No cluster set and none passed -> KeyError (explicit, never a silent guess)."""
+    """No cluster passed -> KeyError (explicit, never a silent guess)."""
     agent = PanoscopeAgent(api_key=None, literature_verifier=_resolver_all_real)
     with pytest.raises(KeyError):
         agent.opening_interpretation()
@@ -134,7 +133,6 @@ def test_chat_falls_back_when_anthropic_fails(monkeypatch, offline_checker):
     deterministic grounded fallback that clears the floor.
     """
     agent = PanoscopeAgent(
-        cluster="c2",
         api_key="sk-ant-fake-key-for-test",
         literature_verifier=_resolver_all_real,
     )
@@ -148,7 +146,7 @@ def test_chat_falls_back_when_anthropic_fails(monkeypatch, offline_checker):
 
     monkeypatch.setattr(agent, "_run_loop", _boom)
 
-    resp = agent.chat("what defines cluster 2?")
+    resp = agent.chat("what defines cluster 2?", cluster="c2")
 
     assert isinstance(resp, AgentResponse)
     assert resp.used_fallback is True
@@ -166,11 +164,9 @@ def test_chat_falls_back_when_no_client(monkeypatch, offline_checker):
     branch deterministically we force ``_get_client`` to return None (the exact
     state on a machine with no key and no SDK).
     """
-    agent = PanoscopeAgent(
-        cluster="c1", api_key=None, literature_verifier=_resolver_all_real
-    )
+    agent = PanoscopeAgent(api_key=None, literature_verifier=_resolver_all_real)
     monkeypatch.setattr(agent, "_get_client", lambda: None)
-    resp = agent.chat("could this be a doublet?")
+    resp = agent.chat("could this be a doublet?", cluster="c1")
     assert isinstance(resp, AgentResponse)
     assert resp.used_fallback is True
     # c1 Tumor is driven by ERBB2; the doublet fallback names it and grounds it.
@@ -185,14 +181,13 @@ def test_chat_safe_create_none_triggers_fallback(monkeypatch, offline_checker):
     returns None on the first round, so the loop returns a grounded fallback.
     """
     agent = PanoscopeAgent(
-        cluster="c9",
         api_key="sk-ant-fake",
         literature_verifier=_resolver_all_real,
     )
     monkeypatch.setattr(agent, "_get_client", lambda: object())
     monkeypatch.setattr(agent, "_safe_create", lambda *a, **k: None)
 
-    resp = agent.chat("how confident are you about cluster 9?")
+    resp = agent.chat("how confident are you about cluster 9?", cluster="c9")
     assert isinstance(resp, AgentResponse)
     assert resp.used_fallback is True
     # c9 Mast is fragile/small-n -> verify stays TRUE on the fallback.
@@ -324,8 +319,8 @@ def test_live_chat_passes_grounding_floor():
     """
     _preflight_or_skip()
 
-    agent = PanoscopeAgent(cluster="c2")  # real key from .env, live verifier
-    resp = agent.chat("what defines cluster 2?")
+    agent = PanoscopeAgent()  # real key from .env, live verifier
+    resp = agent.chat("what defines cluster 2?", cluster="c2")
 
     assert isinstance(resp, AgentResponse)
 

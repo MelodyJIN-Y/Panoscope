@@ -15,9 +15,10 @@ have, and each one fails for a different reason:
   stopped reading the committed JSON; if the record disagrees with it, the migration
   moved a number and nobody would see it.
 
-The record is built through ``cli._build_record`` rather than through a fixture of
-this module's own. A second rebuild path is a second thing to drift, and the one
-that matters is the one a user actually runs.
+The record is built through ``pipeline.records.build`` -- the function
+``panoscope explain`` calls -- rather than through a fixture of this module's own.
+A second rebuild path is a second thing to drift, and the one that matters is the
+one a user actually runs.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from pathlib import Path
 import pytest
 
 from panoscope import cli
+from panoscope.pipeline import records
 from panoscope.core import record as core_record
 from panoscope.data.study import Study
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
@@ -301,8 +303,8 @@ def _clusters_digest(demo: Study) -> dict[str, str]:
 def test_the_record_is_deterministic(demo: Study) -> None:
     """Same hashed inputs, same record. §10's gate compares bytes; without this it
     would be comparing two guesses."""
-    one = cli._build_record(demo, UNIT).record
-    two = cli._build_record(demo, UNIT).record
+    one = records.build(demo, UNIT).record
+    two = records.build(demo, UNIT).record
     assert one == two
     assert _digest(one) == _digest(two)
     assert (json.dumps(core_record.to_dict(one).value, indent=2)
@@ -319,7 +321,7 @@ def test_a_record_build_does_not_touch_the_committed_per_unit_jsons(
     before = _clusters_digest(demo)
     assert before, "the demo study must have committed per-unit JSONs to protect"
 
-    rec = cli._build_record(demo, UNIT).record
+    rec = records.build(demo, UNIT).record
     written = core_record.write(rec, tmp_path).value
 
     assert _clusters_digest(demo) == before
@@ -331,7 +333,7 @@ def test_a_record_build_does_not_touch_the_committed_per_unit_jsons(
 
 def test_the_record_lands_under_interp_records_task_kind_unit(
         demo: Study, tmp_path: Path) -> None:
-    rec = cli._build_record(demo, UNIT).record
+    rec = records.build(demo, UNIT).record
     assert (core_record.path_for(tmp_path, rec).value
             == tmp_path / "records" / "assignment" / f"{UNIT}.json")
     written = core_record.write(rec, tmp_path).value
@@ -350,7 +352,7 @@ def test_the_band_on_screen_is_the_committed_band(demo: Study) -> None:
     """
     wrong = []
     for unit in demo.units:
-        built = cli._build_record(demo, unit)
+        built = records.build(demo, unit)
         committed = _committed(demo, unit)
         got = (cli._band_from(built.record), built.verdict.band,
                built.verdict.verify, built.verdict.basis, built.verdict.fragile)
@@ -365,7 +367,7 @@ def test_the_band_on_screen_is_the_committed_band(demo: Study) -> None:
 def test_the_record_carries_the_read_and_the_measurement_status(demo: Study) -> None:
     """The two halves a v1 record could not state: what the read cost, and what the
     apparatus could not have seen."""
-    built = cli._build_record(demo, UNIT)
+    built = records.build(demo, UNIT)
     reading = built.record.reading
 
     assert reading.path == "inputs/markers_top.csv", "store-relative, never absolute"
@@ -402,7 +404,7 @@ def test_every_decision_in_the_record_resolves_to_this_unit(demo: Study) -> None
     the record does not carry still fails, and that is precisely the unclickable
     sentence. It is also why the scope-refused claims are in ``claims_used``.
     """
-    built = cli._build_record(demo, UNIT)
+    built = records.build(demo, UNIT)
     anchors = (
         {built.evidence.unit_subject.key}
         | {i.subject.key for i in built.evidence.items}
@@ -460,7 +462,7 @@ def test_the_record_names_the_failure_modes_its_own_decisions_raised(
     """
     from panoscope.core.failure_modes import MODES
 
-    built = cli._build_record(demo, UNIT)
+    built = records.build(demo, UNIT)
     rec = built.record
     fired = {d.rule for d in rec.decisions} | {
         f for i in built.evidence.items for f in i.flags}

@@ -16,18 +16,9 @@ into the README calibration section.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# Allow running the script directly (python scripts/calibration_table.py) by
-# putting the project root on the path before importing the agent package.
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from panoscope.agent import config as cfg  # noqa: E402
-from panoscope.agent import verdict as V  # noqa: E402
-from panoscope.pipeline.calibration import calibration_markdown  # noqa: E402
+from panoscope.agent import config as cfg
+from panoscope.agent import verdict as V
+from panoscope.pipeline.calibration import calibration_markdown
 
 
 def build_markdown() -> str:

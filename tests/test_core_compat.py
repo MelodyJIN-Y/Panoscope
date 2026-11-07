@@ -934,12 +934,6 @@ def test_a_replicate_read_that_was_never_askable_leaves_the_v1_row_alone():
                  "study holds one sample (sample1)",), None).value
 
     assert after == before and after is not before      # a copy, never a mutation
-    # The omission is recorded with a reason, to ``V1_UNREPRESENTABLE``'s standard:
-    # an entry nobody wrote a reason for is the unreviewed silence this file's two
-    # allowlists exist to make impossible.
-    assert len(compat.V1_NO_REPLICATE_REASON) > 120
-    assert "never askable" in compat.V1_NO_REPLICATE_REASON
-    assert "undecidable" in compat.V1_NO_REPLICATE_REASON
 
 
 def test_the_v1_k_of_n_separates_one_of_twelve_from_eleven_of_twelve():

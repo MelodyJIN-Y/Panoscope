@@ -43,23 +43,10 @@ def _resolve_repo_root() -> Path:
 
 PROJECT_ROOT: Path = _resolve_repo_root()
 
-# Raw input roots (these directory names contain spaces / underscores on disk).
-RAW_JZ: str = "jazzPanda output"
+# Raw Xenium input (read by scripts/precompute_density.py).
 RAW_XEN: str = "Raw_data_Xenium_hbreast_sample1"
-
-RAW_JZ_DIR: Path = PROJECT_ROOT / RAW_JZ
 RAW_XEN_DIR: Path = PROJECT_ROOT / RAW_XEN
-
-# Exact raw file paths (constants — quoted on disk because of the space in RAW_JZ).
-MARKERS_TOP_CSV: Path = RAW_JZ_DIR / "jazzPanda_top_marker.csv"
-CLUSTERS_RDS: Path = RAW_JZ_DIR / "xenium_hbreast_clusters.Rds"
-SEURAT_RDS: Path = RAW_JZ_DIR / "xenium_hbreast_seu.Rds"
-RES_LST_RDS: Path = RAW_JZ_DIR / "xenium_hbreast_jazzPanda_res_lst.Rds"
-PANEL_TSV: Path = RAW_XEN_DIR / "Xenium_FFPE_Human_Breast_Cancer_Rep1_panel.tsv"
 TRANSCRIPTS_CSV_GZ: Path = RAW_XEN_DIR / "transcripts.csv.gz"
-
-# Tidy output root (relative name per task; absolute helper for callers).
-DATA_DIR: str = "data"
 
 
 def _data_dir_path() -> Path:
@@ -189,10 +176,6 @@ def _derive_cluster_order() -> tuple[str, ...]:
 # Prefix convention (marker-interpretation SKILL naming): Tum_ tumor, Str_ stroma,
 # Imm_Mac/Imm_T/Imm_B/Imm_DC/Imm_Mast immune subsets, Myoepi_ myoepithelial, Endo_ endothelial.
 # --------------------------------------------------------------------------- #
-def _active_cluster_key_json() -> Path:
-    return _active_input("cluster_key.json", _data_dir_path() / "jazzpanda" / "cluster_key.json")
-
-
 def _load_cluster_key() -> dict[str, dict[str, str]]:
     """Unit -> {cell_type, cell_type_short, category, lineage}.
 
@@ -348,14 +331,6 @@ def _derive_demo_markers() -> list[str]:
     return demo
 
 
-
-
-if __name__ == "__main__":
-    _dm = _derive_demo_markers()
-    print("DEMO_MARKERS =", _dm)
-    print("count =", len(_dm))
-
-
 # --------------------------------------------------------------------------- #
 # Lazy module attributes (PEP 562).
 #
@@ -376,11 +351,8 @@ _LAZY = {
     "KNOWN_CLUSTERS":      lambda: frozenset(_derive_cluster_order()),
     "DEMO_MARKERS":        _derive_demo_markers,
     "DATA_DIR_PATH":       _data_dir_path,
-    "TIDY_MARKERS_CSV":    _tidy_markers_csv,
-    "TIDY_PANEL_PARQUET":  _tidy_panel_parquet,
     "ACTIVE_MARKERS_CSV":  _active_markers_csv,
     "ACTIVE_PANEL_PARQUET": _active_panel_parquet,
-    "ACTIVE_CLUSTER_KEY_JSON": _active_cluster_key_json,
 }
 
 
@@ -402,8 +374,5 @@ if TYPE_CHECKING:  # so type checkers and IDEs still see the names
     KNOWN_CLUSTERS: frozenset[str]
     DEMO_MARKERS: list[str]
     DATA_DIR_PATH: Path
-    TIDY_MARKERS_CSV: Path
-    TIDY_PANEL_PARQUET: Path
     ACTIVE_MARKERS_CSV: Path
     ACTIVE_PANEL_PARQUET: Path
-    ACTIVE_CLUSTER_KEY_JSON: Path

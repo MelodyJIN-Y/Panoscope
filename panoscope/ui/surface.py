@@ -28,8 +28,8 @@ which has to be a widget).
    ``Subject.key`` anchor; one that does not is not rendered, it raises.
 4. *Plots render, they do not derive.* The spec types have nowhere to write a
    computation down; :func:`_no_code` checks that nothing put one there anyway
-   before a single cell is drawn, so a ``MethodSpec.status_rule`` leaking into
-   ``extra_columns`` fails here instead of running in the renderer.
+   before a single cell is drawn, so a callable leaking into a column fails here
+   instead of running in the renderer.
 
 **What the renderer does not decide.** Not the measurement state (it arrives on the
 row, resolved server-side), not a number's value (it formats what it is handed, to

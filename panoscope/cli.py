@@ -143,8 +143,9 @@ def _cmd_explain(args: argparse.Namespace) -> int:
         return 0
 
     from panoscope.core import record as core_record
+    from panoscope.pipeline import records
 
-    built = _build_record(study, unit)
+    built = records.build(study, unit)
     if args.record:
         print(json.dumps(core_record.to_dict(built.record).value, indent=2,
                          ensure_ascii=False))
@@ -152,17 +153,6 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     for line in _render_record(study, built):
         print(line)
     return 0
-
-
-def _build_record(study: Study, unit: str) -> Any:
-    """Study + unit -> ``pipeline.records.UnitBuild``. Composition lives there.
-
-    Imported inside the verb like every other pipeline import, so ``panoscope
-    doctor`` still answers on an install missing the extras it pulls.
-    """
-    from panoscope.pipeline import records
-
-    return records.build(study, unit)
 
 
 def _band_from(record: Any) -> str:

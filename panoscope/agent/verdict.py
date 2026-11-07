@@ -540,11 +540,6 @@ def verdict_for_cluster(cluster: str) -> ClusterVerdict:
     )
 
 
-def assess(cluster: str) -> ClusterVerdict:
-    """Alias for :func:`verdict_for_cluster` (agent-core naming)."""
-    return verdict_for_cluster(cluster)
-
-
 def all_verdicts() -> list[ClusterVerdict]:
     """Verdicts for c1..c9 in cluster order."""
     return [verdict_for_cluster(c) for c in cfg.CLUSTER_ORDER]
@@ -598,8 +593,3 @@ def to_csv(verdicts: list[ClusterVerdict], header: bool = True) -> str:
     for v in verdicts:
         writer.writerow(to_csv_row(v))
     return buf.getvalue()
-
-
-if __name__ == "__main__":
-    for v in all_verdicts():
-        print(f"{v.cluster} {v.cell_type:14s} {v.confidence:12s} verify={v.verify}")

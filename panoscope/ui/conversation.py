@@ -15,8 +15,8 @@ global awareness: it still knows every cluster's call and confidence, and durabl
 overrides persist across clusters through scope-enforced notes, not the chat.
 
 Override-at-chat: the biologist just tells the agent ("this is CAF, our own
-data"); the agent's ``memory_write`` tool persists a scope-enforced note and its
-prose reports the agreement/dissent. This pane confirms the save inline (detected
+data"); the agent's ``memory_draft`` tool proposes a scope-enforced note, the
+biologist confirms the save, and the prose reports the agreement/dissent. This pane confirms the save inline (detected
 by the notes-count delta) — never a bare "got it".
 
 Grounding discipline: this module renders values the engine produced and never

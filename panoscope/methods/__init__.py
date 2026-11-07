@@ -37,7 +37,7 @@ from panoscope.types.contracts import MethodModule
 from panoscope.types.uispec import DuplicateRegistration
 
 __all__ = ["METHODS", "UndeclaredLimits", "UnregisteredMethod",
-           "DuplicateRegistration", "register", "get", "for_workflow", "names"]
+           "DuplicateRegistration", "register", "get", "for_workflow"]
 
 #: The two fields a method may not leave empty. Named here rather than inline so the
 #: test and the check read the same list -- CLAUDE.md's rule has one home.
@@ -107,10 +107,6 @@ def for_workflow(workflow_id: str) -> tuple[MethodModule, ...]:
     """
     return tuple(m for _n, m in sorted(METHODS.items())
                  if m.workflow == workflow_id)
-
-
-def names() -> tuple[str, ...]:
-    return tuple(sorted(METHODS))
 
 
 # --------------------------------------------------------------------------- #

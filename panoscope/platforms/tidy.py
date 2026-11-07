@@ -156,7 +156,6 @@ def read_tidy(
     not_subjects: frozenset[str] = frozenset(),
     unit_detection_because: tuple[str, ...] = (),
     enumerates_absence: bool = False,
-    reference_ids: frozenset[str] | None = None,
     record_path: str | None = None,
 ) -> Traced[TidyRead]:
     """Read one tidy result file into a record plus per-unit readings.
@@ -181,12 +180,6 @@ def read_tidy(
     Dropped with a REASON, like every other drop here, so ``panoscope explain``
     prints "gene is a control probe, not a subject of interpretation: 6" rather
     than six rows silently disappearing between the file and the record.
-
-    ``reference_ids`` is the annotated vocabulary this study's entities are checked
-    against. ``None`` means no reference was consulted, and
-    ``entities_not_in_reference`` is then empty -- which reads identically to "every
-    entity is annotated". That ambiguity is in the type, not here: ``ReadingRecord``
-    has no way to say "not checked". Noted rather than papered over.
 
     Raises ``UnrecognisedResult`` when a named column is absent, or when
     ``entity_kind`` has no registered one-entity subject shape. Never guesses a
@@ -303,8 +296,7 @@ def read_tidy(
         rows_dropped=int(sum(drops.values())),
         drop_reasons=tuple(drops.items()),       # re-sorted by ReadingRecord
         entities_outside_frame=outside,
-        entities_not_in_reference=() if reference_ids is None
-        else tuple(sorted(e for e in universe if e not in reference_ids)),
+        entities_not_in_reference=(),  # no reference vocabulary is consulted here
         frames=world.refs(),
         clustering_mode=clustering_mode,
     )

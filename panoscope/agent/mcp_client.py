@@ -17,7 +17,7 @@ Design (see docs/archive/BLUEPRINT.md §5):
 * **Graceful fallback (never raise):** if the server fails to start, or a call
   errors or times out, the sync methods return an empty result. ``search_articles``
   / ``fetch_articles`` return ``[]``; ``verify_pmid`` returns ``False``. Every
-  method also records the failure so callers (and ``is_available()``) can decide
+  method also records the failure so callers (via ``client.available``) can decide
   to fall back to a frozen citation cache. The demo never breaks on the network.
 * **Two response shapes.** The server answers with either ``structuredContent``
   JSON or a Markdown report in its ``content`` text blocks (what
@@ -55,7 +55,7 @@ except Exception:  # pragma: no cover
         return False
 
 # The python `mcp` SDK. Guarded so importing this module never hard-crashes the
-# app on a machine without the SDK — is_available() will simply report False.
+# app on a machine without the SDK — ``available`` will simply stay False.
 try:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
@@ -330,8 +330,7 @@ class PubMedMCP:
     failure — they return an empty result and set ``self.last_error`` instead.
     """
 
-    def __init__(self, *, startup_timeout: float = STARTUP_TIMEOUT_S) -> None:
-        self._startup_timeout = startup_timeout
+    def __init__(self) -> None:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._session: Optional[Any] = None
@@ -347,7 +346,7 @@ class PubMedMCP:
     def start(self) -> bool:
         """Spawn the server + open the session. Idempotent. Returns availability.
 
-        Blocks up to ``startup_timeout`` for the session to initialize. On any
+        Blocks up to ``STARTUP_TIMEOUT_S`` for the session to initialize. On any
         failure returns False and leaves ``self.available == False`` — callers
         fall back rather than crash.
         """
@@ -374,7 +373,7 @@ class PubMedMCP:
             self._thread.start()
 
             # Wait for _bootstrap to signal ready (success or failure both set it).
-            if not self._ready.wait(timeout=self._startup_timeout):
+            if not self._ready.wait(timeout=STARTUP_TIMEOUT_S):
                 self.last_error = "server startup timed out"
                 self.available = False
                 return False
@@ -564,13 +563,6 @@ class PubMedMCP:
         articles = self.fetch_articles([pid], timeout=timeout)
         return any(a.get("pmid") == pid for a in articles)
 
-    def health(self) -> bool:
-        """Cheap liveness check: is the session up and answering a 1-result search."""
-        if not self.available:
-            return False
-        hits = self.search_articles("CD3D T cell", max_results=1)
-        return len(hits) >= 1
-
 
 # --------------------------------------------------------------------------- #
 # Module-level singleton + convenience API
@@ -592,17 +584,6 @@ def get_mcp_client() -> PubMedMCP:
             client.start()
             _CLIENT = client
         return _CLIENT
-
-
-def is_available() -> bool:
-    """True iff the live PubMed MCP path is up (server started + session ready).
-
-    Callers use this to decide between a live lookup and the frozen citation
-    cache. Does not itself spawn the server if it has not been requested yet;
-    call ``get_mcp_client()`` first to warm it.
-    """
-    client = _CLIENT
-    return bool(client and client.available)
 
 
 def reset_mcp_client() -> None:

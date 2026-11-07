@@ -18,9 +18,8 @@ Grounding discipline (the confident floor, enforced here):
   caller falls back to the frozen citation cache — it never fabricates.
 * **Memory is scoped and cited.** ``memory_read`` returns only the notes whose
   scope fires for the cluster (via :func:`agent.memory.apply_notes`, the single
-  choke point). ``memory_write`` creates a note AND reconciles it against the
-  literature — injecting :func:`literature_search` as the reconciler — so the
-  note is born with its real-citation tension attached.
+  choke point). ``memory_draft`` proposes a note reconciled against the
+  literature; only the biologist's confirm in the UI persists it.
 
 Every tool is wrapped by :func:`dispatch` in a ``try/except`` that converts any
 exception into ``ok=False`` with a message, so a tool error can never crash the
@@ -601,61 +600,7 @@ def memory_read(cluster: Optional[str] = None, dataset: str | None = None) -> En
 
 
 # --------------------------------------------------------------------------- #
-# 7. memory_write
-# --------------------------------------------------------------------------- #
-def memory_write(
-    claim: str,
-    scope: str,
-    basis: str,
-    status: str = "firm",
-    cluster: Optional[str] = None,
-    subject_cell_type: Optional[str] = None,
-    subject_markers: Optional[list[str]] = None,
-    dataset: str | None = None,
-    trigger: str = "override",
-) -> Envelope:
-    """Create a lab note AND reconcile it against the literature (real PMIDs only).
-
-    Delegates to :func:`agent.memory.create_note`, INJECTING the active literature
-    search (the same callable :func:`literature_search` uses) so the note is born
-    with its agree/dissent tension attached from real citations. The biologist's
-    call is kept WITH the disagreement visible — never a bare "got it".
-
-    Scope is enforced at birth (a cluster note must name a cluster). Returns the
-    written note (with tension) + its ``[note:<id>]`` citation Source.
-    """
-    dataset = dataset or cfg.DATASET_ID
-    if not claim or not str(claim).strip():
-        return _fail("memory_write requires a non-empty claim")
-    if scope not in ("cluster", "dataset", "lab"):
-        return _fail(f"invalid scope {scope!r}; must be cluster|dataset|lab")
-    if basis not in ("paper", "own_validation", "convention"):
-        return _fail(f"invalid basis {basis!r}; must be paper|own_validation|convention")
-
-    lit_fn = _literature_search_fn()
-    try:
-        note = memory.create_note(
-            claim=str(claim).strip(),
-            scope=scope,  # type: ignore[arg-type]
-            basis=basis,  # type: ignore[arg-type]
-            status=status,  # type: ignore[arg-type]
-            cluster=cluster,
-            subject_cell_type=subject_cell_type,
-            subject_markers=subject_markers,
-            dataset=dataset,
-            trigger=trigger,
-            literature_search=lit_fn,
-            base_dir=_MEMORY_BASE_DIR,
-        )
-    except ValueError as exc:
-        return _fail(str(exc))
-
-    src = memory.cite_note(note)
-    return _ok(_note_payload(note), (src,))
-
-
-# --------------------------------------------------------------------------- #
-# 8. memory_draft — propose a note (reconciled) WITHOUT persisting it
+# 7. memory_draft — propose a note (reconciled) WITHOUT persisting it
 # --------------------------------------------------------------------------- #
 def _draft_payload(draft) -> dict[str, Any]:
     """Flatten a NoteDraft (with its tension) to a JSON-safe dict for the payload.
@@ -779,7 +724,7 @@ def memory_draft(
 
 
 # --------------------------------------------------------------------------- #
-# 9. discriminate_call — "what would settle it"
+# 8. discriminate_call — "what would settle it"
 # --------------------------------------------------------------------------- #
 def _discriminator_sources(d) -> tuple[Source, ...]:
     """Grounded Sources for a discrimination: jz numbers only for own top markers,
@@ -859,7 +804,6 @@ _DISPATCH: dict[str, Callable[..., Envelope]] = {
     "literature_search": literature_search,
     "literature_fetch": literature_fetch,
     "memory_read": memory_read,
-    "memory_write": memory_write,
     "memory_draft": memory_draft,
     "discriminate_call": discriminate_call,
 }
@@ -1151,17 +1095,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     },
 ]
 
-# Sanity: every model-facing schema must have a dispatch entry. The reverse need
-# not hold — memory_write stays dispatchable (for save paths/tests) but is NOT
-# exposed to the model, so it cannot persist a note the biologist hasn't confirmed.
+# Sanity: every model-facing schema must have a dispatch entry.
 _SCHEMA_NAMES = {s["name"] for s in TOOL_SCHEMAS}
 assert _SCHEMA_NAMES <= set(_DISPATCH), (
     "TOOL_SCHEMAS names a tool with no dispatch entry: "
     f"{_SCHEMA_NAMES - set(_DISPATCH)}"
-)
-assert "memory_write" not in _SCHEMA_NAMES, (
-    "memory_write must not be model-facing; the model drafts (memory_draft) and "
-    "the biologist confirms before any write"
 )
 
 
@@ -1174,7 +1112,6 @@ __all__ = [
     "literature_search",
     "literature_fetch",
     "memory_read",
-    "memory_write",
     "memory_draft",
     "discriminate_call",
     "set_literature_search",

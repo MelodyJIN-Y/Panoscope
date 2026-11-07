@@ -28,7 +28,6 @@ from panoscope.agent.mcp_client import (
     _summary_to_citation,
     _year_of,
     get_mcp_client,
-    is_available,
     reset_mcp_client,
 )
 
@@ -119,7 +118,6 @@ def test_unstarted_client_returns_empty_never_raises():
     assert client.search_articles("anything") == []
     assert client.fetch_articles(["37692065"]) == []
     assert client.verify_pmid("37692065") is False
-    assert client.health() is False
     assert client.last_error is not None
 
 
@@ -133,14 +131,6 @@ def test_verify_rejects_non_numeric_without_touching_server():
 def test_search_empty_query_short_circuits():
     client = PubMedMCP()
     assert client.search_articles("   ") == []
-
-
-def test_module_is_available_false_before_any_start():
-    reset_mcp_client()
-    try:
-        assert is_available() is False
-    finally:
-        reset_mcp_client()
 
 
 # --------------------------------------------------------------------------- #
@@ -178,8 +168,8 @@ def test_live_pubmed_search_verify_and_bogus_rejection():
         # 3) A definitely-bogus PMID verifies False (fabrication is caught).
         assert client.verify_pmid(BOGUS_PMID) is False
 
-        # 4) is_available() reflects the live session.
-        assert is_available() is True
+        # 4) The singleton reflects the live session.
+        assert client.available is True
 
         # Expose the real PMIDs so the test log proves the live path worked.
         print(f"\n[live] search PMIDs: {pmids}")

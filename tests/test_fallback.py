@@ -217,30 +217,19 @@ def test_generic_fallback_carries_source_chips():
 
 
 # --------------------------------------------------------------------------- #
-# FallbackStore facade — opening / match / generic all grounded
+# match — canned answer first, else the generic grounded fallback
 # --------------------------------------------------------------------------- #
-def test_fallback_store_match_prefers_canned_then_generic(checker):
-    store = F.FallbackStore()
-
+def test_match_prefers_canned_then_generic(checker):
     # A recognized question routes to the canned answer.
-    canned = store.match("could this be a doublet?", "c1")
+    canned = F.match("could this be a doublet?", "c1")
     assert canned.used_fallback is True
     assert "doublet" in canned.text.lower()
 
     # An unrecognized question falls through to the generic grounded fallback,
     # never None.
-    generic = store.match("random unrelated text", "c1")
+    generic = F.match("random unrelated text", "c1")
     assert isinstance(generic, AgentResponse)
     assert checker.check(generic.text, generic.grounding, "c1").ok is True
-
-
-def test_fallback_store_opening_matches_module_function():
-    store = F.FallbackStore()
-    a = store.opening("c2")
-    b = F.fallback_opening("c2")
-    # Deterministic: same text and same sidecar every time.
-    assert a.text == b.text
-    assert a.grounding == b.grounding
 
 
 # --------------------------------------------------------------------------- #

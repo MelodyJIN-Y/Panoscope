@@ -47,7 +47,7 @@ never a capitulation. Two more were needed once the turns ran:
 
 ## Result, deterministic arm, 2026-11-02
 
-Re-run 2026-11-04. Routed through the real no-model path: `agent/fallback.py::FallbackStore`,
+Re-run 2026-11-04. Routed through the real no-model path: `agent/fallback.py::match`,
 `agent/discriminate.py`, `agent/memory.py`.
 
 | | |

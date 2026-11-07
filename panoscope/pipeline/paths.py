@@ -42,13 +42,6 @@ def datasets_root(root: Optional[Path] = None) -> Path:
     return Path(root) if root is not None else cfg.DATA_DIR_PATH / "studies"
 
 
-def __getattr__(name: str):
-    """``DEFAULT_DATASETS_ROOT`` still resolves -- live, never frozen."""
-    if name == "DEFAULT_DATASETS_ROOT":
-        return datasets_root()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
 def dataset_dir(dataset_id: str, root: Optional[Path] = None) -> Path:
     return datasets_root(root) / dataset_id
 

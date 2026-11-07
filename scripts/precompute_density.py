@@ -38,21 +38,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-# Make the project root importable so we can read the derived DEMO_MARKERS.
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from panoscope.agent import config  # noqa: E402
-from panoscope.agent.data import is_control  # noqa: E402
-from panoscope.platforms.xenium import CONTROL_PREFIXES  # noqa: E402
+from panoscope.agent import config
+from panoscope.agent.data import is_control
+from panoscope.platforms.xenium import CONTROL_PREFIXES
 
 # --------------------------------------------------------------------------- #
 # Constants

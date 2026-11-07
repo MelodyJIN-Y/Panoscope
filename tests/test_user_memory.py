@@ -1,6 +1,6 @@
 """Portable user memory: distill, round-trip, and prompt-context injection.
 
-Writes only to a pytest tmp file (``_PATH`` monkeypatched), never the real
+Writes only to a pytest tmp context dir (``PANOSCOPE_CONTEXT_DIR``), never the real
 ``context/user_memory.jsonl``. Open-ceiling context only: nothing here can carry a
 number that would override jazzPanda.
 """

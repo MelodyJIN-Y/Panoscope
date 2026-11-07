@@ -32,8 +32,7 @@ to appear, which is the project's headline claim with no pixel behind it.
 for an expression, a formula or a callable: ``PlotSpec`` names *fields and views*,
 never a computation. The structural version of "no plot computes a statistic that is
 not already in the normalised evidence" is that there is nowhere to write one down.
-``MethodSpec.status_rule`` is the single callable in the module and it runs
-server-side only, which ``test_only_methodspec_carries_code`` pins.
+``test_no_spec_type_can_carry_a_computation`` pins it.
 
 Three deviations from ``docs/interface-design.md`` §3, each because the design doc's
 sketch predates a landed type and would have forked a vocabulary:
@@ -49,17 +48,17 @@ sketch predates a landed type and would have forked a vocabulary:
   better manners. The sketch's ``qc_failed`` is ``NEVER_MEASURED`` under the
   detectability frame -- that is what the second gene frame is for -- and its
   ``detected``/``not_supporting`` split is ``OBSERVED``/``TESTED_ABSENT`` exactly.
-* ``MethodSpec`` declares ``does_not_measure``, not ``caveats``. CLAUDE.md makes
-  ``does_not_measure`` and ``assumptions`` mandatory; two near-synonymous tuples
-  would be filled arbitrarily, and the one that is mandatory is the one that must
-  carry the weight.
+* A method declares ``does_not_measure``, not ``caveats`` (``methods/``). CLAUDE.md
+  makes ``does_not_measure`` and ``assumptions`` mandatory; two near-synonymous
+  tuples would be filled arbitrarily, and the one that is mandatory is the one that
+  must carry the weight.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Callable, Container, Literal
+from typing import Container, Literal
 
 from panoscope.types.measured import Measured, MeasuredState
 from panoscope.types.outputs import TaskKind
@@ -485,9 +484,9 @@ def anchored(key: str, resolvable: Container[str] | None = None,
 class SpecCarriesCode(ValueError):
     """Raised when a declaration handed to a renderer carries a callable.
 
-    ``MethodSpec.status_rule`` is the single callable in this module and it runs
-    server-side only; the wire carries resolved states. A callable reaching a
-    renderer means the renderer is about to decide what counts as measured.
+    No spec type here carries a callable; the wire carries resolved states. A
+    callable reaching a renderer means the renderer is about to decide what counts
+    as measured.
 
     Same ownership argument as :class:`NothingToClick`.
     """
@@ -601,79 +600,12 @@ class UISpec:
 
 
 # --------------------------------------------------------------------------- #
-# The method declaration (registers INTO a workflow)
+# Registration errors and the degraded surface
 # --------------------------------------------------------------------------- #
-@dataclass(frozen=True, slots=True)
-class MethodSpec:
-    """A machine-readable declaration of what a method's paper says it measures.
-
-    ``assumptions`` and ``does_not_measure`` are mandatory and non-empty (CLAUDE.md).
-    They are the point of the object: adding a method is a declaration, not
-    interpretation logic, and a method that declares no limits is one whose output
-    reads as having none.
-
-    ``status_rule`` is the one callable in this module and it runs SERVER-SIDE only.
-    The wire carries resolved statuses, so no renderer ever decides what counts as
-    measured -- which is also why nothing else here may carry code.
-    """
-
-    method_id: str                   # "jazzpanda_spatial_glm"
-    workflow_id: str
-    display_name: str
-    assumptions: tuple[str, ...]
-    outputs: tuple[str, ...]         # "glm_coef (spatial GLM Estimate)", "pearson"
-    does_not_measure: tuple[str, ...]
-    status_rule: Callable[[object, object], MeasuredState] | None = field(
-        repr=False, default=None
-    )
-    extra_columns: tuple[ColumnSpec, ...] = ()
-    citation: str = ""               # the method's own paper
-
-    def __post_init__(self) -> None:
-        for name in ("assumptions", "does_not_measure"):
-            if not getattr(self, name):
-                raise ValueError(
-                    f"{self.method_id}: {name} is mandatory. A method that declares "
-                    "no limits is one whose output reads as having none."
-                )
-
-
-# --------------------------------------------------------------------------- #
-# The registry. Data, like SHAPES / RULES / FLAGS -- adding a workflow is a
-# registration, not a type change.
-# --------------------------------------------------------------------------- #
-_WORKFLOWS: dict[str, UISpec] = {}
-_METHODS: dict[str, MethodSpec] = {}
-
-
 class DuplicateRegistration(KeyError):
     """Raised when two registrations claim one id. Last-write-wins between two
     import-time registrations is decided by import order, which is decided by
     nothing -- and the loser fails at render time, far from the cause."""
-
-
-def register_workflow(spec: UISpec) -> None:
-    if spec.workflow_id in _WORKFLOWS:
-        raise DuplicateRegistration(f"workflow {spec.workflow_id!r} already registered")
-    _WORKFLOWS[spec.workflow_id] = spec
-
-
-def register_method(spec: MethodSpec) -> None:
-    if spec.method_id in _METHODS:
-        raise DuplicateRegistration(f"method {spec.method_id!r} already registered")
-    _METHODS[spec.method_id] = spec
-
-
-def resolve(workflow_id: str, name: str, columns: tuple[str, ...]) -> UISpec:
-    """The surface for ``workflow_id``, or a degraded one. NEVER raises.
-
-    Takes the artifact's name and column names rather than an artifact handle: those
-    are the only two things :func:`degraded_spec` reads, and depending on a handle
-    type owned by another module would buy a forward reference and an import cycle
-    for nothing.
-    """
-    spec = _WORKFLOWS.get(workflow_id)
-    return spec if spec is not None else degraded_spec(name, columns)
 
 
 def degraded_spec(name: str, columns: tuple[str, ...]) -> UISpec:

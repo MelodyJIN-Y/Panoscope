@@ -83,13 +83,3 @@ def run_prep(dataset_id: str | None = None, root: Optional[Path] = None) -> None
     )
     if not _tidy_inputs_present(dataset_id):
         raise _contract_error(dataset_id, idir)
-
-
-if __name__ == "__main__":
-    import argparse
-
-    ap = argparse.ArgumentParser(description="Prepare a dataset's tidy inputs (raw .Rds -> tidy).")
-    ap.add_argument("--dataset", default=cfg.DATASET_ID)
-    args = ap.parse_args()
-    run_prep(args.dataset)
-    print(f"[prep] {args.dataset}: tidy inputs ready")

@@ -983,7 +983,7 @@ The pin is a property of the **subject** (gene × cluster), not of the sample. `
 
 Split it: **the shell owns scope, the review surface owns focus.**
 
-- **Study-level shell** — the roster: which samples are in the study, their metadata, which are in the joint clustering. This is static provenance text ("4 samples · joint clustering"), not a control. The one genuine shell control is **exclusion** (drop a failed section) — and it belongs there precisely because it changes what the concordance check is computed over, making it a pipeline input: it re-runs `pipeline.run` and re-stamps the manifest, rather than live-re-rendering.
+- **Study-level shell** — the roster: which samples are in the study, their metadata, which are in the joint clustering. This is static provenance text ("4 samples · joint clustering"), not a control. The one genuine shell control is **exclusion** (drop a failed section) — and it belongs there precisely because it changes what the concordance check is computed over, making it a pipeline input: it re-runs `panoscope build` and re-stamps the manifest, rather than live-re-rendering.
 - **Review surface** — which sample is *primary right now*. A viewing control on the subject under review, exactly like the bin size. A shell-level dropdown would make it a **global mode**, and a global mode produces the worst failure a review tool can have: "I reviewed c4 in sample 2" — a per-cluster judgement whose evidence silently depended on a setting made ten minutes ago, on another screen, now invisible. That is how a reviewer records a wrong call in good faith.
 
 ---
@@ -994,7 +994,7 @@ Split it: **the shell owns scope, the review surface owns focus.**
 
 | Layer | Object | Mutability | Where it lives |
 |---|---|---|---|
-| **Claim** | `ClusterVerdict` (Tier A) + `OpeningInterpretation` (Tier B) | immutable; rebuilt only by `python -m pipeline.run` | `data/studies/<id>/interp/clusters/c{n}.json`, hashed in `manifest.json` |
+| **Claim** | `ClusterVerdict` (Tier A) + `OpeningInterpretation` (Tier B) | immutable; rebuilt only by `panoscope build` | `data/studies/<id>/interp/clusters/c{n}.json`, hashed in `manifest.json` |
 | **Argument** | chat thread, pinned views, skeptic pass, holistic refinements | mutable, disposable | `ui/chat_store.py`, session state |
 | **Decision** | the biologist's committed call | **append-only, versioned** | `context/decisions/decision_log.jsonl`; `interp/review_state.json` becomes a projection |
 

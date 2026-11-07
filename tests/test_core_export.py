@@ -200,13 +200,6 @@ def test_the_characterisation_table_carries_no_band_column():
                           "cluster_n_untestable", "cluster_verify")
 
 
-def test_each_profile_keeps_the_csv_api_its_committed_file_was_written_with():
-    """Not cosmetic: it is what stops a dialect change made for one table from
-    reaching the other because they had silently become one writer."""
-    assert PROFILES[TaskKind.ASSIGNMENT].dict_rows is True
-    assert PROFILES[TaskKind.CHARACTERISATION].dict_rows is False
-
-
 def test_a_profile_is_keyed_on_its_own_task_kind():
     for kind, profile in PROFILES.items():
         assert profile.task_kind is kind

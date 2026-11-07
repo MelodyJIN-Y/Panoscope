@@ -27,7 +27,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Optional
 
-from panoscope.agent.types import ClusterVerdict, OffPanelNote, OpeningInterpretation
+from panoscope.agent.types import ClusterVerdict, OffPanelNote
 
 
 # --------------------------------------------------------------------------- #
@@ -63,7 +63,7 @@ def override_call(cluster: str) -> Optional[str]:
     ov = override_notes().get(cluster)
     if ov is None:
         return None
-    return (getattr(ov, "subject_cell_type", "") or "").strip() or None
+    return ov.subject_cell_type.strip()  # override_notes keeps only non-empty calls
 
 
 # --------------------------------------------------------------------------- #
@@ -118,9 +118,7 @@ def compose_verdict(v: ClusterVerdict, ov) -> ClusterVerdict:
     call -- a deterministic property of the stored note, not a judgement made
     here, and not the model's to make.
     """
-    new_call = (getattr(ov, "subject_cell_type", "") or "").strip()
-    if not new_call:
-        return v
+    new_call = ov.subject_cell_type.strip()  # non-empty: see override_notes
     changes: dict = {"cell_type": new_call, "cell_type_short": new_call}
     if getattr(ov, "subject_lineage", "").strip():
         changes["lineage"] = ov.subject_lineage.strip()
@@ -129,16 +127,10 @@ def compose_verdict(v: ClusterVerdict, ov) -> ClusterVerdict:
     if getattr(getattr(ov, "tension", None), "dissent", False):
         changes["verify"] = True
     changes["offpanel_notes"] = offpanel_notes_for(new_call, v.offpanel_notes)
-    changes["opening"] = compose_opening(v.opening, new_call,
-                                         changes["offpanel_notes"])
+    # The opening is renamed and carries the new notes; its numbers are untouched.
+    changes["opening"] = dataclasses.replace(
+        v.opening, cell_type=new_call, offpanel_notes=changes["offpanel_notes"])
     return dataclasses.replace(v, **changes)
-
-
-def compose_opening(
-    op: OpeningInterpretation, new_call: str, notes: tuple,
-) -> OpeningInterpretation:
-    """``op`` renamed to ``new_call``, carrying ``notes``. Numbers untouched."""
-    return dataclasses.replace(op, cell_type=new_call, offpanel_notes=notes)
 
 
 def composed_verdict_for(cluster: str) -> ClusterVerdict:
@@ -167,7 +159,6 @@ def computed_call(cluster: str) -> str:
 
 
 __all__ = [
-    "compose_opening",
     "compose_verdict",
     "composed_verdict_for",
     "computed_call",

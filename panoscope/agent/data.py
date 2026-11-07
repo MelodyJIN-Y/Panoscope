@@ -25,7 +25,7 @@ import pandas as pd
 
 from panoscope.agent import config as cfg
 from panoscope.platforms.xenium import (
-    is_control_annotation, is_control_probe, is_no_signal,
+    is_control_annotation, is_control_probe,
 )
 
 # --------------------------------------------------------------------------- #
@@ -181,13 +181,12 @@ def load_markers() -> pd.DataFrame:
     return df[_MARKERS_TOP_COLS].reset_index(drop=True)
 
 
-def get_cluster_markers(cluster: str, include_nosig: bool = False) -> pd.DataFrame:
+def get_cluster_markers(cluster: str) -> pd.DataFrame:
     """Return one cluster's assigned markers, sorted by glm_coef descending.
 
     Raises KeyError for an unknown cluster id. NoSig rows never belong to a
     real cluster (NoSig is its own top_cluster label), so an assigned cluster's
-    frame is always signal rows only. ``include_nosig`` is accepted for
-    interface symmetry but does not mix NoSig into a real cluster's rows.
+    frame is always signal rows only.
     """
     if cluster not in cfg.KNOWN_CLUSTERS:
         raise KeyError(
@@ -196,8 +195,6 @@ def get_cluster_markers(cluster: str, include_nosig: bool = False) -> pd.DataFra
         )
     df = load_markers()
     sub = df[df["top_cluster"] == cluster]
-    if not include_nosig:
-        sub = sub[~sub["top_cluster"].map(is_no_signal)]
     return sub.sort_values("glm_coef", ascending=False).reset_index(drop=True)
 
 

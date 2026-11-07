@@ -1,6 +1,6 @@
 """Panoscope per-dataset pipeline.
 
-One command per dataset (`python -m pipeline.run --dataset <id>`) that turns a
+One command per dataset (`panoscope build --study <id>`) that turns a
 dataset's raw inputs (jazzPanda markers, panel list, cluster key, + viz sources)
 into a self-contained ``data/studies/<id>/`` tree the UI reads with no live
 recomputation. Deterministic where it can be, live-cited only where it must be;
@@ -14,7 +14,7 @@ umap, expr) and the live-cited notes.
 Every persisted value traces to jazzPanda, the panel, or the cluster key — the
 confident floor holds on disk exactly as it does in the engine.
 
-Entry point: ``python -m pipeline.run --dataset <id>`` (see :mod:`pipeline.run`).
+Entry point: ``panoscope build --study <id>`` (see :mod:`pipeline.run`).
 """
 
 from __future__ import annotations

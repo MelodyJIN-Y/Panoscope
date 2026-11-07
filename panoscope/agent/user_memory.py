@@ -30,15 +30,6 @@ from __future__ import annotations
 import json
 from typing import Any, Iterable
 
-from panoscope.agent import config as cfg
-
-# The repo root's ``context/``, resolved the way ``agent/memory.py`` resolves the note
-# store beside it. Spelling it relative to ``__file__`` put it INSIDE the package
-# (``panoscope/context/``) after the Phase B move, where nothing had ever been written
-# -- so every decision the biologist saved read back as "none saved", silently, which
-# is the failure a portable memory can least afford.
-_PATH = cfg.PROJECT_ROOT / "context" / "user_memory.jsonl"
-
 
 def _path():
     """Where the user memory lives, resolved PER CALL.

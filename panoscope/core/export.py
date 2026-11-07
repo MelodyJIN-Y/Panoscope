@@ -28,13 +28,6 @@ proves it by string equality against those functions rather than by inspection:
 established on-disk interface whose precisions predate it, and unifying the two would
 be a breaking change to a committed artifact disguised as consistency.
 
-**Both csv spellings are preserved.** The verdict exporter uses ``csv.DictWriter``
-with dict rows, the enrichment one ``csv.writer`` with tuple rows. The two agree on
-output today -- ``DictWriter`` is a thin shim over a ``writer`` with the same dialect
--- but ``dict_rows`` keeps each profile pinned to the API its committed file was
-written with, so a future dialect or quoting change made for one table cannot reach
-the other by having silently become shared.
-
 **Why no decisions.** Every public function here returns ``Traced[str]`` with an
 empty decision tuple, which is not an oversight. An export makes no judgement: it
 projects an interpretation that has already been made, and the decisions that
@@ -116,15 +109,10 @@ class Column:
 
 @dataclass(frozen=True, slots=True)
 class Profile:
-    """The CSV contract for one task kind.
-
-    ``dict_rows`` records which ``csv`` API the committed file was written with; see
-    the module docstring for why that is preserved rather than normalised.
-    """
+    """The CSV contract for one task kind."""
 
     task_kind: TaskKind
     columns: tuple[Column, ...]
-    dict_rows: bool
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -186,10 +174,8 @@ CHARACTERISATION_COLUMNS: tuple[Column, ...] = (
 # second dataclass per task kind. COMPARISON has no committed CSV yet and therefore
 # no profile -- inventing one would pin a contract nothing has agreed to.
 PROFILES: dict[TaskKind, Profile] = {
-    TaskKind.ASSIGNMENT: Profile(TaskKind.ASSIGNMENT, ASSIGNMENT_COLUMNS, dict_rows=True),
-    TaskKind.CHARACTERISATION: Profile(
-        TaskKind.CHARACTERISATION, CHARACTERISATION_COLUMNS, dict_rows=False
-    ),
+    TaskKind.ASSIGNMENT: Profile(TaskKind.ASSIGNMENT, ASSIGNMENT_COLUMNS),
+    TaskKind.CHARACTERISATION: Profile(TaskKind.CHARACTERISATION, CHARACTERISATION_COLUMNS),
 }
 
 
@@ -210,16 +196,9 @@ def to_csv(task_kind: TaskKind, rows: Iterable[Any],
         ) from None
 
     buf = io.StringIO()
-    if profile.dict_rows:
-        w = csv.DictWriter(buf, fieldnames=list(profile.names))
-        if header:
-            w.writeheader()
-        for row in rows:
-            w.writerow({c.name: c.get(row) for c in profile.columns})
-    else:
-        tw = csv.writer(buf)
-        if header:
-            tw.writerow(profile.names)
-        for row in rows:
-            tw.writerow(tuple(c.get(row) for c in profile.columns))
+    w = csv.writer(buf)
+    if header:
+        w.writerow(profile.names)
+    for row in rows:
+        w.writerow(tuple(c.get(row) for c in profile.columns))
     return Traced(value=buf.getvalue())

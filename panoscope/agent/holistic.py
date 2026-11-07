@@ -312,19 +312,3 @@ def holistic_review(
         refinements=refinements,
         set_is_coherent=coherent,
     )
-
-
-if __name__ == "__main__":
-    review = holistic_review()
-    print("coherence_notes:")
-    for note in review.coherence_notes:
-        print(f"  - {note}")
-    print()
-    print("refinements:")
-    for ref in review.refinements:
-        print(f"  {ref.cluster}: {ref.from_call} -> {ref.to_call}")
-        print(f"    evidence_markers: {ref.evidence_markers}")
-        print(f"    rationale: {ref.rationale}")
-        print(f"    lit_query: {ref.lit_query}")
-    print()
-    print("set_is_coherent:", review.set_is_coherent)

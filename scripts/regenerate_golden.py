@@ -16,8 +16,8 @@ The default is a dry run on purpose: nothing regenerates by accident, and the
 "here is exactly how the engine's output changed, and why".
 
 Writes only ``tests/golden/demo_interpretation.json`` and its ``.sha256``. It
-never runs ``pipeline.run.run()`` (whose viz stage MOVES real files) and never
-touches the network.
+never runs ``pipeline.run.run()`` (which writes a whole study tree and reaches
+for the live annotate stage) and never touches the network.
 """
 
 from __future__ import annotations

@@ -68,7 +68,6 @@ def _no_v1(monkeypatch):
         )
 
     monkeypatch.setattr(V, "verdict_for_cluster", _gone)
-    monkeypatch.setattr(V, "assess", _gone)
     monkeypatch.setattr(V, "all_verdicts", _gone)
 
 
