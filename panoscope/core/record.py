@@ -161,13 +161,18 @@ def to_dict(record: InterpretationRecord,
     return Traced(out)
 
 
-def path_for(interp: str | Path, record: InterpretationRecord) -> Traced[Path]:
-    """``<interp>/records/<task_kind>/<unit>.json``. Construction only, no IO."""
-    return Traced(Path(interp) / RECORDS_DIR / record.task_kind.value
+def path_for(interp: str | Path, record: InterpretationRecord,
+             group: str = "") -> Traced[Path]:
+    """``<interp>/records/<task_kind>/[<group>/]<unit>.json``. Construction only, no IO.
+
+    ``group`` separates two results of one task kind (two DE tables) sharing unit ids.
+    """
+    return Traced(Path(interp) / RECORDS_DIR / record.task_kind.value / group
                   / f"{record.unit}.json")
 
 
-def write(record: InterpretationRecord, interp: str | Path) -> Traced[Path]:
+def write(record: InterpretationRecord, interp: str | Path,
+          group: str = "") -> Traced[Path]:
     """Serialise one record under the records path. The v1 tree is never touched.
 
     Deterministic bytes: field order is the dataclass's, ``ensure_ascii`` stays on so
@@ -176,7 +181,7 @@ def write(record: InterpretationRecord, interp: str | Path) -> Traced[Path]:
     (:func:`to_dict`), not on persisting it, because a record whose generated layer
     was dropped on the way to disk could not be re-gated afterwards.
     """
-    p = path_for(interp, record).value
+    p = path_for(interp, record, group).value
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(to_dict(record).value, indent=2) + "\n",
                  encoding="utf-8")

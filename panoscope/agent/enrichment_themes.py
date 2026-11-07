@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from panoscope.agent import config as cfg
+from panoscope.data.study import NOT_YET_CALLED
 from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent.types import ClusterEnrichment
 
@@ -76,7 +77,7 @@ def _per_cluster_lines(enrichments: list[ClusterEnrichment]) -> tuple[ClusterThe
             ClusterThemeLine(
                 cluster=ce.cluster,
                 cell_type=ce.cell_type,
-                category=cfg.CLUSTER_KEY[ce.cluster]["category"],
+                category=cfg.CLUSTER_KEY.get(ce.cluster, {}).get("category", NOT_YET_CALLED),
                 top_themes=top,
                 census_line=ce.census_line,
                 verify=ce.verify,
@@ -138,7 +139,7 @@ def _coherence_notes(
     by_cat: dict[str, list[str]] = {}
     for ce in enrichments:
         if ce.enriched:
-            cat = cfg.CLUSTER_KEY[ce.cluster]["category"]
+            cat = cfg.CLUSTER_KEY.get(ce.cluster, {}).get("category", NOT_YET_CALLED)
             by_cat.setdefault(cat, []).append(f"{ce.cluster} {ce.cell_type}")
     if by_cat:
         seg = "; ".join(f"{cat} ({', '.join(cls)})" for cat, cls in by_cat.items())

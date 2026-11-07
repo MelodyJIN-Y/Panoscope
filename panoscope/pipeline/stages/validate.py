@@ -3,9 +3,9 @@
 1. **The store's §6.3 blockers**, from the declared platform's adapter: measured
    set, detectability frame, declared units, tissue/platform, per-sample tables,
    clustering mode. A missing label set is the starting state, not a blocker.
-2. **The four v1 input checks**, through ``agent.data``: the cluster key covers
-   every cluster, ``top_cluster`` labels are known, every cluster has an assigned
-   marker, and the panel is non-empty.
+2. **The four v1 input checks**, through ``agent.data``: the panel is non-empty and,
+   when a marker table is present, the cluster key covers every cluster,
+   ``top_cluster`` labels are known, and every cluster has an assigned marker.
 
 The adapter *returns* its problems (§6.4); this stage *raises*, naming all of them.
 """
@@ -51,8 +51,11 @@ def _check(store: Study) -> None:
             + "\n  - ".join(problems)
         )
 
+    if data.load_panel().empty:
+        raise ValueError("[pipeline] panel is empty; the absence primitive needs it")
+    if not data._markers_top().is_file():
+        return  # no marker result: the marker workflow is not built, its checks have no table
     markers = data.load_markers()
-    panel = data.load_panel()
 
     # cluster_key.json is optional: cell types are the marker-skill annotation
     # (interp/annotation.json). If a key IS provided it must cover every cluster.
@@ -82,6 +85,3 @@ def _check(store: Study) -> None:
     empty = [c for c in cfg.CLUSTER_ORDER if data.get_cluster_markers(c).empty]
     if empty:
         raise ValueError(f"[pipeline] clusters with no assigned markers: {empty}")
-
-    if panel.empty:
-        raise ValueError("[pipeline] panel is empty; the absence primitive needs it")

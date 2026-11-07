@@ -62,7 +62,7 @@ def built(tmp_path: Path):
         with cfg.use_study(study):
             marker = {u: b.evidence for u, b in records.build_all(study).items()}
             written = de_stage.run_de(marker, FIXTURE)
-        yield study, written
+        yield study, written["de_edger"]
     finally:
         monkey.undo()
         layout.clear_cache()
@@ -80,7 +80,7 @@ def test_the_root_writes_one_comparison_record_per_unit(built) -> None:
     _study, written = built
     assert set(written) == {"c1", "c2", "c3"}, written
     for unit, path in written.items():
-        assert path.parent.name == "comparison", path
+        assert path.parent.parent.name == "comparison", path
         assert path.is_file()
         rec = json.loads(path.read_text(encoding="utf-8"))
         assert rec["unit"] == unit
@@ -119,20 +119,27 @@ def test_the_method_is_chosen_by_schema_not_by_filename(tmp_path: Path) -> None:
         "gene,cluster,avg_log2FC,p_val_adj\nSYNG01,c1,2.0,1.0e-04\n",
         encoding="utf-8")
 
-    assert de_stage._method_for(pd.read_csv(edger_csv)).name == "edger"
-    assert de_stage._method_for(pd.read_csv(seurat_csv)).name == "seurat_de"
+    assert methods.recognise(pd.read_csv(edger_csv)).name == "edger"
+    seurat = methods.recognise(pd.read_csv(seurat_csv))
+    assert (seurat.name, seurat.statistic_name) == ("seurat_de", "avg_log2FC")
 
 
-def test_a_table_no_method_can_read_refuses_and_names_the_schemas(
+def test_a_table_no_method_can_read_is_unrecognised_never_guessed(
         tmp_path: Path) -> None:
-    """"This is not a DE table" is only useful beside what one would have looked
-    like, so the refusal quotes every method's own reason."""
+    """The registry answers None; a DE file it cannot place (or that another
+    workflow's method reads) fails the stage naming the DE methods."""
     import pandas as pd
+
+    unknown = tmp_path / "de_unknown.csv"
+    unknown.write_text("gene,score\nSYNG01,1.0\n", encoding="utf-8")
+    assert methods.recognise(pd.read_csv(unknown)) is None
+    assert methods.recognise_inputs(tmp_path) == {unknown: None}
 
     bad = tmp_path / "de_bad.csv"
     bad.write_text("gene,top_cluster,glm_coef\nSYNG01,c1,19.0\n", encoding="utf-8")
     with pytest.raises(SystemExit) as e:
-        de_stage._method_for(pd.read_csv(bad))
+        de_stage._method_for(bad, pd.read_csv(bad))
+    assert "unrecognised" in str(e.value)
     assert "edger" in str(e.value) and "seurat_de" in str(e.value)
 
 
@@ -140,7 +147,7 @@ def test_a_study_with_no_de_result_builds_no_comparison_slice() -> None:
     """Absence is not an error. Most studies have no DE result, and the slice is
     simply not built -- the same shape as the enrichment stage."""
     study = Study.open(DEMO)
-    assert de_stage.de_result_path(study) is None
+    assert de_stage.de_result_paths(study) == []
     with cfg.use_study(study):
         assert de_stage.run_de({}, DEMO) == {}
 
@@ -178,3 +185,29 @@ def test_every_de_decision_in_a_record_is_a_registered_rule(built) -> None:
     for unit, path in written.items():
         for d in json.loads(path.read_text(encoding="utf-8"))["decisions"]:
             assert d["rule"] in RULES, f"{unit}: unregistered rule {d['rule']!r}"
+
+
+def test_every_de_table_loads_each_on_its_own_methods_statistic(tmp_path: Path) -> None:
+    """Two DE tables, two methods: both build, and seurat's avg_log2FC is read."""
+    from panoscope.pipeline import records
+
+    root = tmp_path / "root"
+    shutil.copytree(layout.studies_root(), root / "studies")
+    (root / "studies" / FIXTURE / "inputs" / "de_seurat.csv").write_text(
+        "gene,cluster,avg_log2FC,p_val_adj\nSYNG01,c1,2.0,1.0e-04\n"
+        "SYNG04,c2,1.5,1.0e-03\n", encoding="utf-8")
+    monkey = pytest.MonkeyPatch()
+    monkey.setenv("PANOSCOPE_DATA_ROOT", str(root))
+    layout.clear_cache()
+    try:
+        study = Study.open(FIXTURE)
+        with cfg.use_study(study):
+            marker = {u: b.evidence for u, b in records.build_all(study).items()}
+            written = de_stage.run_de(marker, FIXTURE)
+    finally:
+        monkey.undo()
+        layout.clear_cache()
+    assert set(written) == {"de_edger", "de_seurat"}
+    assert set(written["de_seurat"]) == {"c1", "c2"}
+    rec = json.loads(written["de_seurat"]["c1"].read_text(encoding="utf-8"))
+    assert "avg_log2FC" in json.dumps(rec) and "seurat_de" in json.dumps(rec)

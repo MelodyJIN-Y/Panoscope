@@ -16,12 +16,16 @@ The registry holds frozen *instances*, not classes.
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 from panoscope import workflows
-from panoscope.types.contracts import MethodModule
+from panoscope.types.contracts import MethodModule, UnrecognisedResult
 from panoscope.types.uispec import DuplicateRegistration
 
 __all__ = ["METHODS", "UndeclaredLimits", "UnregisteredMethod",
-           "DuplicateRegistration", "register", "get", "for_workflow"]
+           "DuplicateRegistration", "register", "get", "for_workflow",
+           "recognise", "recognise_inputs"]
 
 #: The two fields a method may not leave empty. Named here rather than inline so the
 #: test and the check read the same list -- CLAUDE.md's rule has one home.
@@ -93,6 +97,31 @@ def for_workflow(workflow_id: str) -> tuple[MethodModule, ...]:
                  if m.workflow == workflow_id)
 
 
+def recognise(table: Any) -> MethodModule | None:
+    """The one registered method whose declared schema this table matches; ``None``
+    when none does. Never guessed: two matches raise, since a tie broken by import
+    order would make the record's method stamp arbitrary."""
+    hits = []
+    for m in METHODS.values():
+        try:
+            m.detect_unit(table)
+        except UnrecognisedResult:
+            continue
+        hits.append(m)
+    if len(hits) > 1:
+        raise ValueError(
+            f"{len(hits)} methods accept this table "
+            f"({', '.join(sorted(m.name for m in hits))}); narrow one method's schema")
+    return hits[0] if hits else None
+
+
+def recognise_inputs(folder: Path) -> dict[Path, MethodModule | None]:
+    """Every top-level CSV in ``folder`` -> the method that reads it, or ``None``."""
+    import pandas as pd  # local: keeps `import panoscope.methods` free of pandas
+
+    return {p: recognise(pd.read_csv(p)) for p in sorted(Path(folder).glob("*.csv"))}
+
+
 # --------------------------------------------------------------------------- #
 # The entries. One line per method; this is the "dict literal" in call form.
 # A second method answering the same question is one more line here and a new
@@ -109,7 +138,7 @@ register(_jazzpanda_cgst.MODULE)
 # checkable rather than asserted: nothing in core/, in workflows/de.py or in the
 # composition root knows either of these exists, and the root picks between them by
 # asking each whether it can read the table
-# (``pipeline/stages/de.py::_method_for``). They differ where the METHODS differ --
+# (:func:`recognise`). They differ where the METHODS differ --
 # edgeR's unit of replication is the sample, Seurat's is the cell -- and that
 # difference lives in their declared assumptions, not in a branch anywhere.
 register(_edger.MODULE)

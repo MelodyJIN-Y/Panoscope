@@ -4,10 +4,9 @@ Composes ``workflows/de.py`` (its four §9.7 checks and ``core/reconcile.py``'s 
 as ``stages/verdicts.py`` does ASSIGNMENT and ``stages/enrichment.py``
 CHARACTERISATION.
 
-**The method is chosen by SCHEMA, not by filename.** Every method registered into
-``de-interpretation`` is asked whether it can read the table (``detect_unit`` raises
-``UnrecognisedResult`` otherwise). ``de_*.csv`` names the KIND of result; the schema
-names the method. Two methods accepting one table raises.
+**The method is chosen by SCHEMA, not by filename**, through ``methods.recognise``.
+Every ``de_*.csv`` is built; the glob names the KIND of result, the schema names the
+method, and that method's declared ``statistic_name`` is the column read.
 
 **Check 4 takes the marker evidence** passed in, not rebuilt here.
 
@@ -29,60 +28,26 @@ from panoscope.pipeline import paths
 DE_GLOB: str = "de_*.csv"
 
 ENTITY_COLUMN: str = "gene"
-STATISTIC_COLUMN: str = "logFC"
 
 
-def de_result_path(study: Any) -> Optional[Path]:
-    """This study's DE table, or ``None`` when it has none.
-
-    ``None`` is not an error. Most studies have no DE result, and the COMPARISON
-    slice simply is not built for them -- the same shape as the enrichment stage,
-    which builds only when the dataset has an enrichment result. Sorted, so two
-    candidates cannot resolve differently on two filesystems.
-    """
-    found = sorted(Path(study.inputs).glob(DE_GLOB))
-    return found[0] if found else None
+def de_result_paths(study: Any) -> list[Path]:
+    """Every DE table this study ships, sorted; empty when it has none (not an error)."""
+    return sorted(Path(study.inputs).glob(DE_GLOB))
 
 
-def _method_for(table: Any) -> Any:
-    """The registered DE method whose schema this table matches. Never guesses.
-
-    Zero acceptances raise naming the schemas tried; two raise, since a tie broken
-    by import order would make the record's method stamp arbitrary.
-    """
+def _method_for(path: Path, table: Any) -> Any:
+    """The registered DE method that recognises this table. Never guesses."""
     from panoscope import methods
-    from panoscope.types.contracts import UnrecognisedResult
     from panoscope.workflows.de import WORKFLOW_ID
 
-    registered = methods.for_workflow(WORKFLOW_ID)
-    if not registered:
+    method = methods.recognise(table)
+    if method is None or method.workflow != WORKFLOW_ID:
+        known = ", ".join(m.name for m in methods.for_workflow(WORKFLOW_ID))
         raise SystemExit(
-            f"no method answers {WORKFLOW_ID!r}; a DE table is present but nothing "
-            "is registered to read it"
+            f"{path.name}: unrecognised -- no registered DE method ({known}) reads "
+            f"its columns {list(table.columns)}"
         )
-
-    accepted: list[Any] = []
-    refusals: list[str] = []
-    for m in registered:
-        try:
-            m.detect_unit(table)
-        except UnrecognisedResult as exc:
-            refusals.append(f"  {m.name}: {exc}")
-            continue
-        accepted.append(m)
-
-    if len(accepted) > 1:
-        raise SystemExit(
-            f"{len(accepted)} methods accept this DE table "
-            f"({', '.join(m.name for m in accepted)}); the record names the method "
-            "that produced a result, and a tie broken by import order would make "
-            "that name arbitrary. Narrow one method's schema."
-        )
-    if not accepted:
-        raise SystemExit(
-            "no registered method can read this DE table:\n" + "\n".join(refusals)
-        )
-    return accepted[0]
+    return method
 
 
 def _spatial_side(marker_ev: Any, world: Any) -> Any:
@@ -124,14 +89,28 @@ def _workflow() -> Any:
 
 def run_de(marker_evidence: dict[str, Any] | None = None,
            dataset_id: str | None = None,
-           root: Optional[Path] = None) -> dict[str, Path]:
-    """One ``InterpretationRecord`` per unit, under ``records/comparison/``.
+           root: Optional[Path] = None) -> dict[str, dict[str, Path]]:
+    """One ``InterpretationRecord`` per unit per DE table, keyed by the table's stem,
+    under ``records/comparison/<stem>/``.
 
     ``marker_evidence`` maps unit id -> that unit's marker ``NormalisedEvidence``
     (check 4). A unit without it still gets a record, with check 4 *cannot be
     settled* rather than coherent. Not wrapped in a ``try``: an unreadable DE table
     fails the build loudly.
     """
+    dataset_id = dataset_id or cfg.DATASET_ID
+    # The ACTIVE study for READING and ``root`` only for WHERE THE RECORDS GO --
+    # the same split ``stages/verdicts`` and ``stages/enrichment`` keep. They are
+    # not the same directory during a build: ``run.py`` writes the manifest last,
+    # so an output root has no manifest to read a platform out of yet.
+    study = cfg.current_study()
+    return {p.stem: _run_one(p, study, marker_evidence or {}, dataset_id, root)
+            for p in de_result_paths(study)}
+
+
+def _run_one(path: Path, study: Any, marker_evidence: dict[str, Any],
+             dataset_id: str, root: Optional[Path]) -> dict[str, Path]:
+    """One DE table's records. The statistic column is the matched method's own."""
     import pandas as pd
 
     from panoscope import platforms
@@ -142,19 +121,9 @@ def run_de(marker_evidence: dict[str, Any] | None = None,
     from panoscope.types.subject import EntityKind
     from panoscope.workflows import de as wf_de
 
-    dataset_id = dataset_id or cfg.DATASET_ID
-    # The ACTIVE study for READING and ``root`` only for WHERE THE RECORDS GO --
-    # the same split ``stages/verdicts`` and ``stages/enrichment`` keep. They are
-    # not the same directory during a build: ``run.py`` writes the manifest last,
-    # so an output root has no manifest to read a platform out of yet.
-    study = cfg.current_study()
-    path = de_result_path(study)
-    if path is None:
-        return {}
-
     adapter = platforms.for_study(study)
     table = pd.read_csv(path)
-    method = _method_for(table)
+    method = _method_for(path, table)
     spec = method.detect_unit(table)
     world = MeasuredWorld(adapter.frames(study))
 
@@ -163,7 +132,7 @@ def run_de(marker_evidence: dict[str, Any] | None = None,
         unit_column=spec.unit_column,
         entity_column=ENTITY_COLUMN,
         entity_kind=EntityKind.GENE,
-        statistic_column=STATISTIC_COLUMN,
+        statistic_column=method.statistic_name,
         unit_kind=spec.unit_kind,
         world=world,
         clustering_mode=adapter.clustering_mode(study),
@@ -175,7 +144,6 @@ def run_de(marker_evidence: dict[str, Any] | None = None,
     ).value
 
     loaded = method.load(str(path), adapter, study)
-    marker_evidence = marker_evidence or {}
     wf = _workflow()
     interp = paths.interp_dir(dataset_id, root)
 
@@ -198,5 +166,5 @@ def run_de(marker_evidence: dict[str, Any] | None = None,
             finding,
             task_kind=wf.task_kind,
         ).value
-        written[unit] = core_record.write(record, interp).value
+        written[unit] = core_record.write(record, interp, group=path.stem).value
     return written

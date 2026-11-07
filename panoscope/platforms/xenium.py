@@ -354,18 +354,19 @@ class XeniumAdapter:
         )
         if labels:
             out.append(Frame(EntityKind.CELL_TYPE, f"annotation:{store.id}", labels))
-        units = frozenset(store.units) or self._marker_units(store)
+        units = frozenset(store.units) or self._result_units(store)
         if units:
             out.append(Frame(EntityKind.UNIT, f"clusters:{store.id}", units))
         return tuple(out)
 
-    def _marker_units(self, store: Study) -> frozenset[str]:
-        """The pooled marker table's units: a fresh study declares no other list yet."""
-        p = store.inputs / "markers_top.csv"
-        if not p.is_file():
-            return frozenset()
-        return frozenset(str(u).strip() for u in pd.read_csv(p, usecols=["top_cluster"])
-                         ["top_cluster"] if not is_no_signal(u))
+    def _result_units(self, store: Study) -> frozenset[str]:
+        """Units read off every recognised method result: a fresh study declares no
+        other list yet."""
+        from panoscope import methods
+
+        return frozenset(u for p, m in methods.recognise_inputs(store.inputs).items()
+                         if m is not None
+                         for u in m.detect_unit(pd.read_csv(p)).units)
 
     # ---- what the store says about itself --------------------------------- #
     def unit_labels(self, store: Study) -> dict[str, str]:
@@ -520,6 +521,8 @@ class XeniumAdapter:
         problem and hides the rest, which is how a study gets fixed one round trip at
         a time.
         """
+        from panoscope import methods
+
         if not store.exists:
             return [f"no manifest at {store.dir / 'manifest.json'}"]
 
@@ -551,13 +554,12 @@ class XeniumAdapter:
                 "gene that is not a negative control, so the store declares no "
                 "capability for any gene (§6.3)"
             )
-        if detect is None:
+        if not any(methods.recognise_inputs(store.inputs).values()):
             problems.append(
-                f"no detectability frame: {store.inputs / 'markers_top.csv'} is "
-                "missing, so a gene that produced no usable signal is "
-                "indistinguishable from one tested and not reported"
+                f"no method result: nothing in {store.inputs} is a table a registered "
+                "method reads, so there is no result to interpret"
             )
-        elif not detect.members:
+        if detect is not None and not detect.members:
             problems.append(
                 f"the detectability frame is empty: {self._markers_path(store)} "
                 f"leaves no gene with usable spatial signal -- "

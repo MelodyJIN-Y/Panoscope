@@ -125,18 +125,27 @@ def _active_panel_parquet() -> Path:
 
 def _derive_cluster_order() -> tuple[str, ...]:
     """Cluster ids in the active dataset's markers (top_cluster != NoSig), sorted
-    naturally (c1, c2, ... c10). Derived from the data, never a hardcoded literal."""
+    naturally (c1, c2, ... c10); without a marker table, the adapter's unit frame.
+    Derived from the data, never a hardcoded literal."""
     import re
 
-    if not _active_markers_csv().exists():
-        raise FileNotFoundError(
-            f"[config] markers missing: {_active_markers_csv()} (run the data prep)"
-        )
-    m = pd.read_csv(_active_markers_csv())
-    # ``is_no_signal``, not ``!= "NoSig"``: this set IS the cluster label space, so
-    # any spelling of the sentinel must stay out of it.
-    labels = {str(x).strip() for x in m["top_cluster"].unique()
-              if not is_no_signal(x)}
+    if _active_markers_csv().exists():
+        m = pd.read_csv(_active_markers_csv())
+        # ``is_no_signal``, not ``!= "NoSig"``: this set IS the cluster label space, so
+        # any spelling of the sentinel must stay out of it.
+        labels = {str(x).strip() for x in m["top_cluster"].unique()
+                  if not is_no_signal(x)}
+    else:
+        from panoscope import platforms
+        from panoscope.types.subject import EntityKind
+
+        study = current_study()
+        labels = {u for f in platforms.for_study(study).frames(study)
+                  if f.kind is EntityKind.UNIT for u in f.members}
+        if not labels:
+            raise FileNotFoundError(
+                f"[config] markers missing: {_active_markers_csv()} (run the data prep)"
+            )
 
     def _key(c: str):
         mm = re.match(r"c(\d+)$", c)

@@ -79,6 +79,18 @@ def _has_enrichment_result() -> bool:
     return agent_enrichment._jz_enrichment_csv().exists()
 
 
+def _workflows() -> tuple[str, ...]:
+    """The workflows whose inputs the active study ships, read off the method registry."""
+    from panoscope import methods
+    from panoscope.workflows.enrichment import WORKFLOW_ID as ENRICHMENT
+
+    found = {m.workflow for m in
+             methods.recognise_inputs(cfg.current_study().inputs).values() if m}
+    if _has_enrichment_result():  # the demo's result lives outside inputs/
+        found.add(ENRICHMENT)
+    return tuple(sorted(found))
+
+
 def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, Any]]:
     """Hash the dataset's own inputs for provenance.
 
@@ -120,18 +132,17 @@ def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path])
     paths.calibration_md(dataset_id, root).write_text(
         calibration_mod.calibration_markdown(list(verdicts)) + "\n", encoding="utf-8"
     )
-    # Enrichment slice (second workflow) — built only when this dataset HAS an
-    # enrichment result. Its absence just means the Pathways slice is not built; a
-    # FileNotFoundError from INSIDE the stage is a real failure and now reaches the
-    # caller, because the v2 record composition runs in there and a swallowed one
-    # left records/ unbuilt while the build printed success.
-    if _has_enrichment_result():
-        run_enrichment(dataset_id, root)
-        themes = agent_enrichment_themes.pathway_themes()
-        paths.pathway_themes_json(dataset_id, root).write_text(
-            json.dumps(serialize.pathway_themes_to_dict(themes), indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+
+
+def _run_enrichment(dataset_id: str, root: Optional[Path]) -> None:
+    """The enrichment slice (second workflow). A FileNotFoundError from INSIDE the
+    stage is a real failure and reaches the caller, never swallowed."""
+    run_enrichment(dataset_id, root)
+    themes = agent_enrichment_themes.pathway_themes()
+    paths.pathway_themes_json(dataset_id, root).write_text(
+        json.dumps(serialize.pathway_themes_to_dict(themes), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
@@ -208,7 +219,7 @@ def run(
         return _run_scoped(dataset_id, ddir, root, notes)
 
 
-def _run_de(dataset_id: str, root: Optional[Path]) -> None:
+def _run_de(dataset_id: str, root: Optional[Path], with_marker: bool) -> None:
     """The COMPARISON slice (third workflow), built only when a DE result exists.
 
     No DE table -> nothing built. A DE table no registered method can read raises.
@@ -222,7 +233,7 @@ def _run_de(dataset_id: str, root: Optional[Path]) -> None:
     # ``cfg.current_study()`` for reading, exactly as run_verdicts does; ``root``
     # names where the records are written and nothing else.
     marker = {u: b.evidence
-              for u, b in records.build_all(_cfg.current_study()).items()}
+              for u, b in records.build_all(_cfg.current_study()).items()} if with_marker else {}
     run_de(marker, dataset_id, root)
 
 
@@ -230,16 +241,26 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     """The build itself, with ``dataset_id`` guaranteed to be the active study."""
     declared = _declared(dataset_id, root)  # read BEFORE the build rewrites the file
 
+    from panoscope.workflows.enrichment import WORKFLOW_ID as ENRICHMENT
+    from panoscope.workflows.marker import WORKFLOW_ID as MARKER
+
     run_prep(dataset_id, root)  # raw .Rds -> tidy inputs (no-op if already present)
     validate(dataset_id)
+    workflows = _workflows()  # each workflow builds only when its inputs are present
+    print(f"[pipeline] {dataset_id}: workflows available: {', '.join(workflows)}", flush=True)
+    marker = MARKER in workflows
     inputs = _copy_inputs(dataset_id, root)
     vdir = paths.viz_dir(dataset_id, root)
     (vdir / "hexbin").mkdir(parents=True, exist_ok=True)
-    _ensure_annotation(dataset_id, root)  # marker-skill cell types (no-op if present)
-    verdicts = run_verdicts(dataset_id, root)
-    _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
-    _run_de(dataset_id, root)  # COMPARISON slice, when this dataset HAS a DE result
-    if notes:
+    verdicts: list = []
+    if marker:
+        _ensure_annotation(dataset_id, root)  # marker-skill cell types (no-op if present)
+        verdicts = run_verdicts(dataset_id, root)
+        _write_deterministic_interp(dataset_id, verdicts, root)  # holistic + calibration
+    if ENRICHMENT in workflows:
+        _run_enrichment(dataset_id, root)
+    _run_de(dataset_id, root, marker)  # COMPARISON slice; an unrecognised de_*.csv raises
+    if notes and marker:
         _run_notes(dataset_id, root)  # LIVE: cell-type + per-marker biology notes
 
     # Hash every derived artifact for the manifest.
@@ -257,10 +278,11 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     for p in sorted(recdir.rglob("*.json")):
         _hash(p)
     csvp = paths.verdicts_csv(dataset_id, root)
-    artifacts[str(csvp.relative_to(ddir))] = {
-        "sha256": manifest_mod.sha256_file(csvp),
-        "rows": len(verdicts),
-    }
+    if marker:
+        artifacts[str(csvp.relative_to(ddir))] = {
+            "sha256": manifest_mod.sha256_file(csvp),
+            "rows": len(verdicts),
+        }
     # Interp artifacts: holistic + calibration always present (deterministic);
     # the two notes files are hashed when a --notes run produced them (or a prior
     # one left them in the tree).
@@ -279,8 +301,9 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
         f = paths.interp_dir(dataset_id, root) / name
         if f.exists():
             _hash(f)
+    clusters = list(cfg.CLUSTER_ORDER)
     # Per-cluster enrichment verdicts (second workflow), when built.
-    for c in cfg.CLUSTER_ORDER:
+    for c in clusters:
         f = paths.enrichment_cluster_json(dataset_id, c, root)
         if f.exists():
             _hash(f)
@@ -322,10 +345,11 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
         declared=declared,
         panel_gene_count=panel_n,
         n_cells=n_cells,
-        clusters=list(cfg.CLUSTER_ORDER),
+        clusters=clusters,
         views_available=views,
         inputs=inputs,
         artifacts=artifacts,
+        workflows=workflows,
     )
     paths.manifest_json(dataset_id, root).write_text(
         json.dumps(man, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"

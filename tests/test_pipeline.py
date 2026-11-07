@@ -198,3 +198,54 @@ def test_a_proposal_written_during_the_build_is_what_that_build_reads(tmp_path, 
     pipeline_run.run("fresh")
     clusters = json.loads(paths.manifest_json("fresh").read_text())["clusters"]
     assert {store.load_verdict(c, "fresh").cell_type for c in clusters} == {"T cell"}
+
+
+def test_a_de_only_folder_builds_without_marker_inputs(tmp_path, monkeypatch):
+    """No marker table: only the DE workflow is available, and only it builds."""
+    import shutil
+
+    import pandas as pd
+
+    from panoscope.data import layout
+
+    demo = paths.inputs_dir(cfg.BUNDLED_DEMO_ID)
+    inputs = tmp_path / "studies" / "deonly" / "inputs"
+    inputs.mkdir(parents=True)
+    shutil.copyfile(demo / "panel.parquet", inputs / "panel.parquet")
+    g1, g2 = pd.read_parquet(demo / "panel.parquet")["gene"][:2]
+    (inputs / "de_seurat.csv").write_text(
+        f"gene,cluster,avg_log2FC,p_val_adj\n{g1},c1,2.0,1e-4\n{g2},c2,1.1,1e-3\n")
+    (inputs.parent / "manifest.json").write_text(json.dumps(
+        {"dataset_id": "deonly", "tissue": "human breast cancer", "platform": "Xenium"}))
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path))
+    layout.clear_cache()
+
+    pipeline_run.run("deonly")
+    man = json.loads(paths.manifest_json("deonly").read_text())
+    assert man["workflows"] == ["de-interpretation"] and man["clusters"] == ["c1", "c2"]
+    recs = paths.interp_dir("deonly") / "records"
+    assert sorted(p.name for p in recs.rglob("*.json")) == ["c1.json", "c2.json"]
+    assert (recs / "comparison" / "de_seurat").is_dir()
+    assert not paths.verdicts_csv("deonly").exists()
+
+
+def test_an_enrichment_only_folder_builds_with_its_clusters_not_yet_called(tmp_path, monkeypatch):
+    """No marker table and no labels: the enrichment slice still builds."""
+    import shutil
+
+    from panoscope.data import layout
+
+    src = layout.studies_root() / "synthetic_multisample_fixture" / "inputs"
+    inputs = tmp_path / "studies" / "eo" / "inputs"
+    inputs.mkdir(parents=True)
+    for name in ("panel.parquet", "enrichment.csv"):
+        shutil.copyfile(src / name, inputs / name)
+    (inputs.parent / "manifest.json").write_text(json.dumps(
+        {"dataset_id": "eo", "tissue": "t", "platform": "Xenium"}))
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path))
+    layout.clear_cache()
+
+    pipeline_run.run("eo")
+    man = json.loads(paths.manifest_json("eo").read_text())
+    assert man["workflows"] == ["enrichment-interpretation"]
+    assert man["clusters"] == ["c1", "c2", "c3"]

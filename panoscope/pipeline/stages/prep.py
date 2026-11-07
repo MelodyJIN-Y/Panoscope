@@ -9,14 +9,17 @@ it is a no-op and R is never invoked.
 
 The tidy input contract (what the pipeline needs; produced by the R prep):
 
-  inputs/markers_top.csv   REQUIRED  jazzPanda top_result: one row per gene, columns
+  inputs/markers_top.csv   optional  jazzPanda top_result: one row per gene, columns
                                      gene, top_cluster (c1..cN | NoSig), glm_coef,
                                      pearson, max_gg_corr, max_gc_corr[, cell_type]
   inputs/panel.parquet     REQUIRED  the analyzed panel: column `gene` (the absence
                                      primitive); optional ensembl_id, annotation
   inputs/enrichment.csv    optional  jazzPanda gene-set enrichment result (Pathways)
+  inputs/de_*.csv          optional  DE results (edgeR, Seurat), one per file
   viz/cells.(parquet|csv)  optional  cell x/y + cluster (Cell map)
   viz/umap.(parquet|csv)   optional  UMAP coords + cluster (UMAP view)
+
+At least one result a registered method reads must be present.
 
 A dataset that ships these needs no R at all. A dataset with only ``.Rds`` objects
 runs the R prep here (Rscript required on PATH); if R is unavailable the stage fails
@@ -33,7 +36,6 @@ from panoscope.agent import config as cfg
 from panoscope.pipeline import paths
 
 _R_PREP_SCRIPT = cfg.PROJECT_ROOT / "scripts" / "prep_data.R"
-_REQUIRED = ("markers_top.csv", "panel.parquet")
 
 
 def _inputs_dir(dataset_id: str) -> Path:
@@ -42,17 +44,23 @@ def _inputs_dir(dataset_id: str) -> Path:
 
 
 def _tidy_inputs_present(dataset_id: str) -> bool:
+    """The panel plus at least one result a registered method reads."""
+    from panoscope import methods
+
     idir = _inputs_dir(dataset_id)
-    return all((idir / name).exists() for name in _REQUIRED)
+    return (idir / "panel.parquet").exists() and any(
+        methods.recognise_inputs(idir).values())
 
 
 def _contract_error(dataset_id: str, idir: Path) -> FileNotFoundError:
     return FileNotFoundError(
         f"[prep] dataset {dataset_id!r} is missing tidy inputs in {idir}.\n"
         f"Provide (or produce with scripts/prep_data.R):\n"
-        f"  inputs/markers_top.csv  (gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr)\n"
         f"  inputs/panel.parquet    (column 'gene')\n"
-        f"  inputs/enrichment.csv   (optional; jazzPanda enrichment result)\n"
+        f"  and at least one method result, e.g.\n"
+        f"  inputs/markers_top.csv  (gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr)\n"
+        f"  inputs/enrichment.csv   (jazzPanda enrichment result)\n"
+        f"  inputs/de_*.csv         (edgeR or Seurat DE result)\n"
         f"  viz/cells.*, viz/umap.* (optional; spatial views)"
     )
 
@@ -60,7 +68,7 @@ def _contract_error(dataset_id: str, idir: Path) -> FileNotFoundError:
 def run_prep(dataset_id: str | None = None, root: Optional[Path] = None) -> None:
     """Ensure the dataset's tidy inputs exist. No-op if present; else run the R prep.
 
-    Read-if-present: when ``inputs/markers_top.csv`` + ``inputs/panel.parquet`` are
+    Read-if-present: when ``inputs/panel.parquet`` and a recognised method result are
     already there, returns immediately (R is never invoked). Otherwise runs the R
     prep to convert the raw ``.Rds`` objects into the tidy contract; raises a clear,
     actionable error if R is unavailable or the prep did not produce the inputs.

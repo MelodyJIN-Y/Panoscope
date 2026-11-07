@@ -211,13 +211,13 @@ def test_the_missing_and_the_empty_detectability_frame_are_different_blockers(
     manifest = {"platform": "Xenium", "tissue": "t", "clusters": ["u1"]}
     missing = _store(tmp_path, "nofile", manifest=manifest, panel=["AAA"])
     assert not any(f.name.startswith("detect:") for f in ADAPTER.frames(missing))
-    assert any("no detectability frame" in p for p in ADAPTER.validate(missing))
+    assert any("no method result" in p for p in ADAPTER.validate(missing))
 
     empty = _store(tmp_path, "nosig", manifest=manifest, panel=["AAA"],
                    markers=[("AAA", NO_SIGNAL, 0.0, 0.0)])
     problems = ADAPTER.validate(empty)
     assert any("the detectability frame is empty" in p for p in problems)
-    assert not any("no detectability frame" in p for p in problems)
+    assert not any("no method result" in p for p in problems)
 
 
 def test_a_panel_of_nothing_but_controls_is_an_empty_measured_set(tmp_path: Path) -> None:
