@@ -27,13 +27,8 @@ from panoscope.data.study import Study
 # --------------------------------------------------------------------------- #
 # Paths
 # --------------------------------------------------------------------------- #
-# Repo root = two levels above this package directory (panoscope/agent/config.py).
-#
-# TRANSITIONAL. Deriving the data root from ``__file__`` is exactly what breaks under
-# a site-packages install, and moving the package under ``panoscope/`` already broke
-# it once. ``PANOSCOPE_DATA_ROOT`` is the lever that lets a caller point at a store
-# that is not adjacent to the source; Phase C replaces the whole block with
-# ``panoscope/data/layout.py::resolve_data_root()`` and a ``Study`` object.
+# Repo root = two levels above this package; ``PANOSCOPE_DATA_ROOT`` overrides.
+# Transitional: ``data/layout.resolve_data_root()`` is the real resolver.
 def _resolve_repo_root() -> Path:
     env = os.getenv("PANOSCOPE_DATA_ROOT")
     if env:
@@ -75,11 +70,8 @@ BUNDLED_DEMO_ID: str = "xenium_hbreast_sample1"
 
 
 # --------------------------------------------------------------------------- #
-# The current study.
-#
-# A ContextVar rather than a module global: it gives ``use_study()`` scoping for
-# tests and pipeline runs, correct per-session behaviour under Streamlit (which runs
-# each session in its own thread), and thread-safety alongside the async MCP client.
+# The current study: a ContextVar, so it scopes per Streamlit session/thread and
+# per ``use_study()`` block.
 # --------------------------------------------------------------------------- #
 _CURRENT_STUDY: ContextVar[Optional[Study]] = ContextVar("panoscope_study", default=None)
 
@@ -114,22 +106,8 @@ def use_study(study: Study | str):
 def _active_input(name: str, legacy: Path) -> Path:
     """The study's own file; the bundled legacy flat file ONLY for the bundled demo.
 
-    **The fallback used to fire for every study, and it is a breast fallback.**
-    ``data/jazzpanda/markers_top.csv`` and ``data/panels/panel.parquet`` are the
-    bundled demo's flat files, kept so the demo runs before anything is built. A
-    study missing either one therefore read the demo's: ``cfg.CLUSTER_ORDER`` came
-    back as the demo's nine clusters and ``load_panel`` as its 280 genes, under the
-    other study's id. The onboarding line showed it first -- "9 clusters, 280-gene
-    panel" over a kidney store -- but it does not stop there, because
-    ``CLUSTER_ORDER`` is what Stage 0's unknown-label guard compares against and the
-    panel is the capability frame every absence is judged in.
-
-    Same gate, same reason, as ``agent/annotation._is_bundled_demo``: wrong-tissue
-    data reaching another study's numbers is the precise failure this project exists
-    to prevent, so it is refused structurally rather than by convention. A
-    non-demo study with no file of its own gets the path that does not exist, and
-    every reader above raises with that path in the message -- which is the honest
-    answer, and the one that names the missing file.
+    A non-demo study without the file gets the missing path, so readers raise naming
+    it rather than silently reading another tissue's markers or panel.
     """
     cand = current_study().inputs / name
     if cand.exists():
@@ -155,10 +133,8 @@ def _derive_cluster_order() -> tuple[str, ...]:
             f"[config] markers missing: {_active_markers_csv()} (run the data prep)"
         )
     m = pd.read_csv(_active_markers_csv())
-    # ``is_no_signal``, not ``!= "NoSig"``: this set IS the cluster label space,
-    # so a table spelling the sentinel in any other case (or leaving the column
-    # blank) made the sentinel a cluster id -- and Stage 0's "unknown label"
-    # guard, which compares against this very set, then passed the store clean.
+    # ``is_no_signal``, not ``!= "NoSig"``: this set IS the cluster label space, so
+    # any spelling of the sentinel must stay out of it.
     labels = {str(x).strip() for x in m["top_cluster"].unique()
               if not is_no_signal(x)}
 
@@ -177,23 +153,13 @@ def _derive_cluster_order() -> tuple[str, ...]:
 # Imm_Mac/Imm_T/Imm_B/Imm_DC/Imm_Mast immune subsets, Myoepi_ myoepithelial, Endo_ endothelial.
 # --------------------------------------------------------------------------- #
 def _load_cluster_key() -> dict[str, dict[str, str]]:
-    """Unit -> {cell_type, cell_type_short, category, lineage}.
+    """Unit -> {cell_type, cell_type_short, category, lineage}, via ``Study.unit_labels``.
 
-    Resolved by ``Study.unit_labels``: the pipeline's annotation first, the legacy
-    ``inputs/cluster_key.json`` second, empty third. That order is the one
-    ``pipeline/stages/validate.py`` already documents, and routing through it fixes a
-    real bug -- three modules previously resolved this file to two different paths,
-    and the one config used is gitignored and absent, so no second study could be
-    opened at all.
-
-    Does not raise on absence. A study with neither source has no labels, which the
-    caller reports at the point of use.
+    Does not raise on absence; the caller reports missing labels at the point of use.
     """
     return {c: {k: str(v) for k, v in meta.items() if isinstance(v, (str, int, float))}
             for c, meta in current_study().unit_labels.items()}
 
-
-# Derived from the active dataset's markers (never a hardcoded c1..c9 literal).
 
 # --------------------------------------------------------------------------- #
 # Gene-set enrichment rubric (second workflow; TUNABLE, calibrate on real data).
@@ -295,17 +261,8 @@ def _derive_demo_markers() -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Lazy module attributes (PEP 562).
-#
-# This is what makes the de-singleton incremental. ~190 call sites read
-# ``cfg.CLUSTER_ORDER``, ``cfg.DATASET_ID`` and friends; routing them through
-# __getattr__ makes every one of them resolve against the CURRENT study, at call
-# time, without editing any of them. Only the handful that did
-# ``from ...config import CLUSTER_ORDER`` need touching, because those re-freeze at
-# the importing module's import time.
-#
-# Nothing below is computed at import. Importing this module now performs no
-# filesystem I/O, which is what the no-import-IO test asserts.
+# Lazy module attributes (PEP 562): ``cfg.X`` resolves against the CURRENT study at
+# call time. ``from config import X`` freezes it, so don't. No import-time I/O.
 # --------------------------------------------------------------------------- #
 _LAZY = {
     "DATASET_ID":          lambda: current_study().id,

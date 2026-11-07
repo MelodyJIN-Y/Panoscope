@@ -83,11 +83,8 @@ def _supporting(verdict: ClusterVerdict) -> tuple[MarkerEvidence, ...]:
 def second_opinion(cluster: str) -> SkepticReport:
     """Try to refute ``cluster``'s call from grounded facts. ``KeyError`` if unknown.
 
-    The call it argues against is the one the biologist is looking at: built through
-    ``core/`` by the same projection that writes ``interp/clusters/<unit>.json``. A
-    second opinion on a band the table never showed is not a second opinion.
-    ``agent.discriminate`` is already on that path, so the two halves of this report
-    now read one engine instead of two.
+    Argues against the call the biologist sees (the same projection that writes
+    ``interp/clusters/<unit>.json``).
     """
     # Local, like discriminate's: ``agent -> pipeline`` is a cycle risk, and
     # importing this module must do no filesystem I/O.
@@ -136,11 +133,7 @@ def second_opinion(cluster: str) -> SkepticReport:
             )
 
     # 3) The strongest competing hypothesis --------------------------------- #
-    # Three INDEPENDENT ifs, not an elif chain. The chain stopped at the first
-    # non-empty bucket, so whenever a rival marker peaked here the biologist was
-    # never told which rival markers localised elsewhere (the half that argues FOR
-    # the call) nor which were never measured at all. All three are reported on
-    # every verdict; effects are unchanged, so ``survives`` is untouched.
+    # Three INDEPENDENT ifs: every bucket is reported, not just the first non-empty one.
     if d.alt_B is not None:
         B = disc._label(d.alt_B)
         if d.b_here:
@@ -172,12 +165,7 @@ def second_opinion(cluster: str) -> SkepticReport:
             for m in d.b_elsewhere:
                 trace.append(f"jz:{m.gene}:top_cluster={m.top_cluster}")
         if d.offpanel_absent:
-            # Split by the frame that refused each marker. ``offpanel_absent`` is
-            # no longer only off-panel genes -- ``discriminate`` says so at its own
-            # definition -- so calling the whole set "off-panel" states a fact
-            # about the PANEL for a gene the panel carried and the measurement
-            # could not localize. Same collapse the marker table had one surface
-            # over, and ``discriminate`` already writes the two traces apart.
+            # Split by the frame that refused each marker: off-panel vs no usable signal.
             never_probed = [m for m in d.offpanel_absent if not m.on_panel]
             no_signal = [m for m in d.offpanel_absent if m.on_panel]
             if never_probed:

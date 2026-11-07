@@ -7,15 +7,8 @@ CSV exports. This module is the other half — the biologist's own call, laid
 over the computed one at the moment something is rendered or written into
 prose, producing NEW objects and leaving the computed ones intact.
 
-It lives in ``agent/`` rather than ``ui/`` because that is where the problem
-was. The composition was implemented in ``ui/data_access`` while the prose was
-generated underneath it in ``agent/fallback``, so after the biologist
-overrode c2 Stromal -> CAF the board, the marker header and the exported
-overview all said CAF while five of the seven chat answers for that same
-cluster went on saying Stromal -- the opening interpretation, the rival
-answer, the panel-absence answer, the what-would-settle-it answer and the
-confidence answer. That is the silent overrule the memory rule forbids,
-committed by the layering rather than by any one line.
+Lives in ``agent/`` so the chat prose (``agent/fallback``) and the UI compose the
+same call; otherwise the chat silently overrules the biologist.
 
 What it does NOT do: invent. An override renames a call; it never supplies a
 number, moves a band or adds a marker. The statistics in a composed object are
@@ -72,20 +65,8 @@ def override_call(cluster: str) -> Optional[str]:
 def offpanel_notes_for(cell_type: str, existing: tuple = ()) -> tuple:
     """The off-panel canonical markers for ONE call, as ``OffPanelNote``s.
 
-    **Falls back to the genes already on the verdict, re-worded.** Returning
-    empty whenever this study's annotation does not name the new call deleted a
-    true statement: overriding c2 Stromal -> CAF emptied COL1A1, COL1A2, DCN,
-    VIM and FAP out of the exported document while the markers table beside it
-    still showed all five, because the table builds rows from the record's own
-    evidence. Screen and document then disagreed about which markers were never
-    measured -- the one thing ``ui/report`` says must not happen -- on exactly
-    the cluster the biologist had curated.
-
-    Being off-panel is a fact about the PANEL, not about the call, so the genes
-    stay and only the sentence changes: "COL1A1 is off-panel (never measured);
-    its absence is not evidence against CAF" is true whatever the call is
-    renamed to. An annotation that DOES name the new call still wins, because
-    then there is a real canonical set for it.
+    An annotation naming the call wins; otherwise the verdict's existing genes are
+    re-worded, since off-panel is a fact about the PANEL, not the call.
     """
     from panoscope.agent import annotation
 

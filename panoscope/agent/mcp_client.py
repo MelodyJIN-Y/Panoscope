@@ -7,7 +7,7 @@ connector: it spawns the same stdio server ``.mcp.json`` declares
 alive on a dedicated background asyncio loop, and exposes plain synchronous
 methods so the rest of the (sync, Streamlit) codebase never touches asyncio.
 
-Design (see docs/archive/BLUEPRINT.md §5):
+Design:
 
 * One daemon thread runs a private asyncio event loop for the process lifetime.
 * On that loop we open ``stdio_client(...) -> ClientSession``, call

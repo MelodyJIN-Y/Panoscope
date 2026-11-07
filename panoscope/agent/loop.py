@@ -245,9 +245,7 @@ def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
-        # Loud, not fatal: a missing SKILL.md means the interpretation contract is
-        # absent from every system prompt. A bare `except Exception` hid exactly
-        # that for weeks after the package move.
+        # Loud, not fatal: a missing SKILL.md drops the contract from every prompt.
         print(f"[loop] skill contract MISSING: {path} ({exc}) — prompts run without it")
         return ""
 
@@ -255,34 +253,10 @@ def _skill_text(skill: str = _DEFAULT_SKILL) -> str:
 def _global_interpretation_lines() -> str:
     """One grounded line per cluster: cell type + confidence + verify + drivers.
 
-    NOT cached per study, though it was. An override arrives at RUNTIME, so a
-    per-study cache made it unreachable here: the first prompt of a session won
-    the slot and every later one restated the replaced call, however many times
-    the biologist changed it. This is the reason ``composed_verdicts`` and
-    ``data_access.holistic`` say in their own docstrings that they are not
-    cached. The expensive half -- ``v1_verdicts.verdicts()`` -- is still cached
-    per study behind this (189ms first call, 0ms after), so what the decorator
-    was saving was string formatting.
-
-    This is the whole annotation's interpretation result, read from the
-    deterministic verdicts (never fabricated). It is injected on EVERY turn so the
-    agent stays aware of the full picture even though each conversation thread is
-    scoped to a single cluster — the biologist can ask relational questions ("how
-    does this sit next to c4?") and the agent keeps the annotation coherent.
-    Cached PER STUDY (verdicts are static within a study, but not across two).
-
-    The bands come from ``pipeline.v1_verdicts`` — the SAME projection that writes
-    ``interp/clusters/<unit>.json`` — so the band the agent is told and the band in
-    the table the biologist is reading are one value. They used to come from
-    ``agent/verdict.py`` while the table came from ``core/``; the two agree on the
-    nine demo units (``tests/test_core_compat.py``) and nothing pinned them anywhere
-    else, so on the kidney study the chat could have quoted a band the table did not
-    show.
-
-    A build failure degrades to the cluster key WITHOUT a band, and says so on the
-    line. It must never degrade to a band, and a missing band must not read as a
-    confident one: the old fallback printed the cell type alone, which in a prompt
-    whose other lines all carry "— <band> confidence" is an invitation to infer one.
+    Injected every turn so relational questions stay coherent. Bands come from
+    ``pipeline.v1_verdicts`` (the same projection as the table). Not cached: an
+    override arrives at runtime. A build failure degrades to an explicit "NO
+    VERDICT" line, never to an implied band.
     """
     from panoscope.pipeline import v1_verdicts
 
@@ -315,16 +289,8 @@ def _global_interpretation_lines() -> str:
 def _called(cluster: str, computed: str) -> str:
     """The call to STATE for a cluster, with an override's tension visible.
 
-    This block is headed "authoritative -- every cluster's call", and it was
-    stating the computed one. After the biologist overrode c2 the model was
-    handed "c2: Stromal" twice as fact, with "c2 is CAF here" further down as a
-    note, and left to resolve the contradiction itself -- while the board, the
-    header and the exported document all said CAF. The biologist decides, so
-    their call leads; the computed one stays beside it, because a silent swap
-    hides the disagreement the memory layer exists to keep visible.
-
-    Only the LABEL moves. The band, the drivers and every number on the line are
-    the computed ones, untouched.
+    The biologist's call leads, the computed one stays beside it. Only the LABEL
+    moves; band, drivers and numbers are the computed ones.
     """
     from panoscope.agent import compose
 
@@ -431,18 +397,12 @@ def _enrichment_context(cluster: Optional[str]) -> str:
     lines = [
         f"# ENRICHMENT CONTEXT — cluster {cluster} ({ce.cell_type.replace('_', ' ')}), "
         "jazzPanda competitive gene-set test (MSigDB Hallmark, panel-scoped)",
-        # Per-item counts, not a band: this workflow has no label space, so a
-        # unit-level confidence here would be a figure the model could only have
-        # invented. The untestable count is the half that argues nothing.
+        # Per-item counts, not a band: this workflow has no label space.
         f"Programs: {ce.census_line}"
         f"{' — verify (re-check)' if ce.verify else ''}.",
     ]
     if ce.enriched:
-        # Derived, like every sibling caveat. This block tells the model "every
-        # number above is the source of truth" a few lines down, and the one
-        # number it asserted rather than read was the panel size -- right for the
-        # demo and wrong for every other study, in the context the model is told
-        # to trust most.
+        # Panel size derived per study, never asserted.
         from panoscope.agent.enrichment import _panel_size
 
         try:
@@ -1234,13 +1194,7 @@ class PanoscopeAgent:
     def _assemble(self, text: str, ledger: _Ledger, cluster: str,
                   skill: str = _DEFAULT_SKILL) -> AgentResponse:
         """Build the AgentResponse from the model text + the accumulated ledger."""
-        # verify comes from the deterministic rubric ONLY. It used to be
-        # `_text_asks_verify(text) or _cluster_verify_default(cluster)`, which
-        # offered the model the choice -- against the rule in CLAUDE.md -- by
-        # substring-matching its prose for "re-check this". A substring test
-        # cannot see negation, so "The call is solid; no need to re-check this"
-        # set verify TRUE. The generator-swap eval moved it on 16 of 45
-        # observations, entirely from prose style.
+        # verify comes from the deterministic rubric ONLY; never from the model's prose.
         verify = _verify_default(cluster, skill)
         return AgentResponse(
             text=text,
@@ -1353,15 +1307,8 @@ def _split_reply(reply: Any) -> tuple[str, list[dict[str, Any]]]:
 def _cluster_verify_default(cluster: str) -> bool:
     """The verdict engine's verify flag for a cluster (fragile/low -> True).
 
-    From ``pipeline.v1_verdicts`` — the same projection that writes the flag into
-    ``interp/clusters/<unit>.json`` and the ``verify`` column of ``verdicts.csv``.
-    A chat answer and the table could otherwise carry different re-check flags for
-    the same call.
-
-    Wrapped so a verdict failure never breaks a chat answer, but it fails CLOSED.
-    It used to return ``False`` — "no re-check needed" — which is an answer, and
-    the wrong one: the rubric was not evaluated at all. The honest degradation of a
-    deterministic flag nobody could compute is "a human should look".
+    From ``pipeline.v1_verdicts`` (the same flag the table shows). Fails CLOSED:
+    a rubric nobody could evaluate degrades to verify=True.
     """
     try:
         from panoscope.pipeline import v1_verdicts
@@ -1374,19 +1321,9 @@ def _cluster_verify_default(cluster: str) -> bool:
 
 
 def _enrichment_verify_default(cluster: str) -> bool:
-    """The ENRICHMENT rubric's verify flag for a cluster.
+    """The ENRICHMENT rubric's verify flag for a cluster (not the marker rubric).
 
-    A Pathways answer carried ``_cluster_verify_default`` -- the marker/ASSIGNMENT
-    rubric -- because ``_assemble`` did not know which skill it was assembling for.
-    The two rubrics are about different questions and disagree on 6 of the demo's
-    9 clusters, every one of them marker-False / enrichment-True: the tab that
-    should have said "re-check this" said nothing, which is the direction that
-    looks safe.
-
-    Reads the persisted record first and falls back to computing it
-    (``enrichment.load_or_compute``), and fails CLOSED for
-    ``_cluster_verify_default``'s reason: a rubric nobody could evaluate degrades
-    to "a human should look", never to "no re-check needed".
+    Via ``enrichment.load_or_compute``; fails CLOSED to verify=True.
     """
     try:
         from panoscope.agent import enrichment as _enrichment

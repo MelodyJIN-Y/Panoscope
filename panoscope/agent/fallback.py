@@ -1,17 +1,10 @@
 """Deterministic, pre-baked, GROUNDED fallbacks so a slow or failed API never
 breaks the demo.
 
-Every response here is a pure function of :mod:`pipeline.v1_verdicts` (which is itself a
-pure function of the precomputed jazzPanda output and the panel list). Nothing is
-invented: each number traces to a jazzPanda column, each off-panel line traces to
-the panel-absence primitive, and no live citation is asserted (the fallback path
-never has a network, so it states no PMID/DOI, it says the literature would be
-fetched live, and stays purely jazzPanda-grounded).
-
-Because every response is built from the verdict, every response carries the same
-``sources`` / ``verify`` / ``grounding`` envelope as a live answer and therefore
-passes :class:`agent.grounding_check.GroundingChecker` with no literature verifier
-needed (no identifiers to resolve).
+Every response is a pure function of :mod:`pipeline.v1_verdicts`: each number traces
+to a jazzPanda column, each off-panel line to the panel-absence primitive, and no
+PMID/DOI is ever stated (no network). Each carries the live answer's
+``sources`` / ``verify`` / ``grounding`` envelope, so it passes the grounding checker.
 
 Public API
 ----------
@@ -20,16 +13,8 @@ Public API
   or ``None`` when nothing matches (the caller then uses the generic fallback).
 - :func:`generic_fallback`, the last-resort grounded template for any cluster.
 
-Design rules honoured
----------------------
-- Confident floor: no fabricated marker, number, or citation. Numbers are rendered
-  with two decimals (well within the grounding checker's tolerance) straight from
-  the verdict's evidence.
-- Panel-absence rule: off-panel canonical markers are surfaced as context that does
-  NOT down-weight the call, and never carry a jazzPanda statistic (stating a number
-  for an off-panel gene would be fabrication and the grounding gate rejects it).
-- Viewing controls never change a value: fallbacks state numbers, never recompute.
-- No overclaiming: uncertain clusters keep their ``verify = True`` and say so.
+Off-panel canonical markers are context that never down-weights the call and never
+carries a statistic; uncertain clusters keep ``verify = True`` and say so.
 """
 
 from __future__ import annotations
@@ -49,9 +34,8 @@ from panoscope.agent.types import (
 )
 from panoscope.agent.compose import composed_verdict_for, computed_call
 
-# Number formatting: two decimals is inside the grounding checker's absolute
-# tolerance (1e-2) for these stats, so a rendered "18.00" grounds to LUM's real
-# 17.9978... . Kept as one constant so prose and sidecar never drift.
+# Two decimals is inside the grounding checker's 1e-2 tolerance. One constant so
+# prose and sidecar never drift.
 _FMT = "{:.2f}"
 
 # How many driving markers to name in prose (avoid a wall of numbers).
@@ -134,10 +118,7 @@ def _offpanel_line(notes: tuple[OffPanelNote, ...], cell_type: str) -> str:
     if not notes:
         return ""
     genes = ", ".join(n.gene for n in notes)
-    # Number agreement. Most units carry ONE off-panel canonical marker (KRT18 for
-    # Tumor, CD3D for T_Cells), and the plural-only template read "KRT18 are
-    # canonical Tumor markers". The sentence states the headline rule, so it should
-    # not be the one that reads like a mail merge.
+    # Number agreement: most units carry ONE off-panel canonical marker.
     one = len(notes) == 1
     return (
         f" Note on absence: {genes} {_canonical_clause(cell_type, one)} "
@@ -149,13 +130,8 @@ def _offpanel_line(notes: tuple[OffPanelNote, ...], cell_type: str) -> str:
 def _computed_call_prefix(cluster: str, shown: str) -> str:
     """One sentence saying the rival check reads the COMPUTED call, when it does.
 
-    ``agent.discriminate`` weighs rivals by their canonical marker sets, which
-    this study's annotation indexes by its own call -- so after an override it
-    still answers about the computed one. It said "c2 reads Stromal, supported
-    by LUM (glm_coef 18.00)..." under a pane titled CAF, with no hint that the
-    two sentences were about different calls. Naming it keeps the answer usable
-    instead of quietly wrong; the alternative, relabelling the output CAF, would
-    attribute a Stromal canonical set to a call the annotation never defines.
+    After an override, ``agent.discriminate`` still answers about the computed call
+    (the annotation indexes canonical sets by it); say so rather than relabel.
     """
     from panoscope.agent import annotation
 
@@ -187,21 +163,16 @@ def _whose_call(cluster: str, shown: str) -> str:
 def fallback_opening(cluster: str) -> AgentResponse:
     """Pre-baked opening interpretation for ``cluster`` (call, confidence, drivers).
 
-    Built from :func:`agent.compose.composed_verdict_for` -- the computed verdict
-    with the biologist's confirmed override applied. States the cell-type call, the
-    confidence band, the driving canonical markers with their real glm_coef /
-    pearson, and, where present, the panel-absence context (c2 Stromal). Cites no
-    live literature (the fallback path has no network); the live loop fills PMIDs.
+    Built from :func:`agent.compose.composed_verdict_for` (override applied). Cites
+    no literature; the live loop fills PMIDs.
 
     KeyError if ``cluster`` is unknown (propagated from the verdict engine).
     """
     op = composed_verdict_for(cluster).opening
     drivers = op.driving_markers
     notes = op.offpanel_notes
-    # The biologist's call, WITH the tension visible. Swapping the label in
-    # silently would be the same overrule as ignoring it, in the other
-    # direction: the chat has to say whose call this is and what the method
-    # produced, so the sentence can still be argued with.
+    # The biologist's call WITH the tension visible: say whose call it is and what
+    # the method produced, never a silent swap.
     whose = _whose_call(cluster, op.cell_type)
 
     if drivers:
@@ -370,11 +341,8 @@ def _confidence_answer(v: ClusterVerdict) -> AgentResponse:
 def _canonical_clause(cell_type: str, one: bool) -> str:
     """"are canonical Stromal markers that are" -- or just "are" when it cannot.
 
-    Canonicity is an ANNOTATION claim, and after an override the annotation may
-    not name the call at all: overriding c2 Stromal -> CAF made both panel-absence
-    sentences call COL1A1, COL1A2, DCN, VIM and FAP "canonical CAF markers" while
-    ``annotation.canonical_markers("CAF")`` is empty. Being off-panel is a fact
-    about the PANEL and stays true either way, so only the canonicity goes.
+    Canonicity is an annotation claim; after an override the annotation may not name
+    the call, so only the canonicity is dropped (off-panel stays true).
     """
     from panoscope.agent import annotation
 
@@ -397,7 +365,7 @@ def _offpanel_answer(v: ClusterVerdict) -> Optional[AgentResponse]:
         return None
     genes = ", ".join(n.gene for n in notes)
     drivers = v.opening.driving_markers
-    one = len(notes) == 1          # see _absence_note: most units carry exactly one
+    one = len(notes) == 1          # see _offpanel_line: most units carry exactly one
     body = (
         f"{genes} {_canonical_clause(v.cell_type, one)} off-panel, "
         f"{'it was' if one else 'they were'} never measured in this panel, so "
@@ -448,14 +416,7 @@ def _alts_from_query(query: str) -> list[str]:
     drops the cluster's own call and takes the rest as the alternative; when none
     remains, the discriminator derives the rival from the cluster's own markers.
     """
-    # Matched on WORD BOUNDARIES, not as a bare substring. "t cell" is a
-    # substring of "mast cells", and _TYPE_HINTS is scanned in table order with
-    # t-cell ahead of mast -- so a biologist saying "c8 is Mast Cells" got a
-    # fluent, correctly-numbered answer about T Cells, a rival they never named.
-    # Found by the sycophancy eval, which had to add a seventh outcome
-    # (rival_not_addressed) because "answered something else" had no slot.
-    # The optional trailing 's' is load-bearing: "t cells" is the common
-    # phrasing and a bare boundary assertion rejects it.
+    # Word boundaries, not substrings: "t cell" is inside "mast cells".
     q = (query or "").lower()
     out: list[str] = []
     for hint, key in _TYPE_HINTS:
@@ -467,36 +428,16 @@ def _alts_from_query(query: str) -> list[str]:
 
 
 def _names_type(q: str, hint: str) -> bool:
-    """Whether lower-cased ``q`` names ``hint`` as a word (optional plural).
-
-    One predicate, because there were two: ``_settle_answer`` had its own
-    ``hint in q`` and so still answered about T Cells when the biologist said
-    "mast cells". A gate fixed in one caller and not the other is not fixed.
-    """
+    """Whether lower-cased ``q`` names ``hint`` as a word (optional plural). Shared by every caller."""
     return bool(re.search(rf"(?<![a-z0-9]){re.escape(hint)}s?(?![a-z0-9])", q))
 
 
-# "c1 is Hepatocytes, not Tumor" -- the biologist names a rival we have no
-# marker set for AND names the call as the thing they are rejecting. The
-# recognised word is then the CALL, so the old code took it as a synonym of the
-# call and answered "the alternative equals the call; nothing to discriminate"
-# -- fluent, and about a hypothesis nobody raised. Nine of the sycophancy
-# eval's pushbacks came back that way. Catching the contrasted term lets
-# ``discriminate`` say the honest thing instead: we do not recognise it.
+# "c1 is Hepatocytes, not Tumor": the rival named in a pushback, so an unknown rival
+# is declined by name instead of the recognised CALL being taken as the alternative.
 _CONTRAST_RE = re.compile(
-    # One optional word between the modal and "be": a biologist writes "could
-    # THIS be X rather than Y", and requiring adjacency meant the rival was
-    # never captured -- so the answer fell through to the synonym branch, took
-    # the CALL as the alternative, and replied "the alternative equals the call;
-    # nothing to discriminate" to a question about a different cell type.
+    # One optional word between modal and "be" ("could THIS be X rather than Y").
     r"\b(?:is|are|looks?\s+like|(?:could|might|must)\s+(?:\w+\s+)?be)\s+"
-    # {2,} = a THREE-character minimum. At four, "CAF" could not match, so the
-    # demo's own signature pushback -- "c2 is a CAF, not Stromal" -- fell past
-    # this to the synonym branch, took the CALL as the alternative, and was
-    # answered "the alternative equals the call; nothing to discriminate".
-    # Three letters is the length of most cell-type abbreviations a biologist
-    # writes (CAF, DC, NK -- two-letter ones still miss, deliberately: the
-    # false-positive rate there is not worth it).
+    # {2,} = three-character minimum, so "CAF" matches; two-letter names miss on purpose.
     r"(?:an?\s+|the\s+)?(?P<rival>[A-Za-z][A-Za-z0-9-]{2,}(?:\s+cells?)?)"
     r"\s*,?\s+(?:not|rather\s+than|instead\s+of)\b",
     re.IGNORECASE,
@@ -576,10 +517,8 @@ def _settle_answer(v: ClusterVerdict, query: str) -> AgentResponse:
     if distinct:
         alt = distinct[0]
     else:
-        # A rival we have no marker set for is declined BY NAME, ahead of the
-        # synonym branch below: in "c1 is Hepatocytes, not Tumor" the only word
-        # we recognise is the call, and reading that as the alternative answers
-        # a question the biologist did not ask.
+        # An unrecognised contrasted rival is declined BY NAME, ahead of the
+        # synonym branch below.
         alt = _contrasted_rival(query)
     if alt is None:
         # the biologist may have named a SUBTYPE/synonym of the call itself (e.g. CAF for

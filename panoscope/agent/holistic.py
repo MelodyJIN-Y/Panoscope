@@ -5,18 +5,11 @@ the whole set together. Individual calls can look fine in isolation but tell an
 incoherent story as a whole, or a call can be *sharpened* only once the whole
 compartment is visible.
 
-This module implements the honest holistic pass the user chose: re-check the
-study's calls for coherence and surface any real refinement. For the bundled demo
-that is exactly ONE — c8 Dendritic -> "Plasmacytoid DC (pDC)", a SUBTYPE
-SHARPENING within the same immune/dendritic lineage, not a mis-call fix and not a
-changed jazzPanda number. It only becomes clear seeing the whole immune
-compartment, and it is gated on the demo: no other study inherits it.
+The bundled demo's one refinement -- c8 Dendritic -> "Plasmacytoid DC (pDC)", a
+subtype sharpening, not a changed number -- is gated on the demo.
 
-Study-agnostic by construction. The notes are computed from THIS study's
-annotation and cell counts, and say only what those support. Nothing here names
-a tissue, asserts which compartments a tissue ought to have, or judges whether a
-set of cluster sizes is plausible — a holistic review that knows nothing about
-the tissue says so, rather than producing confident prose about the wrong one.
+Study-agnostic: notes come from THIS study's annotation and cell counts. Nothing
+here names a tissue or judges what a tissue ought to have.
 
 Grounding discipline (Confident floor):
 - Every number in ``coherence_notes`` is COMPUTED AT RUNTIME from
@@ -53,9 +46,7 @@ _REFINE_RATIONALE: str = (
 )
 _REFINE_LIT_QUERY: str = "LILRA4 plasmacytoid dendritic cell marker"
 
-#: Cell-type values that mean "no call was made", not a call. ``stages/annotate.py``
-#: writes "Unknown" for every cluster whose annotation call fails, and the annotation
-#: fallback does the same for an un-annotated study. Two uncalled clusters are NOT two
+#: Cell-type values that mean "no call was made". Two uncalled clusters are NOT two
 #: clusters sharing a cell type, and an uncalled cluster is not a compartment.
 _UNCALLED: frozenset[str] = frozenset({"", "Unknown", "None"})
 
@@ -88,10 +79,8 @@ class HolisticReview:
     ``coherence_notes`` are grounded observations (every number computed from
     source at runtime). ``refinements`` holds the real refinements the whole-set
     view surfaces. ``set_is_coherent`` is True when every cluster carries a call
-    and no two clusters carry the SAME call — the two things that are decidable
-    from the annotation alone on any study. It is deliberately NOT a claim that
-    the expected compartments for the tissue are present: that would need a
-    per-tissue expectation this module does not have.
+    and no two clusters carry the SAME call. NOT a claim that the tissue's expected
+    compartments are present.
     """
 
     coherence_notes: tuple[str, ...]
@@ -105,16 +94,8 @@ class HolisticReview:
 def _metas(metas: Mapping[str, Mapping[str, str]] | None) -> dict[str, Mapping[str, str]]:
     """Per-cluster ``{"cell_type", "category"}``, defaulting to this study's annotation.
 
-    The review reads CALLS, and after the biologist overrides one, the study's
-    annotation is no longer where this study's calls live. Left unparameterised,
-    the cross-cluster check printed "Stromal (Stromal)" and "all 9 called
-    clusters carry distinct cell types (Tumor, Stromal, ...)" into the Summary
-    board and the exported document, directly beside an overview that said CAF --
-    one document making two incompatible claims about the same cluster.
-
-    The DEFAULT is still the annotation, so the artifact ``panoscope build``
-    writes and the golden projection reads stay byte-identical: the composition
-    happens where every other composition happens, at display.
+    Display passes overridden calls in; the default keeps the built artifact (and
+    the golden) byte-stable.
     """
     out = {c: annotation.meta_for(c) for c in cfg.CLUSTER_ORDER}
     for c, meta in (metas or {}).items():
@@ -126,11 +107,7 @@ def _metas(metas: Mapping[str, Mapping[str, str]] | None) -> dict[str, Mapping[s
 def _compartment_note(metas: Mapping[str, Mapping[str, str]]) -> str:
     """(a) Which compartments this study's own annotation groups its clusters into.
 
-    A pure grouping of the annotation's ``category`` field. It states what IS
-    represented; it does not claim coverage, because "the expected compartments
-    for this tissue" is knowledge this module does not have for an arbitrary
-    study. When the annotation assigns no category at all, say that rather than
-    printing a grouping whose every key is "Unknown".
+    A pure grouping of the ``category`` field: what IS represented, never coverage.
     """
     by_cat: dict[str, list[str]] = {}
     for c in cfg.CLUSTER_ORDER:
@@ -154,22 +131,14 @@ def _proportions_note(metas: Mapping[str, Mapping[str, str]]) -> str:
     try:
         counts = {c: len(data.get_cluster_cells(c)) for c in cfg.CLUSTER_ORDER}
     except FileNotFoundError:
-        # ONLY a missing file. The sentence below states "no per-cell coordinates
-        # provided", and that is a grounded claim for exactly this error and no
-        # other. The bare ``except Exception`` that was here turned a renamed
-        # column, an unknown cluster id or an unreadable path into the same
-        # sentence -- a false statement about the data, produced by a silent catch.
+        # ONLY a missing file: the sentence below is grounded for this error alone.
         return ("Cell-count proportions are unavailable for this dataset "
                 "(no per-cell coordinates provided).")
     largest = max(counts, key=counts.__getitem__)
     rarest = min(counts, key=counts.__getitem__)
     largest_type = metas[largest]["cell_type"]
     rarest_type = metas[rarest]["cell_type"]
-    # Counts only. The sentence used to open "Proportions are plausible for a breast
-    # tumour" and close "(a rare, small population as expected)" -- a tissue claim and
-    # an expectation, neither of which has a source, written into a HASHED artifact
-    # that is rendered in the Summary tab. On any study that is not the breast demo it
-    # is a fabricated tissue. The spread is real and stays; the verdict on it goes.
+    # Counts only: no unsourced tissue expectation about the spread.
     return (
         f"Cluster sizes: the largest is {largest} {largest_type} at "
         f"{counts[largest]:,} cells, the smallest {rarest} {rarest_type} at "
@@ -181,17 +150,8 @@ def _proportions_note(metas: Mapping[str, Mapping[str, str]]) -> str:
 def _redundancy_note(metas: Mapping[str, Mapping[str, str]]) -> tuple[str, bool]:
     """(c) Redundancy: do two clusters carry the same call, and is any cluster uncalled?
 
-    Returns the note and whether the set is internally coherent.
-
-    Two clusters sharing a cell type is a cross-cluster FINDING -- it is one of
-    the things reading the whole set together is for, and joint clustering over
-    several samples produces it routinely. This used to ``raise AssertionError``,
-    which killed ``panoscope build`` inside ``_write_deterministic_interp`` on any
-    such study. It is now reported, and it sets ``set_is_coherent`` False.
-
-    An uncalled cluster (``_UNCALLED``) is the ABSENCE of a call, not a call, so
-    it is counted separately: two Unknowns are not two clusters collapsing onto
-    the same cell type, and nothing is claimed about either.
+    Returns the note and whether the set is internally coherent. A shared call is a
+    reported finding, not an error; uncalled clusters are counted separately.
     """
     calls = {c: str(metas[c]["cell_type"]) for c in cfg.CLUSTER_ORDER}
     if not calls:
@@ -242,16 +202,7 @@ def _c8_refinement() -> Refinement:
     Evidence markers are c8's top markers by the method's statistic, read off
     ``NormalisedEvidence`` (statistic-descending) and NOT hard-coded. The pDC
     label is a literature direction (``lit_query``), not a changed jazzPanda
-    number.
-
-    Only OBSERVED items are citable. Reading the frame's first N rows would
-    happily print a TESTED_ABSENT or NEVER_MEASURED gene as the evidence for a
-    subtype call -- the four-state collapse the panel-absence rule exists to
-    forbid. Fewer than ``_REFINE_TOP_N`` OBSERVED items raises rather than
-    emitting a shorter, weaker refinement that still reads as grounded.
-
-    Imported locally, as ``pipeline.records`` imports its own heavy deps, so
-    importing this module performs no filesystem I/O.
+    number. Only OBSERVED items are citable; fewer than ``_REFINE_TOP_N`` raises.
     """
     from panoscope.pipeline import records
     from panoscope.types.measured import MeasuredState
@@ -291,17 +242,10 @@ def holistic_review(
     -> Plasmacytoid DC (pDC) sharpening is gated on the demo and nothing else is
     emitted for any other study, so the list is empty rather than borrowed.
     """
-    # The one bundled refinement (c8 Dendritic -> pDC) is demo-specific; surface it
-    # only when that cluster and call are actually present in this dataset.
+    # Demo content: gated on the bundled demo AND the CURRENT call, so an
+    # already-made sharpening is not offered again.
     refinements: tuple[Refinement, ...] = ()
-    # Gated on the bundled demo, not merely on "a cluster with this id and label
-    # exists". Without the study check, ANY study with a c8 called Dendritic emitted
-    # this breast-specific pDC refinement -- a fabricated finding attributed to the
-    # wrong tissue. The refinement itself is demo content and leaves when the
-    # reference layer can derive subtype sharpenings from an ontology.
     resolved = _metas(metas)
-    # The refinement is gated on the CURRENT call, so a biologist who has already
-    # made this sharpening is not shown it again as something to consider.
     if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and \
             _REFINE_CLUSTER in cfg.KNOWN_CLUSTERS and \
             resolved[_REFINE_CLUSTER]["cell_type"] == _REFINE_FROM:

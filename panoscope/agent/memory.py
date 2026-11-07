@@ -19,10 +19,9 @@ What it enforces (the load-bearing invariants):
   agreement and dissent, and attaches that :class:`~agent.types.Tension` to the
   note. Citations are only kept if the callable marks them real; a fabricated
   citation is the worst possible failure.
-- **"Nobody looked" is not "the literature is thin."** ``Tension.thin`` is one
-  boolean over two different facts, so :func:`reconcile` leaves ``looked_up_at``
-  empty whenever no lookup completed and :func:`claims.notes.lookup_state` reads the
-  trichotomy back out. No field was added: the note JSON on disk is unchanged.
+- **"Nobody looked" is not "the literature is thin."** :func:`reconcile` leaves
+  ``looked_up_at`` empty when no lookup completed; :func:`claims.notes.lookup_state`
+  reads the distinction back out.
 
 Notes become :class:`~panoscope.types.claim.Claim` objects through
 :mod:`panoscope.claims.notes` (IMPLEMENTATION §10). That bridge READS these files and
@@ -71,19 +70,9 @@ LiteratureSearch = Callable[[str], Iterable[Citation]]
 # Paths (configurable base dir; default context/)
 # --------------------------------------------------------------------------- #
 def _default_base() -> Path:
-    """Where the local knowledge layer lives, resolved PER CALL.
+    """``PANOSCOPE_CONTEXT_DIR`` or ``<project>/context``, resolved PER CALL.
 
-    ``PANOSCOPE_CONTEXT_DIR`` first, matching ``agent/profile.py`` and
-    ``agent/tools.py``, which already read it for the files sitting beside these.
-
-    This was a module constant, ``cfg.PROJECT_ROOT / "context"``, so three modules
-    disagreed about where context lives: profile honoured the variable and this did
-    not. The consequence was not hypothetical -- an autouse fixture added to
-    isolate the suite from the developer's own notes did nothing at all, and every
-    run still read a real ``celltype_override`` out of ``context/decisions/`` and
-    fed it to ``composed_verdicts``, the Summary board and both exported documents.
-    A constant also resolves at import, so even a correctly-set environment could
-    not reach it afterwards.
+    Never a module constant: the env var (and test isolation) must apply after import.
     """
     base = os.getenv("PANOSCOPE_CONTEXT_DIR")
     return Path(base) if base else cfg.PROJECT_ROOT / "context"
@@ -151,30 +140,14 @@ def _note_to_dict(note: Note) -> dict:
 def _note_from_dict(d: dict) -> Note:
     """Rebuild a frozen Note (and its nested frozen objects) from a JSON dict.
 
-    The closed vocabularies are checked HERE, not only on the write path. Note
-    files are git-tracked and hand-editable by design, which is precisely where a
-    value outside the vocabulary enters, and ``Note`` has no ``__post_init__`` to
-    catch it. The two gates then disagreed about the same file: a note whose scope
-    read ``"cluster "`` fired nowhere through ``note_in_scope`` -- fail-closed,
-    correct -- while ``claims.notes._scope`` fell through its else-branch and
-    turned the biologist's ONE-CLUSTER note into a dataset-wide claim about a cell
-    type. Widening is the one direction a scope migration must never go.
-
-    Raises ValueError, which ``read_notes`` and ``get_note`` already catch and
-    skip, so a malformed note fires nowhere instead of firing everywhere.
+    Closed vocabularies are checked on read too (note files are hand-editable).
+    Raises ValueError, which readers catch and skip: a malformed note fires nowhere.
     """
     _validate_note_fields(str(d.get("claim", "")), str(d.get("scope", "")),
                           str(d.get("basis", "")), str(d.get("status", "")))
     scope_ref_d = d.get("scope_ref") or {}
-    # A note that names no dataset belongs to NO study, not to whichever one happens
-    # to be open. Defaulting to ``cfg.DATASET_ID`` here read the current study at LOAD
-    # time and stamped it onto the note, so one file carried a different scope
-    # depending on what the biologist had open -- and every downstream gate,
-    # ``note_in_scope`` included, then agreed it belonged here. Cluster ids are c1..cN
-    # in every study, so that is a collision by default rather than an edge case. "" is
-    # the honest spelling of "unscoped": it matches no study, so the note fails closed,
-    # and ``data_access.withheld_notes`` is what says so out loud rather than letting
-    # the biologist's stored judgement disappear with no sentence.
+    # A note naming no dataset belongs to NO study: "" matches none, so it fails
+    # closed (``data_access.withheld_notes`` says so), never the open study.
     scope_ref = ScopeRef(
         dataset=str(scope_ref_d.get("dataset", "")),
         cluster=scope_ref_d.get("cluster"),
@@ -249,13 +222,8 @@ def reconcile(note: Note, literature_search: Optional[LiteratureSearch] = None) 
 
     Returns a fresh :class:`Tension`. When no search is provided or nothing real
     resolves, ``thin=True`` (say the literature is thin; never invent a ref).
-
-    **``looked_up_at`` stamps a lookup that COMPLETED, and only that.** A search that
-    was never injected and a connector that raised are both "nobody looked", which is
-    not the same claim as "we looked and the literature is thin". Leaving the stamp
-    empty on both no-lookup paths makes that trichotomy readable back out of the note
-    JSON (:func:`claims.notes.lookup_state`) without adding a field to a persisted
-    shape -- the note files on disk still parse unchanged.
+    ``looked_up_at`` is stamped only for a lookup that COMPLETED ("nobody looked"
+    is not "thin").
     """
     query = _reconcile_query(
         note.claim, note.subject_cell_type, note.subject_markers, note.subject_gene_sets
@@ -595,12 +563,7 @@ def get_note(note_id: str, base_dir: Path | str | None = None) -> Note | None:
 def note_in_study(note: Note, dataset: str | None = None) -> bool:
     """True iff ``note`` may fire ANYWHERE in ``dataset``. The study rung, on its own.
 
-    Split out of :func:`note_in_scope` because the cluster rung and the study rung are
-    asked separately: a reader that walks the clusters itself (``data_access``'s
-    override and exclude overlays) has no single cluster to pass, so it used to pass
-    none -- and ended up reading the whole store with no study gate at all, which is
-    how one study's override landed on another study's c2 under the biologist's own
-    authority. One spelling of the rule, so there is one place to be right:
+    For readers that walk clusters themselves; one spelling of the rule:
 
     * ``lab`` scope is deliberately cross-study -- that is what the lab rung means.
     * every other scope fires only inside the dataset it names, and a note naming no
@@ -613,10 +576,8 @@ def notes_in_study(dataset: str | None = None,
                    base_dir: Path | str | None = None) -> list[Note]:
     """Every note that may fire somewhere in ``dataset``, in ``read_notes`` order.
 
-    The study-level counterpart of :func:`apply_notes`, for readers that do their own
-    per-cluster dispatch. Unlike :func:`list_notes` -- which filters on the dataset
-    string alone and so drops the lab rung -- this keeps lab-scoped notes, which hold
-    across studies by design.
+    The study-level counterpart of :func:`apply_notes`; keeps lab-scoped notes,
+    which hold across studies by design.
     """
     return [n for n in read_notes(base_dir) if note_in_study(n, dataset)]
 
@@ -691,20 +652,8 @@ def cite_note(note: Note) -> Source:
     elif note.scope == "dataset":
         scope_txt = f"dataset:{note.scope_ref.dataset}"
     elif note.scope == "lab":
-        # **The lab rung is the one that travels, and it was the one that said
-        # nothing about where it came from.** ``cluster`` and ``dataset`` are keyed
-        # to the study they were formed on and can only fire there; ``lab`` fires on
-        # every study the biologist opens. So a note formed on 280-gene FFPE breast
-        # fires on a kidney immuno-oncology panel, and this citation -- the thing the
-        # grounding suite checks, and the only provenance the chat shows -- rendered
-        # it as a bare "scope=lab". The suite passed it because the note IS a real
-        # source: it checks that a claim names its source, not that the source names
-        # its tissue. ``ui/report.note_scope_label`` already said "formed on <id>" on
-        # the page; this is the same sentence on the rung that needs it most.
-        #
-        # "not recorded" rather than silence for a pre-schema note, for the same
-        # reason as there: a bare "lab" reads as though the formation study were
-        # known and merely uninteresting.
+        # The lab rung travels across studies, so it names the study it was formed
+        # on (as ``ui/report.note_scope_label`` does); "not recorded" if unknown.
         scope_txt = (f"lab formed_on:{note.scope_ref.dataset}"
                      if note.scope_ref.dataset
                      else "lab formed_on:(not recorded)")
@@ -719,12 +668,8 @@ def render_citation(note: Note, *, refresh: Optional[LiteratureSearch] = None) -
     the note carries tension — the count of agreeing vs dissenting citations
     with their PMIDs. When ``refresh`` is given, the tension is re-reconciled
     live before rendering (real PMIDs only). Never smooths disagreement over.
-
-    **Three sentences where there was one.** "We searched and found nothing" is a
-    finding about the literature; "no lookup completed" is a statement about this
-    session and says nothing about the literature at all. Rendering them in the same
-    voice is how a note written while the connector was down ends up reading as
-    evidence of thinness. :func:`claims.notes.lookup_state` draws the line.
+    "Found nothing" and "no lookup completed" render differently
+    (:func:`claims.notes.lookup_state`).
     """
     tension = reconcile(note, refresh) if refresh is not None else note.tension
     src = cite_note(note)

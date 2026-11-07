@@ -5,49 +5,24 @@ and a competing hypothesis **B** (named by the biologist or derived from the
 cluster's own off-type markers), this module names the markers that separate A
 from B, each classified honestly against what was actually measured.
 
-The governing data fact: jazzPanda output is **one row per gene** — each gene is
-assigned to a single winning cluster with a single glm_coef/pearson. There is no
-(cluster x gene) matrix, so a marker's number exists only for its own top
-cluster. The hard rule enforced here: **a jazzPanda number is only ever attached
-to a gene that is a top marker of the cluster in question**; everything else is
-classified without a number. That keeps every quoted value groundable and lets
-the agent answer clear the confident floor.
-
-**The bucketing engine is ``core/rival.py``.** This module keeps the published
-surface its ten call sites read -- ``Discrimination``, ``DiscriminatorMarker``,
-``discriminate``, ``settle_summary``, ``settle_line``, ``_canon_key`` -- and does the
-four jobs ``core/rival.py:61-67`` explicitly disowns: deriving the rival from the
-unit's own off-type markers, resolving aliases and within-lineage refinements,
-re-attaching *where else* a marker went, and prose. The buckets themselves are filters
-on ``Measured.state``, computed once in core:
+**The bucketing engine is ``core/rival.py``.** This module does the jobs core
+disowns: deriving the rival from the unit's own off-type markers, resolving aliases
+and within-lineage refinements, re-attaching *where else* a marker went, and prose.
+The buckets are filters on ``Measured.state``:
 
 - ``supporting_A``    <- OBSERVED, canonical for A (with numbers).
 - ``b_here``          <- ``supports_rival``: OBSERVED, canonical for B. Genuine B
                         signal here, which is ambiguity and not a refutation.
 - ``b_elsewhere``     <- ``against_rival``: TESTED_ABSENT -- in frame, measured, not
                         reported here. The productive half; no number attached here.
-- ``offpanel_absent`` <- ``undecidable``: NEVER_MEASURED or UNDERPOWERED. **Not only
-                        off-panel.** A gene the panel carried and the measurement
-                        could not localize anywhere lands here too; the old engine
-                        asked only ``panel_contains`` and filed those under
-                        "argues against B", which is the panel-absence rule inverted
-                        into a confident false negative. The prose names WHICH frame
-                        refused each one. We never recommend running an experiment.
+- ``offpanel_absent`` <- ``undecidable``: NEVER_MEASURED or UNDERPOWERED -- off-panel
+                        OR on-panel without usable signal; the prose names which
+                        frame refused each. Never "argues against B" (panel-absence
+                        rule). We never recommend running an experiment.
 
-The governing data fact behind the numbers: jazzPanda output is **one row per gene**
--- each gene is assigned to a single winning cluster with a single glm_coef/pearson.
-There is no (cluster x gene) matrix, so a marker's number exists only for its own top
-cluster. The rule that **a number is only ever attached to a gene that is a top marker
-of the cluster in question** is no longer a convention held by three call sites:
-``EvidenceItem`` raises if a statistic and a measurement status disagree.
-
-``settleable_on_panel`` is ``Rivalry.settleable`` -- K of N of B's canonical set in
-frame, against a floor of 1, which is what the old ``bool(b_here or b_elsewhere)``
-meant with the denominator thrown away.
-
-Reuses the grounded primitives: ``core.rival.rival_test``, ``pipeline.records``,
-``annotation.canonical_markers``, ``data.get_cluster_markers`` / ``get_marker`` /
-``cell_type_for``.
+jazzPanda output is one row per gene, so a number is only ever attached to a gene
+that is a top marker of the cluster in question (``EvidenceItem`` enforces it).
+``settleable_on_panel`` is ``Rivalry.settleable`` with a floor of 1.
 """
 from __future__ import annotations
 
@@ -64,14 +39,8 @@ from panoscope.types.measured import MeasuredState
 def _world_and_builds():
     """The v2 evidence for every unit of the current study, plus its capability frames.
 
-    Cached per study by the same decorator every other zero-arg reader uses, so the
-    autouse fixture in ``tests/conftest.py`` clears it with the rest and a study
-    switch cannot serve stale evidence. ~0.1 s cold.
-
-    The imports are function-local because ``agent -> pipeline`` is a cycle risk --
-    the same reason ``loop.py`` takes its ``pipeline`` imports that way. There is
-    deliberately no ``try``/``except``: a discriminator that silently answers from no
-    evidence is the failure shape that cost three bugs tonight. Let it raise.
+    Cached per study. Imports are local (agent -> pipeline cycle risk). No try/except
+    on purpose: a discriminator must not silently answer from no evidence.
     """
     from panoscope.pipeline import records
     from panoscope.platforms.xenium import XeniumAdapter
@@ -84,11 +53,7 @@ def _world_and_builds():
 def _off_panel(m) -> bool:
     """True iff it was the PANEL frame that refused this subject.
 
-    ``Measured.frame`` names the ONE frame that refused a ``NEVER_MEASURED`` subject
-    (``types/measured._state_for``), so this separates *not on the panel* from *on
-    the panel but produced no usable spatial signal*. They are different facts to a
-    biologist -- the first is fixed by ordering a different panel, the second is not
-    -- and the ``off_panel: bool`` this replaces collapsed them.
+    Separates *not on the panel* from *on the panel, no usable spatial signal*.
     """
     return m.state is MeasuredState.NEVER_MEASURED and m.frame.startswith("panel:")
 
@@ -181,13 +146,7 @@ def _canon_key(s: str) -> str:
 
 
 # Common wet-lab synonyms -> canonical map key. Kept small and unambiguous.
-#
-# BREAST-DEMO LABELS. Every target here is a key of this study's annotation and of
-# ``annotation.CANONICAL_MARKERS_FALLBACK``, which ``annotation._is_bundled_demo``
-# already gates for exactly that reason. This table was not gated, so on any other
-# study the biologist's "CAF" was silently translated into a label that study does
-# not use -- the demo's label space reaching into a dataset it knows nothing about,
-# which is the failure the annotation gate exists to prevent one file over.
+# Breast-demo labels: applied only for the bundled demo (see _normalize_cell_type).
 _ALIASES: dict[str, str] = {
     "CAF": "Stromal",
     "FIBROBLAST": "Stromal",
@@ -216,10 +175,8 @@ def _normalize_cell_type(s: Optional[str]) -> Optional[str]:
     kmap = _key_by_canon()
     if key in kmap:
         return kmap[key]
-    # The study's own annotated types are always tried first and are never gated.
-    # The synonym table is demo content: off the demo an unrecognised word stays
-    # unrecognised, and ``discriminate`` declines it BY NAME -- which is a true
-    # answer, where a translated label is a quiet substitution.
+    # Synonyms are demo content: off the demo an unrecognised word stays unrecognised
+    # and ``discriminate`` declines it by name rather than substituting a label.
     if annotation._is_bundled_demo():
         return _ALIASES.get(key)
     return None
@@ -276,12 +233,7 @@ def _derive_alt(cluster: str, call_A: str) -> Optional[str]:
 
     Walk the cluster's markers by glm_coef and return the first non-A canonical type
     any of them marks. None if the cluster's markers all point at A (a clean call with
-    no rival in the measured data).
-
-    Rival derivation is one of the four jobs ``core/rival.py`` disowns -- it needs the
-    whole canonical map rather than one rival's list -- so it still reads the marker
-    table, for gene NAMES in the method's own order. No number is taken from it: every
-    number in the result comes up through ``core.measure``.
+    no rival in the measured data). Reads gene NAMES only; no number is taken here.
     """
     for g in data.get_cluster_markers(cluster)["gene"]:  # glm_coef descending
         for t in _canonical_types_for(str(g)):
@@ -356,8 +308,7 @@ def discriminate(cluster: str, alt_cell_type: Optional[str] = None) -> Discrimin
             _marker(i, "b_localizes_elsewhere", _locates(i.subject.display()))
             for i in r.against_rival
         )
-        # NOT only off-panel any more: a gene on the panel that produced no usable
-        # spatial signal lands here too, where v1 filed it under "argues against B".
+        # Off-panel OR on-panel with no usable spatial signal; never "against B".
         offpanel = tuple(_marker(i, "offpanel_absent", None) for i in r.undecidable)
         settleable = r.settleable
 
@@ -422,12 +373,8 @@ def _by_cluster(markers) -> dict[str, list[str]]:
 def _undecidable_bits(d: Discrimination) -> list[tuple[list[str], str, str]]:
     """``(genes, sentence phrase, compact phrase)`` per refusing frame.
 
-    Two different facts, never collapsed into one sentence: *off the panel* is fixed
-    by ordering a different panel, *on the panel but with no usable spatial signal*
-    is not. v1 said "off-panel" unconditionally because its only capability question
-    was ``panel_contains``; the bucket now also holds genes the detectability frame
-    refused (49 of 280 on the demo panel), and calling those off-panel would be a
-    fabricated fact about the panel.
+    *Off the panel* and *on the panel, no usable spatial signal* are different facts,
+    never collapsed: calling the latter off-panel would fabricate a panel fact.
     """
     off = [m.gene for m in d.offpanel_absent if not m.on_panel]
     nosig = [m.gene for m in d.offpanel_absent if m.on_panel]
@@ -489,8 +436,7 @@ def settle_summary(d: Discrimination) -> str:
     elif d.settleable_on_panel:
         parts.append(f"On the measured markers this leans {A}.")
     else:
-        # "off-panel" would be a claim about the panel; the bucket now also holds genes
-        # the panel carried and the measurement could not localize. Frame-neutral.
+        # Frame-neutral: the bucket holds off-panel and no-signal genes alike.
         parts.append(f"The markers that would decide it were never measured, so the panel cannot settle {A} vs {B}.")
 
     return " ".join(parts)

@@ -1,9 +1,7 @@
 """Shared frozen dataclasses — the contracts that cross every module boundary.
 
-Transcribed from docs/archive/BLUEPRINT.md section 2 (superseded by IMPLEMENTATION.md). All dataclasses are frozen (the
-immutability rule): construct new objects, never mutate. Modules import these
-types rather than passing raw dicts, so the grounding tests and the UI agree on
-exactly what a marker, a verdict, a note, and an agent response are.
+All frozen: construct new objects, never mutate. Typed rather than raw dicts so the
+grounding tests and the UI agree on what a marker, verdict, note and response are.
 """
 
 from __future__ import annotations
@@ -257,10 +255,8 @@ class PathwayEvidence:                      # mirrors MarkerEvidence (per gene s
     q_value: Optional[float]               # BH-adjusted (jazzPanda p_adj_bh)
     # panel-coverage grounding spine
     set_size_full: int                     # |set| in the source collection (~200)
-    # Set genes EVERY gene capability frame admits -- on the panel AND producing
-    # usable spatial signal. NOT the result's own ``n_overlap``: see
-    # ``agent/enrichment._load_jazzpanda_rows`` for why the method's word about its
-    # own capability is not taken.
+    # Set genes EVERY gene capability frame admits (on-panel AND usable signal).
+    # NOT the result's own ``n_overlap``; see ``agent/enrichment._load_jazzpanda_rows``.
     panel_hits: int
     panel_coverage: float                  # panel_hits / set_size_full (0..1)
     leading_edge: tuple[str, ...]          # the driving genes (all on-panel, real)
@@ -273,24 +269,13 @@ class PathwayEvidence:                      # mirrors MarkerEvidence (per gene s
 
     @property
     def measured_state(self) -> "MeasuredState":
-        """The four-state reading of this row. One spelling, for the usual reason.
+        """The four-state reading of this row (``tier == untestable`` conflates three).
 
-        ``tier`` cannot answer this and must not be asked to. Its ``untestable``
-        value catches three different facts -- below a capability floor, scored
-        but above the q bar, and no q returned at all -- and only the first is
-        "the panel could not test this".
+        * below ``MIN_PANEL_HITS`` / ``MIN_LEADING_EDGE``: UNDERPOWERED; argues nothing.
+        * no ``q_value``: NEVER_MEASURED; the absence argues nothing.
+        * scored, above the q bar: TESTED_ABSENT, the productive half.
 
-        * no ``q_value`` at all: the test reported nothing for this set, so
-          nothing was measured and the absence argues nothing. This is the
-          branch that was reading as TESTED_ABSENT, which told the biologist
-          "absence IS evidence here" about a test that never produced a result
-          -- the headline rule inverted.
-        * below ``MIN_PANEL_HITS`` or ``MIN_LEADING_EDGE``: in frame, under the
-          floor, UNDERPOWERED; argues nothing.
-        * scored, reported, above the q bar: TESTED_ABSENT, the productive half.
-
-        A property, not a field: a stored copy could disagree with the row under
-        it, and ``dataclasses.asdict`` would then persist the disagreement.
+        A property, not a field, so a stored copy cannot disagree with the row.
         """
         from panoscope.agent import config as _cfg
         from panoscope.types.measured import MeasuredState as _MS
@@ -309,21 +294,9 @@ class PathwayEvidence:                      # mirrors MarkerEvidence (per gene s
 class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster)
     """One cluster's enrichment call. **No band, and nowhere to put one.**
 
-    ``confidence``, ``confidence_score`` and ``demotions`` were deleted here
-    (IMPLEMENTATION.md §10, *The one behaviour change with a visible surface*).
-    CHARACTERISATION has no label space, so a unit-level band over it is undefined
-    rather than merely unhelpful -- there is no alternative for the remaining
-    probability mass to sit on. ``demotions`` went with them because it only ever
-    held band-change sentences ("-> -1 band"), and an always-empty audit trail for a
-    rule that no longer exists is an invitation to refill it.
-
-    :attr:`census_line` is the replacement, and it is strictly more informative than
-    the band it replaces: it names how many programs cleared each bar and how many
-    the panel could not test at all.
-
-    ``verify`` stays. "A human should look" is well-defined without a label space,
-    and it comes from the deterministic rubric in ``agent/enrichment.py``, never from
-    a model.
+    CHARACTERISATION has no label space (IMPLEMENTATION.md §10); the header is
+    :attr:`census_line`. ``verify`` comes from the deterministic rubric in
+    ``agent/enrichment.py``, never from a model.
     """
 
     cluster: str
@@ -337,23 +310,13 @@ class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster
     source_trace: tuple[str, ...]          # every (set, score, q, K) used
 
     # --- the census: per-item counts, the header a no-label-space task permits -- #
-    # Properties, not fields, because each is a count of a list this object already
-    # carries. A stored copy could disagree with the rows under it, and
-    # ``dataclasses.asdict`` would then persist the disagreement.
+    # Properties, not fields, so a stored count cannot disagree with the rows.
     @property
     def n_untestable(self) -> int:
         """Programs tiered ``untestable``.
 
-        Mostly those below the panel-hit or leading-edge floor, which is what the
-        panel could not test. The tier also catches a set scored above the q bar
-        (TESTED_ABSENT -- tested, and the productive half) and one for which the
-        test returned no q at all. Neither occurs in the bundled demo (0 of 20),
-        but the count is "tiered untestable", not "could not be tested", and the
-        two part company on a panel designed for a different question.
-
-        Whether a TESTED_ABSENT program deserves its own census term is a change
-        to the exported contract (``cluster_n_untestable``, IMPLEMENTATION.md
-        s10), not a bug fix, so it is not made here.
+        "Tiered untestable", not "could not be tested": the tier also holds
+        TESTED_ABSENT and no-q sets (see :attr:`PathwayEvidence.measured_state`).
         """
         return sum(1 for p in self.all_tested if p.tier == "untestable")
 
@@ -366,9 +329,7 @@ class ClusterEnrichment:                   # mirrors ClusterVerdict (per cluster
     def census_line(self) -> str:
         """``7 supported \u00b7 3 suggestive \u00b7 12 untestable``: the band's replacement.
 
-        One spelling, here, because several call sites render it (the chat context,
-        the report section, the conversation opener) and several spellings of a
-        header is how the numbers in them drift apart.
+        One spelling, shared by every surface that renders it.
         """
         supported, suggestive, untestable = self.census
         return (f"{supported} supported \u00b7 {suggestive} suggestive "

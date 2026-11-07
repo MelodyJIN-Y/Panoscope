@@ -35,19 +35,10 @@ from panoscope.platforms.xenium import (
 # tree-first, at call time, with a fall back to the legacy flat path for the
 # bundled demo only -- those flat files are the demo's.
 def resolved(tree_rel: str, legacy_rel: str) -> Path:
-    """The current study's tree path, falling back to the legacy flat path.
+    """The current study's tree path (resolved per call); legacy flat path for the demo only.
 
-    Resolved at CALL time against the current study. It used to be resolved at
-    import, which froze every path to whichever study happened to be active when
-    the module was first imported -- so opening a second study silently served the
-    first study's frames to everything downstream.
-
-    The legacy flat files under ``data/`` belong to the BUNDLED DEMO and to nothing
-    else, so only the demo may fall back to them. For any other study the missing
-    tree path is returned unchanged, and ``_require``/``_read_table`` name that
-    study's OWN missing file. Without this gate a second study silently read the
-    demo's cluster key, cells, UMAP, expression matrix and hexbins -- a measured
-    value from the wrong study, reaching the band and the model.
+    Any other study gets its own missing path back, so loaders name it rather than
+    serving the demo's measured values under another study.
     """
     study = cfg.current_study()
     cand = study.dir / tree_rel
@@ -100,12 +91,7 @@ _PANEL_COLS = ["gene", "ensembl_id", "annotation"]
 
 
 def _per_study(fn):
-    """Cache a zero-arg reader per study.
-
-    The readers take no arguments, so a plain lru_cache keys everything on the empty
-    tuple -- one slot, shared across studies. Keying on the current study is what
-    makes cross-study staleness unrepresentable rather than merely tested for.
-    """
+    """Cache a zero-arg reader keyed on the current study, so studies never share a slot."""
     cached = lru_cache(maxsize=16)(lambda _study: fn())
 
     @wraps(fn)
@@ -152,25 +138,8 @@ def load_markers() -> pd.DataFrame:
     Columns: gene, top_cluster, glm_coef, pearson, max_gg_corr, max_gc_corr,
     cell_type. Cached; callers must not mutate the returned frame.
 
-    **The control rows leave here, for the same reason they leave**
-    :func:`load_panel`. A method writes its output over every probe the instrument
-    ran, so a negative control arrives in ``markers_top.csv`` with a real unit and a
-    real statistic -- and on an off-target panel, where few rows carry a statistic at
-    all, plausibly the largest one in the file. This is the one read of that table,
-    so one filter here is what keeps a control out of ``get_cluster_markers`` (and so
-    out of ``agent.tools.marker_lookup``, which would otherwise hand the model a
-    control probe with a glm_coef and a ``Source`` behind it), out of
-    ``pipeline/stages/annotate``, out of ``agent.discriminate``, and out of
-    ``agent.verdict._detectable_genes``, which is v1's detectability frame and was
-    counting a control as a gene that produced usable signal.
-
-    ``XeniumAdapter._detectable_genes`` filters the same rows with the same rule when
-    it reads the file for the v2 frame; it reads the CSV directly rather than through
-    this reader (it is per sample, and this one is per study), so the two agree
-    because they call :func:`is_control`, not because both happen to be filtered.
-
-    The rows are dropped from the *reader*, never from the file: a control's count is
-    the assay's noise floor and ``markers_top.csv`` still carries it.
+    Control probes are dropped from the reader (never the file) by :func:`is_control`,
+    the same rule ``XeniumAdapter._detectable_genes`` uses.
     """
     path = _require(_markers_top(), "scripts prep (markers_top.csv)")
     df = pd.read_csv(path)
@@ -214,20 +183,8 @@ def get_marker(gene: str) -> pd.Series | None:
 def load_cluster_key() -> dict[str, dict]:
     """Return cluster -> {cell_type, cell_type_short, category, lineage}.
 
-    Delegates to ``Study.unit_labels`` -- the ONE resolver for this fact (the
-    pipeline's ``interp/annotation.json`` first, the legacy ``inputs/cluster_key.json``
-    second). It used to read ``inputs/cluster_key.json`` itself, which knew only the
-    second source, so a pipeline-built study found nothing there and fell through to
-    the BUNDLED DEMO's flat ``data/cluster_key.json``: ``cell_type_for`` then handed
-    another study's breast labels to ``discriminate.call_A`` (-> rivals -> the band)
-    and to the model. Two resolution paths for one fact, and the plurality gate
-    watched the good one.
-
-    Deliberately asserts no entry count. It used to require exactly 9, which is the
-    bundled demo's cluster count and nothing more general -- a hard blocker for any
-    second study, and one that pipeline/stages/validate.py swallowed as a bare
-    Exception so a 3-cluster study silently skipped key validation entirely. What
-    matters is that the entries are well-formed, not how many there are.
+    Delegates to ``Study.unit_labels``, the one resolver for this fact. Asserts no
+    entry count: cluster count is per study.
     """
     key = cfg.current_study().unit_labels
     if not key:
@@ -251,64 +208,24 @@ def cell_type_for(cluster: str) -> str:
 # Panel (the absence primitive)
 # --------------------------------------------------------------------------- #
 def is_control(gene: str) -> bool:
-    """True if ``gene`` names a control probe rather than a panel gene, in ANY case.
+    """True if ``gene`` is a control probe, by vendor name or by its panel annotation.
 
-    A delegation, not a rule. :func:`~panoscope.platforms.xenium.is_control_probe`
-    is the one place the question is answered, and it is the call the capability
-    frames use; this name stays because the readers in this module (and
-    ``scripts/precompute_density``) read better against it, but a second copy of the
-    comparison here is a second answer, and a second answer is how the frame came to
-    say 13 while this module said 12 for one 12-gene assay.
-
-    **Where a control probe sits in the four-state lattice: in none of the four, and
-    that is the point.** The states in ``types/measured.py`` are states of a *subject
-    of interpretation* resolved against a frame. A control probe IS measured --
-    being measured is its entire function, and its count is the assay's noise floor,
-    which on an off-target panel is how a biologist decides whether a flat signal is
-    biology or floor -- so ``NEVER_MEASURED`` is false about it. But it names no
-    biological entity, so there is nothing for ``OBSERVED`` or ``TESTED_ABSENT`` to
-    be about either. It is **excluded from every gene frame, not absent from one**:
-    it never enters ``panel:<id>`` or ``detect:<id>`` as a member, so it inflates no
-    coverage denominator, and since ``_state_for`` requires every frame of a kind to
-    admit an entity, no control can ever be admitted -- the two states that *do*
-    something, ``OBSERVED`` (carries a number) and ``TESTED_ABSENT`` (absence
-    argues), are unreachable for one.
-
-    **What is still wrong, and is not fixable from here.** Unadmittable is not the
-    same as not-a-subject. Ask the lattice about a control today and it answers
-    ``NEVER_MEASURED`` in ``panel:<id>`` -- byte-identical to a real gene the assay
-    never probed, and false about a probe whose count is on disk. ``MeasuredState``
-    has no fifth value and ``Frame`` has no way to say "excluded", so saying so
-    needs a change in ``types/measured.py``; until then the only truthful sentence
-    about a control comes from :func:`control_annotation` and
-    ``agent.tools.panel_lookup``, which branch on this function instead of asking
-    the lattice.
+    Controls are excluded from every gene frame (never a member, never in a
+    denominator). The lattice still reads them NEVER_MEASURED, so callers that speak
+    about one branch on this and :func:`control_annotation` instead.
     """
     if is_control_probe(gene):
         return True
-    # The annotation half. ``is_control_probe`` reads the vendor's NAME, which is
-    # the one thing the vendor renames between panel versions; this reads the
-    # ``annotation`` column of the same row, which this module already exposes as
-    # :func:`panel_annotation` and ``agent/tools.panel_lookup`` already prints.
-    # Without it a probe named outside the seven families -- annotated ``negative
-    # control`` in the store's own file -- passed every filter here, led
-    # ``key_markers`` in the exported CSV and was handed to the model with its
-    # ``glm_coef`` and a Source. The adapter does the same join at
-    # ``XeniumAdapter._panel_genes``; one rule, read from one column, on both sides
-    # of the agent/core line.
+    # The annotation half: names change between panel versions, the annotation
+    # column does not. Same join as ``XeniumAdapter._panel_genes``.
     return str(gene).strip().upper() in _annotated_control_names()
 
 
 @_per_study
 def _annotated_control_names() -> frozenset[str]:
-    """Panel names whose ``annotation`` column marks them control probes, upper-cased.
+    """Panel names whose ``annotation`` marks them control probes, upper-cased, per study.
 
-    Derived once per study rather than joined per gene: :func:`is_control` is called
-    once for every row of ``panel.parquet`` AND every row of ``markers_top.csv``, and
-    a per-call lookup into the panel table makes that quadratic in the size of the
-    assay. Empty, not an error, when the panel file is missing or unreadable -- the
-    name rule still answers, and the callers that need the file to exist already
-    raise through :func:`_panel_table` on their own account.
+    Empty (not an error) when the panel is unreadable; the name rule still answers.
     """
     try:
         df = _panel_table()
@@ -323,12 +240,7 @@ def _annotated_control_names() -> frozenset[str]:
 
 @_per_study
 def _panel_table() -> pd.DataFrame:
-    """``panel.parquet`` exactly as the vendor wrote it: panel genes AND controls.
-
-    The single read of the file. :func:`load_panel` is this minus the control rows
-    and :func:`control_annotation` is the control rows' half, so neither re-reads
-    and they cannot drift apart about what the file said.
-    """
+    """``panel.parquet`` exactly as the vendor wrote it: panel genes AND controls. The single read."""
     path = _require(_panel_parquet(), "scripts prep (panel.parquet)")
     df = pd.read_parquet(path)
     missing = set(_PANEL_COLS) - set(df.columns)
@@ -341,34 +253,8 @@ def _panel_table() -> pd.DataFrame:
 def load_panel() -> pd.DataFrame:
     """Return the panel GENES: gene, ensembl_id, annotation. Controls excluded.
 
-    ``panel.parquet`` is the vendor's probe table, and Xenium ships its negative
-    controls in it -- ``NegControlProbe_*``, ``NegControlCodeword_*``,
-    ``UnassignedCodeword_*`` and friends, dozens of rows on a real panel. They are
-    probes, not genes, so they are dropped here with
-    :data:`~panoscope.platforms.xenium.CONTROL_PREFIXES` -- the adapter's list,
-    imported rather than copied, because two lists are two answers.
-
-    This is the root of a count that was wrong everywhere downstream.
-    ``XeniumAdapter.frames`` already filtered, so the capability frame was right and
-    every consumer of this reader was wrong by the number of control rows: the
-    multi-sample fixture's 12-gene assay read as 13 in ``manifest.panel_gene_count``
-    (``pipeline/run.py`` counts these rows), in ``agent/enrichment._panel_size`` and
-    so in every "...on this N-gene panel" caveat sentence, and in
-    ``ui/conditionality._panel_scope``, the line under every plot. A control row in
-    the panel inflates a coverage denominator, which is the one place a panel size
-    is load-bearing rather than decorative. The demo panel was pre-stripped, which is
-    the only reason this never showed.
-
-    **Excluded and named, not invisible.** A control probe genuinely ran on the
-    instrument, so "never measured" is the wrong thing to say about one; it is simply
-    not a panel gene. The rows leave the panel (and therefore
-    :func:`panel_contains`, the coverage denominators and the autocomplete list) and
-    ``panel.parquet`` keeps them untouched, with :func:`is_control` available to tell
-    a caller which kind of off-panel a name is and :func:`control_annotation` to say
-    what the probe actually was. Dropping the row without keeping the annotation
-    reachable is what left ``agent.tools.panel_lookup`` with only "never measured"
-    to say about a probe the instrument really ran -- a counting error traded for a
-    fabricated measurement status, which is the worse of the two.
+    Controls would inflate every coverage denominator; they stay in the file and
+    remain nameable via :func:`is_control` / :func:`control_annotation`.
     """
     df = _panel_table()
     genes = df["gene"].astype(str)
@@ -384,17 +270,9 @@ def _panel_gene_set() -> frozenset[str]:
 def panel_contains(gene: str) -> bool:
     """True iff ``gene`` is on the panel (stripped, case-insensitive).
 
-    THE absence primitive. O(1) frozenset membership over a set derived FROM the
-    loaded panel file. The absence of a gene NOT on the panel is never evidence
-    against a cell type — callers use this to make exactly that call.
-
-    **Normalised on both sides, which is what makes it the same primitive as
-    ``core``'s.** ``Frame.contains`` is the v2 half and ``agent/`` may not import
-    ``core/``, so the two are transcriptions of each other rather than one call;
-    they stopped being transcriptions when this one case-folded and did not strip
-    while that one did neither. A ``panel.parquet`` holding ``"CD68 "`` was then
-    off-panel here and in-frame there, and the two engines returned different bands
-    and different ``verify`` for one row. Both now strip and upper-case.
+    THE absence primitive, derived FROM the panel file. The absence of a gene NOT on
+    the panel is never evidence against a cell type. Normalised exactly as
+    ``Frame.contains`` (strip + upper) so both engines agree.
     """
     return str(gene).strip().upper() in _panel_gene_set()
 
@@ -411,18 +289,8 @@ def panel_annotation(gene: str) -> str | None:
 def control_annotation(gene: str) -> str | None:
     """The panel file's annotation for a CONTROL probe, or None if ``gene`` is not one.
 
-    Deliberately reachable. ``load_panel`` drops control rows so no coverage
-    denominator counts them, and :func:`panel_annotation` therefore answers None for
-    a control -- correct for a *panel* annotation, but it left the only remaining
-    sentence about a control probe being "off-panel, never measured", which is false
-    about a probe whose whole function is to be measured. This reads the untouched
-    rows of :func:`_panel_table`, so a caller can say what the thing actually is
-    while :func:`panel_contains` keeps answering False and the denominator stays
-    right.
-
-    None for a control-shaped name that is not in the file at all: callers branch on
-    :func:`is_control`, not on this, so an unannotated control is still named as a
-    control rather than reported as never measured.
+    Lets callers say what a control is instead of "never measured". None also for a
+    control not in the file; callers branch on :func:`is_control`, not this.
     """
     if not is_control(gene):
         return None

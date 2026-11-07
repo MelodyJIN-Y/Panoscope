@@ -74,15 +74,8 @@ def _fail(error: str, data_payload: Any = None) -> Envelope:
 # imports the MCP client so importing this module never spawns a server.
 _LITERATURE_SEARCH_FN: Optional[Callable[[str], list[Citation]]] = None
 
-# An EXPLICIT override of where memory notes are written, or None to let
-# ``agent.memory`` resolve it. Overridable via :func:`set_memory_base_dir`.
-#
-# This used to read PANOSCOPE_CONTEXT_DIR here, at import. Two things were wrong
-# with that: the value froze at first import, so an environment set afterwards
-# (a pytest fixture, a Streamlit rerun) could never reach it; and it put the
-# resolution in a second place, which is how ``agent/memory`` came to ignore the
-# variable entirely while this module and ``agent/profile`` honoured it. One
-# module owns it now -- ``memory._default_base()`` -- and None means "ask it".
+# An EXPLICIT override of where memory notes are written (:func:`set_memory_base_dir`),
+# or None to let ``memory._default_base()`` resolve it per call.
 _MEMORY_BASE_DIR: Optional[str] = None
 
 _LIT_SEARCH_DEFAULT_MAX = 5
@@ -119,11 +112,8 @@ def _citation_from_mcp(rec: dict[str, Any]) -> Citation:
 class LiteratureUnavailable(RuntimeError):
     """The literature lookup did not happen -- as distinct from finding nothing.
 
-    A distinct type because the caller's answer differs and the difference is the
-    whole point: "searched and found nothing" is thin literature and may be said
-    out loud; "the connector was down" supports no claim about the literature at
-    all. ``memory.reconcile`` turns this into ``looked_up_at=""``, which
-    ``claims.notes.lookup_state`` reads back as *no lookup*.
+    "Connector down" supports no claim about the literature; ``memory.reconcile``
+    records it as ``looked_up_at=""`` (*no lookup*).
     """
 
 
@@ -134,17 +124,8 @@ def _live_literature_search(query: str, max_results: int = _LIT_SEARCH_DEFAULT_M
     server actually ran and answered with nothing -- the one state that honestly
     means thin literature. Lazily imported so module import is side-effect free.
 
-    **Raises on connector failure**, which is the point. This used to swallow
-    every exception and return ``[]``. ``memory.reconcile`` distinguishes "no
-    lookup at all" from "looked and found nothing" by whether this callable RAISES
-    (memory.py:236) -- so with the live callable the first state was unreachable,
-    and a dead or unconfigured connector was recorded as a completed search:
-    ``looked_up_at`` stamped, and every surface saying "the literature was
-    searched and is thin; no reference found". That is a claim about the world
-    made from a request that never arrived.
-
-    The sibling :func:`literature_search` envelope already drew this line and says
-    so in its own docstring; the two now agree.
+    **Raises** :class:`LiteratureUnavailable` on connector failure, so
+    ``memory.reconcile`` never records a lookup that did not happen.
     """
     try:
         from panoscope.agent import mcp_client
@@ -200,16 +181,8 @@ def panel_lookup(gene: str) -> Envelope:
     and the caller must say so. No statistic is invented; only membership + the
     panel's own annotation string are returned.
 
-    **Three answers, not two.** A negative-control probe is off-panel and yet
-    measured: running it is its entire function and its count is the assay's noise
-    floor. Saying "never measured" about one is a fabricated measurement status with
-    click-back intact — a ``Source``-backed falsehood — and on an off-target panel
-    it withholds the exact fact a biologist needs, because checking the controls is
-    how you decide whether a flat signal is biology or floor. So ``control`` is
-    reported beside ``on_panel``: both False is the real never-measured case, while
-    ``control=True`` is "measured, but not a subject of interpretation" (where a
-    control sits in the four-state lattice is argued in ``agent.data.is_control``).
-    ``on_panel`` stays False either way, so no coverage denominator moves.
+    ``control=True`` is a control probe: off-panel yet measured (the noise floor),
+    so never reported as "never measured". ``on_panel`` stays False either way.
     """
     g = str(gene or "").strip()
     if not g:

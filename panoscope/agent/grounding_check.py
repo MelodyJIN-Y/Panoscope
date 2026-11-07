@@ -11,10 +11,8 @@ is that gate. It is deliberately paranoid and it is INDEPENDENT OF THE SIDECAR:
 - Every PMID/DOI is extracted and must resolve through an INJECTED
   ``literature_verifier`` callable. An unresolved identifier is a violation. A
   fabricated citation is the worst possible failure, so this fails closed.
-- Every referenced lab note must exist and be cited -- and must be IN SCOPE. The
-  scope half reads the real note store (``agent/memory.apply_notes``, the single
-  gate every other caller already goes through) when no note set is injected, so
-  it fires on what the agent actually says rather than only under test.
+- Every referenced lab note must exist and be IN SCOPE (``memory.apply_notes``
+  over the real store when no note set is injected).
 - Every ``[claim:id]`` resolves through ``ClaimStore.cite`` -- the store's own USE
   gate, which refuses a missing, retracted or out-of-scope claim -- and every
   ``[edge:...]`` must match an edge of the consulted reference graph by identity.
@@ -27,20 +25,8 @@ is that gate. It is deliberately paranoid and it is INDEPENDENT OF THE SIDECAR:
 If the checker cannot positively confirm a claim traces to source, the claim is a
 violation and the answer is rejected (``ok == False``). Fail closed, never open.
 
-Consumers
----------
-- ``agent/loop.py`` — ``finalize()`` builds a ``GroundingSidecar`` and calls
-  ``GroundingChecker.check()``; any violation discards the answer and falls back
-  (BLUEPRINT sections 3 and 5).
-- ``tests/test_grounding.py`` — exercises the gate on clean and poisoned answers.
-
-Design notes
-------------
-``SourceIndex`` imports :mod:`agent.data` and reuses its loaders — there is NO
-second parser of the marker files. The only numeric source of truth is what
-``agent.data.get_marker`` returns (a ``pd.Series`` with fields ``gene``,
-``top_cluster``, ``glm_coef``, ``pearson``, ``max_gg_corr``, ``max_gc_corr``,
-``cell_type``). This module never reads a data file directly and never writes.
+The only numeric source of truth is ``agent.data.get_marker``; this module never
+reads a data file directly and never writes.
 """
 
 from __future__ import annotations
@@ -106,12 +92,7 @@ _GENE_TOKEN_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,9})\b")
 # A signed decimal number (no thousands separators expected in these stats).
 _NUMBER = r"[-+]?\d+(?:\.\d+)?"
 
-# The stat keyword alternation.
-#
-# DERIVED from ``_STAT_SYNONYMS``, not repeated. This was a verbatim copy of
-# that table, and the copy is what "the second list is the one nobody updates"
-# names: adding the prose form of pearson to one of them left ``_canonical_stat``
-# returning None for a keyword the extractor had just matched.
+# The stat keyword alternation, DERIVED from ``_STAT_SYNONYMS`` (one list, not two).
 _STAT_ALT = "|".join(f"(?:{pat})" for pat, _ in _STAT_SYNONYMS)
 
 # A bare "<stat> <number>" pair, with NO gene in the pattern; the gene is bound
@@ -152,40 +133,23 @@ _EDGE_REF_RE = re.compile(r"\[edge:\s*([^\]\s][^\]]*?)\s*\]")
 # --------------------------------------------------------------------------- #
 # The panel-absence rule, in prose
 # --------------------------------------------------------------------------- #
-# "A negative observation is evidence only if the measurement was CAPABLE of
-# producing a positive one" (CLAUDE.md). A sentence that asserts an OFF-PANEL
-# entity is absent AND draws a conclusion from that absence violates the rule,
-# and it does so with no number in it for the numeric pass to anchor on.
-#
-# The load-bearing guard is NOT the word lists: it is
-# ``SourceIndex.is_on_panel`` / ``is_modeled``. The pass fires only for a token
-# the capability frame says was never measured here, so every sentence about an
-# on-panel gene -- the overwhelming majority, including the productive
-# TESTED_ABSENT half the rule exists to protect -- is out of its reach by
-# construction.
-#
-# The exemption below is not an ad-hoc softener either. By the project's own
-# rule the ONLY legitimate sentence about an off-panel entity's absence is one
-# that says it was never measured, so "says it was never measured" is the rule's
-# own escape hatch rather than a second opinion about English.
+# A sentence asserting an OFF-FRAME entity is absent AND concluding from it
+# violates the rule (CLAUDE.md). The word lists only find candidates; the frame
+# decides, so TESTED_ABSENT sentences are out of reach by construction. Saying
+# "never measured" is the rule's own exemption.
 #
 # ponytail: word lists over a sentence. The ceiling is an uppercase non-gene
 # abbreviation (a histology term, say) written in an absence-plus-inference
 # sentence -- it is off-panel too, so it fires. Upgrade path is a real symbol
 # universe to gate the token on; there is none in this repo today.
-# A semicolon JOINS two clauses; it does not end a sentence. Splitting on one
-# cut "FOXP3 is absent; therefore Tregs are ruled out" into a half with the
-# absence and a half with the inference, so neither half satisfied the pair
-# and the sentence was never examined at all.
+# A semicolon JOINS clauses; splitting on it separates absence from inference.
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 _ABSENCE_RE = re.compile(
     r"\b(?:not\s+detected|undetected|not\s+expressed|no\s+expression"
     r"|absen(?:t|ce)|not\s+observed|not\s+seen|not\s+found|not\s+reported"
     r"|no\s+signal|missing|lack(?:s|ing|ed)?|negative"
-    # Negated SUBJECT, not negated verb: "neither X nor Y is detected" and
-    # "no CD3D is seen here" are the idiomatic ways to state a two-marker and
-    # a one-marker negative, and both walked straight through.
+    # Negated SUBJECT: "neither X nor Y is detected", "no CD3D is seen here".
     r"|neither\b|\bnor\b|\bno\s+[A-Z][A-Z0-9]{1,9}\b)\b",
     re.IGNORECASE,
 )
@@ -196,10 +160,7 @@ _INFERENCE_RE = re.compile(
     r"|supports?|supporting|confirms?|contradicts?|inconsistent\s+with"
     r"|consistent\s+with|unlikely|therefore|hence|which\s+is\s+why"
     r"|so\s+(?:this|it|the|c\d)"
-    # Passive and past forms. The pattern had only active present tense, so
-    # "so Tregs ARE EXCLUDED" and "therefore Tregs are RULED OUT" -- at least
-    # as natural as "which argues against Tregs" -- carried no inference at
-    # all and the sentence was never examined.
+    # Passive and past forms ("are excluded", "ruled out").
     r"|excluded|ruled\s+out|argued\s+against|weighed\s+against"
     r"|counted\s+against|is\s+not\s+(?:a|an|the)|are\s+not\s+(?:a|an|the))\b",
     re.IGNORECASE,
@@ -219,29 +180,11 @@ _NEVER_MEASURED_RE = re.compile(
 # --------------------------------------------------------------------------- #
 # Fabricated absence -- the SAME rule, the other direction
 # --------------------------------------------------------------------------- #
-# The pass above catches "this off-panel gene is absent, therefore X". This one
-# catches its inverse: "this gene was never measured" said of a gene the panel
-# DID measure. The sycophancy eval put a number on it -- 9 of 27 model answers
-# declared an on-panel gene unmeasured, one of them the unit's own driver, and
-# all nine cleared the floor -- and it is the worse half, because it manufactures
-# a limitation the assay does not have and reads as caution while doing it.
-#
-# Three cases, one violation. For a gene the panel measured and which produced
-# usable signal, "never measured" is FALSE. "Tested and not reported in this
-# unit" is TRUE and is the productive TESTED_ABSENT half, so it must keep
-# passing -- it is not a frame claim at all and never matches below. A gene on
-# the panel that produced no usable spatial signal genuinely WAS unmeasurable
-# here, so ``is_detectable`` (the second gene frame, the 49 NoSig genes) is
-# consulted as well as the panel and such a sentence is left alone.
-#
-# Scope is a CLAUSE, not a sentence. "...supports myoepithelial markers (MYLK,
-# ACTA2, DST), but T cell markers were not measured..." names four on-panel
-# genes that the frame claim does not govern; clause scope is what keeps them
-# out of it. When a clause names no gene at all the claim is about a CATEGORY
-# ("stromal markers were not measured"), and the category is resolved through
-# this study's own annotation -- which is why a kidney panel, where the
-# canonical markers really are off-panel, answers differently from the breast
-# demo without a line of this module changing.
+# The inverse: "never measured" said of a gene the panel measured AND that produced
+# usable signal -- an invented limitation. TESTED_ABSENT phrasing is not a frame
+# claim and never matches; a no-signal gene really was unmeasurable and is left alone.
+# Scope is a CLAUSE; a clause naming no gene is a CATEGORY claim, resolved through
+# this study's own annotation.
 #
 # ponytail: clause splitting by punctuation and conjunctions, no parser. The
 # ceiling is a frame claim whose referent sits across a boundary we split on --
@@ -253,21 +196,9 @@ _CLAUSE_SPLIT_RE = re.compile(
     re.IGNORECASE,
 )
 
-#: The same split for the ABSENCE pass, minus "and"/"or".
-#:
-#: Those two coordinate SUBJECTS as often as they separate clauses, and the
-#: absence verb lands once, at the end: "KRT18 and ERBB2 are not detected here"
-#: splits into "KRT18 " and " ERBB2 are not detected here", so a per-clause
-#: absence test drops every gene but the last. That is how clause-scoping this
-#: pass closed one hole and opened a bigger one -- measured on the real frame,
-#: "KRT18 and ERBB2 are not detected here, so this rules out Tumor" went from
-#: CRITICAL to clean, and a marker list is the ordinary way to write it.
-#:
-#: The two passes also fail in OPPOSITE directions on a dropped clause, which is
-#: why they cannot share a splitter. ``_extract_frame_claims`` dropping one fails
-#: closed: the absence is still flagged. ``_extract_absences`` dropping one fails
-#: OPEN: the violation is never raised. The ponytail note above reasons about the
-#: first and does not license the second.
+#: The same split for the ABSENCE pass, minus "and"/"or": those coordinate subjects
+#: ("KRT18 and ERBB2 are not detected"). Not shared with the frame-claim splitter,
+#: because a dropped clause here fails OPEN.
 _ABSENCE_CLAUSE_SPLIT_RE = re.compile(
     r"[,;:()\u2014\u2013]|--|\b(?:but|while|whereas|although|however|though"
     r"|yet)\b",
@@ -312,17 +243,8 @@ _STOPWORD_TOKENS: frozenset[str] = frozenset(
         "THE", "FOR", "NOT", "BUT", "ALL", "ANY", "ARE", "WAS", "HAS", "CSV",
         "UMAP", "MCP", "NCBI", "TSV", "JSON", "URL", "API", "TRUE", "FALSE",
         "NOSIG", "HIGH", "LOW", "VERY", "P", "R", "N", "UM", "SE", "TME",
-        # Cell-type and assay abbreviations a biologist writes in ordinary prose.
-        # ``_GENE_TOKEN_RE`` is "any uppercase run", so each of these was extracted
-        # as an unmeasured ENTITY and a true sentence -- "myeloid markers are
-        # absent, so this is unlikely to be a TAM population" -- was rejected as
-        # reasoning from an out-of-frame absence. That burns a repair round the
-        # model cannot satisfy and drops a correct answer into the fallback, which
-        # the refusal eval scores as a refusal.
-        #
-        # APC and BCR are deliberately ABSENT from this list: both are real gene
-        # symbols. They are off THIS panel, but a sentence reasoning from their
-        # absence is a frame claim the rule should still catch on another study.
+        # Cell-type and assay abbreviations, else read as unmeasured entities.
+        # APC and BCR are deliberately ABSENT: both are real gene symbols.
         #
         # ponytail: a fixed list against an open vocabulary, so the ceiling is an
         # abbreviation nobody listed. It fails toward a MISS -- the same direction
@@ -429,11 +351,8 @@ class SourceIndex:
         row = data.get_marker(gene)
         if row is None:
             return None
-        # A no-signal row still carries glm_coef 0.0 and pearson 0.0, and serving
-        # those made a number for an unmeasured gene representable HERE while the
-        # evidence layer refuses it outright (``EvidenceItem`` raises
-        # ``UngroundedStatistic`` unless the state is OBSERVED). The gate and the
-        # table must not disagree about the same gene, so the frame decides in both.
+        # A no-signal row carries 0.0 stats; no number for an unmeasured gene, as
+        # ``EvidenceItem`` refuses one unless OBSERVED.
         if is_no_signal(row.get("top_cluster", "")):
             return None
         if stat not in row.index:
@@ -537,11 +456,7 @@ class Extractor:
     def _extract_absences(self, text: str) -> list[AbsenceClaim]:
         """Entities whose ABSENCE a sentence asserts and then reasons from.
 
-        Extraction only: this says nothing about whether the entity was in the
-        capability frame. :meth:`GroundingChecker._check_panel_absence` is what
-        consults the frame, because that is the half of the rule that decides,
-        and keeping it out of here is what stops the word lists from being the
-        thing that rejects an answer.
+        Extraction only; :meth:`GroundingChecker._check_panel_absence` consults the frame.
         """
         out: list[AbsenceClaim] = []
         seen: set[str] = set()
@@ -552,30 +467,10 @@ class Extractor:
             window = sentence + " " + (sentences[i + 1] if i + 1 < len(sentences) else "")
             if not _INFERENCE_RE.search(window):
                 continue
-            # Every gene in the sentence is a candidate, MINUS the ones a clause
-            # has already excused by declaring them unmeasured.
-            #
-            # Clause scope was the wrong mechanism twice over. Requiring the gene
-            # and the absence verb in the same clause meant any separator between
-            # them was a bypass -- "T cell markers (CD3D, CD2) are not detected",
-            # "CD3D, which is canonical, is absent", "CD3D is absent -- so Tregs
-            # are excluded" all passed clean, because the splitter cuts on commas,
-            # parentheses, dashes and semicolons. And an earlier version dropped
-            # the whole sentence on its first never-measured phrase, so one true
-            # caveat bought a free pass for every other gene beside it.
-            #
-            # The caveat is a property of a GENE, not of a region of text: a gene
-            # named inside a never-measured clause is the rule being obeyed, and
-            # every other gene in an absence-plus-inference sentence is a claim.
-            # Who the caveat covers. A clause that states an absence of its
-            # own must carry its own caveat -- otherwise "KRT18 was never
-            # measured, but CD3D is not detected, so this is not T cells"
-            # excuses CD3D. A clause that merely NAMES genes is reached by the
-            # sentence's caveat, because the comma split fragments "COL1A1,
-            # COL1A2, DCN, VIM, FAP are off-panel" into one clause per gene and
-            # only the last one keeps the caveat. Eight of the app's own
-            # answers across c2, c7, c8 and c9 were refused by their own gate
-            # that way.
+            # Every gene in the sentence is a candidate MINUS those excused by a
+            # never-measured caveat. A clause stating its own absence needs its own
+            # caveat; a clause that merely names genes is covered by the sentence's
+            # (a comma list "COL1A1, COL1A2 ... are off-panel" splits per gene).
             caveat = _NEVER_MEASURED_RE.search(sentence) is not None
             excused: set[str] = set()
             for clause in _ABSENCE_CLAUSE_SPLIT_RE.split(sentence):
@@ -792,16 +687,8 @@ class GroundingChecker:
     ) -> GroundingResult:
         """Gate the GENERATED layer of an :class:`InterpretationRecord`.
 
-        Every other field on a record is deterministic output from ``core/`` and
-        is hashed; the fields :data:`~panoscope.types.record.GENERATED_FIELDS`
-        names are the ones a model may have written, and they are the ones gated
-        here. The field list is read off the TYPE rather than spelled ``"prose"``
-        in this module, for the reason ``types/record.py`` gives: a gate that
-        hardcodes the name silently stops covering the second generated field the
-        day one is added.
-
-        A record whose generated fields are all ``None`` is complete and valid --
-        it is what the demo falls back to -- and passes with nothing to check.
+        Fields come from :data:`~panoscope.types.record.GENERATED_FIELDS`, never a
+        hardcoded name. All-``None`` generated fields (the fallback) pass.
         """
         violations: list[Violation] = []
         for field in GENERATED_FIELDS:
@@ -963,18 +850,8 @@ class GroundingChecker:
     ) -> tuple[Optional[set[str]], Optional[set[str]]]:
         """``(notes that exist, notes in scope here)`` -- from ONE source.
 
-        Either the caller owns the note universe (it injected ``known_notes``,
-        and then ``allowed_notes`` is its business too) or the gate reads the
-        real store for both halves. Mixing an injected existence set with a
-        filesystem-derived scope set would answer two questions from two
-        different worlds, and the answer to the second would be noise.
-
-        The real half is ``memory.apply_notes`` -- the single scope gate every
-        other caller already goes through (cluster-scoped notes fire only for
-        their own cluster; dataset and lab notes fire everywhere) -- read from
-        the same base dir the memory tools write to. It is what makes "a claim
-        used outside its scope is an error" true of agent output in production
-        and not only under test.
+        Either the injected ``known_notes`` (then ``allowed_notes`` is the caller's
+        too) or the real store for both halves, scoped by ``memory.apply_notes``.
         """
         if self._known_notes is not None:
             return self._resolve_known_notes(), allowed_notes
@@ -1009,11 +886,8 @@ class GroundingChecker:
     def _check_claim_refs(self, claims: ExtractedClaims) -> list[Violation]:
         """A ``[claim:id]`` must resolve through the store, IN THIS SCOPE.
 
-        The resolution is ``ClaimStore.cite``, not a membership test: cite is the
-        USE gate, and its three refusals are the three ways a cited claim can be
-        wrong without looking wrong in the rendered sentence -- it does not
-        exist, it was retracted, or it belongs to another scope. Re-implementing
-        any of those here would be a second, weaker opinion about the same rule.
+        Resolved by ``ClaimStore.cite``, the USE gate: missing, retracted or
+        out-of-scope claims are refused there, not re-implemented here.
         """
         if not claims.claim_refs:
             return []
@@ -1057,11 +931,8 @@ class GroundingChecker:
     def _check_edge_refs(self, claims: ExtractedClaims) -> list[Violation]:
         """An ``[edge:...]`` must match an edge of the consulted graph by identity.
 
-        Matched on ``str(Edge)`` -- ``subject predicate object`` in canonical
-        entity spelling -- rather than re-parsed into parts here, so a citation
-        that resolves is a citation to an edge that was actually read, and a
-        reference source still has no channel through which a value could reach
-        the answer.
+        Matched on ``str(Edge)``, never re-parsed, so a reference source has no
+        channel through which a value could reach the answer.
         """
         if not claims.edge_refs:
             return []
@@ -1100,19 +971,8 @@ class GroundingChecker:
             return []
         out: list[Violation] = []
         for a in claims.absences:
-            # IN THE FRAME, which means detectable -- not merely "the method has a
-            # row for it". This read ``is_on_panel(x) or is_modeled(x)``, and
-            # ``is_modeled`` is true for every one of the 49 genes that produced no
-            # usable spatial signal, because markers_top.csv carries a NoSig row for
-            # each. So all 49 were exempt from the headline rule -- FOXP3, PDCD1 and
-            # LAG3 among them -- and "PDCD1 is absent here, therefore not exhausted
-            # T cells" passed as grounded.
-            #
-            # ``is_detectable`` subsumes both old tests: it requires a marker row AND
-            # usable signal, so a measured gene still passes and nothing outside
-            # either gene frame does. The sibling pass ``_check_fabricated_absence``
-            # keeps its own exemption for these genes, and must -- CALLING a NoSig
-            # gene unmeasured is a true sentence. Reasoning FROM its absence is not.
+            # In the frame means DETECTABLE (marker row AND usable signal), not
+            # merely modeled: a NoSig gene's absence is not evidence either.
             if self._src.is_detectable(a.entity):
                 continue
             why = ("is on the panel but produced no usable signal here"
@@ -1208,15 +1068,9 @@ class GroundingChecker:
 def _measured_types(clause: str, src: "SourceIndex") -> dict[str, tuple[str, ...]]:
     """Cell types this clause names that the study DID measure markers for.
 
-    The vocabulary is derived from this study's annotation, never asserted:
-    ``Mast_Cells`` -> "mast cell", ``T_Cells`` -> "t cell". Matched on word
-    boundaries with an optional plural, because "mast cells" contains "t cell"
-    as a substring and a bare ``in`` test answers the wrong rival (the bug the
-    sycophancy eval found in the fallback router).
-
-    A type with no on-panel detectable canonical marker is absent from the
-    result: for that type the clause may well be true, and this gate never
-    guesses.
+    Vocabulary derived from this study's annotation; word-boundary match ("mast
+    cells" contains "t cell"). A type with no detectable canonical marker is
+    omitted: the clause may be true for it, and this gate never guesses.
     """
     low = clause.replace("_", " ").lower()
     out: dict[str, tuple[str, ...]] = {}

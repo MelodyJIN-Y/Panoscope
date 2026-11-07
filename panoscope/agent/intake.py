@@ -284,13 +284,8 @@ class Draft:
             # ``resolve()`` has to clear.
             if not gene_frames_admit(self.frames):
                 return Status.BLOCKING
-            # ...and the adapter's own verdict, because a frame that is ABSENT
-            # leaves nothing here to measure. With panel.parquet gone there is no
-            # ``panel:`` ref at all, so the size test above sees only ``detect:``
-            # and passes -- while ``validate`` says "no measured set: the panel IS
-            # the capability frame (§6.3)". ``problems`` is that verbatim, and the
-            # adapter is the layer that knows which of its frames is the measured
-            # set; naming ``panel:`` here would put platform knowledge in intake.
+            # ...and the adapter's own verdict: an ABSENT panel frame passes the size
+            # test above. Only the adapter knows which frame is the measured set.
             if any(_MEASURED_SET_GAP in str(p).lower() for p in self.problems):
                 return Status.BLOCKING
             return Status.KNOWN

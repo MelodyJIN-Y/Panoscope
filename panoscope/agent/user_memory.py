@@ -1,29 +1,10 @@
 """Portable user memory: the biologist's decisions, distilled to carry across projects.
 
-A confirmed lab decision (an override or note) can optionally be saved here in
-addition to the dataset-local note. A lab note is scoped to one dataset and never
-fires elsewhere; a user-memory entry is the opposite by design: a self-contained,
-tissue-tagged distillation the biologist chooses to keep across projects. It is the
-"personal research assistant" layer the lab owns and carries forward.
+Stored locally in ``context/user_memory.jsonl``. Open-ceiling prompt context only: it
+can NEVER change a number, marker, band or call.
 
-Stored LOCALLY in ``context/user_memory.jsonl`` (git-ignored, same privacy model as
-:mod:`agent.profile`). Like the research profile, it is OPEN-CEILING context: it is
-injected as prior lab knowledge to sharpen the agent's reasoning and literature
-search, and it can NEVER change a jazzPanda number, a marker, a confidence band, or a
-cell-type call. The grounding gate still governs every stated number.
-
-Each entry is composed from the agent's own decision prose (the note claim it drafted
-from the chat) plus structured provenance, so the memory is auto-written and
-attributed, not free text typed by hand.
-
-**Why this is not a claim.** IMPLEMENTATION §10 routes the note store onto ``Claim``;
-a user-memory entry deliberately does not go with it. A LAB claim is refused without
-the ``Conditions`` it was formed under (``UnformedLabClaim``) precisely so the lab's
-caveat about one FFPE block cannot leak into another study -- and a portable entry is
-the opposite object by design: it is kept BECAUSE it travels, with no conditions to
-carry. Storing one as a LAB claim would mean inventing the frames it was formed under,
-which is the one thing the invariant exists to stop. So it stays here, open-ceiling,
-and :mod:`panoscope.claims.notes` bridges the dataset-local notes instead.
+Not a ``Claim``: a LAB claim needs the ``Conditions`` it was formed under (IMPLEMENTATION
+§10), and a portable entry by design has none.
 """
 from __future__ import annotations
 
@@ -32,16 +13,7 @@ from typing import Any, Iterable
 
 
 def _path():
-    """Where the user memory lives, resolved PER CALL.
-
-    Through ``memory._default_base``, so the three modules that read ``context/``
-    agree. A module constant resolved at import is exactly the bug that file
-    documents fixing for the note store beside this one, and it was still live
-    here: with ``PANOSCOPE_CONTEXT_DIR`` pointed at an empty directory this
-    module went on reading the developer's real ``context/user_memory.jsonl``
-    and injecting it into every system prompt -- 383 characters of one person's
-    saved judgement in front of every answer the suite graded.
-    """
+    """``memory._default_base() / user_memory.jsonl``, resolved per call (honours the env var)."""
     from panoscope.agent.memory import _default_base
 
     return _default_base() / "user_memory.jsonl"
@@ -83,13 +55,7 @@ def load() -> list[dict[str, Any]]:
 
 
 def distill(*, claim: str, cell_type: str, markers: Iterable[str], dataset_label: str) -> str:
-    """Compose a portable one-line headline from the agent-written decision.
-
-    Deterministic and grounded: it re-states the cell-type call and its driving
-    markers with the dataset's tissue/platform tag, so the entry reads self-contained
-    when recalled in another project. The full nuance stays in the note ``claim``,
-    which the agent already wrote from the chat.
-    """
+    """Deterministic one-line headline: the call, its driving markers and the dataset tag."""
     ct = (cell_type or "").replace("_", " ").strip() or "cell type"
     driver = ", ".join(g for g in list(markers)[:4] if g)
     head = f"{ct} in {dataset_label}" if dataset_label else ct
@@ -97,12 +63,9 @@ def distill(*, claim: str, cell_type: str, markers: Iterable[str], dataset_label
 
 
 def as_prompt_context() -> str:
-    """Render recent entries as a labelled, capped prior-knowledge block for the
-    system prompt (empty string if none).
+    """Recent entries as a capped, labelled prior-knowledge block ("" if none).
 
-    Open-ceiling context only, and clearly marked as such, so the agent treats it as
-    the lab's prior judgment to sharpen reasoning and literature search, never as a
-    number source that can override jazzPanda.
+    Marked open-ceiling: never a number source.
     """
     entries = load()[-_MAX_ENTRIES_IN_PROMPT:]
     if not entries:
