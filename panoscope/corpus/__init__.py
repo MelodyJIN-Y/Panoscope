@@ -11,6 +11,7 @@ carry abstracts". This package is the other end of that pointer:
 * :mod:`~panoscope.corpus.window` -- the build's input contract, gene vocabulary and
   the W0..W5 rung, modality and species facets, as pure code.
 * :mod:`~panoscope.corpus.vocab` -- HGNC, MeSH and census lookups from real sources.
+* :mod:`~panoscope.corpus.channels` -- the C0-C5 searches, dedupe, gate and full text.
 
 Three states everywhere, never two: resolved / looked-and-found-nothing /
 not-looked-up. Only the middle one is thin literature, and only the middle one is a

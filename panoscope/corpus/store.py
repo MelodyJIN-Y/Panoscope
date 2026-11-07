@@ -108,6 +108,9 @@ class SourceRecord:
     publication_type: tuple[str, ...] = ()
     licence: str = ""             # as the connector stated it; "" = not stated
     full_text: str = ""           # licence-bearing like the abstract; store only
+    open_access: bool = False     # the connector said the full text is OA
+    epub: str = ""                # earliest publication date as the connector gave it
+    preprint_of: str = ""         # the published version's uri, when the connector links one
 
     def __post_init__(self) -> None:
         scheme, sep, rest = self.uri.partition(":")
@@ -243,6 +246,7 @@ class QueryStatus(StrEnum):
     FAILED = "failed"
     DEGRADED = "degraded"
     TRUNCATED = "truncated"     # k of N retrieved; degraded for absence
+    NARROWED = "narrowed"       # over the cap, re-run narrowed; the narrowed row decides
 
 
 @dataclass(frozen=True, slots=True)

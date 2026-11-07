@@ -29,8 +29,9 @@ _lock = threading.Lock()
 _last = [0.0]
 
 
-def _get(url: str, params: dict[str, str], *, retries: int = 3) -> dict[str, Any]:
-    """GET a JSON endpoint under the shared rate limit; SourceUnavailable after retries."""
+def _get(url: str, params: dict[str, str], *, retries: int = 3, raw: bool = False) -> Any:
+    """GET a JSON endpoint (or text when ``raw``) under the shared rate limit;
+    SourceUnavailable after retries."""
     if url.startswith(EUTILS):
         params = {**params, "tool": "panoscope", "retmode": "json"}
         for env, key in (("NCBI_API_KEY", "api_key"), ("NCBI_EMAIL", "email")):
@@ -44,9 +45,12 @@ def _get(url: str, params: dict[str, str], *, retries: int = 3) -> dict[str, Any
             time.sleep(max(0.0, _last[0] + gap - time.monotonic()))
             _last[0] = time.monotonic()
         try:
-            req = urllib.request.Request(full, headers=_HEADERS)
-            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-                return json.loads(resp.read().decode("utf-8"))
+            # Europe PMC answers 406 to an XML endpoint asked for JSON.
+            req = urllib.request.Request(full, headers={**_HEADERS, "Accept": "*/*"}
+                                         if raw else _HEADERS)
+            with urllib.request.urlopen(req, timeout=60 if raw else 30) as resp:  # noqa: S310
+                body = resp.read().decode("utf-8")
+                return body if raw else json.loads(body)
         except urllib.error.HTTPError as exc:
             err = exc
             if exc.code not in (429, 500, 502, 503, 504):
