@@ -1,4 +1,5 @@
-"""The ``panoscope`` console script: ``run``, ``build``, ``explain``, ``doctor``, ``reference fetch``.
+"""The ``panoscope`` console script: ``run``, ``build``, ``explain``, ``doctor``, ``reference fetch``,
+``corpus build``.
 
 Thin: every verb delegates and this module only parses arguments and prints. Heavy
 imports happen *inside* the verb that needs them, so ``panoscope doctor`` still
@@ -307,6 +308,8 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     print(f"  assets        {_pkg_dir_state('assets')}")
 
     print()
+    from panoscope.corpus import build as corpus_build
+
     studies = layout.available_studies()
     print(f"studies ({len(studies)})")
     if not studies:
@@ -315,6 +318,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
         s = Study.open(sid)
         units = len(s.units)
         print(f"  {sid:<28} {units} units  {s.tissue or '?'} / {s.platform or '?'}")
+        print(f"  {'':<28} {corpus_build.header(sid)}")
 
     print()
     from panoscope.reference import sources as ref
@@ -377,6 +381,28 @@ def _cmd_reference_fetch(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _cmd_corpus_build(args: argparse.Namespace) -> int:
+    """Build, resume or top up the study's literature corpus, printing progress and the receipt."""
+    from datetime import date
+
+    from panoscope.corpus import build as corpus_build
+    from panoscope.corpus.read import Receipt
+    from panoscope.corpus.store import CorpusUnavailable
+
+    study = Study.open(_resolve_study_id(args.study)).require()
+    receipt = Receipt()
+    try:
+        corpus_build.build(study, today=date.today(), receipt=receipt,
+                           genes=tuple(args.top_up or ()), resume=args.resume,
+                           progress=lambda i, n, line: print(f"[{i}/{n}] {line}", flush=True))
+    except CorpusUnavailable as exc:
+        raise SystemExit(str(exc)) from exc
+    corpus_build.refresh_notes(study)
+    print(f"[panoscope] {corpus_build.header(study.id)}")
+    print(f"[panoscope] receipt: {receipt.text}")
+    return 0
+
+
 def _dist_version(name: str) -> str:
     import importlib.metadata as md
 
@@ -429,6 +455,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_ref_sub = p_ref.add_subparsers(dest="ref_command", required=True, metavar="<action>")
     p_ref_sub.add_parser("fetch", help="download every source into the user cache"
                          ).set_defaults(func=_cmd_reference_fetch)
+
+    p_corpus = sub.add_parser("corpus", help="the study's literature corpus (your own model key)")
+    p_corpus_sub = p_corpus.add_subparsers(dest="corpus_command", required=True, metavar="<action>")
+    p_cb = p_corpus_sub.add_parser("build", help="build the corpus for the D2 scope (resumable)")
+    p_cb.add_argument("--study", help="study id")
+    how = p_cb.add_mutually_exclusive_group()
+    how.add_argument("--resume", action="store_true", help="continue an interrupted build")
+    how.add_argument("--top-up", nargs="+", metavar="GENE",
+                     help="add these genes to the built corpus as a new version")
+    p_cb.set_defaults(func=_cmd_corpus_build)
 
     return ap
 

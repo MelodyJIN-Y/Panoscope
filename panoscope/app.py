@@ -125,6 +125,9 @@ def _study_chip() -> tuple[str, str]:
     reg = _methods.for_workflow(_MARKER_ID)
     if reg:
         facts.append(f"{getattr(reg[0], 'display_name', reg[0].name)} markers")
+    from panoscope.corpus.build import header as _corpus_header
+
+    facts.append(_corpus_header(study.id))
     return " · ".join(bits), " · ".join(facts)
 
 

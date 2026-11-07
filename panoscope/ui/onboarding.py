@@ -17,12 +17,15 @@ import hashlib
 import html
 import json
 import shutil
+import threading
 import time
+from datetime import date
 from pathlib import Path
 
 import streamlit as st
 
 from panoscope import methods, platforms
+from panoscope.agent import config as cfg
 from panoscope.agent import intake
 from panoscope.agent import loop as agent_loop
 from panoscope.data import layout
@@ -439,11 +442,77 @@ def _build(store: Study) -> None:
         return
     study_mod.clear_cache()
     state.open_study(store)
-    _nav(nav.SUMMARY_PAGE)
+    st.session_state["ob_corpus"] = store.id   # next: offer the literature corpus
+    st.rerun()
+
+
+# Background corpus builds, by study id: they outlive the page that started them.
+_JOBS: dict[str, dict] = {}
+
+
+def _start_corpus(store: Study) -> None:
+    """Build (resuming) the study's corpus on a thread; progress lands in ``_JOBS``."""
+    from panoscope.corpus import build as corpus_build
+    from panoscope.corpus.read import Receipt
+
+    job = _JOBS[store.id] = {"at": (0, 1, "starting"), "done": False, "error": ""}
+
+    def work() -> None:
+        receipt = Receipt()
+        try:
+            corpus_build.build(store, today=date.today(), receipt=receipt, resume=True,
+                               progress=lambda i, n, line: job.update(at=(i, n, line)))
+            corpus_build.refresh_notes(store)
+            job["at"] = (1, 1, receipt.text)
+        except Exception as exc:  # noqa: BLE001 - shown on the page, never a dead thread
+            job["error"] = str(exc)
+        finally:
+            job["done"] = True
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+@st.fragment(run_every=2)
+def _corpus_progress(sid: str) -> None:
+    job = _JOBS[sid]
+    i, n, line = job["at"]
+    if job["error"]:
+        st.error(job["error"])
+    elif job["done"]:
+        st.success(f"Corpus built. {line}")
+    else:
+        st.progress(i / max(n, 1), text=f"[{i}/{n}] {line}")
+
+
+def _render_corpus_step(sid: str) -> None:
+    """After Build: offer the literature corpus. Skipped, notes read "cannot settle"."""
+    from panoscope.corpus import build as corpus_build
+
+    st.markdown(f"**Literature corpus** · {corpus_build.header(sid)}")
+    job = _JOBS.get(sid)
+    if job is not None:
+        _corpus_progress(sid)
+    elif not agent_loop.has_model_key():
+        st.caption("corpus build refused: no model key (set ANTHROPIC_API_KEY to your own "
+                   f"API key; see docs/llm-access.md). Notes read \"{corpus_build.NOT_BUILT}\".")
+    elif st.button("Build literature corpus", key="ob_corpus_build", type="primary"):
+        _start_corpus(cfg.current_study())
+        st.rerun()
+    if job is None or not job["done"]:
+        st.caption("You can start annotating now; until the corpus is built, notes read "
+                   f"\"{corpus_build.NOT_BUILT}\". A running build keeps going.")
+    if st.button("Start annotation  →", key="ob_corpus_skip"):
+        st.session_state.pop("ob_corpus", None)
+        study_mod.clear_cache()
+        st.cache_data.clear()
+        _nav(nav.SUMMARY_PAGE)
 
 
 def _render_folder_intake() -> None:
     """§6.4: read the folder, show the checklist, ask only what is missing, build."""
+    if sid := st.session_state.get("ob_corpus"):
+        _render_corpus_step(sid)
+        return
     path = st.text_input("Results folder", key="ob_folder",
                          placeholder="/path/to/your/results")
     folder = Path(path).expanduser() if path.strip() else None

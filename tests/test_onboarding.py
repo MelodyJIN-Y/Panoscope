@@ -195,6 +195,12 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     at.button(key="ob_uberon_use").click().run()
     at.button(key="ob_build").click().run()
     assert not at.exception, [str(e.value) for e in at.exception]
+    # Next the corpus is offered; with no key it is refused, and annotation opens anyway.
+    captions = "\n".join(c.value for c in at.caption)
+    assert "corpus build refused: no model key" in captions
+    assert not [b for b in at.button if b.key == "ob_corpus_build"]
+    at.button(key="ob_corpus_skip").click().run()
+    assert "corpus not built — cannot settle" in "\n".join(m.value for m in at.markdown)
 
     at.run()  # a later rerun starts from a fresh context: only the session names the study
     root = (tmp_path / "home" / ".panoscope" / "data").resolve()

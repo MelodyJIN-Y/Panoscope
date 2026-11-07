@@ -496,7 +496,13 @@ def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
                     f'target="_blank">PMID:{html.escape(str(pmid))}</a>')
     if needs_note:
         body.append(f'<span class="cav">⚠ {html.escape(needs_note)}</span>')
-    return " ".join(body) if body else '<span class="bio-dim">—</span>'
+    if body:
+        return " ".join(body)
+    from panoscope.corpus.build import header
+
+    h = header(cfg.current_study().id)     # unbuilt or incomplete: say it cannot settle
+    empty = h if h.endswith("cannot settle") else "—"
+    return f'<span class="bio-dim">{html.escape(empty)}</span>'
 
 
 def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,

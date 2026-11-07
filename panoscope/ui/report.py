@@ -392,7 +392,12 @@ def _provenance(dataset: str) -> dict:
                   f"{len(c.statements)} statement(s)"
                   f" · spec {c.spec_version}")
         if v is not None:
-            corpus += f" · version {v.content_hash} · {v.generator} · {v.cost}"
+            from datetime import date
+
+            from panoscope.corpus.build import staleness
+
+            corpus += (f" · version {v.content_hash} · {v.generator} · {v.cost}"
+                       f" · {staleness(v, date.today())}")
     except Exception:  # noqa: BLE001 - CorpusUnavailable is the ordinary case
         pass
 

@@ -315,7 +315,7 @@ class Disposition:
 
 @dataclass(frozen=True, slots=True)
 class CorpusVersion:
-    """What one build was made from (§8.3). ``built_at`` is outside the content hash."""
+    """What one build was made from (§8.3). ``built_at`` and ``stale_after`` are outside the content hash."""
 
     study: str
     conditions: tuple[tuple[str, str], ...]     # Conditions snapshot, (field, value)
@@ -328,10 +328,12 @@ class CorpusVersion:
     embedding: str = "none"
     spec_version: str = SPEC_VERSION
     built_at: str = ""
+    stale_after: str = ""                       # ISO date the header starts flagging it
 
     @property
     def content_hash(self) -> str:
-        d = {f.name: getattr(self, f.name) for f in fields(self) if f.name != "built_at"}
+        d = {f.name: getattr(self, f.name) for f in fields(self)
+             if f.name not in ("built_at", "stale_after")}
         return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -625,6 +627,19 @@ def load(path: Path | str) -> Corpus:
         version=CorpusVersion(**{k: _tup(x) for k, x in v.items()}) if v else None,
         settings=tuple(Setting(**d) for d in rows["settings"]),
     )
+
+
+def read_version(path: Path | str) -> CorpusVersion | None:
+    """Only the version row, for headers (no records read); CorpusUnavailable when unbuilt."""
+    p = Path(path)
+    if not p.is_file():
+        raise CorpusUnavailable(f"{p} has no corpus")
+    try:
+        with closing(sqlite3.connect(p.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+            v = dict(db.execute("SELECT k, v FROM meta")).get("version")
+    except sqlite3.Error as exc:
+        raise CorpusUnavailable(f"{p} is not a corpus store ({exc})") from exc
+    return CorpusVersion(**{k: _tup(x) for k, x in json.loads(v).items()}) if v else None
 
 
 # A scheme citable by a Claim but unknown here would render as a citation and resolve
