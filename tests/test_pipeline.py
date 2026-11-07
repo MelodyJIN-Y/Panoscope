@@ -165,7 +165,7 @@ def _fresh_study(tmp_path, monkeypatch) -> None:
 
 def _no_band_anywhere(cluster: str) -> None:
     """Chat, Summary and report say "not yet called" with no confidence word and no re-check."""
-    from panoscope.agent import fallback
+    from panoscope.agent import fallback, skeptic
     from panoscope.ui import report, summary
 
     for r in (fallback.fallback_opening(cluster), fallback.match("how confident?", cluster),
@@ -180,6 +180,11 @@ def _no_band_anywhere(cluster: str) -> None:
         t for k, t in report._section_lines(rep) if k != "meta")  # meta: study-wide counts
     assert "not yet called" in text
     assert "confidence" not in text.lower() and "re-check" not in text
+    edited = report._working_lines([(v.cluster, v.cell_type, v.confidence, v.verify, "x")],
+                                   dataset="d", generated_at="")
+    assert [t for k, t in edited if k == "h2"] == [f"{v.cluster} · {v.cell_type}"]
+    sk = skeptic.second_opinion(cluster)  # the live tool: nothing to challenge, no verify
+    assert not sk.challenges and "no band" in sk.verdict_line, sk.verdict_line
 
 
 def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_path, monkeypatch):

@@ -547,7 +547,9 @@ def test_a_method_that_prefilters_genes_makes_no_tested_absence_from_silence(loa
         world=WORLD, spatial=_spatial_side(),
         tested_whole_frame=seurat_de.MODULE.tests_whole_frame)).value
     assert "TENSION" not in r.headline
-    assert any("ACTA2" in m and "never_measured" in m for m in r.missing)
+    # Named against what Seurat reported, not as an undeclared panel.
+    assert any("ACTA2" in m and "never_measured in reported:seurat_de" in m
+               for m in r.missing), r.missing
 
 
 def test_coherence_refuses_when_there_is_no_second_method(loaded):

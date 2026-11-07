@@ -336,9 +336,11 @@ def cross_method_coherence(ev: NormalisedEvidence,
     mine = Side(module=ev.module, workflow=WORKFLOW_ID,
                 task_kind=TaskKind.COMPARISON, unit=ev.unit,
                 authority=Authority.MEASUREMENT, items=ev.items,
-                # An empty world reads a silent gene as NEVER_MEASURED ("cannot speak
-                # to it") when the method did not test every gene in the frame.
-                world=audit.world if audit.tested_whole_frame else MeasuredWorld())
+                # The method did not test every gene in the frame: its reported set is
+                # the only known-tested frame, so a silent panel gene reads
+                # NEVER_MEASURED in it ("cannot speak to it"), never TESTED_ABSENT.
+                world=audit.world if audit.tested_whole_frame
+                else MeasuredWorld(audit.world.frames + ev.reported))
     joined = t.absorb(reconcile(audit.spatial, mine, audit.relationship))
 
     tension = joined.with_outcome(Agreement.TENSION)

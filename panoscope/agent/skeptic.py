@@ -91,6 +91,11 @@ def second_opinion(cluster: str) -> SkepticReport:
     from panoscope.pipeline import v1_verdicts
 
     verdict = v1_verdicts.verdict_for(cluster)
+    if not verdict.confidence:  # no band: no assessed call to challenge or re-check
+        return SkepticReport(
+            cluster=cluster, call=verdict.cell_type, alternative=None, challenges=(),
+            survives=True, source_trace=(),
+            verdict_line=f"{cluster} has no band: there is no assessed call to challenge.")
     d = disc.discriminate(cluster)
     call = verdict.cell_type
     support = _supporting(verdict)

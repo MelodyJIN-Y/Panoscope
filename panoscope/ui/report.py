@@ -850,7 +850,8 @@ def _working_lines(
     if has_overview:
         lines.append(("overview", ""))
     for cluster, cell_type, confidence, verify, text in sections:
-        head = f"{cluster} · {cell_type} ({confidence})" + ("  [re-check]" if verify else "")
+        head = (f"{cluster} · {cell_type}" + (f" ({confidence})" if confidence else "")
+                + ("  [re-check]" if verify else ""))
         lines.append(("h2", head))
         lines.extend(_blocks(text))
     if global_check.strip():
