@@ -4,8 +4,8 @@ IMPLEMENTATION.md §7 Phase A.4 calls this "the single most valuable artifact in
 the plan". It hashes a normalised projection of the deterministic interpretation
 artifacts for the demo study and fails if any byte of that projection moves:
 
-  * the 9 per-cluster verdicts      ``agent.verdict.all_verdicts()``
-  * the verdict CSV                 ``agent.verdict.to_csv`` (11 frozen columns)
+  * the 9 per-cluster verdicts      ``pipeline.v1_verdicts.verdicts()``
+  * the verdict CSV                 ``core.export.to_csv`` (11 frozen columns)
   * the holistic review             ``agent.holistic.holistic_review()``
   * the calibration table           ``pipeline.calibration.calibration_markdown``
   * the 9 per-cluster enrichments   ``agent.enrichment`` + its 14-column CSV
@@ -42,8 +42,8 @@ import json
 import pytest
 
 from panoscope.agent import config as cfg
-from panoscope.agent import verdict as V
 from panoscope.core.export import PROFILES
+from panoscope.core.verdict import BANDS
 from panoscope.pipeline import serialize, store
 from panoscope.types.outputs import TaskKind
 from tests import golden_projection as G
@@ -154,7 +154,7 @@ def test_projection_covers_all_artifacts(projection) -> None:
     for cluster, v in verdicts.items():
         assert v["cluster"] == cluster
         assert v["cell_type"], f"{cluster} has no cell type"
-        assert v["confidence"] in set(V.BANDS)
+        assert v["confidence"] in set(BANDS)
         assert v["evidence"], f"{cluster} carries no marker evidence"
         assert v["source_trace"], f"{cluster} carries no source trace"
 
@@ -238,7 +238,7 @@ def test_csv_column_contract_is_frozen(projection) -> None:
     """The 11 CSV columns, in exact order, are a contract (CLAUDE.md Output format)."""
     expected_columns = G.load_fixture()["csv_columns"]
     assert projection["csv_columns"] == expected_columns
-    assert list(V.CSV_COLUMNS) == expected_columns
+    assert list(PROFILES[TaskKind.ASSIGNMENT].names) == expected_columns
     assert len(expected_columns) == 11
     # The rendered CSV header must match the declared contract, not just the constant.
     assert projection["verdicts_csv"][0] == ",".join(expected_columns)

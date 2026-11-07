@@ -4,10 +4,9 @@ The single thing this module can get wrong is a byte. The 11-column verdict CSV 
 pinned by ``tests/test_golden.py``, restated in ``skills/marker-interpretation/
 SKILL.md`` Output 2 and read by downstream R; the 14-column enrichment CSV is a
 committed artifact. So the central tests here do not inspect the output and judge it
--- they feed the same rows through ``agent.verdict.to_csv`` and through the profile
-and assert the two strings are ``==`` (the enrichment CSV, whose hand-written
-exporter is retired, is pinned by ``tests/test_golden.py``). "Looks the same" is
-what lets a trailing ``\\r`` or a ``0.70`` for a ``0.7`` through.
+-- they assert the profile's output is ``==`` to the committed bytes (both
+hand-written exporters are retired; the golden hash pins them too). "Looks the
+same" is what lets a trailing ``\\r`` or a ``0.70`` for a ``0.7`` through.
 
 Both halves are tested: the real demo study (which is what the golden hash covers)
 and synthetic rows chosen for the cases the real data happens not to contain -- a
@@ -26,7 +25,8 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from panoscope.agent import verdict as V
+from panoscope.agent import config as cfg
+from panoscope.pipeline import paths, v1_verdicts
 from panoscope.core.export import (
     ASSIGNMENT_COLUMNS, CHARACTERISATION_COLUMNS, PROFILES, NoExportProfile, to_csv,
 )
@@ -35,20 +35,24 @@ from panoscope.types.trace import Traced
 
 
 # --------------------------------------------------------------------------- #
-# Byte-identity against the two hand-written exporters -- the whole contract
+# Byte-identity against the committed verdict CSV -- the whole contract
 # --------------------------------------------------------------------------- #
+def _committed_verdict_csv() -> str:
+    return paths.verdicts_csv(cfg.DATASET_ID).read_bytes().decode("utf-8")
+
+
 def test_assignment_profile_is_byte_identical_on_the_demo_study():
-    verdicts = V.all_verdicts()
-    assert to_csv(TaskKind.ASSIGNMENT, verdicts).value == V.to_csv(verdicts)
+    verdicts = list(v1_verdicts.verdicts().values())
+    assert to_csv(TaskKind.ASSIGNMENT, verdicts).value == _committed_verdict_csv()
 
 
 def test_byte_identical_without_a_header_too():
     """``header=False`` is the append path; a profile that got the header right and
-    the rows wrong would still pass the two tests above on their first line."""
-    verdicts = V.all_verdicts()
-    assert to_csv(TaskKind.ASSIGNMENT, verdicts, header=False).value == V.to_csv(
-        verdicts, header=False
-    )
+    the rows wrong would still pass the test above on its first line."""
+    verdicts = list(v1_verdicts.verdicts().values())
+    committed = _committed_verdict_csv()
+    assert to_csv(TaskKind.ASSIGNMENT, verdicts, header=False).value == \
+        committed[committed.index("\r\n") + 2:]
 
 
 # --------------------------------------------------------------------------- #
@@ -91,17 +95,20 @@ _ENRICHMENT_STUBS = (
 )
 
 
-def test_assignment_profile_matches_the_exporter_on_awkward_values():
-    rows = [V.to_csv_row(v) for v in _VERDICT_STUBS]
-    import csv
-    import io
+_ASSIGNMENT_NAMES = (
+    "cluster", "cell_type", "cell_type_short", "confidence", "confidence_score",
+    "key_markers", "notes", "category", "lineage", "exclude", "verify",
+)
 
-    buf = io.StringIO()
-    w = csv.DictWriter(buf, fieldnames=list(V.CSV_COLUMNS))
-    w.writeheader()
-    for r in rows:
-        w.writerow(r)
-    assert to_csv(TaskKind.ASSIGNMENT, _VERDICT_STUBS).value == buf.getvalue()
+
+def test_assignment_profile_matches_the_exporter_on_awkward_values():
+    # The exact bytes the retired agent/verdict.to_csv wrote for these rows.
+    assert to_csv(TaskKind.ASSIGNMENT, _VERDICT_STUBS).value == (
+        ",".join(_ASSIGNMENT_NAMES) + "\r\n"
+        'c1,Tumor,Tum,Very High,0.95,ERBB2;KRT7,"driven by ERBB2, ""strongly""\n'
+        'second line; ;",Epithelial,Epithelial,FALSE,FALSE\r\n'
+        "c9,Unknown,Unk,Medium,0.7,,,,,TRUE,TRUE\r\n"
+    )
 
 
 _CHARACTERISATION_NAMES = (
@@ -133,7 +140,7 @@ def test_the_band_anchor_is_not_reformatted():
 # The column contracts, frozen in count and in order
 # --------------------------------------------------------------------------- #
 def test_assignment_columns_are_the_eleven_in_exact_order():
-    assert PROFILES[TaskKind.ASSIGNMENT].names == V.CSV_COLUMNS
+    assert PROFILES[TaskKind.ASSIGNMENT].names == _ASSIGNMENT_NAMES
     assert len(ASSIGNMENT_COLUMNS) == 11
 
 
@@ -177,6 +184,6 @@ def test_export_records_no_decisions():
     """An export projects an interpretation, it does not make one. A decision here
     would put a rule in the record that explains a formatting choice as an
     inference."""
-    out = to_csv(TaskKind.ASSIGNMENT, V.all_verdicts())
+    out = to_csv(TaskKind.ASSIGNMENT, list(v1_verdicts.verdicts().values()))
     assert isinstance(out, Traced)
     assert out.decisions == ()

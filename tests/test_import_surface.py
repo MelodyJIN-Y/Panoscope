@@ -177,7 +177,7 @@ _NO_IO_CHILD = (
     "    else None\n"
     ")\n"
     "import panoscope.agent.config\n"   # reads cluster_key.json + markers_top.csv + panel.parquet
-    "import panoscope.agent.verdict\n"  # module-scope _assert_off_panel_map() reads panel.parquet
+    "import panoscope.pipeline.v1_verdicts\n"
     "print('PANOSCOPE_DATASET_READS ' + json.dumps(sorted(set(reads))))\n"
 )
 
@@ -238,7 +238,7 @@ def test_import_does_not_read_dataset_files(tmp_path: Path) -> None:
     )
 
     assert proc.returncode == 0, (
-        f"importing agent.config / agent.verdict with PANOSCOPE_DATASET="
+        f"importing agent.config / pipeline.v1_verdicts with PANOSCOPE_DATASET="
         f"{_ABSENT_DATASET!r} failed (exit {proc.returncode}); import must not "
         f"require a built dataset:\n{proc.stderr[-3000:]}"
     )

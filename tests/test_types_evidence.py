@@ -15,7 +15,8 @@ import dataclasses
 
 import pytest
 
-from panoscope.agent import verdict as V
+from panoscope.core import compat
+from panoscope.methods import jazzpanda
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.evidence import (
     FLAGS, Direction, EvidenceItem, NormalisedEvidence, UngroundedStatistic,
@@ -176,14 +177,15 @@ def test_flag_registry_keys_match_their_ids():
 def test_every_caveat_the_analysis_layer_emits_has_registered_copy():
     """The registry is a transcription of today's behaviour, not a wish list.
 
-    These three values make all three branches of ``_caveats_for`` fire at once.
-    If someone adds a fourth caveat, or edits the English of an existing one, it
+    These three values make all three branches of ``jazzpanda._flags_for`` fire at
+    once. If someone adds a fourth flag, or edits the English of an existing one, it
     fails here instead of silently dropping a badge in the UI -- which is exactly
     the failure the id/copy split exists to prevent.
     """
-    emitted = set(V._caveats_for(pearson=-1.0, max_gc_corr=1.0, max_gg_corr=1.0))
+    emitted = set(jazzpanda._flags_for(pearson=-1.0, max_gc_corr=1.0, max_gg_corr=1.0))
     assert len(emitted) == 3, "expected all three specificity caveats to fire"
-    assert emitted == set(et.FLAG_COPY.values())
+    assert emitted == set(et.FLAG_COPY)
+    assert dict(compat.CAVEAT_FOR) == et.FLAG_COPY, "the v1 caveat and the badge disagree"
     assert set(et.FLAG_COPY) == set(FLAGS), "a flag with no copy cannot be rendered"
 
 

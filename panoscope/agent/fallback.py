@@ -1,7 +1,7 @@
 """Deterministic, pre-baked, GROUNDED fallbacks so a slow or failed API never
 breaks the demo.
 
-Every response here is a pure function of :mod:`agent.verdict` (which is itself a
+Every response here is a pure function of :mod:`pipeline.v1_verdicts` (which is itself a
 pure function of the precomputed jazzPanda output and the panel list). Nothing is
 invented: each number traces to a jazzPanda column, each off-panel line traces to
 the panel-absence primitive, and no live citation is asserted (the fallback path

@@ -198,9 +198,9 @@ def score(item: Item, parsed: dict) -> dict:
 
 def run_one(client, item: Item, arm: str, model: str, rep: int, panel: list[str]) -> Result:
     if arm == "panoscope":
-        from panoscope.agent import verdict as V
+        from panoscope.pipeline import v1_verdicts
 
-        v = V.verdict_for_cluster(item.cluster)
+        v = v1_verdicts.verdict_for(item.cluster)
         # The deterministic layer names off-panel genes ONLY as never-measured notes;
         # by construction they cannot enter an against-list.
         return Result(

@@ -15,7 +15,7 @@ Two kinds of field, and the split is the whole result.
 
 ``pure``
     Computed by a function whose arguments are a cluster id and the study files.
-    ``agent/verdict.py::verdict_for_cluster`` takes no prose, no model and no
+    ``pipeline/v1_verdicts.py::verdict_for`` takes no prose, no model and no
     message history, so a swap cannot move these -- and the harness says so rather
     than quoting the invariance as if it had been hard won. They are still computed
     under every generator, because "no seam" is a claim about today's code and the
@@ -67,7 +67,7 @@ sys.path.insert(0, str(REPO))
 
 from panoscope.agent import data as D  # noqa: E402
 from panoscope.agent import loop  # noqa: E402
-from panoscope.agent.verdict import verdict_for_cluster  # noqa: E402
+from panoscope.pipeline.v1_verdicts import verdict_for as verdict_for_cluster  # noqa: E402
 from panoscope.core.measure import Reading, measure  # noqa: E402
 from panoscope.types.measured import Frame, MeasuredWorld  # noqa: E402
 from panoscope.types.subject import EntityKind, gene, subject  # noqa: E402

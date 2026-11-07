@@ -105,8 +105,8 @@ from panoscope.types.measured import Coverage, MeasuredState
 from panoscope.types.trace import Trace, Traced, fmt_num, ref
 
 # --------------------------------------------------------------------------- #
-# The ladder and its thresholds. Transcribed from agent/config + agent/verdict;
-# pinned against the live values by tests/test_core_verdict.py.
+# The ladder and its thresholds. The one home of the glm_coef band edges;
+# methods/jazzpanda.BAND_EDGES is derived from CONFIDENCE_BANDS.
 # --------------------------------------------------------------------------- #
 BANDS: tuple[str, ...] = ("Very High", "High", "Medium-High", "Medium", "Low")
 
@@ -119,7 +119,6 @@ CONFIDENCE_BANDS: dict[str, float] = {
 }
 
 PROMOTE_PEARSON: float = 0.85   # strong spatial specificity on the driver -> +1 band
-LOW_PEARSON: float = 0.30       # below this a canonical marker cannot drive the call
 FRAGILE_MARKER_COUNT: int = 2   # "one or two assigned markers" -> capped, always verify
 
 #: How much of the LABEL'S canonical support the panel had to be able to ask for,
@@ -219,9 +218,9 @@ class Verdict:
 def _band_for_coef(coef: float | None) -> str:
     """Magnitude of the driver's statistic -> band label. Bigger is more confident.
 
-    ``abs()`` matches ``config.band_for_coef``: a strongly negative coefficient is a
-    strong measurement, and the direction is carried by ``EvidenceItem.direction``
-    rather than being smuggled into the band as a weakness.
+    ``abs()``: a strongly negative coefficient is a strong measurement, and the
+    direction is carried by ``EvidenceItem.direction`` rather than being smuggled
+    into the band as a weakness.
     """
     if coef is None:
         return LOW_BAND
@@ -300,9 +299,7 @@ def _v1_coverage_sentence(cov: Coverage) -> str:
     in ``core/`` to return ``Traced`` -- this one is a renderer, not a step, and has
     no decision to record. ``core/compat.py`` imports it anyway, exactly as it
     already imports ``_drivers``: it renders the v1 record from registered rule ids
-    and must not hold a second copy of this string. ``agent/verdict.py`` DOES hold
-    a second copy, only because ``core/`` may not be imported from under it, and
-    ``tests/test_core_verdict.py`` fails the moment the two diverge.
+    and must not hold a second copy of this string.
     """
     return (f"canonical coverage {cov.k}/{cov.n} below floor {cov.floor} "
             f"-> -1 band")

@@ -196,43 +196,6 @@ def _load_cluster_key() -> dict[str, dict[str, str]]:
 # Derived from the active dataset's markers (never a hardcoded c1..c9 literal).
 
 # --------------------------------------------------------------------------- #
-# Confidence bands (TUNABLE) — glm_coef magnitude -> label.
-# Ordered high->low. NoSig / None coef -> "Low". Calibrated against the
-# calibration set in a later phase; these are the initial proposal.
-# --------------------------------------------------------------------------- #
-CONFIDENCE_BANDS: dict[str, float] = {
-    "Very High": 10.0,
-    "High": 5.0,
-    "Medium-High": 2.5,
-    "Medium": 1.0,
-    "Low": 0.0,
-}
-# Fixed score anchor per band (matches the BLUEPRINT SCORE_MAP contract).
-SCORE_MAP: dict[str, float] = {
-    "Very High": 0.95,
-    "High": 0.85,
-    "Medium-High": 0.70,
-    "Medium": 0.55,
-    "Low": 0.30,
-}
-
-
-def band_for_coef(glm_coef: float | None, top_cluster: str | None = None) -> str:
-    """Map a glm_coef magnitude to a confidence label.
-
-    NoSig / None / non-positive -> "Low". Bigger coef -> higher band.
-    Thresholds come from CONFIDENCE_BANDS (tunable). Pure; no source lookup.
-    """
-    if glm_coef is None or (top_cluster is not None and is_no_signal(top_cluster)):
-        return "Low"
-    coef = abs(float(glm_coef))
-    for label in ("Very High", "High", "Medium-High", "Medium"):
-        if coef >= CONFIDENCE_BANDS[label]:
-            return label
-    return "Low"
-
-
-# --------------------------------------------------------------------------- #
 # Gene-set enrichment rubric (second workflow; TUNABLE, calibrate on real data).
 # Bands are keyed by score_kind (the schema stays method-agnostic); the jazzPanda
 # competitive test_statistic (z-like, ~2–30) is NOT a glm_coef, so it has its own

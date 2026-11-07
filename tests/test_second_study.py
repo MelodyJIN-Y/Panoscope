@@ -97,8 +97,15 @@ def _evidence(store: Study, sample: str | None = None):
 
 
 def _verdicts():
-    from panoscope.agent import verdict as V
-    return V.all_verdicts()
+    from panoscope.pipeline import v1_verdicts
+    return list(v1_verdicts.verdicts().values())
+
+
+def _coverage(study_id: str) -> dict:
+    """Each unit's canonical-coverage K of N, as the band engine computed it."""
+    from panoscope.pipeline import records
+    return {u: b.verdict.coverage
+            for u, b in records.build_all(Study.open(study_id)).items()}
 
 
 # --------------------------------------------------------------------------- #
@@ -249,7 +256,8 @@ def test_a_cell_type_can_have_no_canonical_support_at_all(store: Study) -> None:
     with cfg.use_study(FIXTURE):
         v = next(v for v in _verdicts() if v.cluster == "c2")
     assert v.confidence == "Low" and v.verify is True
-    assert "no canonical marker supports the call" in v.demotions
+    assert v.band_basis == "no canonical driver"
+    assert v.demotions[0].endswith("nothing could have supported it")
 
 
 def test_no_breast_knowledge_reaches_a_study_that_is_not_breast(store: Study) -> None:
@@ -277,11 +285,10 @@ def test_the_cliff_at_one_canonical_marker_is_gone(store: Study) -> None:
     a call the panel could barely ask for; a verify alone would leave the number
     saying something the rubric no longer believes.
     """
-    from panoscope.agent import verdict as V
-
     with cfg.use_study(FIXTURE):
         by_unit = {v.cluster: v for v in _verdicts()}
-        coverage = V.canonical_coverage("Synthetic Type A")
+        assert annotation.cell_type_for("c1") == "Synthetic Type A"
+    coverage = _coverage(FIXTURE)["c1"]
 
     # The K of N the demote rests on, stated rather than implied.
     assert (coverage.k, coverage.n) == (1, 6)
@@ -325,19 +332,14 @@ def test_no_demo_cluster_is_demoted_by_the_coverage_floor(store: Study) -> None:
     future tuning pass sees how much headroom there is: the worst demo unit is c7 at
     4/7 and the fixture sits at 1/6.
     """
-    from panoscope.agent import verdict as V
-
-    with cfg.use_study(cfg.BUNDLED_DEMO_ID):
-        demo = {u: V.canonical_coverage(annotation.cell_type_for(u))
-                for u in cfg.CLUSTER_ORDER}
+    demo = _coverage(cfg.BUNDLED_DEMO_ID)
     assert len(demo) == 9, "nine units, never one"
     assert all(c.ok for c in demo.values()), {
         u: str(c) for u, c in demo.items() if not c.ok}
     worst = min(demo.values(), key=lambda c: c.fraction)
     assert round(worst.fraction, 3) == 0.571, str(worst)
 
-    with cfg.use_study(FIXTURE):
-        thin = V.canonical_coverage("Synthetic Type A")
+    thin = _coverage(FIXTURE)["c1"]
     assert not thin.ok and round(thin.fraction, 3) == 0.167
 
     # The floor sits strictly between the two, and not on either edge.

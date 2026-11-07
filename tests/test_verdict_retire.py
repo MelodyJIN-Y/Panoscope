@@ -6,29 +6,12 @@ band injected into the chat system prompt on every turn, the ``verify`` flag on
 every chat answer, the second opinion, the cited cell-type and per-gene notes,
 and the Summary table when a study has no built tree.
 
-``tests/test_core_compat.py`` gates the two engines against each other on the
-NINE DEMO UNITS, where they agree to 4295 leaves. That is exactly why a test on
-the demo alone cannot see this defect: both engines return the same object, so
-calling the wrong one is invisible. These tests therefore bite in two ways that
-do not depend on the demo agreeing:
-
-1. **The v1 engine is made unusable** (``_no_v1``). Any surface still routing
-   through ``agent/verdict.py`` fails here, on the demo, on all nine units --
-   and several of them swallow exceptions, so each assertion checks the VALUE
-   the surface produced, never merely that it did not raise.
-2. **A study where the two engines disagree.** On
-   ``synthetic_multisample_fixture`` c3 they return the same Low band for
-   different stated reasons -- v1 "no canonical marker supports the call",
-   ``core/`` "leading canonical marker was measured and did not mark this unit".
-   That sentence is what the Summary table
-   prints and what the exported CSV's ``notes`` column carries, so it is a
-   difference the biologist reads.
-
-``agent/verdict.py`` itself is untouched and still called by
-``tests/test_core_compat.py``, ``tests/golden_projection.py`` and
-``tests/test_calibration.py``: it is the independent reference implementation
-those gates compare ``core/`` against, and it cannot be that and a live engine at
-once.
+``agent/verdict.py``, the second engine, has been deleted, so a surface can no longer
+route around ``core/``. What stays pinned is the VALUE each surface produces, checked
+against ``pipeline.v1_verdicts`` -- several of them swallow exceptions, so each
+assertion checks the value, never merely that it did not raise. On
+``synthetic_multisample_fixture`` c3 the old engine stated a different reason for the
+same Low band; the fallback must state ``core/``'s.
 """
 
 from __future__ import annotations
@@ -51,30 +34,10 @@ def core_verdicts():
     return v1_verdicts.verdicts()
 
 
-@pytest.fixture
-def _no_v1(monkeypatch):
-    """Make ``agent/verdict.py``'s public entry points unusable.
-
-    A surface that still calls it now raises inside its own ``except Exception``
-    and degrades, which every test below detects by checking the value rather
-    than the absence of a traceback.
-    """
-    from panoscope.agent import verdict as V
-
-    def _gone(*_a, **_k):
-        raise AssertionError(
-            "agent/verdict.py is the compat gate's reference implementation, "
-            "not a live band engine -- read pipeline.v1_verdicts"
-        )
-
-    monkeypatch.setattr(V, "verdict_for_cluster", _gone)
-    monkeypatch.setattr(V, "all_verdicts", _gone)
-
-
 # --------------------------------------------------------------------------- #
 # agent/loop.py -- the band in the system prompt, every chat turn
 # --------------------------------------------------------------------------- #
-def test_prompt_bands_are_the_tables_bands(_no_v1, core_verdicts):
+def test_prompt_bands_are_the_tables_bands(core_verdicts):
     """All nine units, band and verify, as the chat is told them.
 
     ``_global_interpretation_lines`` catches every exception, so a revert to the
@@ -120,7 +83,7 @@ def test_prompt_never_shows_a_cluster_without_saying_it_has_no_band(monkeypatch)
         assert " confidence" not in line.split("—", 1)[1].split("(the", 1)[0]
 
 
-def test_chat_verify_flag_is_the_tables_verify_flag(_no_v1, core_verdicts):
+def test_chat_verify_flag_is_the_tables_verify_flag(core_verdicts):
     """The deterministic rubric reaches every chat answer, on all nine units."""
     from panoscope.agent import loop
 
@@ -146,7 +109,7 @@ def test_verify_fails_closed_when_the_rubric_cannot_be_computed(monkeypatch):
 # --------------------------------------------------------------------------- #
 # agent/skeptic.py + loop's deterministic skeptic response
 # --------------------------------------------------------------------------- #
-def test_second_opinion_argues_against_the_tables_call(_no_v1, core_verdicts):
+def test_second_opinion_argues_against_the_tables_call(core_verdicts):
     """All nine. The call challenged, and the band it is held at, are the table's."""
     from panoscope.agent import skeptic
 
@@ -161,7 +124,7 @@ def test_second_opinion_argues_against_the_tables_call(_no_v1, core_verdicts):
             assert v.confidence in report.verdict_line or report.challenges
 
 
-def test_deterministic_skeptic_response_quotes_the_tables_numbers(_no_v1, core_verdicts):
+def test_deterministic_skeptic_response_quotes_the_tables_numbers(core_verdicts):
     """``loop._deterministic_skeptic_response`` swallows a verdict failure into an
     EMPTY grounding sidecar, so a revert would quietly produce a second opinion
     citing no numbers at all. Assert the numbers, on every unit that has any."""
@@ -185,7 +148,7 @@ def test_deterministic_skeptic_response_quotes_the_tables_numbers(_no_v1, core_v
 # --------------------------------------------------------------------------- #
 # pipeline/stages/notes.py -- the cited notes
 # --------------------------------------------------------------------------- #
-def test_celltype_notes_are_written_from_the_tables_call(_no_v1, core_verdicts,
+def test_celltype_notes_are_written_from_the_tables_call(core_verdicts,
                                                          tmp_tree, monkeypatch):
     """The cell type a note describes, and the markers it is asked about, come
     from ``core/``. The stage prints and continues on an exception, so a revert
@@ -220,7 +183,7 @@ def test_celltype_notes_are_written_from_the_tables_call(_no_v1, core_verdicts,
 # ui/data_access.py -- the Summary table and its export
 # --------------------------------------------------------------------------- #
 def test_summary_table_falls_back_to_the_same_engine_as_the_table(
-    _no_v1, core_verdicts, monkeypatch
+    core_verdicts, monkeypatch
 ):
     """The unbuilt-study fallback. All nine units, object for object.
 
@@ -277,7 +240,6 @@ def test_the_fallback_states_the_cores_reason_not_the_v1_engines(monkeypatch):
     if not Study.open(DIVERGENT_STUDY).exists:
         pytest.skip(f"study {DIVERGENT_STUDY!r} is not on disk")
 
-    from panoscope.agent import verdict as V
     from panoscope.pipeline import store
     from panoscope.ui import data_access as da
 
@@ -286,12 +248,7 @@ def test_the_fallback_states_the_cores_reason_not_the_v1_engines(monkeypatch):
         _clear(da.verdict_for)
         shown = da.verdict_for(DIVERGENT_UNIT)
         _clear(da.verdict_for)
-        v1 = V.verdict_for_cluster(DIVERGENT_UNIT)
 
-    assert v1.band_basis != shown.band_basis, (
-        "the two engines agree here now; this test is no longer evidence and "
-        "needs a study on which they still differ"
-    )
     assert shown.band_basis == "canonical driver tested-absent"
     assert "leading canonical marker was measured and did not mark this unit" \
         in shown.notes
@@ -335,8 +292,11 @@ def test_exported_csv_carries_the_11_frozen_columns(core_verdicts):
     import csv
     import io
 
-    from panoscope.agent.verdict import CSV_COLUMNS
+    from panoscope.core.export import PROFILES
+    from panoscope.types.outputs import TaskKind
     from panoscope.ui import data_access as da
+
+    CSV_COLUMNS = PROFILES[TaskKind.ASSIGNMENT].names
 
     rows = list(csv.reader(io.StringIO(da.verdict_csv())))
     assert tuple(rows[0]) == CSV_COLUMNS

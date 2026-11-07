@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import pytest
 
-from panoscope.agent import verdict as V
+from panoscope.pipeline import v1_verdicts as V
 from panoscope.agent.types import ClusterVerdict
 
 # --------------------------------------------------------------------------- #
@@ -66,7 +66,7 @@ _CAUTIOUS_CLUSTERS = frozenset({"c9"})               # expected verify=True
 )
 def test_calibration_case(cluster: str, cell_type: str, confidence: str, verify: bool) -> None:
     """Each calibrated cluster resolves to its expected type / band / verify."""
-    v = V.verdict_for_cluster(cluster)
+    v = V.verdict_for(cluster)
     assert isinstance(v, ClusterVerdict)
     assert v.cell_type == cell_type, (
         f"{cluster}: expected cell_type {cell_type!r}, got {v.cell_type!r}"
@@ -86,7 +86,7 @@ def test_calibration_case(cluster: str, cell_type: str, confidence: str, verify:
 def test_confident_clusters_commit() -> None:
     """The clean anchors land at the top band with no re-check (not cautious)."""
     for cluster in sorted(_CONFIDENT_CLUSTERS):
-        v = V.verdict_for_cluster(cluster)
+        v = V.verdict_for(cluster)
         assert v.confidence == "Very High", (
             f"{cluster}: expected the engine to COMMIT (Very High), got {v.confidence!r}"
         )
@@ -96,7 +96,7 @@ def test_confident_clusters_commit() -> None:
 def test_cautious_clusters_are_flagged() -> None:
     """The shaky anchors are flagged for re-check, never rubber-stamped."""
     for cluster in sorted(_CAUTIOUS_CLUSTERS):
-        v = V.verdict_for_cluster(cluster)
+        v = V.verdict_for(cluster)
         assert v.verify is True, (
             f"{cluster}: expected the engine to FLAG this call (verify=True), "
             f"got verify={v.verify}"
@@ -113,7 +113,7 @@ def test_calibration_set_is_meaningful() -> None:
     This is the anti-rubber-stamp / anti-cry-wolf guard: if the rubric ever
     collapses to a single behaviour, this fails.
     """
-    verdicts = {c: V.verdict_for_cluster(c) for c, *_ in CALIBRATION_SET}
+    verdicts = {c: V.verdict_for(c) for c, *_ in CALIBRATION_SET}
 
     verify_true = [c for c, v in verdicts.items() if v.verify is True]
     verify_false = [c for c, v in verdicts.items() if v.verify is False]
@@ -135,7 +135,7 @@ def test_calibration_expectations_match_live_engine() -> None:
     """
     mismatches: list[str] = []
     for cluster, cell_type, confidence, verify in CALIBRATION_SET:
-        v = V.verdict_for_cluster(cluster)
+        v = V.verdict_for(cluster)
         if (v.cell_type, v.confidence, v.verify) != (cell_type, confidence, verify):
             mismatches.append(
                 f"{cluster}: expected ({cell_type}, {confidence}, verify={verify}) "

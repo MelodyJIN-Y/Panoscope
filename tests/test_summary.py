@@ -13,7 +13,8 @@ import html
 import pytest
 
 from panoscope.agent import compose
-from panoscope.agent import verdict as agent_verdict
+from panoscope.core.export import PROFILES
+from panoscope.types.outputs import TaskKind
 from panoscope.ui import data_access as da
 from panoscope.ui import summary
 
@@ -38,7 +39,7 @@ def test_verdict_csv_has_full_header_and_nine_rows() -> None:
     csv = da.verdict_csv()
     lines = csv.strip().splitlines()
     header = lines[0]
-    for col in agent_verdict.CSV_COLUMNS:
+    for col in PROFILES[TaskKind.ASSIGNMENT].names:
         assert col in header
     # header + one row per cluster
     assert len(lines) == 1 + len(cfg.CLUSTER_ORDER)

@@ -20,11 +20,10 @@ import json
 
 import pytest
 
-from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.core import verdict as core_verdict
 from panoscope.pipeline.stages import annotate
-from tests.test_core_verdict import _items_for
+from tests.test_core_verdict import _inputs
 
 _GOOD = ('{"cell_type":"Tumor","cell_type_short":"Tum_Epi","category":"Epithelial",'
          '"lineage":"Epithelial","canonical_markers":["ERBB2","EPCAM"]}')
@@ -123,8 +122,7 @@ def test_a_bare_string_is_never_salvaged_into_per_character_markers():
 # What it is worth in bands, on all nine demo clusters
 # --------------------------------------------------------------------------- #
 def _band_with(cluster: str, canonical: frozenset[str]):
-    cell_type = annotation.meta_for(cluster)["cell_type"]
-    return core_verdict.assess(_items_for(cluster, cell_type), canonical).value
+    return core_verdict.assess(_inputs(cluster)[0], canonical).value
 
 
 @pytest.mark.parametrize("cluster", list(cfg.CLUSTER_ORDER))

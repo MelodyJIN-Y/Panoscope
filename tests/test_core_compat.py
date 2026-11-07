@@ -22,12 +22,9 @@ field comes back. Combined with the fact that an allowlist entry only takes effe
 in one reviewable file and a reason written out longhand. A green test can never do
 it.
 
-**The fixture stands in for the unbuilt v2 method module.** ``methods/jazzpanda.py``
-does not exist yet, so the three specificity flags are derived here from
-``agent/verdict._caveats_for`` -- the same function the committed records were
-written with. That is deliberate, for the reason ``test_core_verdict.py`` gives: if
-the fixture re-derived the thresholds itself, a projection failure could not be told
-apart from a fixture that had drifted.
+**The three specificity flags** are derived with ``methods/jazzpanda._flags_for``,
+the one function that raises them in the product path, so a projection failure
+cannot be told apart from a fixture whose thresholds drifted.
 
 **Never writes.** §10: "Never mutate the committed per-unit JSONs." Everything here
 is a read, and ``test_the_committed_records_are_not_touched`` proves it.
@@ -47,9 +44,9 @@ import pytest
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
-from panoscope.agent import verdict as A
 from panoscope.core import compat, measure
 from panoscope.core import verdict as C
+from panoscope.methods.jazzpanda import _flags_for
 from panoscope.pipeline import paths
 from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.evidence import EvidenceItem
@@ -61,9 +58,9 @@ from panoscope.types.subject import EntityKind, cell_type, gene, subject
 PANEL_FRAME = "panel:xenium_hbc_v1"
 UNIT_FRAME = "annotation:cluster_key"
 
-# agent's caveat prose -> the registered flag the method layer will carry. The
-# inverse of compat.CAVEAT_FOR; written out here rather than imported so the two
-# tables are independent and a single-sided edit shows up as a failure.
+# The v1 caveat prose for each registered flag. The inverse of compat.CAVEAT_FOR;
+# written out here rather than imported so the two tables are independent and a
+# single-sided edit shows up as a failure.
 _FLAG_FOR: dict[str, str] = {
     "localizes better with another cluster": C.FLAG_LOCALISES_ELSEWHERE,
     "spatial pattern not unique": C.FLAG_NOT_UNIQUE,
@@ -121,7 +118,7 @@ def _readings(cluster: str, ct: str) -> tuple[measure.Reading, ...]:
             statistic_name="glm_coef",
             corroborating=(("pearson", pearson), ("max_gc_corr", gc),
                            ("max_gg_corr", gg)),
-            flags=tuple(_FLAG_FOR[c] for c in A._caveats_for(pearson, gc, gg)),
+            flags=_flags_for(pearson, gc, gg),
         ))
     out += [
         measure.Reading(subject=subject("gene", g=gene(g)), statistic=None,
@@ -296,34 +293,27 @@ def test_the_committed_records_are_not_touched():
 # The committed CSV -- reused from export.py, never re-specified
 # --------------------------------------------------------------------------- #
 def test_the_verdict_csv_round_trips_through_the_projection():
-    """The 11 columns in exact order, byte-identical to what ``agent`` writes today
-    and, row for row, to the committed file. ``v1_verdict_csv`` adds no column list
-    of its own -- it hands ``export.py``'s profile something with attributes."""
+    """The 11 columns in exact order, byte-identical to the committed file.
+    ``v1_verdict_csv`` adds no column list of its own -- it hands ``export.py``'s
+    profile something with attributes."""
     rows = [_project(c) for c in cfg.CLUSTER_ORDER]
     produced = compat.v1_verdict_csv(rows).value
-    assert produced == A.to_csv(A.all_verdicts())
-    committed = paths.verdicts_csv(cfg.DATASET_ID).read_text()
-    assert list(csv.reader(io.StringIO(produced))) == \
-        list(csv.reader(io.StringIO(committed)))
+    committed = paths.verdicts_csv(cfg.DATASET_ID).read_bytes().decode("utf-8")
+    assert produced == committed
 
 
 def test_the_csv_header_is_the_frozen_eleven():
     rows = [_project(c) for c in cfg.CLUSTER_ORDER]
     header = next(csv.reader(io.StringIO(compat.v1_verdict_csv(rows).value)))
-    assert tuple(header) == A.CSV_COLUMNS
-    assert len(header) == 11
+    assert tuple(header) == (
+        "cluster", "cell_type", "cell_type_short", "confidence", "confidence_score",
+        "key_markers", "notes", "category", "lineage", "exclude", "verify",
+    )
 
 
 # --------------------------------------------------------------------------- #
 # The translation tables -- the only English in core/, so the only place it drifts
 # --------------------------------------------------------------------------- #
-def test_the_score_anchors_match_the_live_config():
-    """``core/`` may not import ``agent/``, so the anchors are duplicated. Without
-    this the two drift silently at the next calibration pass and every persisted
-    ``confidence_score`` moves."""
-    assert compat.SCORE_MAP == cfg.SCORE_MAP
-
-
 def _item(name: str, coef: float, pearson: float,
           flags: tuple[str, ...] = ()) -> EvidenceItem:
     return EvidenceItem(
@@ -334,56 +324,46 @@ def _item(name: str, coef: float, pearson: float,
     )
 
 
-def _grid():
-    for coef in (0.5, 3.0, 12.0, 30.0):
-        for pearson in (0.30, 0.50, 0.86, 0.99):
-            for gc in (0.0, pearson + 0.10):
-                for gg in (0.50, 0.99):
-                    for fragile in (False, True):
-                        for covered in (True, False):
-                            yield coef, pearson, gc, gg, fragile, covered
-
-
-@pytest.mark.parametrize("coef,pearson,gc,gg,fragile,covered", list(_grid()))
-def test_every_rule_id_renders_the_sentence_agent_wrote(coef, pearson, gc, gg,
-                                                        fragile, covered):
+def test_every_v1_rule_id_renders_its_v1_sentence():
     """The demo fires at most one adjustment per cluster, and only three of the eight
     rules across all nine (one promote, one localises-elsewhere, one fragile floor).
-    So the record gate above cannot see five of the sentences at all, nor the order
-    two of them are joined in. This drives both implementations from one set of
-    numbers and compares the rendered English at every reachable corner.
+    So the record gate above cannot see the other sentences at all, nor the order
+    they are joined in. Expected strings are the ones the retired
+    ``agent/verdict.py`` wrote, verbatim.
     """
-    caveats = A._caveats_for(pearson, gc, gg)
-    me = A.MarkerEvidence(
-        gene="ERBB2", top_cluster="c1", glm_coef=coef, pearson=pearson,
-        max_gg_corr=gg, max_gc_corr=gc, p_value=None, within_cluster_pctile=1.0,
-        is_canonical=True, is_on_panel=True, role="supports", caveats=caveats,
+    thin = frozenset({"ERBB2", "C1", "C2", "C3", "C4", "C5"})
+    filler = tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
+    cases = (
+        ((_item("ERBB2", 3.0, 0.86, _flags_for(0.86, 0.96, 0.99)), *filler), thin, (
+            "high pearson on driver (0.86) -> +1 band",
+            "driver localizes better with another cluster -> -1 band",
+            "driver spatial pattern not unique -> -1 band",
+            "canonical coverage 1/6 below floor 2 -> -1 band",
+        )),
+        ((_item("ERBB2", 30.0, 0.5),), frozenset({"ERBB2"}), (
+            "fragile cluster (<=2 markers): capped at Medium-High",
+        )),
+        ((_item("ERBB2", 0.5, 0.5, _flags_for(0.5, 0.6, 0.5)),), frozenset({"ERBB2"}), (
+            "driver localizes better with another cluster -> -1 band",
+            "fragile cluster with canonical driver: floored at Medium",
+        )),
     )
-    # The coverage demote renders its own K of N, so the sentence it produces is
-    # only comparable when both sides are given the SAME count. core derives it;
-    # agent is handed what core derived.
-    canonical = (frozenset({"ERBB2"}) if covered
-                 else frozenset({"ERBB2", "C1", "C2", "C3", "C4", "C5"}))
-    cov = C._canonical_coverage((_item("ERBB2", coef, pearson),), canonical)
-    assert cov.ok is covered
-    _band, _basis, expected = A._compute_band(me, fragile=fragile, coverage=cov)
-
-    driver = _item("ERBB2", coef, pearson, tuple(_FLAG_FOR[c] for c in caveats))
-    filler = () if fragile else tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
-    v = C.assess((driver, *filler), canonical).value
-    assert tuple(compat._demotion_sentence(r, v.driver, v.coverage)
-                 for r in v.demotions) == expected
+    for items, canonical, expected in cases:
+        v = C.assess(items, canonical).value
+        assert tuple(compat._demotion_sentence(r, v.driver, v.coverage)
+                     for r in v.demotions) == expected
 
 
-def test_the_caveat_table_is_the_inverse_of_the_agent_rule():
-    """``compat.CAVEAT_FOR`` must render in ``_caveats_for``'s append order, or the
+def test_the_caveat_table_is_in_the_flag_emitters_order():
+    """``compat.CAVEAT_FOR`` must render in ``_flags_for``'s append order, or the
     ``caveats`` list comes out permuted and ``ui/summary.py`` (which reads
     ``caveats[0]``) shows a different leading caveat."""
+    prose = {f: p for p, f in _FLAG_FOR.items()}
     for pearson, gc, gg in ((0.1, 0.9, 0.99), (0.5, 0.9, 0.5), (0.9, 0.0, 0.5),
                             (0.2, 0.0, 0.99), (0.9, 0.0, 0.0)):
-        expected = A._caveats_for(pearson, gc, gg)
-        flags = tuple(_FLAG_FOR[c] for c in expected)
-        assert tuple(p for f, p in compat.CAVEAT_FOR if f in flags) == expected
+        flags = _flags_for(pearson, gc, gg)
+        assert tuple(p for f, p in compat.CAVEAT_FOR if f in flags) == \
+            tuple(prose[f] for f in flags)
 
 
 def test_the_tested_absent_driver_sentence_does_not_claim_a_failed_measurement():
@@ -759,19 +739,15 @@ def test_the_projection_is_deterministic():
 # The input the demo cannot supply: an out-of-frame entity CARRYING A NUMBER
 #
 # Everything above is parametrised over ``cfg.CLUSTER_ORDER`` of the demo, whose
-# method table holds nothing the panel frame refuses. So the two engines agree
-# there whether or not ``agent/verdict.py`` applies a capability frame at all --
-# the gate passes on the demo's good luck rather than by construction. A method
-# table naming a gene the panel does not hold is the ordinary case (a control
-# probe, a table carried over from another panel) and it is the input that tells
-# the engines apart: ``core`` refuses the row through ``core.measure`` (the panel
-# frame does not admit it, so it comes back NEVER_MEASURED with no statistic, and
-# ``EvidenceItem`` makes a numbered row for an unmeasured subject unconstructible),
-# and ``agent`` has to refuse it through ``agent.verdict._in_the_gene_frame``.
+# method table holds nothing the panel frame refuses. A method table naming a gene
+# the panel does not hold is the ordinary case (a control probe, a table carried
+# over from another panel): ``core`` refuses the row through ``core.measure`` (the
+# panel frame does not admit it, so it comes back NEVER_MEASURED with no statistic,
+# and ``EvidenceItem`` makes a numbered row for an unmeasured subject
+# unconstructible).
 #
-# Built on disk, under ``tmp_path``, and run through BOTH production paths --
-# ``records.build_all`` and ``agent.verdict.all_verdicts`` -- rather than through
-# the hand-assembled ``_rebuild`` above: ``_rebuild`` builds its readings from
+# Built on disk, under ``tmp_path``, and run through the production path --
+# ``records.build_all`` -- rather than through the hand-assembled ``_rebuild`` above: ``_rebuild`` builds its readings from
 # ``data.get_cluster_markers`` and stamps every one of them ``OBSERVED``, so it
 # cannot see a frame refusal by construction and would report this as covered.
 # --------------------------------------------------------------------------- #
@@ -785,7 +761,7 @@ _OUT_OF_FRAME_ROW: str = (
 #: The on-panel row dropped in the fragile variant: with it, the unit has three
 #: assigned markers and an unguarded engine stays out of the fragile rule; without
 #: it, the unit has two real markers and the out-of-frame row is the only thing
-#: standing between ``core``'s fragile cap and ``agent``'s band.
+#: standing between ``core``'s fragile cap and an unguarded band.
 _DROPPED_ROW_PREFIX: str = "CD68,c3,"
 
 
@@ -821,10 +797,10 @@ def _study_with_an_out_of_frame_number(tmp_path, monkeypatch, *, drop: bool) -> 
 
 
 @pytest.mark.parametrize("drop", [False, True])
-def test_both_engines_refuse_a_number_attached_to_an_out_of_frame_gene(
+def test_the_engine_refuses_a_number_attached_to_an_out_of_frame_gene(
     tmp_path, monkeypatch, drop
 ):
-    """The equivalence the demo cannot reach, on both halves of the failure.
+    """The refusal the demo cannot reach, on both halves of the failure.
 
     ``drop=False`` is the half an evidence-list check alone would catch: the
     out-of-frame row is quoted as a marker row and leads ``key_markers``, so the
@@ -845,33 +821,29 @@ def test_both_engines_refuse_a_number_attached_to_an_out_of_frame_gene(
     study_id = _study_with_an_out_of_frame_number(tmp_path, monkeypatch, drop=drop)
     store = Study.open(study_id)
     with cfg.use_study(store):
-        agent_v = {v.cluster: v for v in A.all_verdicts()}
         built = {u: records.to_v1_dict(b)
                  for u, b in records.build_all(store).items()}
 
     assert OUT_OF_FRAME_GENE in (store.inputs / "markers_top.csv").read_text(), (
         "the row must be in the method's own table, or this proves nothing"
     )
-    assert set(built) == set(agent_v) and built, "the two engines built different units"
+    assert built, "no unit was built"
     for unit, core_d in sorted(built.items()):
-        av = agent_v[unit]
-        agent_genes = [e.gene for e in av.evidence]
-        core_genes = [r["gene"] for r in core_d["evidence"]]
-        assert OUT_OF_FRAME_GENE not in agent_genes, (
-            f"{unit}: agent quotes a statistic for {OUT_OF_FRAME_GENE}, which the "
-            f"panel frame refuses: {agent_genes}"
+        genes = [r["gene"] for r in core_d["evidence"]]
+        assert OUT_OF_FRAME_GENE not in genes, (
+            f"{unit}: a statistic is quoted for {OUT_OF_FRAME_GENE}, which the "
+            f"panel frame refuses: {genes}"
         )
-        assert agent_genes == core_genes, f"{unit}: evidence rows"
-        assert list(av.key_markers) == core_d["key_markers"], f"{unit}: key_markers"
-        assert av.confidence == core_d["confidence"], f"{unit}: band"
-        assert av.verify == core_d["verify"], f"{unit}: verify"
-        assert av.small_n == core_d["small_n"], f"{unit}: fragile"
-        assert all(e.is_on_panel for e in av.evidence), (
+        assert OUT_OF_FRAME_GENE not in core_d["key_markers"], f"{unit}: key_markers"
+        assert all(r["is_on_panel"] for r in core_d["evidence"]), (
             f"{unit}: a row carries a number and says it was never measured"
         )
-        assert not [s for s in av.source_trace if OUT_OF_FRAME_GENE in s], (
-            f"{unit}: the out-of-frame gene reaches the source trace"
+        assert not [s for s in core_d["source_trace"]
+                    if s.startswith(f"jz:{OUT_OF_FRAME_GENE}:")], (
+            f"{unit}: a number for the out-of-frame gene reaches the source trace"
         )
+    # The band half: with two real markers left, c3 is fragile.
+    assert built["c3"]["small_n"] is drop
 
 
 def test_the_out_of_frame_study_actually_reaches_the_rule_it_was_built_for(

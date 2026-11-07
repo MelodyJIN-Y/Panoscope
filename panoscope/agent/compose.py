@@ -1,6 +1,6 @@
 """The biologist's confirmed overrides, applied to what is SHOWN.
 
-Panoscope keeps two things apart on purpose. ``agent.verdict`` computes the
+Panoscope keeps two things apart on purpose. ``pipeline.v1_verdicts`` computes the
 call from one method's output and is never mutated: it is what ``panoscope
 build`` writes into the tree, what the golden projection hashes, and what the
 CSV exports. This module is the other half — the biologist's own call, laid
@@ -139,9 +139,9 @@ def composed_verdict_for(cluster: str) -> ClusterVerdict:
     The computed verdict when there is no override, so the default path costs
     one dictionary lookup and changes nothing.
     """
-    from panoscope.agent.verdict import verdict_for_cluster
+    from panoscope.pipeline.v1_verdicts import verdict_for
 
-    v = verdict_for_cluster(cluster)
+    v = verdict_for(cluster)
     ov = override_notes().get(cluster)
     return compose_verdict(v, ov) if ov is not None else v
 
@@ -153,9 +153,9 @@ def computed_call(cluster: str) -> str:
     that quietly swapped one label for the other would be the same silent
     overrule in the opposite direction.
     """
-    from panoscope.agent.verdict import verdict_for_cluster
+    from panoscope.pipeline.v1_verdicts import verdict_for
 
-    return verdict_for_cluster(cluster).cell_type
+    return verdict_for(cluster).cell_type
 
 
 __all__ = [

@@ -3,8 +3,9 @@
 These assert the corrected confidence rubric (glm_coef DIRECT), the anchor
 verdicts (c1 Tumor / c2 Stromal / c9 Mast), the NoSig -> Low+verify branch, the
 panel-absence invariant (off-panel notes NEVER move the confidence band), and
-the exact 11-column CSV contract. Every asserted number is pulled live from
-``agent.data`` so a test can never encode a fabricated statistic.
+the verdict object the chat, the table and the CSV all read
+(``pipeline.v1_verdicts``, built through ``core/verdict.py``). Every asserted number
+is pulled live from ``agent.data`` so a test can never encode a fabricated statistic.
 """
 
 from __future__ import annotations
@@ -13,21 +14,23 @@ import pytest
 
 from panoscope.agent import config as cfg
 from panoscope.agent import data
-from panoscope.agent import verdict as V
-from panoscope.agent.types import ClusterVerdict, MarkerEvidence
-from panoscope.types.measured import Coverage
+from panoscope.agent.types import ClusterVerdict
+from panoscope.core import verdict as C
+from panoscope.pipeline import records, v1_verdicts as V
+from panoscope.types.evidence import EvidenceItem
+from panoscope.types.measured import Measured, MeasuredState
+from panoscope.types.subject import gene, subject
 
-#: A canonical-coverage count that clears its floor, for the hand-built drivers
-#: below. ``_compute_band`` requires one -- there is deliberately no default, so a
-#: caller cannot get the pre-coverage band back by omitting it.
-_COVERED = Coverage(V.CANONICAL_COVERAGE_WHAT, 1, 1, V.coverage_floor(1))
+
+def _built() -> dict:
+    return records.build_all(cfg.current_study())
 
 
 # --------------------------------------------------------------------------- #
 # c1 Tumor — Very High, driven by ERBB2 (glm_coef traces to source)
 # --------------------------------------------------------------------------- #
 def test_c1_tumor_very_high_driven_by_erbb2():
-    v = V.verdict_for_cluster("c1")
+    v = V.verdict_for("c1")
     assert isinstance(v, ClusterVerdict)
     assert v.cell_type == "Tumor"
     assert v.confidence in ("Very High", "High")
@@ -41,11 +44,11 @@ def test_c1_tumor_very_high_driven_by_erbb2():
 
 
 def test_c1_band_matches_direct_glm_coef_rule():
-    """Base band before modifiers is band_for_coef(driver.glm_coef)."""
+    """Base band before modifiers is the ladder read off driver.glm_coef."""
     erbb2 = float(data.get_marker("ERBB2")["glm_coef"])
     # ERBB2 glm_coef is large -> Very High under the direct rubric.
-    assert cfg.band_for_coef(erbb2) == "Very High"
-    v = V.verdict_for_cluster("c1")
+    assert C._band_for_coef(erbb2) == "Very High"
+    v = V.verdict_for("c1")
     assert v.confidence == "Very High"
 
 
@@ -53,7 +56,7 @@ def test_c1_band_matches_direct_glm_coef_rule():
 # c2 Stromal — driven by LUM; off-panel notes include COL1A1 and VIM
 # --------------------------------------------------------------------------- #
 def test_c2_stromal_driven_by_lum():
-    v = V.verdict_for_cluster("c2")
+    v = V.verdict_for("c2")
     assert v.cell_type == "Stromal"
     driver = v.opening.driving_markers[0]
     assert driver.gene == "LUM"
@@ -62,7 +65,7 @@ def test_c2_stromal_driven_by_lum():
 
 
 def test_c2_offpanel_notes_include_col1a1_and_vim():
-    v = V.verdict_for_cluster("c2")
+    v = V.verdict_for("c2")
     genes = {n.gene for n in v.offpanel_notes}
     assert {"COL1A1", "VIM"} <= genes
     assert genes == {"COL1A1", "COL1A2", "DCN", "VIM", "FAP"}
@@ -95,12 +98,12 @@ def test_offpanel_map_asserts_all_off_panel():
 # c9 Mast — fragile (<=2 markers) -> verify=True
 # --------------------------------------------------------------------------- #
 def test_c9_mast_fragile_verify_true():
-    v = V.verdict_for_cluster("c9")
+    v = V.verdict_for("c9")
     assert v.cell_type == "Mast_Cells"
     assert v.verify is True
     assert v.small_n is True
     # Only 2 assigned markers (CPA3, CTSG) -> fragile.
-    assert len(v.evidence) <= V.FRAGILE_MARKER_COUNT
+    assert len(v.evidence) <= C.FRAGILE_MARKER_COUNT
     driver = v.opening.driving_markers[0]
     assert driver.gene == "CPA3"
     assert driver.glm_coef == float(data.get_marker("CPA3")["glm_coef"])
@@ -110,60 +113,26 @@ def test_c9_mast_fragile_verify_true():
 
 
 # --------------------------------------------------------------------------- #
-# NoSig-driven scenario -> Low + verify
-# --------------------------------------------------------------------------- #
-def test_nosig_driver_is_low_and_verify():
-    """A driver whose top_cluster is NoSig collapses the band to Low."""
-    nosig_driver = MarkerEvidence(
-        gene="FAKEGENE",
-        top_cluster="NoSig",
-        glm_coef=0.05,
-        pearson=0.10,
-        max_gg_corr=0.5,
-        max_gc_corr=0.5,
-        p_value=None,
-        within_cluster_pctile=1.0,
-        is_canonical=True,
-        is_on_panel=True,
-        role="supports",
-    )
-    band, basis, _ = V._compute_band(nosig_driver, fragile=False,
-                                     coverage=_COVERED)
-    assert band == "Low"
-    assert "NoSig" in basis
-
-
-def test_no_canonical_support_is_low():
-    """With no canonical driver at all, band is Low."""
-    band, _, _ = V._compute_band(None, fragile=False, coverage=_COVERED)
-    assert band == "Low"
-    assert cfg.SCORE_MAP[band] == cfg.SCORE_MAP["Low"]
-
-
-# --------------------------------------------------------------------------- #
 # Panel-absence invariant — off-panel notes NEVER change the confidence band
 # --------------------------------------------------------------------------- #
-def test_offpanel_notes_never_change_band(monkeypatch):
-    """Take the notes away entirely; nothing about the number may move.
+def test_offpanel_notes_never_change_band():
+    """Take the never-measured items away entirely; nothing about the number may move.
 
-    This used to recompute the band from the same inputs and assert the two agreed,
-    which cannot fail: the notes were never passed to the computation it compared
-    against. It now REMOVES them -- every off-panel note, for every cluster -- and
-    asserts band, score and verify are byte-identical. That is the claim the
-    headline rule actually makes, and it is the one worth being able to break.
+    The off-panel notes are rendered from the NEVER_MEASURED items. This REMOVES
+    them -- every one, for every cluster -- re-runs the band engine on what is left,
+    and asserts band, verify and the adjustments are identical. That is the claim
+    the headline rule actually makes, and it is the one worth being able to break.
     """
-    before = {c: V.verdict_for_cluster(c) for c in cfg.CLUSTER_ORDER}
-    assert sum(len(v.offpanel_notes) for v in before.values()), (
+    built = _built()
+    assert sum(len(V.verdict_for(u).offpanel_notes) for u in built), (
         "no cluster carries an off-panel note; this test would prove nothing")
-
-    monkeypatch.setattr(V, "offpanel_notes", lambda cell_type: ())
-    for cluster, was in before.items():
-        now = V.verdict_for_cluster(cluster)
-        assert now.offpanel_notes == ()
-        assert now.confidence == was.confidence, cluster
-        assert now.confidence_score == was.confidence_score, cluster
-        assert now.verify == was.verify, cluster
-        assert now.demotions == was.demotions, cluster
+    for unit, b in built.items():
+        kept = tuple(i for i in b.evidence.items
+                     if i.measured.state is not MeasuredState.NEVER_MEASURED)
+        now = C.assess(kept, b.canonical).value
+        assert now.band == b.verdict.band, unit
+        assert now.verify == b.verdict.verify, unit
+        assert now.demotions == b.verdict.demotions, unit
 
 
 def test_a_per_gene_absence_is_not_an_input_but_the_per_label_count_is():
@@ -182,27 +151,25 @@ def test_a_per_gene_absence_is_not_an_input_but_the_per_label_count_is():
     direction it happens.
     """
     # The notes exist and are per-gene; the coverage is per-label and is a K of N.
-    v = V.verdict_for_cluster("c2")
+    v = V.verdict_for("c2")
     assert {n.gene for n in v.offpanel_notes} == {"COL1A1", "COL1A2", "DCN",
                                                   "VIM", "FAP"}
-    cov = V.canonical_coverage(v.cell_type)
+    cov = _built()["c2"].verdict.coverage
     assert (cov.k, cov.n) == (4, 6)
 
     # Coverage NEVER promotes: full coverage on a weak driver changes nothing.
-    weak = V.MarkerEvidence(
-        gene="LUM", top_cluster="c2", glm_coef=1.5, pearson=0.5, max_gg_corr=0.5,
-        max_gc_corr=0.0, p_value=None, within_cluster_pctile=1.0,
-        is_canonical=True, is_on_panel=True, role="supports", caveats=(),
-    )
-    full = Coverage(V.CANONICAL_COVERAGE_WHAT, 9, 9, V.coverage_floor(9))
-    thin = Coverage(V.CANONICAL_COVERAGE_WHAT, 1, 9, V.coverage_floor(9))
-    band_full, _, changes_full = V._compute_band(weak, fragile=False,
-                                                 coverage=full)
-    band_thin, _, changes_thin = V._compute_band(weak, fragile=False,
-                                                 coverage=thin)
-    assert band_full == "Medium" and changes_full == ()
-    assert band_thin == "Low", "it subtracts"
-    assert len(changes_thin) == 1
+    # Three rows with a number, so the fragile cap/floor stays out of it.
+    weak = tuple(EvidenceItem(
+        subject=subject("gene", g=gene(g)), statistic=coef,
+        statistic_name="glm_coef",
+        measured=Measured(MeasuredState.OBSERVED, "panel:test"),
+        corroborating=(("pearson", 0.5),),
+    ) for g, coef in (("LUM", 1.5), ("N1", 0.5), ("N2", 0.4)))
+    full = C.assess(weak, frozenset({"LUM"})).value
+    thin = C.assess(weak, frozenset({"LUM", *(f"X{i}" for i in range(8))})).value
+    assert full.band == "Medium" and full.demotions == ()
+    assert thin.band == "Low", "it subtracts"
+    assert len(thin.demotions) == 1
 
 
 def test_offpanel_notes_do_not_touch_verify():
@@ -213,58 +180,18 @@ def test_offpanel_notes_do_not_touch_verify():
     all, which is what ``test_offpanel_notes_never_change_band`` proves by removing
     them.
     """
-    v = V.verdict_for_cluster("c2")
+    v = V.verdict_for("c2")
     assert v.offpanel_notes  # notes present
-    assert V.canonical_coverage(v.cell_type).ok
+    assert _built()["c2"].verdict.coverage.ok
     # Very High + non-fragile + canonical driver + covered -> verify False.
     assert v.verify is False
-
-
-# --------------------------------------------------------------------------- #
-# CSV contract — exactly 11 fields, in exact order
-# --------------------------------------------------------------------------- #
-EXPECTED_CSV_ORDER = (
-    "cluster",
-    "cell_type",
-    "cell_type_short",
-    "confidence",
-    "confidence_score",
-    "key_markers",
-    "notes",
-    "category",
-    "lineage",
-    "exclude",
-    "verify",
-)
-
-
-def test_to_csv_row_has_11_fields_in_order():
-    v = V.verdict_for_cluster("c1")
-    row = V.to_csv_row(v)
-    assert len(row) == 11
-    assert tuple(row.keys()) == EXPECTED_CSV_ORDER
-    assert V.CSV_COLUMNS == EXPECTED_CSV_ORDER
-    # Content spot checks.
-    assert row["cluster"] == "c1"
-    assert row["cell_type"] == "Tumor"
-    assert row["verify"] in ("TRUE", "FALSE")
-    assert row["exclude"] in ("TRUE", "FALSE")
-    assert "ERBB2" in row["key_markers"]
-
-
-def test_to_csv_header_matches_contract():
-    csv_text = V.to_csv(V.all_verdicts())
-    header = csv_text.splitlines()[0]
-    assert header == ",".join(EXPECTED_CSV_ORDER)
-    # 9 data rows + 1 header.
-    assert len([ln for ln in csv_text.splitlines() if ln]) == 10
 
 
 # --------------------------------------------------------------------------- #
 # All nine clusters resolve and source-trace is populated
 # --------------------------------------------------------------------------- #
 def test_all_nine_clusters_resolve():
-    verdicts = V.all_verdicts()
+    verdicts = [V.verdict_for(c) for c in cfg.CLUSTER_ORDER]
     assert [v.cluster for v in verdicts] == list(cfg.CLUSTER_ORDER)
     for v in verdicts:
         assert v.cell_type == cfg.CLUSTER_KEY[v.cluster]["cell_type"]
@@ -280,7 +207,7 @@ def test_all_nine_clusters_resolve():
 
 def test_source_trace_values_match_data():
     """Each glm_coef on the evidence equals the source table value exactly."""
-    v = V.verdict_for_cluster("c1")
+    v = V.verdict_for("c1")
     for e in v.evidence:
         expected = float(data.get_marker(e.gene)["glm_coef"])
         assert e.glm_coef == expected
@@ -288,7 +215,7 @@ def test_source_trace_values_match_data():
 
 def test_opening_interpretation_no_invented_numbers():
     """opening_interpretation exposes only real driver numbers + unfilled hooks."""
-    op = V.opening_interpretation("c1")
+    op = V.verdict_for("c1").opening
     assert op.cluster == "c1"
     assert op.cell_type == "Tumor"
     for d in op.driving_markers:
@@ -299,4 +226,4 @@ def test_opening_interpretation_no_invented_numbers():
 
 def test_unknown_cluster_raises():
     with pytest.raises(KeyError):
-        V.verdict_for_cluster("c99")
+        V.verdict_for("c99")

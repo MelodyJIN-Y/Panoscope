@@ -16,7 +16,7 @@ from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent import enrichment_themes as agent_enrichment_themes
 from panoscope.agent import holistic as agent_holistic
-from panoscope.agent import verdict as agent_verdict
+from panoscope.pipeline import v1_verdicts
 
 from panoscope.pipeline import paths
 from panoscope.pipeline import run as pipeline_run
@@ -38,13 +38,13 @@ _HAS_ENRICHMENT = agent_enrichment._jz_enrichment_csv().exists()
 
 def test_verdict_roundtrip_equals_computed():
     for c in cfg.CLUSTER_ORDER:
-        v = agent_verdict.verdict_for_cluster(c)
+        v = v1_verdicts.verdict_for(c)
         assert verdict_from_dict(verdict_to_dict(v)) == v
 
 
 def test_verdict_roundtrip_through_json():
     for c in cfg.CLUSTER_ORDER:
-        v = agent_verdict.verdict_for_cluster(c)
+        v = v1_verdicts.verdict_for(c)
         again = verdict_from_dict(json.loads(json.dumps(verdict_to_dict(v))))
         assert again == v
 
@@ -68,9 +68,9 @@ def test_run_writes_tree_and_store_reads_faithfully(tmp_path):
 
     for c in cfg.CLUSTER_ORDER:
         loaded = store.load_verdict(c, cfg.DATASET_ID, root=tmp_path)
-        assert loaded == agent_verdict.verdict_for_cluster(c)
+        assert loaded == v1_verdicts.verdict_for(c)
 
-    assert store.load_all_verdicts(cfg.DATASET_ID, root=tmp_path) == agent_verdict.all_verdicts()
+    assert store.load_all_verdicts(cfg.DATASET_ID, root=tmp_path) == [v1_verdicts.verdict_for(c) for c in cfg.CLUSTER_ORDER]
 
 
 def test_store_returns_none_when_absent(tmp_path):

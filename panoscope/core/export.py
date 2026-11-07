@@ -35,8 +35,7 @@ produced it belong to the step that made them. A ``note`` emitted here would cla
 the export chose something, and the record would carry a rule that explains a
 formatting choice as if it were an inference.
 
-The enrichment CSV is written only through here (``pipeline/stages/enrichment.py``);
-``agent/verdict.py`` still carries its own writer, pinned equal by the tests.
+Both CSVs are written only through here.
 
 **``cluster_confidence`` is gone, and this is the deletion §10 sequenced.** The
 characterisation profile used to end with ``cluster_confidence`` and

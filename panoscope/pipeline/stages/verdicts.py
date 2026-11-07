@@ -17,10 +17,8 @@ untouched during migration." This stage is where that happens, so it writes twic
 
 It used to run ``agent.verdict.all_verdicts()``. That is the cutover: the files the
 UI reads are now produced by the same functions ``panoscope explain`` renders from,
-so the two surfaces cannot disagree about a band. ``agent/verdict.py`` stays exactly
-where it is -- it is the independent reference implementation ``test_core_compat``
-compares against, and a shim over ``core/`` would make that gate compare ``core/``
-to itself.
+so the two surfaces cannot disagree about a band. ``agent/verdict.py`` has since been
+deleted; the golden hash pins this output.
 
 Computes nothing. Every number arrives from ``core/``; this stage arranges and
 serialises.

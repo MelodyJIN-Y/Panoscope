@@ -12,7 +12,7 @@ from io import BytesIO
 import pytest
 
 from panoscope.agent import holistic as agent_holistic
-from panoscope.agent import verdict as agent_verdict
+from panoscope.pipeline import v1_verdicts
 from panoscope.agent.types import Citation, Note, ScopeRef, Tension
 from panoscope.ui import report as R
 
@@ -46,7 +46,7 @@ def report() -> R.ReportModel:
         _note(cluster=None, scope="dataset", claim="this dataset is ER+ breast"),
     ]
     return R.build_report(
-        verdicts=agent_verdict.all_verdicts(),
+        verdicts=list(v1_verdicts.verdicts().values()),
         celltype_notes={"c1": {"summary": "Malignant luminal epithelial cells.", "pmid": "22264274"}},
         notes=notes,
         holistic=agent_holistic.holistic_review(),
@@ -119,7 +119,7 @@ def test_pdf_export_is_valid(report):
 
 def test_holistic_none_is_handled():
     rep = R.build_report(
-        verdicts=agent_verdict.all_verdicts(),
+        verdicts=list(v1_verdicts.verdicts().values()),
         celltype_notes={},
         notes=[],
         holistic=None,
@@ -153,7 +153,7 @@ _NO_WHY = ("replicate concordance (ARCHITECTURE 9.10) could not be assessed for 
 def _report_with(undecidable: dict) -> R.ReportModel:
     """The same nine real verdicts, with undecidable sentences attached by unit."""
     return R.build_report(
-        verdicts=agent_verdict.all_verdicts(),
+        verdicts=list(v1_verdicts.verdicts().values()),
         celltype_notes={},
         notes=[],
         holistic=None,

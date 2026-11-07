@@ -23,7 +23,7 @@ from panoscope.agent import data
 from panoscope.agent import fallback as F
 from panoscope.agent.grounding_check import GroundingChecker
 from panoscope.agent.types import AgentResponse, GroundingSidecar, Source
-from panoscope.agent.verdict import verdict_for_cluster
+from panoscope.pipeline.v1_verdicts import verdict_for as verdict_for_cluster
 
 
 # --------------------------------------------------------------------------- #
@@ -185,9 +185,9 @@ def test_offpanel_intent_on_cluster_without_notes_returns_none():
     off-panel), and this test went red for the right reason. c6 B_Cells is the one
     unit whose canonical set really is entirely on-panel.
     """
-    from panoscope.agent import verdict as V
+    from panoscope.pipeline import v1_verdicts
 
-    empty = [v.cluster for v in V.all_verdicts() if not v.offpanel_notes]
+    empty = [u for u, v in v1_verdicts.verdicts().items() if not v.offpanel_notes]
     assert "c6" in empty, (
         f"c6 was the unit with no off-panel canonical markers; now {empty}. "
         "Re-anchor on one that is, rather than relaxing the assertion."

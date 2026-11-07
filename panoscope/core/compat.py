@@ -227,7 +227,7 @@ class NoV1Shape(ValueError):
 # --------------------------------------------------------------------------- #
 # v1 constants and prose, transcribed. Pinned by tests/test_core_compat.py.
 # --------------------------------------------------------------------------- #
-SCORE_MAP: dict[str, float] = {        # agent/config.SCORE_MAP; drift test in the suite
+SCORE_MAP: dict[str, float] = {        # fixed score anchor per band
     "Very High": 0.95,
     "High": 0.85,
     "Medium-High": 0.70,
@@ -410,9 +410,6 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
     peaking in another cluster is the ordinary case -- it would be there on most
     units. The BAND is unchanged (still Low, still the same rung, still the same
     ``verify``); only the words are, and that is true of both divergences.
-    ``tests/test_core_verdict.py::_RULE_FOR`` still maps v1's sentences to these
-    ids, because v1 is the reference implementation the equivalence gate reads and
-    it still says what it always said.
     """
     if rule == "band:no_canonical_driver":
         if no_canonical is None:

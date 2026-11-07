@@ -2,17 +2,9 @@
 
 The band is the single most load-bearing number this project produces: it is pinned
 by ``tests/test_golden.py``, written into a committed 11-column CSV that downstream R
-reads, and rendered as the pill the biologist acts on. So the central test here is not
-an inspection of the new code -- it feeds the SAME demo evidence through
-``agent.verdict`` and through ``core.verdict`` and asserts band, basis, ``verify`` and
-the ordered adjustments are equal, cluster by cluster. "Looks right" is what lets a
-reordered demote or an absorbed promote through.
-
-The two implementations speak different vocabularies on purpose: ``agent`` returns a
-tuple of English sentences, ``core`` returns registered rule ids. ``_RULE_FOR``
-translates, and ``test_the_translation_table_is_exhaustive`` fails if ``agent`` ever
-emits a sentence the table does not know -- otherwise an unmapped adjustment would
-silently compare as "no adjustment on either side".
+reads, and rendered as the pill the biologist acts on. ``core/verdict.py`` is the one
+engine that computes it; the demo's end-to-end output is pinned byte-for-byte by the
+golden hash, and this module pins the rules themselves.
 
 Synthetic items cover what the demo study does not contain: a tested-absent canonical
 driver, a cap, a floor, and a promote at the top of the ladder. Those are built by
@@ -26,55 +18,19 @@ import inspect
 
 import pytest
 
-from panoscope.agent import annotation
 from panoscope.agent import config as cfg
-from panoscope.agent import verdict as A
 from panoscope.core import compat as COMPAT
 from panoscope.core import verdict as C
+from panoscope.pipeline import records
 from panoscope.types.evidence import EvidenceItem
 from panoscope.types.measured import Coverage, Measured, MeasuredState
 from panoscope.types.subject import gene, subject
-from panoscope.types.trace import RULES
 
 _FRAME = "panel:xenium_hbc_v1"
 
-# agent's English -> core's registered rule id. The prose halves are verbatim from
-# ``agent/verdict.py``; the numbers it interpolates are stripped by prefix matching,
-# which is why the two pearson entries are prefixes and not whole strings.
-_RULE_FOR: tuple[tuple[str, str], ...] = (
-    ("no canonical marker supports the call", "band:no_canonical_driver"),
-    ("driving marker is NoSig", "band:driver_nosig"),
-    ("high pearson on driver", "band:promote_pearson_high"),
-    ("low pearson on driver", "band:demote_pearson_low"),
-    ("driver localizes better with another cluster", "band:demote_localises_elsewhere"),
-    ("driver spatial pattern not unique", "band:demote_not_unique"),
-    ("fragile cluster (<=2 markers): capped", "band:fragile_cap"),
-    ("fragile cluster with canonical driver: floored", "band:fragile_floor"),
-    ("canonical coverage ", "band:demote_canonical_coverage"),
-)
-
-#: A canonical list whose markers are mostly NOT in frame, and one that is fully in
-#: frame. The grid below drives both, because the coverage demote is the one rung
-#: that reads the capability frames rather than the driver.
+#: A canonical list whose markers are mostly NOT in frame: the coverage demote is
+#: the one rung that reads the capability frames rather than the driver.
 _THIN: frozenset[str] = frozenset({"ERBB2", "C1", "C2", "C3", "C4", "C5"})
-_FULL: frozenset[str] = frozenset({"ERBB2"})
-
-# agent's caveat prose (``_caveats_for``) -> the registered flag the method layer
-# carries on an EvidenceItem. This is the transcription ``evidence.py`` FLAGS records.
-_FLAG_FOR: dict[str, str] = {
-    "localizes better with another cluster": C.FLAG_LOCALISES_ELSEWHERE,
-    "spatial pattern not unique": C.FLAG_NOT_UNIQUE,
-    "low spatial specificity": C.FLAG_LOW_PEARSON,
-}
-
-
-def _rule_for(sentence: str) -> str:
-    for prefix, rule in _RULE_FOR:
-        if sentence.startswith(prefix):
-            return rule
-    raise AssertionError(
-        f"agent emitted an adjustment the table does not map: {sentence!r}"
-    )
 
 
 def _item(name: str, coef: float | None, pearson: float | None = None,
@@ -92,123 +48,27 @@ def _item(name: str, coef: float | None, pearson: float | None = None,
     )
 
 
-def _items_for(cluster: str, cell_type: str) -> tuple[EvidenceItem, ...]:
-    """The demo cluster's rows, as ``EvidenceItem``s.
-
-    Built from ``agent.verdict._build_evidence`` so that both implementations are
-    demonstrably reading the same numbers: if this test re-read the CSV itself, an
-    equivalence failure could not be told apart from a fixture that drifted.
-    """
-    return tuple(
-        EvidenceItem(
-            subject=subject("gene", g=gene(e.gene)),
-            statistic=e.glm_coef,
-            statistic_name="glm_coef",
-            measured=Measured(MeasuredState.OBSERVED, _FRAME),
-            corroborating=(("pearson", e.pearson),
-                           ("max_gc_corr", e.max_gc_corr),
-                           ("max_gg_corr", e.max_gg_corr)),
-            flags=tuple(_FLAG_FOR[c] for c in e.caveats),
-        )
-        for e in A._build_evidence(cluster, cell_type)
-    )
-
-
 def _inputs(cluster: str):
-    """(items, canonical) for one demo cluster -- core's two arguments."""
-    cell_type = annotation.meta_for(cluster)["cell_type"]
-    return _items_for(cluster, cell_type), frozenset(
-        annotation.canonical_markers(cell_type)
-    )
+    """(items, canonical) for one demo cluster -- core's two arguments, as the
+    composition root builds them."""
+    b = records.build_all(cfg.current_study())[cluster]
+    return b.evidence.items, b.canonical
 
 
 # --------------------------------------------------------------------------- #
-# Behavioural equivalence -- the whole contract
+# The demo exercises the ladder
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("cluster", list(cfg.CLUSTER_ORDER))
-def test_core_band_equals_agent_band_on_every_demo_cluster(cluster):
-    """Band, basis, verify and the ORDERED adjustments, field by field.
-
-    Order matters independently of the band: each demote is one rung, so the band
-    survives a reordering while the record -- and the badges the record draws -- do
-    not.
-    """
-    av = A.verdict_for_cluster(cluster)
-    cv = C.assess(*_inputs(cluster)).value
-    assert cv.band == av.confidence, f"{cluster}: band {cv.band!r} != {av.confidence!r}"
-    assert cv.basis == av.band_basis, f"{cluster}: basis {cv.basis!r} != {av.band_basis!r}"
-    assert cv.verify == av.verify, f"{cluster}: verify {cv.verify} != {av.verify}"
-    assert cv.demotions == tuple(_rule_for(d) for d in av.demotions), (
-        f"{cluster}: adjustments {cv.demotions} != {av.demotions}"
-    )
-    assert cv.fragile == av.small_n, f"{cluster}: fragile {cv.fragile} != {av.small_n}"
-
-
-def _grid():
-    """The reachable (coef, pearson, max_gc, max_gg, fragile) corners.
-
-    ``pearson`` never goes below ``LOW_PEARSON``: below it a canonical marker is
-    disqualified as driver rather than demoted, so ``_compute_band`` is never called
-    with one by the real pipeline. That one structural difference has its own test
-    (``test_a_low_pearson_canonical_marker_is_disqualified_not_demoted``); including
-    it here would compare the two implementations outside the domain either of them
-    actually runs on.
-    """
-    for coef in (0.5, 1.5, 3.0, 6.0, 12.0, 30.0):
-        for pearson in (0.30, 0.50, 0.86, 0.99):
-            for gc in (0.0, pearson + 0.10):           # localises elsewhere, or not
-                for gg in (0.50, 0.99):                # pattern shared, or not
-                    for fragile in (False, True):
-                        for covered in (True, False):  # canonical coverage ok, or not
-                            yield coef, pearson, gc, gg, fragile, covered
-
-
-@pytest.mark.parametrize("coef,pearson,gc,gg,fragile,covered", list(_grid()))
-def test_core_matches_the_agent_band_function_across_the_reachable_grid(
-    coef, pearson, gc, gg, fragile, covered
-):
-    """The demo fires at most ONE adjustment per cluster, so the nine-cluster sweep
-    cannot see the order of two demotes, nor a cap, nor promote-then-demote. This
-    grid does: it drives ``agent.verdict._compute_band`` and ``core.assess`` from one
-    set of numbers and compares band, basis and ordered adjustments at every corner.
-
-    It is the test that caught the real gap -- swapping the two demote branches in
-    ``core`` left the nine-cluster sweep entirely green, because no demo cluster ever
-    carries both flags.
-    """
-    caveats = A._caveats_for(pearson, gc, gg)
-    me = A.MarkerEvidence(
-        gene="ERBB2", top_cluster="c1", glm_coef=coef, pearson=pearson,
-        max_gg_corr=gg, max_gc_corr=gc, p_value=None, within_cluster_pctile=1.0,
-        is_canonical=True, is_on_panel=True, role="supports", caveats=caveats,
-    )
-    canonical = _FULL if covered else _THIN
-    # core DERIVES the coverage from the items; agent reads the capability frames.
-    # Feeding agent the number core derives is the point: if the two ever disagree
-    # about what K of N means, this compares a band computed from one count against
-    # a band computed from the other, which is the failure the fixture exposed.
-    cov = C._canonical_coverage((_item("ERBB2", coef, pearson),), canonical)
-    assert cov.ok is covered, "the grid must drive BOTH sides of the floor"
-    a_band, a_basis, a_changes = A._compute_band(me, fragile=fragile, coverage=cov)
-
-    driver = _item("ERBB2", coef, pearson, tuple(_FLAG_FOR[c] for c in caveats))
-    # fragile is len(assigned) <= 2, so it is set by how many items carry a number.
-    filler = () if fragile else tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
-    cv = C.assess((driver, *filler), canonical).value
-
-    assert cv.fragile is fragile
-    assert cv.band == a_band
-    assert cv.basis == a_basis
-    assert cv.demotions == tuple(_rule_for(c) for c in a_changes)
-    assert cv.coverage == cov
-
-
-def test_the_translation_table_is_exhaustive():
-    """An unmapped sentence would compare as 'no adjustment' on both sides, and the
-    equivalence test above would pass while the two implementations disagreed."""
-    for cluster in cfg.CLUSTER_ORDER:
-        for sentence in A.verdict_for_cluster(cluster).demotions:
-            assert _rule_for(sentence) in RULES
+def test_demotes_are_recorded_in_rule_order():
+    """Each demote is one rung, so the band survives a reordering while the record --
+    and the badges it draws -- do not. Swapping two demote branches once left a
+    nine-cluster sweep green because no demo cluster carries both flags."""
+    driver = _item("ERBB2", 30.0, 0.9,
+                   (C.FLAG_NOT_UNIQUE, C.FLAG_LOCALISES_ELSEWHERE))
+    filler = tuple(_item(f"G{i}", 1.0, 0.5) for i in range(3))
+    v = C.assess((driver, *filler), _THIN).value
+    assert v.demotions == ("band:demote_localises_elsewhere", "band:demote_not_unique",
+                           "band:demote_canonical_coverage")
+    assert v.band == "Medium" and v.verify
 
 
 def test_the_equivalence_sweep_is_not_vacuous():
@@ -268,78 +128,6 @@ def test_the_record_and_the_value_agree_on_the_adjustments():
 # --------------------------------------------------------------------------- #
 # Canonical coverage -- the rung that reads the apparatus, not the driver
 # --------------------------------------------------------------------------- #
-def _studies_on_disk() -> list[str]:
-    from panoscope.data import layout
-    return sorted(layout.available_studies())
-
-
-@pytest.mark.parametrize("study_id", _studies_on_disk())
-def test_both_engines_agree_on_every_unit_of_every_study_on_disk(study_id):
-    """The equivalence the nine-cluster sweep above cannot reach.
-
-    The demo never fires the coverage rule, so a sweep over the demo alone would
-    pass with the two engines computing K of N in completely different ways -- and
-    they DO compute it differently on purpose: ``agent`` reads the panel and
-    detectability frames directly, ``core`` derives the same count from the
-    measured state of the items it was handed. "Both say Very High" is not evidence
-    that they agree about coverage.
-
-    So this runs the real v2 composition root over every study on disk and compares
-    band, verify, the coverage K of N and the number of adjustments, unit by unit.
-    Nine demo units, three fixture units, three mini units -- never one; a one-unit
-    version of this check passed while five of nine were wrong earlier.
-    """
-    from panoscope.agent import annotation as ann
-    from panoscope.data.study import Study
-    from panoscope.pipeline import records
-
-    store = Study.open(study_id)
-    built = records.build_all(store)
-    with cfg.use_study(study_id):
-        agent_v = {v.cluster: v for v in A.all_verdicts()}
-        agent_cov = {u: A.canonical_coverage(ann.cell_type_for(u)) for u in built}
-
-    assert built, f"{study_id}: no unit was built"
-    for unit, b in sorted(built.items()):
-        core_v, av = b.verdict, agent_v[unit]
-        assert core_v.band == av.confidence, f"{study_id}/{unit}: band"
-        assert core_v.verify == av.verify, f"{study_id}/{unit}: verify"
-        assert len(core_v.demotions) == len(av.demotions), (
-            f"{study_id}/{unit}: {core_v.demotions} vs {av.demotions}")
-        # The number the new rung is read off, derived two independent ways.
-        assert (core_v.coverage.k, core_v.coverage.n, core_v.coverage.floor) == (
-            agent_cov[unit].k, agent_cov[unit].n, agent_cov[unit].floor), (
-            f"{study_id}/{unit}: core {core_v.coverage} vs agent {agent_cov[unit]}")
-
-
-def test_the_study_sweep_actually_reaches_the_coverage_rule():
-    """Guards the sweep above against being vacuous in the one direction that
-    matters: if no study on disk ever fails the floor, it proves the two engines
-    agree about a rung neither of them ever took."""
-    from panoscope.agent import annotation as ann
-    from panoscope.data.study import Study
-    from panoscope.pipeline import records
-
-    failing = []
-    for sid in _studies_on_disk():
-        with cfg.use_study(sid):
-            for unit in records.build_all(Study.open(sid)):
-                cov = A.canonical_coverage(ann.cell_type_for(unit))
-                if cov.n and not cov.ok:
-                    failing.append(f"{sid}/{unit} {cov}")
-    assert failing, "no study on disk exercises the canonical-coverage floor"
-
-
-def test_the_coverage_floor_is_the_same_number_in_both_engines():
-    """``core/`` may not import ``agent/``, so the floor is duplicated. Without this
-    the two bands diverge silently at the next tuning pass -- and the coverage floor
-    is the one threshold a new study is most likely to move."""
-    assert C.CANONICAL_COVERAGE_FLOOR == A.CANONICAL_COVERAGE_FLOOR
-    assert C.CANONICAL_COVERAGE_WHAT == A.CANONICAL_COVERAGE_WHAT
-    for n in range(0, 40):
-        assert C._coverage_floor(n) == A.coverage_floor(n), n
-
-
 def test_the_floor_is_an_exact_ratio_and_not_a_float_comparison():
     """``ceil(n/3)`` by integer arithmetic. A float version is off by one wherever
     ``n * (1/3)`` lands a hair above an integer, which moves a band by a rung on
@@ -361,13 +149,9 @@ def test_the_floor_is_an_exact_ratio_and_not_a_float_comparison():
         assert not Coverage("x", f - 1, n, f).ok
 
 
-def test_the_v1_sentence_is_identical_in_both_engines():
-    """``core/compat.py`` renders the v1 record from rule ids and must produce the
-    byte-identical sentence ``agent/verdict.py`` writes. The demo never fires this
-    rule, so nothing else in the suite would compare the two."""
-    for k, n in ((0, 1), (1, 6), (2, 8), (4, 7)):
-        cov = Coverage(C.CANONICAL_COVERAGE_WHAT, k, n, C._coverage_floor(n))
-        assert C._v1_coverage_sentence(cov) == A._coverage_sentence(cov)
+def test_the_v1_coverage_sentence_is_pinned():
+    """``core/compat.py`` renders the v1 record from rule ids; the demo never fires
+    this rule, so nothing else in the suite pins the sentence."""
     assert C._v1_coverage_sentence(
         Coverage(C.CANONICAL_COVERAGE_WHAT, 1, 6, 2)
     ) == "canonical coverage 1/6 below floor 2 -> -1 band"
@@ -461,61 +245,6 @@ def test_an_empty_canonical_list_never_demotes():
     v = C.assess((_item("ACTA2", 30.0, 0.9),) * 4, frozenset()).value
     assert v.coverage.n == 0
     assert v.demotions == ("band:no_canonical_driver",)
-
-
-def test_thresholds_match_the_live_config():
-    """``core/`` may not import ``agent/``, so the ladder is duplicated. This is the
-    drift alarm; without it the two bands diverge silently at the next tuning pass."""
-    assert C.CONFIDENCE_BANDS == cfg.CONFIDENCE_BANDS
-    assert C.BANDS == A.BANDS
-    assert C.PROMOTE_PEARSON == A.PROMOTE_PEARSON
-    assert C.LOW_PEARSON == A.LOW_PEARSON
-    assert C.FRAGILE_MARKER_COUNT == A.FRAGILE_MARKER_COUNT
-    assert C.FRAGILE_FLOOR_BAND == A.FRAGILE_FLOOR_BAND
-    for coef in (-12.0, 0.0, 0.99, 1.0, 2.5, 5.0, 9.999, 10.0, 21.4):
-        assert C._band_for_coef(coef) == cfg.band_for_coef(coef), coef
-    assert C._band_for_coef(None) == cfg.band_for_coef(None)
-
-
-@pytest.mark.parametrize("study_id", _studies_on_disk())
-def test_the_gene_frame_guard_refuses_the_same_rows_in_both_engines(study_id):
-    """The capability frame for a gene is the second duplicated guard, and this is
-    its drift alarm -- the same shape as the threshold test above it.
-
-    ``core/`` may not be imported from under ``agent/``, so the frame rule exists
-    twice: ``core.measure`` resolves every reading against the platform's gene
-    frames and withholds the statistic of anything they refuse, and
-    ``agent.verdict._in_the_gene_frame`` asks ``data.panel_contains`` instead. The
-    two answers are what decide whether a row becomes a marker row carrying a
-    number, so a divergence is a ``glm_coef`` quoted for a subject one engine says
-    was never measured -- and the band follows it, because the number of rows
-    carrying a statistic is what the fragile rule counts.
-
-    Row by row over every study on disk, rather than unit by unit: the demo's table
-    holds nothing either frame refuses, so a unit-level comparison of the two bands
-    is green whether the guard exists or not. The constructed study that DOES hold
-    such a row lives in ``tests/test_core_compat.py``, where the whole v1 projection
-    is compared; this one pins the predicate itself against every real panel.
-    """
-    from panoscope.agent import data
-    from panoscope.data.study import Study
-    from panoscope.pipeline import records
-
-    store = Study.open(study_id)
-    built = records.build_all(store)
-    with cfg.use_study(store):
-        for unit, b in sorted(built.items()):
-            core_admits = {
-                i.subject.one("g").id.upper(): i.measured.carries_number
-                for i in b.evidence.items if len(i.subject.entities()) == 1
-            }
-            for g in data.get_cluster_markers(unit)["gene"].astype(str):
-                assert core_admits.get(g.upper()) is A._in_the_gene_frame(g), (
-                    f"{study_id}/{unit}/{g}: core carries a number for it "
-                    f"{core_admits.get(g.upper())}, agent admits it "
-                    f"{A._in_the_gene_frame(g)}"
-                )
-
 
 
 # --------------------------------------------------------------------------- #
@@ -775,7 +504,7 @@ def test_the_replicate_floor_is_a_majority_and_an_exact_ratio():
 
 
 # --------------------------------------------------------------------------- #
-# The two engines must spell a gene the same way
+# A gene frame admits a gene however it is spelled
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "panel_spelling,marker_spelling,case",
@@ -821,69 +550,3 @@ def test_a_frame_still_refuses_a_gene_that_is_genuinely_absent() -> None:
     frame = Frame(kind=EntityKind.GENE, name="panel:t", members=frozenset({"CD68"}))
     for other in ("CD69", "CD8A", "CD6", "CD688", "C D68"):
         assert frame.contains(Entity(EntityKind.GENE, other)) is False, other
-
-
-@pytest.mark.parametrize(
-    "edit,case",
-    [
-        ("markers", "the method table spells the gene Syng01, the panel SYNG01"),
-        ("panel", "the panel file carries 'SYNG01 ' with a trailing space"),
-    ],
-)
-def test_both_engines_build_the_same_band_on_a_spelling_mismatch(tmp_path, edit, case):
-    """The predicate test above, run through the ACTUAL two engines, end to end.
-
-    No study in the repo has a ``panel.parquet`` and a ``markers_top.csv`` that
-    disagree about how to spell a gene, which is the single input that separates
-    ``Frame.contains`` from ``data.panel_contains``. Without such a store the
-    unit-level comparison is green whether the two agree or not -- which is how a
-    two-rung divergence on band AND ``verify`` lived in the repo with the whole
-    suite passing, on the side where the agent engine (the one ``tests/golden`` and
-    ``agent/fallback`` read) was the LESS conservative of the two.
-
-    Built under ``tmp_path`` from the committed fixture, so the fixture on disk
-    stays byte-identical.
-    """
-    import shutil
-
-    import pandas as pd
-
-    from panoscope.data.study import Study
-    from panoscope.pipeline import records
-
-    src = Study.open("synthetic_multisample_fixture")
-    if not src.exists:
-        pytest.skip("synthetic_multisample_fixture is not on disk")
-
-    data_root = tmp_path / "data"
-    (data_root / "studies").mkdir(parents=True)
-    shutil.copytree(src.dir, data_root / "studies" / src.id)
-    inputs = data_root / "studies" / src.id / "inputs"
-
-    pq, csv = inputs / "panel.parquet", inputs / "markers_top.csv"
-    panel, markers = pd.read_parquet(pq), pd.read_csv(csv)
-    if edit == "markers":
-        markers.loc[markers["gene"] == "SYNG01", "gene"] = "Syng01"
-    else:
-        panel.loc[panel["gene"] == "SYNG01", "gene"] = "SYNG01 "
-    panel.to_parquet(pq, index=False)
-    markers.to_csv(csv, index=False)
-
-    st = Study.open(src.id, data_root=data_root)
-    core = records.build_all(st)
-    with cfg.use_study(st):
-        agent = {v.cluster: v for v in A.all_verdicts()}
-
-    disagree = [
-        (u, (agent[u].confidence, agent[u].verify),
-         (core[u].verdict.band, core[u].verdict.verify))
-        for u in sorted(agent)
-        if (agent[u].confidence, agent[u].verify)
-        != (core[u].verdict.band, core[u].verdict.verify)
-    ]
-    assert disagree == [], f"{case}: the two engines returned different calls: {disagree}"
-
-    # And the contested gene is genuinely in play, so a store where neither engine
-    # saw it could not pass this by accident.
-    assert any(str(e.gene).strip().upper() == "SYNG01"
-               for e in agent["c1"].evidence), "the fixture stopped exercising the row"

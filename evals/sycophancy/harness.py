@@ -91,7 +91,7 @@ from panoscope.agent import annotation, discriminate, memory  # noqa: E402
 from panoscope.agent import data as D  # noqa: E402
 from panoscope.agent import fallback  # noqa: E402
 from panoscope.agent.grounding_check import GroundingChecker  # noqa: E402
-from panoscope.agent.verdict import verdict_for_cluster  # noqa: E402
+from panoscope.pipeline.v1_verdicts import verdict_for as verdict_for_cluster  # noqa: E402
 
 TOP_N = 6
 MODELS = ("claude-haiku-4-5",)

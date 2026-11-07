@@ -513,7 +513,7 @@ class LabelBandHeader:
     label_space: str = ""            # "cluster_key.json (9 cell types)"
     band_field: str = "confidence"
     band_score_field: str = "confidence_score"
-    band_edges_ref: str = "agent.config.CONFIDENCE_BANDS"
+    band_edges_ref: str = "panoscope.core.verdict.CONFIDENCE_BANDS"
     band_audit_fields: tuple[str, ...] = ("band_basis", "demotions")
     driver_field: str = "key_markers"
     verify_field: str = "verify"

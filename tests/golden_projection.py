@@ -8,8 +8,8 @@ that is written can never drift.
 
 What it covers (IMPLEMENTATION.md §7 Phase A.4):
 
-  * the 9 per-cluster verdicts      ``agent.verdict.all_verdicts()``
-  * the verdict CSV                 ``agent.verdict.to_csv`` (11 frozen columns)
+  * the 9 per-cluster verdicts      ``pipeline.v1_verdicts.verdicts()``
+  * the verdict CSV                 ``core.export.to_csv`` (11 frozen columns)
   * the holistic review             ``agent.holistic.holistic_review()``
   * the calibration table           ``pipeline.calibration.calibration_markdown``
 
@@ -35,7 +35,7 @@ calls an LLM.
 **Normalisation, so the hash tracks behaviour and not noise.**
 
   * every float is rendered at fixed precision (``{:.6f}``, matching
-    ``agent.verdict._source_trace``), and ``-0.0`` collapses to ``0.0``; float
+    the verdict ``source_trace``), and ``-0.0`` collapses to ``0.0``; float
     ``repr`` drift can therefore never move the hash
   * mapping keys are sorted — dict iteration order is not semantically meaningful
   * sequence order is PRESERVED: evidence rows are glm_coef-ranked, ``key_markers``
@@ -60,10 +60,9 @@ from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as E
 from panoscope.agent import enrichment_themes as agent_themes
 from panoscope.agent import holistic as agent_holistic
-from panoscope.agent import verdict as V
 from panoscope.core import export
 from panoscope.pipeline import calibration as calibration_mod
-from panoscope.pipeline import serialize, store
+from panoscope.pipeline import serialize, store, v1_verdicts
 from panoscope.types.outputs import TaskKind
 
 # --------------------------------------------------------------------------- #
@@ -81,7 +80,7 @@ DEMO_ID: str = "xenium_hbreast_sample1"
 #: so a reviewer can tell a projection-format change from a behaviour change.
 SCHEMA_VERSION: int = 2
 
-#: Fixed float precision. Same format string as ``agent.verdict._source_trace``.
+#: Fixed float precision. Same format string as the verdict ``source_trace``.
 FLOAT_FORMAT: str = "{:.6f}"
 
 #: Named in the failure message. Regeneration is always a deliberate act.
@@ -229,7 +228,8 @@ def build_projection() -> dict[str, Any]:
     Pure and side-effect free: reads ``data/datasets/<id>/inputs/`` (via
     ``agent.data`` / ``agent.config``), writes nothing, touches no network.
     """
-    verdicts = V.all_verdicts()
+    built = v1_verdicts.verdicts()
+    verdicts = [built[c] for c in cfg.CLUSTER_ORDER]
     review = agent_holistic.holistic_review()
     with pinned_enrichment() as enrichments:
         themes = agent_themes.pathway_themes()
@@ -243,10 +243,10 @@ def build_projection() -> dict[str, Any]:
         # Order is pinned here so the verdicts map can be keyed (and diffed) by cluster.
         "cluster_order": list(cfg.CLUSTER_ORDER),
         # The 11-column CSV contract, in exact order.
-        "csv_columns": list(V.CSV_COLUMNS),
+        "csv_columns": list(export.PROFILES[TaskKind.ASSIGNMENT].names),
         "verdicts": normalise({v.cluster: serialize.verdict_to_dict(v) for v in verdicts}),
         # Line-split so a diff points at the row that moved, not the whole blob.
-        "verdicts_csv": V.to_csv(verdicts).splitlines(),
+        "verdicts_csv": export.to_csv(TaskKind.ASSIGNMENT, verdicts).value.splitlines(),
         "holistic": normalise(serialize.holistic_to_dict(review)),
         "calibration_table": calibration_mod.calibration_markdown(verdicts).splitlines(),
         # --- the enrichment workflow (CHARACTERISATION) ------------------- #

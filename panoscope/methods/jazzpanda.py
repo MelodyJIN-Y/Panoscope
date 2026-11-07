@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from panoscope.core.measure import Reading, measure_unit
+from panoscope.core.verdict import CONFIDENCE_BANDS
 from panoscope.methods import _table
 # ``is_no_signal`` from the adapter, not a fifth private copy of ``!= NOSIG``.
 # A method importing a concrete platform is the wrong direction and is debt:
@@ -76,17 +77,11 @@ NOSIG: str = "NoSig"
 UNIT_KIND: str = "cluster"
 
 # --------------------------------------------------------------------------- #
-# The method's own rubric: magnitude of ITS statistic -> band. Declared here,
-# APPLIED in core/verdict.py. Edges are tuned against the calibration set
-# (data/studies/*/interp/calibration.md), descending, floor last.
+# The method's own rubric: magnitude of ITS statistic -> band. The edges live in
+# core/verdict.CONFIDENCE_BANDS (the engine that applies them); this is the same
+# ladder as (label, edge) pairs, descending, floor last.
 # --------------------------------------------------------------------------- #
-BAND_EDGES: tuple[tuple[str, float], ...] = (
-    ("Very High", 10.0),
-    ("High", 5.0),
-    ("Medium-High", 2.5),
-    ("Medium", 1.0),
-    ("Low", 0.0),
-)
+BAND_EDGES: tuple[tuple[str, float], ...] = tuple(CONFIDENCE_BANDS.items())
 
 # The three specificity conditions, with the thresholds the SKILL rubric states.
 # Raised ONCE, here, as registered flag ids; core/verdict.py branches on the ids.

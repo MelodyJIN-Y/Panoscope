@@ -240,9 +240,9 @@ def test_opening_response_shape(offline_agent):
     assert isinstance(resp.grounding, GroundingSidecar)
     assert all(isinstance(s, Source) for s in resp.sources)
     # verify mirrors the verdict for c2 (Very High -> verify False).
-    from panoscope.agent.verdict import verdict_for_cluster
+    from panoscope.pipeline.v1_verdicts import verdict_for
 
-    assert resp.verify == verdict_for_cluster("c2").verify
+    assert resp.verify == verdict_for("c2").verify
 
 
 # --------------------------------------------------------------------------- #

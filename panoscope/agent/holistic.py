@@ -1,6 +1,6 @@
 """Holistic cross-cluster review (SKILL Step 4 — grounded refinement).
 
-After every cluster is annotated individually (``agent.verdict``), STOP and read
+After every cluster is annotated individually (``pipeline.v1_verdicts``), STOP and read
 the whole set together. Individual calls can look fine in isolation but tell an
 incoherent story as a whole, or a call can be *sharpened* only once the whole
 compartment is visible.
