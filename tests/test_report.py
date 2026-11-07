@@ -328,7 +328,7 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
     is built around. ``ClusterVerdict.offpanel_notes`` had carried them the whole
     time; ``build_report`` never read the field.
 
-    Asserted on the RENDERED text of all three outputs, not on the model: a field
+    Asserted on the RENDERED text of both outputs, not on the model: a field
     that is populated and never rendered is the same defect one layer down.
     """
     with_off = [s for s in report.sections if s.off_panel]
@@ -338,6 +338,7 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
 
     text = R.default_cluster_summary(s)
     assert all(g in text for g in genes), f"{genes} missing from the working document"
+    assert "never measured" in text.lower()
 
     docx = bytes(R.report_to_docx(report))
     assert docx[:2] == b"PK"
@@ -345,6 +346,7 @@ def test_the_panel_absence_rule_reaches_the_document(report) -> None:
     from io import BytesIO
     body = zipfile.ZipFile(BytesIO(docx)).read("word/document.xml").decode("utf-8")
     assert all(g in body for g in genes), f"{genes} missing from the .docx"
+    assert "never measured" in body.lower()
 
 
 def test_an_override_to_an_unannotated_call_keeps_the_panel_absence_block() -> None:
