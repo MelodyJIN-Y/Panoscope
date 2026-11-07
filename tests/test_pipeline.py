@@ -138,3 +138,43 @@ def test_run_writes_holistic_and_calibration(tmp_path):
     man = json.loads(paths.manifest_json(cfg.DATASET_ID, tmp_path).read_text())
     assert "interp/holistic.json" in man["artifacts"]
     assert "interp/calibration.md" in man["artifacts"]
+
+
+def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_path, monkeypatch):
+    """No label set is the starting state: the build passes and the biologist calls."""
+    import shutil
+
+    from panoscope.agent import loop as agent_loop
+    from panoscope.data import layout
+    from panoscope.data.study import NOT_YET_CALLED, Study
+    from panoscope.platforms.xenium import XeniumAdapter
+    from panoscope.types.subject import EntityKind
+
+    demo = paths.inputs_dir(cfg.BUNDLED_DEMO_ID)
+    study = tmp_path / "studies" / "fresh"
+    (study / "inputs").mkdir(parents=True)
+    for name in ("markers_top.csv", "panel.parquet"):  # no cluster_key, no annotation
+        shutil.copyfile(demo / name, study / "inputs" / name)
+    (study / "manifest.json").write_text(json.dumps(
+        {"dataset_id": "fresh", "tissue": "human breast cancer", "platform": "Xenium"}))
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path))
+    layout.clear_cache()
+
+    asked: list[str] = []
+
+    def no_model(msg, cluster=None, **_):
+        asked.append(cluster)
+        raise RuntimeError("no model key")
+
+    monkeypatch.setattr(agent_loop, "chat", no_model)
+    pipeline_run.run("fresh")
+    clusters = json.loads(paths.manifest_json("fresh").read_text())["clusters"]
+    assert len(clusters) == 9 and len(asked) == 9
+    for c in clusters:
+        v = store.load_verdict(c, "fresh")
+        assert v.cell_type == NOT_YET_CALLED, c
+    assert store.load_review_state("fresh") == {}  # nothing signed off: every unit OPEN
+    assert EntityKind.CELL_TYPE not in {f.kind for f in XeniumAdapter().frames(Study.open("fresh"))}
+
+    pipeline_run.run("fresh")  # the proposal already ran; a rebuild does not re-ask
+    assert len(asked) == 9

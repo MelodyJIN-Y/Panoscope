@@ -31,6 +31,7 @@ from typing import Mapping
 from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
+from panoscope.data.study import NOT_YET_CALLED
 
 # --------------------------------------------------------------------------- #
 # Constants for the single grounded refinement (c8 -> pDC).
@@ -48,7 +49,7 @@ _REFINE_LIT_QUERY: str = "LILRA4 plasmacytoid dendritic cell marker"
 
 #: Cell-type values that mean "no call was made". Two uncalled clusters are NOT two
 #: clusters sharing a cell type, and an uncalled cluster is not a compartment.
-_UNCALLED: frozenset[str] = frozenset({"", "Unknown", "None"})
+_UNCALLED: frozenset[str] = frozenset({"", "Unknown", "None", NOT_YET_CALLED})
 
 
 # --------------------------------------------------------------------------- #

@@ -31,8 +31,8 @@ def test_all_canonical_covers_every_annotated_type():
 
 
 def test_nondemo_dataset_never_inherits_demo_types():
-    # No annotation.json for this id -> fallback; a non-demo dataset reads Unknown,
+    # No annotation.json for this id -> fallback; a non-demo dataset reads not yet called,
     # never the bundled demo's cell types (regression: the fallback used to leak them).
     ann = annotation.load_annotation("some_unprepared_dataset_xyz")
     assert ann, "fallback should still enumerate the clusters"
-    assert all(v["cell_type"] == "Unknown" for v in ann.values())
+    assert all(v["cell_type"] == "not yet called" for v in ann.values())

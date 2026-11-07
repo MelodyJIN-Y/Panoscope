@@ -1,8 +1,8 @@
 """Stage 0 -- validate a dataset before any compute (fail closed).
 
-1. **The store's §6.3 blockers**, from ``XeniumAdapter.validate``: measured set,
-   detectability frame, annotation label set, declared units, tissue/platform,
-   per-sample tables, clustering mode.
+1. **The store's §6.3 blockers**, from the declared platform's adapter: measured
+   set, detectability frame, declared units, tissue/platform, per-sample tables,
+   clustering mode. A missing label set is the starting state, not a blocker.
 2. **The four v1 input checks**, through ``agent.data``: the cluster key covers
    every cluster, ``top_cluster`` labels are known, every cluster has an assigned
    marker, and the panel is non-empty.
@@ -17,7 +17,8 @@ import pandas as pd
 from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.data.study import Study
-from panoscope.platforms.xenium import XeniumAdapter, is_no_signal
+from panoscope import platforms
+from panoscope.platforms.xenium import is_no_signal
 
 
 def validate(dataset_id: str | None = None) -> None:
@@ -39,7 +40,10 @@ def validate(dataset_id: str | None = None) -> None:
 
 def _check(store: Study) -> None:
     """The two check groups, with the study already scoped."""
-    problems = XeniumAdapter().validate(store)
+    try:
+        problems = platforms.for_study(store).validate(store)
+    except platforms.UnregisteredPlatform as exc:
+        problems = [str(exc)]
     if problems:
         raise ValueError(
             f"[pipeline] study {store.id!r} is blocked (ARCHITECTURE §6.3); "

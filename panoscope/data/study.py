@@ -16,6 +16,10 @@ from typing import Any, Optional
 from panoscope.data import layout
 
 
+#: The label of a unit the biologist has not called yet. A state, never a cell type.
+NOT_YET_CALLED = "not yet called"
+
+
 class StudyNotFound(FileNotFoundError):
     """Raised by callers that require a study to exist. Never raised on construction."""
 
@@ -115,7 +119,7 @@ class Study:
         return dict(v) if isinstance(v, dict) else {}
 
     def label_for(self, unit: str) -> str:
-        return str(self.unit_labels.get(unit, {}).get("cell_type", "Unknown"))
+        return str(self.unit_labels.get(unit, {}).get("cell_type", NOT_YET_CALLED))
 
 
 # --------------------------------------------------------------------------- #

@@ -15,6 +15,7 @@ from functools import lru_cache
 from typing import Any, Container, NamedTuple, Sequence
 
 from panoscope.agent import config as cfg
+from panoscope.data.study import NOT_YET_CALLED
 from panoscope.methods.jazzpanda import BAND_EDGES
 from panoscope.types.measured import MeasuredState
 from panoscope.types.subject import Entity, EntityKind, subject
@@ -175,7 +176,8 @@ def _header_values(cluster: str) -> dict:
     return {
         "unit_scope": _unit_scope(cluster),
         "label": v.cell_type,
-        "confidence": v.confidence,
+        # No label, nothing to assess: an uncalled unit shows no band.
+        "confidence": "" if v.cell_type == NOT_YET_CALLED else v.confidence,
         "verify": v.verify,
         "band_basis": v.band_basis,
         "demotions": v.demotions,

@@ -5,11 +5,12 @@ per cluster on its top markers: cell type, lineage/category, short name and cano
 lineage markers. The off-panel canonical set is then computed against the dataset's
 own panel.
 
-Resumable: an existing annotation.json is read, not regenerated. Fail-soft per
-cluster: a failed call yields an "Unknown" record with an EMPTY canonical set, never
-one filled from the measurement -- canonical markers are reference data, and the
-cluster's own top markers there would make the band the measurement agreeing with
-itself. ``_record`` takes no markers, so that substitution is unrepresentable.
+The result is a PROPOSAL; the biologist's call replaces it downstream. Resumable: an
+existing annotation.json is read, not regenerated. Fail-soft per cluster: a failed
+call writes NO record, so the cluster stays "not yet called" with an empty canonical
+set -- never one filled from the measurement, since the cluster's own top markers
+there would make the band the measurement agreeing with itself. ``_record`` takes no
+markers, so that substitution is unrepresentable.
 """
 from __future__ import annotations
 
@@ -67,9 +68,8 @@ def _parse(text: str) -> Optional[dict]:
         return None
     # Present-but-empty is not a label. ``{"cell_type": null}`` passed the old
     # membership check and ``str(None)`` wrote the literal string "None" into the
-    # label the biologist reads -- a fabricated label, and one the resume rule and
-    # run.py::_annotation_complete both have to special-case by spelling. An
-    # unusable label is no label: fall through to the honest Unknown record.
+    # label the biologist reads -- a fabricated label. An unusable label is no
+    # label: the cluster stays not yet called.
     if not all(isinstance(obj.get(k), str) and obj[k].strip() for k in _REQUIRED):
         return None
     return obj
@@ -87,19 +87,13 @@ def _canonical_markers(obj: dict) -> list[str]:
     return [g.strip() for g in raw if isinstance(g, str) and _SYMBOL.match(g.strip())]
 
 
-def _record(cluster: str, obj: Optional[dict]) -> dict:
+def _record(cluster: str, obj: dict) -> dict:
     """Build the annotation record; compute off-panel canonical vs THIS dataset's panel.
 
     Takes no markers on purpose -- see the module docstring. With the measurement out
     of scope there is no expression in this function that could promote an observed
     marker into the canonical slot.
     """
-    if obj is None:
-        return {
-            "cluster": cluster, "cell_type": "Unknown", "cell_type_short": "Unknown",
-            "category": "Unknown", "lineage": "Unknown",
-            "canonical_markers": [], "offpanel_canonical": [],
-        }
     canon = _canonical_markers(obj)
     offpanel = [g for g in canon if not data.panel_contains(g)]  # grounded: never measured
     return {
@@ -149,7 +143,8 @@ def run_annotate(
     """Generate (resumable) the per-cluster skill annotation into interp/annotation.json.
 
     Reads an existing file and only fills clusters that are missing or "Unknown"
-    (unless ``force``). Clears the annotation cache so downstream stages see it.
+    (unless ``force``). Always writes the file, so a build does not re-ask for
+    clusters left not yet called. Clears the annotation cache.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     out_path = paths.interp_dir(dataset_id, root) / "annotation.json"
@@ -170,19 +165,22 @@ def run_annotate(
             if obj is None:
                 # Unparseable is a failure too, not a result.
                 print(f"  UNPARSEABLE {cluster}: {(resp.text or '')[:120]!r}", flush=True)
+        if obj is None:
+            clusters.pop(cluster, None)  # a stale "Unknown" is not a label either
+            continue
         clusters[cluster] = _record(cluster, obj)
         print(f"  {cluster}: {clusters[cluster]['cell_type']}", flush=True)
         _save(out_path, dataset_id, clusters)
+    _save(out_path, dataset_id, clusters)
 
     agent_annotation.load_annotation.cache_clear()
-    unknown = [c for c, v in clusters.items() if str(v.get("cell_type")) == "Unknown"]
-    if unknown:
-        # Say it once, plainly: these units carry no canonical set, so their band is
-        # Low with verify=True by rubric. Silence here is what let a fabricated
-        # canonical set look like a successful annotation.
+    uncalled = [c for c in cfg.CLUSTER_ORDER if c not in clusters]
+    if uncalled:
+        # Said once, plainly: silence is what let a fabricated canonical set look
+        # like a successful annotation.
         print(
-            f"  [annotate] {len(unknown)}/{len(clusters)} clusters UNANNOTATED "
-            f"({', '.join(unknown)}): no canonical markers, band Low, verify set",
+            f"  [annotate] {len(uncalled)}/{len(cfg.CLUSTER_ORDER)} clusters NOT YET "
+            f"CALLED ({', '.join(uncalled)}): no proposal, the biologist calls them",
             flush=True,
         )
     return clusters
@@ -196,5 +194,4 @@ if __name__ == "__main__":
     ap.add_argument("--force", action="store_true", help="re-annotate every cluster")
     args = ap.parse_args()
     result = run_annotate(args.dataset, force=args.force)
-    named = sum(1 for v in result.values() if v.get("cell_type") not in ("Unknown", None))
-    print(f"[annotate] {named}/{len(result)} clusters annotated")
+    print(f"[annotate] {len(result)}/{len(cfg.CLUSTER_ORDER)} clusters proposed")

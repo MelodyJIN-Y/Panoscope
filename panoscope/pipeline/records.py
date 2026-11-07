@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-from panoscope.data.study import Study
+from panoscope.data.study import NOT_YET_CALLED, Study
 
 #: The interpretive question this root answers: *what IS this unit?* A registry key,
 #: resolved through ``workflows.get`` rather than assumed -- the workflow says which
@@ -476,7 +476,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # §14's *evaluability + transfer*, run per unit because the frames and the
         # label are the unit's. ``claims`` and ``conditions`` are read once above.
         claims_t = _claims_used(
-            claims, str(meta.get("cell_type", "Unknown")),
+            claims, str(meta.get("cell_type", NOT_YET_CALLED)),
             world, conditions, claim_context, claims_absent,
             ev.unit_subject.key)
         record = core_record.build(
@@ -499,7 +499,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         # the one coupling left: the registry cannot yet hand over a reference
         # builder.
         assignment = core_interpret.interpret(ev, wf, wf_marker.MarkerReference(
-            label=str(meta.get("cell_type", "Unknown")),
+            label=str(meta.get("cell_type", NOT_YET_CALLED)),
             # Sorted, not the frozenset's own order: ``interpret`` re-freezes it
             # so the band cannot depend on it, but an unsorted tuple in a record
             # that gets hashed would make byte-stability depend on PYTHONHASHSEED.
@@ -510,10 +510,10 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
             record=record, evidence=ev, verdict=verdict.value, canonical=canonical,
             assignment=assignment,
             label=compat.UnitLabel(
-                cell_type=str(meta.get("cell_type", "Unknown")),
-                cell_type_short=str(meta.get("cell_type_short", "Unknown")),
-                category=str(meta.get("category", "Unknown")),
-                lineage=str(meta.get("lineage", "Unknown")),
+                cell_type=str(meta.get("cell_type", NOT_YET_CALLED)),
+                cell_type_short=str(meta.get("cell_type_short", NOT_YET_CALLED)),
+                category=str(meta.get("category", NOT_YET_CALLED)),
+                lineage=str(meta.get("lineage", NOT_YET_CALLED)),
             ),
         )
     return out

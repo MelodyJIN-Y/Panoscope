@@ -237,6 +237,18 @@ def test_the_assignment_header_carries_the_band_its_label_space_licenses():
     assert "Driven by" in html
 
 
+def test_a_unit_not_yet_called_shows_no_band(monkeypatch):
+    """No label, nothing to assess: the header carries no band chip."""
+    from panoscope.data.study import NOT_YET_CALLED
+
+    v = et.da.display_verdict_for("c1")
+    monkeypatch.setattr(et.da, "display_verdict_for",
+                        lambda c: dataclasses.replace(v, cell_type=NOT_YET_CALLED))
+    html = surface.header_html(MARKERS, et._header_values("c1"))
+    assert f"<h1>{NOT_YET_CALLED}</h1>" in html
+    assert "confidence" not in html
+
+
 def test_the_band_chip_carries_its_audit_and_the_verify_flag_is_read_not_chosen():
     """``verify`` comes from the deterministic rubric; the surface renders what the
     verdict says and has no way to decide it."""

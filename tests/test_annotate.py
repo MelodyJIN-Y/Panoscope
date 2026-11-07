@@ -55,7 +55,7 @@ def test_parse_rejects_a_present_but_unusable_label(payload):
 
     The key was present, so the membership check passed, and the biologist was shown a
     cluster labelled "None" -- a label nothing said. No label is a better record than
-    a fabricated one, so these fall through to the honest Unknown record.
+    a fabricated one, so these leave the cluster not yet called.
     """
     assert annotate._parse(payload) is None
 
@@ -70,14 +70,6 @@ def test_record_computes_offpanel_against_the_panel():
     assert rec["cell_type"] == "Tumor"
     assert "ZZZ_NOT_ON_PANEL" in rec["offpanel_canonical"]  # never measured on this panel
     assert "ERBB2" not in rec["offpanel_canonical"]         # on panel
-
-
-def test_record_fail_soft_is_empty_never_substituted():
-    """The defect this stream exists for: no canonical set, not a borrowed one."""
-    rec = annotate._record("c1", None)
-    assert rec["cell_type"] == "Unknown"
-    assert rec["canonical_markers"] == []
-    assert rec["offpanel_canonical"] == []
 
 
 def test_record_cannot_see_the_measurement():
@@ -128,8 +120,7 @@ def _band_with(cluster: str, canonical: frozenset[str]):
 @pytest.mark.parametrize("cluster", list(cfg.CLUSTER_ORDER))
 def test_an_unannotated_cluster_lands_on_the_no_driver_rule(cluster):
     """Nine units, not one: empty canonical -> Low, verify, and the named rule."""
-    rec = annotate._record(cluster, None)
-    v = _band_with(cluster, frozenset(rec["canonical_markers"]))
+    v = _band_with(cluster, frozenset())
     assert v.band == core_verdict.LOW_BAND
     assert v.verify is True
     assert "band:no_canonical_driver" in v.demotions, (v.basis, v.demotions)
@@ -200,7 +191,7 @@ def test_run_annotate_generates_offline(monkeypatch, tmp_path):
 def test_a_failing_model_annotates_nothing_rather_than_something(
     behaviour, monkeypatch, tmp_path, capsys
 ):
-    """All nine clusters, both failure modes: Unknown with an empty canonical set."""
+    """All nine clusters, both failure modes: no record, so each stays not yet called."""
     def _chat(*a, **k):
         if behaviour == "raises":
             raise RuntimeError("provider down")
@@ -208,9 +199,5 @@ def test_a_failing_model_annotates_nothing_rather_than_something(
 
     monkeypatch.setattr(annotate.agent_loop, "chat", _chat)
     result = annotate.run_annotate(root=tmp_path, force=True)
-    assert len(result) == len(cfg.CLUSTER_ORDER)
-    for cluster, rec in result.items():
-        assert rec["cell_type"] == "Unknown", cluster
-        assert rec["canonical_markers"] == [], cluster
-        assert rec["offpanel_canonical"] == [], cluster
-    assert "UNANNOTATED" in capsys.readouterr().out  # loud, not silent
+    assert result == {}
+    assert "NOT YET CALLED" in capsys.readouterr().out  # loud, not silent

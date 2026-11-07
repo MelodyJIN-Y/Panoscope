@@ -222,8 +222,8 @@ class Checklist:
     unread_because: str = ""
     problems: tuple[str, ...] = ()
     """``PlatformAdapter.validate``, verbatim. It reports gaps the condition fields
-    cannot -- a missing detectability frame, an annotation label set that is not
-    there -- and intake does not re-derive what the adapter already says."""
+    cannot -- a missing detectability frame, a store that declares no units --
+    and intake does not re-derive what the adapter already says."""
 
     def of(self, status: Status) -> tuple[Item, ...]:
         return tuple(i for i in self.items if i.status is status)

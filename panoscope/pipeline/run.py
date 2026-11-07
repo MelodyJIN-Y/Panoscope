@@ -19,7 +19,7 @@ from typing import Any, Optional
 import pandas as pd
 
 from panoscope.agent import config as cfg
-from panoscope.data.study import Study
+from panoscope.data.study import NOT_YET_CALLED, Study
 from panoscope.agent import data
 from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent import enrichment_themes as agent_enrichment_themes
@@ -135,7 +135,10 @@ def _write_deterministic_interp(dataset_id: str, verdicts, root: Optional[Path])
 
 
 def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
-    """True iff every cluster already has a named cell type (no Unknown).
+    """True iff every cluster already has a named cell type, or the proposal already ran.
+
+    A cluster the proposal left not yet called is the biologist's to call, so an
+    existing ``annotation.json`` in either tree ends the asking.
 
     Checks the annotation the app/verdict actually read (``agent.annotation``,
     which resolves the dataset tree or the bundled fallback) rather than a specific
@@ -144,9 +147,12 @@ def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
     """
     from panoscope.agent import annotation as agent_annotation
 
+    if any((paths.interp_dir(dataset_id, r) / "annotation.json").exists()
+           for r in (root, None)):
+        return True
     ann = agent_annotation.load_annotation(dataset_id)
     return bool(ann) and all(
-        str(ann.get(c, {}).get("cell_type")) not in ("", "Unknown", "None")
+        str(ann.get(c, {}).get("cell_type")) not in ("", "Unknown", "None", NOT_YET_CALLED)
         for c in cfg.CLUSTER_ORDER
     )
 
@@ -154,9 +160,9 @@ def _annotation_complete(dataset_id: str, root: Optional[Path]) -> bool:
 def _ensure_annotation(dataset_id: str, root: Optional[Path]) -> None:
     """Ensure the per-cluster cell-type annotation exists (marker-gene skill, LIVE).
 
-    Read-if-present: when a complete ``interp/annotation.json`` is already there (the
-    bundled demo ships one), this is a no-op and never imports the agent loop. Only a
-    new / incomplete dataset triggers the live annotate stage.
+    Read-if-present: when ``interp/annotation.json`` is already there (the bundled
+    demo ships one), this is a no-op and never imports the agent loop. Only a new
+    dataset triggers the live annotate stage, whose labels are a proposal.
     """
     if _annotation_complete(dataset_id, root):
         return

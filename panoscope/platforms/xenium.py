@@ -354,10 +354,18 @@ class XeniumAdapter:
         )
         if labels:
             out.append(Frame(EntityKind.CELL_TYPE, f"annotation:{store.id}", labels))
-        units = frozenset(store.units)
+        units = frozenset(store.units) or self._marker_units(store)
         if units:
             out.append(Frame(EntityKind.UNIT, f"clusters:{store.id}", units))
         return tuple(out)
+
+    def _marker_units(self, store: Study) -> frozenset[str]:
+        """The pooled marker table's units: a fresh study declares no other list yet."""
+        p = store.inputs / "markers_top.csv"
+        if not p.is_file():
+            return frozenset()
+        return frozenset(str(u).strip() for u in pd.read_csv(p, usecols=["top_cluster"])
+                         ["top_cluster"] if not is_no_signal(u))
 
     # ---- what the store says about itself --------------------------------- #
     def unit_labels(self, store: Study) -> dict[str, str]:
@@ -557,10 +565,6 @@ class XeniumAdapter:
                 "and it blocks it (§6.3): no absence here is evidence of anything, "
                 "every gene resolves NEVER_MEASURED, and the result is "
                 "uninterpretable rather than negative"
-            )
-        if EntityKind.CELL_TYPE not in kinds:
-            problems.append(
-                "no annotation label set, so no capability frame for cell types"
             )
         if EntityKind.UNIT not in kinds:
             problems.append("the store declares no units")

@@ -2,7 +2,7 @@
 
 cluster -> cell type, lineage/category and the canonical markers behind the
 panel-absence rule. Absent the file, the bundled demo map applies to the bundled
-demo only; any other study reads "Unknown".
+demo only; any other study reads "not yet called".
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from panoscope.agent import config as cfg
+from panoscope.data.study import NOT_YET_CALLED
 
 # --------------------------------------------------------------------------- #
 # Fallback / bootstrap domain knowledge (the bundled demo map). A processed
@@ -49,30 +50,34 @@ def load_annotation(dataset_id: Optional[str] = None) -> dict[str, dict]:
 def _load_annotation_cached(dataset_id: str) -> dict[str, dict]:
     """cluster -> {cell_type, cell_type_short, category, lineage, canonical_markers, offpanel_canonical}.
 
-    Reads the per-dataset skill annotation (``interp/annotation.json``) when present,
-    else builds the fallback from ``cfg.CLUSTER_KEY`` + the bundled canonical maps.
+    Reads the per-dataset annotation (``interp/annotation.json``) when present and
+    fills every cluster it does not name from the fallback below.
     """
     path = _annotation_path(dataset_id)
+    stored: dict[str, dict] = {}
     if path.exists():
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
             clusters = raw.get("clusters", raw)
-            if isinstance(clusters, dict) and clusters:
-                return clusters
+            if isinstance(clusters, dict):
+                stored = clusters
         except (OSError, json.JSONDecodeError, ValueError):
             pass  # fall through to the bundled map
-    # No annotation file yet: derive over the dataset's real clusters. The bundled
-    # demo map supplies known types ONLY for the bundled demo dataset; any OTHER
-    # dataset reads "Unknown" until the annotate stage writes annotation.json, so it
-    # never inherits demo cell types (even if it happens to reuse c1/c2/... ids).
+    # Clusters the file does not name: the bundled demo map supplies known types
+    # ONLY for the bundled demo dataset; any OTHER dataset reads "not yet called"
+    # until the biologist (or the skill's proposal) names it, so it never inherits
+    # demo cell types (even if it happens to reuse c1/c2/... ids).
     is_bundled_demo = (dataset_id or cfg.DATASET_ID) == cfg.BUNDLED_DEMO_ID
-    out: dict[str, dict] = {}
+    out: dict[str, dict] = dict(stored)
     for c in cfg.CLUSTER_ORDER:
+        if c in out:
+            continue
         meta = cfg.CLUSTER_KEY.get(c) if is_bundled_demo else None
         if meta is None:
             out[c] = {
-                "cluster": c, "cell_type": "Unknown", "cell_type_short": "Unknown",
-                "category": "Unknown", "lineage": "Unknown",
+                "cluster": c, "cell_type": NOT_YET_CALLED,
+                "cell_type_short": NOT_YET_CALLED, "category": NOT_YET_CALLED,
+                "lineage": NOT_YET_CALLED,
                 "canonical_markers": [], "offpanel_canonical": [],
             }
         else:
