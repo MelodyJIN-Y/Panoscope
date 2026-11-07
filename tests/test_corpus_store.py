@@ -27,6 +27,8 @@ STMT = Statement(uri=REC.uri, gene="GENEX", cell_type="Fibroblasts", tissue="bre
 RUN = QueryRun(query='"GENEX"[tiab] AND "breast"[tiab] AND "fibroblast"[tiab]',
                channel="C1", gene="GENEX", cell_type="Fibroblasts", total=1, retrieved=1,
                ids=(REC.uri,))
+HGNC = QueryRun(query="hgnc symbol GENEX", channel="vocab:hgnc", gene="GENEX",
+                total=1, retrieved=1)
 CENSUS = QueryRun(query='"GENEX"[tiab] AND ("breast"[tiab])', channel="census",
                   gene="GENEX", total=12)
 VERSION = CorpusVersion(study="s1", conditions=(("tissue", "breast"),),
@@ -83,14 +85,20 @@ def test_each_key_resolves_to_one_of_three_states_and_reads_without_novelty():
     assert found.state is Support.FOUND and found.statements == (STMT,)
 
     rival = dataclasses.replace(RUN, cell_type="T cells", ids=())
-    thin = key_state(Corpus(queries=(CENSUS, rival)), "GENEX", "T cells")
+    thin = key_state(Corpus(queries=(HGNC, CENSUS, rival)), "GENEX", "T cells")
     assert thin.state is Support.NONE_FOUND and "thin" in thin.reads_as
 
     failed = dataclasses.replace(CENSUS, status=QueryStatus.FAILED)
-    partial = key_state(Corpus(queries=(failed, rival)), "GENEX", "T cells")
+    partial = key_state(Corpus(queries=(HGNC, failed, rival)), "GENEX", "T cells")
     assert partial.state is Support.NONE_FOUND and partial.gaps == ("census failed",)
     assert "incomplete search" in partial.reads_as
     assert not re.search(r"\bthin\b", partial.reads_as)
+
+    cut = dataclasses.replace(rival, total=300, retrieved=200, status=QueryStatus.TRUNCATED)
+    assert key_state(Corpus(queries=(HGNC, CENSUS, cut)), "GENEX", "T cells"
+                     ).gaps == ("C1 truncated",)
+    assert key_state(Corpus(queries=(rival,)), "GENEX", "T cells"
+                     ).gaps == ("vocab:hgnc not run", "census not run")
 
     unbuilt = key_state(Corpus(queries=(CENSUS,)), "GENEX", "B cells")
     assert unbuilt.state is Support.NOT_BUILT and "cannot settle" in unbuilt.reads_as

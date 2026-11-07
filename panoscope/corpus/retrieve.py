@@ -210,6 +210,8 @@ def key_state(corpus: Corpus, gene: str, cell_type: str) -> KeyState:
     found = tuple(s for s in corpus.statements
                   if s.gene.casefold() == g and s.cell_type.casefold() == c)
     gaps = tuple(f"{q.channel} {q.status.value}" for q in runs
-                 if q.status is not QueryStatus.OK)
+                 if q.status is not QueryStatus.OK) + tuple(
+        f"{ch} not run" for ch in ("vocab:hgnc", "census")
+        if not any(q.channel == ch for q in runs))     # an unrun census is not thin (§3)
     return KeyState(gene, cell_type, Support.FOUND if found else Support.NONE_FOUND,
                     found, gaps)

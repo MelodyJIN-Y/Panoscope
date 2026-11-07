@@ -168,9 +168,11 @@ def _fake_get(fail_hgnc: bool = False):
         if params.get("db") == "mesh" and url.endswith("esearch.fcgi"):
             return {"esearchresult": {"idlist": ["1", "2"]}}
         if url.endswith("esummary.fcgi"):
-            return {"result": {"uids": ["1", "2"],
-                               "1": {"ds_meshterms": ["Gene X", "GENEX"]},
-                               "2": {"ds_meshterms": ["Unrelated"]}}}
+            # The live shape: the symbol is inside entry terms, never one on its own.
+            return {"result": {"uids": ["1", "2", "3"],
+                               "1": {"ds_meshterms": ["Gene X", "GENEX Chemokine"]},
+                               "2": {"ds_meshterms": ["Unrelated"]},
+                               "3": {"ds_meshterms": ["Genex protein, mouse"]}}}
         return {"esearchresult": {"count": str(len(params["term"]))}}
     return get, calls
 
@@ -180,10 +182,11 @@ def test_vocabulary_logs_a_census_row_per_alias_and_caches_hgnc(monkeypatch):
     monkeypatch.setattr(F, "_get", get)
     terms, runs = F.vocabulary("GENEX", ("breast",))
     assert [(t.text, t.origin) for t in terms] == [
-        ("GENEX", "hgnc_symbol"), ("GX1", "hgnc_alias"), ("Gene X", "mesh")]
+        ("GENEX", "hgnc_symbol"), ("GX1", "hgnc_alias"), ("Gene X", "mesh"),
+        ("GENEX Chemokine", "mesh")]
     census = [r for r in runs if r.channel == "census"]
     assert census[0].query == '"GENEX"[tiab] AND ("breast"[tiab])'
-    assert len(census) == 3 and all(r.total > 0 for r in census)
+    assert len(census) == 4 and all(r.total > 0 for r in census)
     n = sum(u.startswith(F.HGNC) for u in calls)
     F.vocabulary("GENEX", ("breast",))
     assert sum(u.startswith(F.HGNC) for u in calls) == n      # served from the cache

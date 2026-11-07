@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -18,7 +19,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from panoscope.corpus.store import QueryRun, QueryStatus
-from panoscope.corpus.window import Term, gene_terms
+from panoscope.corpus.window import _NON_HUMAN, Term, gene_terms
 from panoscope.reference.sources import SourceUnavailable, cache_dir
 
 EUTILS: Final = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
@@ -74,17 +75,20 @@ def hgnc(symbol: str) -> dict[str, Any] | None:
 
 
 def mesh_terms(term: str) -> tuple[str, ...]:
-    """MeSH entry terms of the descriptors whose entry terms include ``term``."""
+    """Entry terms of the MeSH records naming ``term`` as a word; non-human SCRs skipped."""
     ids = _get(EUTILS + "esearch.fcgi", {"db": "mesh", "term": f'"{term}"'}) \
         .get("esearchresult", {}).get("idlist", [])
     if not ids:
         return ()
     res = _get(EUTILS + "esummary.fcgi", {"db": "mesh", "id": ",".join(ids[:5])}) \
         .get("result", {})
+    # Live shape (2026-11-08): "CXCL13" is no record's exact entry term; it appears as
+    # "CXCL13 Chemokine", "CXCL13 protein, human" and "Cxcl13 protein, mouse".
+    word = re.compile(rf"\b{re.escape(term)}\b", re.I)
     out: list[str] = []
     for uid in res.get("uids", []):
         entry = [str(t) for t in res.get(uid, {}).get("ds_meshterms", [])]
-        if term.casefold() in (t.casefold() for t in entry):
+        if any(word.search(t) for t in entry) and not any(_NON_HUMAN.search(t) for t in entry):
             out += entry
     return tuple(dict.fromkeys(out))
 
