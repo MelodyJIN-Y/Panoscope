@@ -1,21 +1,8 @@
 """Session-state schema + typed accessors for the Panoscope UI.
 
-All mutable UI state lives in ``st.session_state`` behind these accessors so no
-pane pokes a raw key by string. The one grounding-relevant guarantee here:
-**selecting a marker only mutates ``selected_markers``** — it is a viewing
-control, it never triggers a verdict recompute. Verdicts are computed once and
-cached in ``ui.data_access``; nothing in this module recomputes a value.
-
-Marker selection is a **multi-select**: the biologist toggles genes on/off via a
-subtle borderless dot per evidence row, and the spatial grid draws small-multiples
-for the selected set. ``selected_markers`` is an *ordered* list (selection order is
-preserved), capped for legibility only when rendering small-multiples
-(``active_markers(cap=…)``).
-
-Streamlit is imported lazily inside functions (``_ss()``) so this module imports
-cleanly with no server running — importing ``ui.state`` never requires a live
-session. The keys and their defaults are declared once in ``_DEFAULTS`` and
-seeded idempotently by ``init_state()``.
+All mutable UI state lives in ``st.session_state`` behind these accessors. Every
+selection here is a viewing control: it mutates one key and never recomputes a
+value. Streamlit is imported lazily so the module imports without a server.
 """
 
 
@@ -43,37 +30,19 @@ BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)  # µm presets from the wireframe
 DEFAULT_BIN_UM = 25
 
 def default_unit() -> str:
-    """First unit of the CURRENT study.
-
-    Was a module-level ``DEFAULT_CLUSTER = CLUSTER_ORDER[0]``, which froze to
-    whichever study was active when ui.state was first imported.
-
-    Returns ``""`` when the study has no units, instead of raising. This is read by
-    ``app._restore_selection_from_url`` BEFORE any body container exists, so a
-    study with no ``inputs/markers_top.csv`` -- an empty directory, a half-finished
-    ``panoscope build``, a method that produced nothing -- turned every page into a
-    bare traceback with no brand and no nav strip. A header-only marker table did
-    the same through ``IndexError``.
-
-    ``nav.Tab.available`` already states the rule this restores: "A missing or
-    unreadable result is *no data*, never a traceback in the nav bar." With an
-    empty unit the dispatch reaches that guard and renders the honest unavailable
-    page instead.
-    """
+    """First unit of the current study, or ``""`` when it has none (no data is
+    rendered as unavailable, never a traceback)."""
     try:
         order = cfg.CLUSTER_ORDER
     except Exception:  # noqa: BLE001 - no readable method output is "no units"
         return ""
     return order[0] if order else ""
 
-# Small-multiples cap: how many selected genes get a density + feature-UMAP pair.
-# Extras stay in ``selected_markers`` (and in the evidence table) but the spatial
-# grid caps the panels so the small-multiples stay legible.
+# How many selected genes get a small-multiple panel; the selection itself is uncapped.
 DEFAULT_MARKER_CAP = 4
 
 # --------------------------------------------------------------------------- #
-# Default seed values. Callables are invoked per-session so no mutable default
-# is shared across reruns/sessions (thread/list must be a fresh object).
+# Default seed values; callables give each session a fresh object.
 # --------------------------------------------------------------------------- #
 _DEFAULTS: dict[str, Any] = {
     K_SELECTED_CLUSTER: None,  # resolved lazily via default_unit()
@@ -94,11 +63,7 @@ def _ss() -> Any:
 
 
 def init_state() -> None:
-    """Seed every session-state key to its default exactly once per session.
-
-    Idempotent: existing keys are left untouched so a rerun never clobbers what
-    the biologist changed. Safe to call at the top of every script run.
-    """
+    """Seed every session-state key to its default once per session (idempotent)."""
     ss = _ss()
     if ss.get(K_INITIALIZED):
         return
@@ -110,9 +75,8 @@ def init_state() -> None:
 
 
 def _hydrate_threads(ss: dict) -> None:
-    """Restore persisted chat threads on a fresh session (a browser refresh). A
-    non-empty thread marks its opening as already posted so the opening interpretation
-    is not re-posted on top of the restored transcript."""
+    """Restore persisted chat threads on a fresh session; a restored thread counts
+    as having its opening posted."""
     try:
         from panoscope.ui import chat_store
 
@@ -148,29 +112,20 @@ def get_selected_cluster() -> str:
 
 
 def set_selected_cluster(cluster: str) -> None:
-    """Select a cluster. Ignores an unknown id (fail-closed on bad input).
-
-    Switching clusters keeps the selected markers and bin size — those persist
-    across clusters per the viewing-control spec.
-    """
+    """Select a cluster. Ignores an unknown id (fail-closed on bad input)."""
     if cluster not in cfg.CLUSTER_ORDER:
         return
     _ss()[K_SELECTED_CLUSTER] = cluster
 
 
-# The Marker-genes page hosts the per-cluster conversation. Mirrors app.py's page
-# key/value so the Summary board can send the biologist there without importing
-# app.py (which imports this module).
+# Mirrors app.py's page key/value (app.py imports this module, not the reverse).
 _K_ACTIVE_PAGE = "active_page"
 _PAGE_WITH_CHAT = "markers"   # the Marker-genes page value (mirrors app.py)
 
 
 def open_cluster_chat(cluster: str) -> None:
     """Select ``cluster`` and switch to the Marker-genes page (its conversation pane).
-
-    The Summary board's "open chat" action: it lands the biologist in the cluster's
-    live thread, where the full override/question flow lives. Ignores an unknown id
-    (fail-closed), same as ``set_selected_cluster``."""
+    Ignores an unknown id (fail-closed)."""
     if cluster not in cfg.CLUSTER_ORDER:
         return
     ss = _ss()
@@ -186,10 +141,7 @@ def open_cluster_chat(cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Selected pathways — the enrichment analog of selected markers: a per-cluster
-# MULTI-select of enriched gene sets. Each selected set drives one leading-edge
-# small-multiple on the Pathways spatial stage. Selecting is a VIEWING control:
-# it mutates one map key, nothing else. Order is preserved (selection order).
+# Selected pathways: per-cluster ordered multi-select of gene sets (viewing control).
 # --------------------------------------------------------------------------- #
 def get_selected_pathways(cluster: str) -> list[str]:
     """Return a copy of the gene sets selected FOR ``cluster``, in selection order."""
@@ -214,11 +166,7 @@ def is_pathway_selected(cluster: str, gene_set: str) -> bool:
 
 
 def set_selected_pathways(cluster: str, gene_sets: list[str]) -> None:
-    """Replace ``cluster``'s selected gene sets (used to restore from the URL).
-
-    De-duplicated for set_selected_markers' reason: two identical charts
-    collide on their element id and abort the script.
-    """
+    """Replace ``cluster``'s selected gene sets (URL restore); de-duplicated."""
     sel = dict(_ss().get(K_SELECTED_PATHWAYS, {}))
     sel[cluster] = list(dict.fromkeys(gene_sets))
     _ss()[K_SELECTED_PATHWAYS] = sel
@@ -230,32 +178,18 @@ def active_pathways(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Selected markers — the multi-select set that drives the spatial small-multiples.
-# Selecting is a VIEWING control: it mutates one list key and nothing else. No
-# recompute. Order is preserved (selection order) so the panels stay stable.
+# Selected markers: per-cluster ordered multi-select (viewing control, no recompute).
 # --------------------------------------------------------------------------- #
 def get_selected_markers(cluster: str) -> list[str]:
-    """Return a copy of the markers selected FOR ``cluster``, in selection order.
-
-    Selection is per-cluster: ``selected_markers`` is a ``{cluster: [gene, ...]}``
-    map, so switching clusters never carries one cluster's picks onto another —
-    each cluster shows only its own selected genes (or none). Empty list before
-    anything is selected for that cluster.
-    """
+    """Return a copy of the markers selected FOR ``cluster``, in selection order."""
     return list(_ss().get(K_SELECTED_MARKERS, {}).get(cluster, []))
 
 
 def set_selected_markers(cluster: str, genes: list[str]) -> None:
-    """Replace ``cluster``'s selected markers (used to restore from the URL).
+    """Replace ``cluster``'s selected markers (URL restore).
 
-    De-duplicated, first occurrence wins. A selection is a SET of genes: a gene
-    chosen twice is the same gene. ``?m=ERBB2,ERBB2`` stored it twice, the
-    small-multiples then emitted two byte-identical charts, and Streamlit
-    raised ``StreamlitDuplicateElementId`` -- which aborts the script, so
-    everything below it, the chat pane included, silently disappeared.
-
-    Fixed here rather than at the URL parser so every caller is covered, not
-    just the one that was reachable from a mis-pasted link.
+    De-duplicated, first occurrence wins: two identical charts raise
+    ``StreamlitDuplicateElementId`` and abort the script.
     """
     sel = dict(_ss().get(K_SELECTED_MARKERS, {}))
     sel[cluster] = list(dict.fromkeys(genes))
@@ -263,11 +197,7 @@ def set_selected_markers(cluster: str, genes: list[str]) -> None:
 
 
 def toggle_marker(cluster: str, gene: str) -> None:
-    """Add ``gene`` to ``cluster``'s selection if absent, else remove it (order kept).
-
-    Viewing-control only: writes a new per-cluster list and returns. Never triggers
-    a verdict recompute. The whole map is rewritten (immutable update).
-    """
+    """Add ``gene`` to ``cluster``'s selection if absent, else remove it (order kept)."""
     ss = _ss()
     by = dict(ss.get(K_SELECTED_MARKERS, {}))
     current = list(by.get(cluster, []))
@@ -284,11 +214,8 @@ def is_marker_selected(cluster: str, gene: str) -> bool:
 
 
 def active_markers(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
-    """Markers selected for ``cluster``, capped for small-multiples legibility.
-
-    The full selection stays in the evidence table; this only limits how many
-    density + feature-UMAP pairs the spatial grid draws. ``cap <= 0`` is uncapped.
-    """
+    """Markers selected for ``cluster``, capped for small-multiples; ``cap <= 0`` is
+    uncapped."""
     selected = get_selected_markers(cluster)
     if cap is not None and cap > 0:
         return selected[:cap]
@@ -296,12 +223,7 @@ def active_markers(cluster: str, cap: int = DEFAULT_MARKER_CAP) -> list[str]:
 
 
 def set_pinned_marker(cluster: str, gene: Optional[str]) -> None:
-    """Pin ``gene`` for ``cluster`` (append if not already selected), or clear on None.
-
-    Appends rather than replacing, so an agent pinning a marker during chat adds it
-    to the current cluster's selection without wiping the biologist's picks. Pure
-    viewing control — writes ``selected_markers`` and returns, never a recompute.
-    """
+    """Pin ``gene`` for ``cluster`` (append, keeping existing picks), or clear on None."""
     ss = _ss()
     by = dict(ss.get(K_SELECTED_MARKERS, {}))
     if gene is None:
@@ -320,21 +242,13 @@ def get_bin_um() -> int:
 
 
 def set_bin_um(bin_um: int) -> None:
-    """Set the hex-bin size. Rejects any value not in the presets (no recompute).
-
-    A bin size only selects which *precomputed* density frame is shown; it never
-    re-bins or changes a value. Invalid sizes are ignored.
-    """
+    """Set the hex-bin size; values outside the presets are ignored. Never a value change."""
     if int(bin_um) in BIN_SIZES_UM:
         _ss()[K_BIN_UM] = int(bin_um)
 
 
 # --------------------------------------------------------------------------- #
-# Chat thread — PER-CLUSTER. Each cluster owns its own conversation so switching
-# clusters swaps threads and never bleeds one cluster's chat into another. The
-# agent's *knowledge* of the whole annotation is carried separately (grounded
-# global-interpretation context in the system prompt), not through this log.
-# Store shape: {cluster_id: [ {role, text, ...}, ... ]}.
+# Chat thread, per cluster: {cluster_id: [ {role, text, ...}, ... ]}.
 # --------------------------------------------------------------------------- #
 def _threads() -> dict:
     """Return the {cluster: [msg,...]} store (created lazily; live object)."""
@@ -369,9 +283,8 @@ def opening_was_posted(cluster: str) -> bool:
 def mark_opening_posted(cluster: str, call: str = "") -> None:
     """Record that ``cluster``'s opening interpretation has been posted once.
 
-    ``call`` is the cell-type call the opening was WRITTEN for, so a later
-    override can be noticed. ``True`` (the old value, and what ``_hydrate_threads``
-    still writes for a restored transcript) means "posted, call unknown".
+    ``call`` is the call it was written for, so a later override is noticed;
+    ``True`` means "posted, call unknown" (a restored transcript).
     """
     ss = _ss()
     posted = dict(ss.get(K_OPENING_POSTED, {}))  # new dict (immutable update)
@@ -380,23 +293,15 @@ def mark_opening_posted(cluster: str, call: str = "") -> None:
 
 
 def opening_posted_call(cluster: str):
-    """The call ``cluster``'s posted opening was written for, or None if unknown.
-
-    None for a thread restored from disk: ``chat_store`` persists role, text,
-    source kinds and verify, so the call is not recoverable, and a RESTORED
-    transcript is history rather than something to correct.
-    """
+    """The call ``cluster``'s posted opening was written for, or None if unknown
+    (a restored transcript)."""
     v = _ss().get(K_OPENING_POSTED, {}).get(cluster)
     return v if isinstance(v, str) else None
 
 
 def opening_needed(key: str, call: str) -> bool:
-    """True unless an opening was already posted for this ``call``.
-
-    An override after the opening was posted gets a fresh opening APPENDED (the
-    transcript is not rewritten); a thread restored from disk reports no call
-    (None) and is left alone, being history.
-    """
+    """True unless an opening was already posted for this ``call``. A restored
+    thread (call unknown) is left alone."""
     if not opening_was_posted(key):
         return True
     return opening_posted_call(key) not in (None, call)
@@ -412,9 +317,7 @@ def reset_opening_posted(cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Pending note draft — a proposed note awaiting the biologist's two-tap confirm.
-# Per cluster (the draft belongs to the cluster it was raised on). Held here as a
-# frozen NoteDraft; the confirm card edits scope/basis/status before saving.
+# Pending note draft, per cluster, awaiting the biologist's two-tap confirm.
 # --------------------------------------------------------------------------- #
 def _drafts() -> dict:
     ss = _ss()

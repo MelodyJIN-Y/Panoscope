@@ -1,27 +1,13 @@
 """R4, with pixels: no conditionality record, no plot.
 
-``panoscope/types/uispec.py`` already refuses to *declare* a figure without a
-conditionality. This module is the other half — the renderer that refuses to
-*draw* one. Every figure on the spatial stage goes through :func:`render_panel`,
-which raises :class:`UndrawableFigure` for a panel that cannot say what it drew,
-over what denominator, under what transform, and what it is **not**.
+Every figure on the spatial stage goes through :func:`render_panel`, which raises
+:class:`UndrawableFigure` for a panel that cannot say what it drew, over what
+denominator, under what transform, and what it is **not**.
 
-The builders below are the conditionality records for the five existing figures.
-They are pure functions of numbers the caller already has in hand (row counts,
-the bin size, the colour maximum) plus two grounded files — the study manifest
-(sha256 per artifact) and the density ``_index.json`` (qv floor, control-probe
-prefixes, normalisation). Nothing here computes a statistic, and nothing here
-asserts a constant the data can answer: the panel denominator is
-``len(panel_names())``, never 280.
-
-Three things the audit found reaching no pixel, now stated:
-
-* the ``_MAX_BG_POINTS`` display downsample (``rendering``) — "the downsample is
-  stated rather than deleted" (docs/interface-design.md §1.3);
-* the Row-1 cluster UMAP caption, deleted for a cleaner grid and restored here as
-  a record rather than a label;
-* the panel denominator, the hex-bin µm and the area normalisation, which lived
-  in module docstrings for developers and nowhere for the biologist.
+The builders below are pure functions of numbers the caller already has plus the
+study manifest and the density ``_index.json``. Nothing here computes a statistic
+or asserts a constant the data can answer: the panel denominator is read from the
+panel file, and the display downsample is stated, never hidden.
 """
 
 from __future__ import annotations
@@ -35,11 +21,8 @@ from panoscope.agent.data import _per_study
 from panoscope.types.uispec import Conditionality, UndrawableFigure
 from panoscope.ui import data_access as da
 
-# Approximate size of the human protein-coding gene set — the denominator a
-# targeted panel is a fraction OF, and the number a reader silently assumes when
-# a figure does not say otherwise. Written with a "~" because it is a round
-# external fact, not a measurement. The panel side of the ratio is always read
-# from the panel file.
+# Approximate human protein-coding gene count: a round external fact, not a
+# measurement. The panel side of the ratio is always read from the panel file.
 _TRANSCRIPTOME_APPROX = "~20,000"
 
 
@@ -48,16 +31,9 @@ _TRANSCRIPTOME_APPROX = "~20,000"
 # --------------------------------------------------------------------------- #
 def render_panel(fig: Any, cond: Conditionality, *, config: Optional[dict] = None,
                  key: Optional[str] = None) -> None:
-    """Draw ``fig`` with its two-line conditionality caption, or refuse.
+    """Draw ``fig`` with its two-line conditionality caption, or raise.
 
-    The visual analogue of the grounding gate discarding an ungrounded sentence.
-    A figure arriving without a :class:`Conditionality` does not render; it
-    raises. (A ``Conditionality`` missing one of its four mandatory fields cannot
-    exist in the first place — ``Conditionality.__post_init__`` raises the same
-    error at construction, so both halves of R4 fail closed.)
-
-    The caption is drawn from :meth:`Conditionality.caption`; the full record,
-    every field labelled, is the panel's hover title.
+    The caption is :meth:`Conditionality.caption`; the full record is the hover.
     """
     if not isinstance(cond, Conditionality):
         raise UndrawableFigure(
@@ -67,17 +43,8 @@ def render_panel(fig: Any, cond: Conditionality, *, config: Optional[dict] = Non
 
     import streamlit as st
 
-    # ``key`` because Streamlit derives a chart's element id from its type and
-    # params, so two byte-identical figures on one page collide and the SECOND
-    # raises StreamlitDuplicateElementId -- which aborts the script, losing every
-    # element below it. Not hypothetical: the feature UMAP's honest fallback
-    # re-draws the cluster UMAP with the same data, layout, config and
-    # conditionality as Row 1, so selecting any gene with no exported expression
-    # column took out the rest of the Markers page, chat pane included.
-    #
-    # An explicit key per panel rather than a counter: a counter would change on
-    # every rerun and redraw every figure, and the collision is exactly the case
-    # where the content cannot tell the two apart.
+    # Explicit stable key: two identical figures would otherwise raise
+    # StreamlitDuplicateElementId and abort the script.
     st.plotly_chart(fig, width="stretch", config=config, key=key)
     line1, line2 = cond.caption()
     st.markdown(
@@ -103,17 +70,8 @@ def _full_record(cond: Conditionality) -> str:
 # --------------------------------------------------------------------------- #
 @_per_study
 def _read_density_index() -> dict:
-    """The density precompute index, parsed. RAISES if it cannot be read.
-
-    Keyed on the study by ``agent.data._per_study`` — the mechanism that already
-    solved this for the tidy readers — rather than on nothing at all.
-
-    It raises rather than returning ``{}`` because ``lru_cache`` does not memoise an
-    exception, and a cache that swallows a read error and then memoises the empty
-    result outlives the condition that produced it: a study whose density step
-    finishes while the app is open would have kept the "no exclusions" caption for
-    the rest of the session. ``_density_index`` below is the half that answers ``{}``.
-    """
+    """The density precompute index, parsed and cached per study. Raises if it
+    cannot be read, so a failure is never memoised; ``_density_index`` answers ``{}``."""
     return json.loads(da._density_index().read_text(encoding="utf-8"))
 
 
@@ -134,11 +92,7 @@ def _sha(artifact: str) -> str:
 
 
 def _panel_scope() -> str:
-    """The denominator always left out: how many genes could have been drawn.
-
-    Read from the panel file every time (CLAUDE.md: panel size is dynamic across
-    studies — derive it, never assert a constant).
-    """
+    """How many genes could have been drawn, read from the panel file every time."""
     try:
         n = len(da.panel_names())
     except Exception:  # noqa: BLE001 - an unreadable panel is still a denominator
@@ -175,16 +129,8 @@ def _unit_scope(cluster: str, n_selected: int, n_total: int) -> str:
 
 
 def _all_cells_scope(n_total: int) -> str:
-    """Scope for a panel coloured by a value rather than by the selected unit.
-
-    States the EMBEDDING size, not a draw count. It used to read "all {n} cells
-    drawn, every cluster included" from ``len(umap_df())``, in the same caption
-    whose next clause admitted the background had been thinned -- measured, 107,755
-    points plotted under a line claiming all 166,363. Two adjacent clauses of one
-    conditionality record contradicting each other, and the one phrased as a scope
-    was the false one. What the figure actually drew is the ``rendering`` field's
-    job, and it carries it.
-    """
+    """Scope for a panel coloured by a value: the embedding size, not a draw count
+    (what was drawn is the ``rendering`` field's job)."""
     return (
         f"{cfg.DATASET_ID} · every cluster included · {n_total:,} cells in the "
         f"embedding"
@@ -218,12 +164,7 @@ def cell_map_cond(
 def cluster_umap_cond(
     *, cluster: str, n_total: int, n_selected: int, n_bg_drawn: int, n_bg_total: int
 ) -> Conditionality:
-    """Row 1 right — the cluster UMAP. The caption deleted "for a cleaner grid".
-
-    Its standing caveat is the one a reader cannot get from the pixels and
-    reliably gets wrong: a UMAP is a layout, so the gaps between clusters are not
-    distances and "clean island" is a visual impression, not a number.
-    """
+    """Row 1 right — the cluster UMAP. A UMAP is a layout: gaps are not distances."""
     return Conditionality(
         drawn="UMAP embedding of the same cells, coloured by cluster",
         denominator=(
@@ -259,11 +200,7 @@ def feature_umap_cond(
         ),
         unit_scope=_all_cells_scope(n_total),
         scale="independent scale · this gene's own maximum; panels are NOT comparable",
-        # "the selected cluster", not "expressing cells": the keep mask is
-        # ``umap['cluster'] == cluster`` (spatial_stage._render_umap), so
-        # expressing cells OUTSIDE it are thinned with everything else.
-        # Measured on c1/ERBB2: 17,140 of 32,507 positive cells drawn, under
-        # a caption promising they were drawn in full.
+        # Only the selected cluster is kept whole; expressing cells outside it thin.
         rendering=_thinning(n_bg_drawn, n_bg_total, "the selected cluster"),
         provenance=_sha("viz/expr.parquet"),
     )
@@ -302,11 +239,7 @@ def set_density_cond(
     *, program: str, hb: Any, bin_um: int, n_genes: int, n_drawn: int
 ) -> Conditionality:
     """Pathways row — the leading-edge set's summed transcript density.
-
-    ``n_drawn`` of ``n_genes`` is the fact the sum hides: ``leading_edge_density``
-    skips a driving gene with no precomputed frame, and the picture cannot show
-    which ones are missing.
-    """
+    ``n_drawn`` of ``n_genes`` states the genes the sum skipped."""
     transform, scale, rendering = _density_shape(hb, bin_um)
     return Conditionality(
         drawn=(
@@ -350,11 +283,7 @@ def leading_edge_umap_cond(
         ),
         unit_scope=_all_cells_scope(n_total),
         scale="independent scale · this program's own maximum; panels are NOT comparable",
-        # "the selected cluster", not "expressing cells": the keep mask is
-        # ``umap['cluster'] == cluster`` (spatial_stage._render_umap), so
-        # expressing cells OUTSIDE it are thinned with everything else.
-        # Measured on c1/ERBB2: 17,140 of 32,507 positive cells drawn, under
-        # a caption promising they were drawn in full.
+        # Only the selected cluster is kept whole; expressing cells outside it thin.
         rendering=_thinning(n_bg_drawn, n_bg_total, "the selected cluster"),
         provenance=_sha("viz/expr.parquet"),
     )
@@ -364,13 +293,8 @@ def dotplot_cond(
     *, genes_drawn: int, genes_selected: int, n_clusters: int,
     n_expr_cells: int, n_total: int,
 ) -> Conditionality:
-    """The across-cluster dot plot.
-
-    Its ``transform`` says the mean and the percentage are computed here, in the
-    renderer, from the exported per-cell values. That is the one place on this
-    stage where a figure derives rather than renders, and the caption states it
-    rather than hiding it.
-    """
+    """The across-cluster dot plot. Its ``transform`` states that the mean and
+    percentage are computed in the renderer from exported per-cell values."""
     return Conditionality(
         drawn=(
             f"mean per-cell expression (colour) and % of cells expressing (dot "

@@ -1,18 +1,9 @@
 """Panoscope — a grounded conversation with spatial data.
 
-Streamlit entrypoint. The chat is the product; the panels are the evidence it
-stands on. Every number shown here comes from the agent layer (jazzPanda output,
-the panel list, or a cited lab note) — this file only wires panels together.
-
-Navigation lives in a single TOP bar (not a sidebar): the brand, then one tab per
-registered workflow, in one row. The strip is **not listed here** — ``ui/nav.py``
-builds it from the workflow registry, so registering a workflow is the only step
-needed to make its declared surface reachable (ARCHITECTURE §13: the review surface
-is declared by the workflow, not a UI concern). This file supplies the wiring only
-— which renderer draws a surface id, and how to tell whether this study has a
-result for it — in :data:`_SURFACES`. Lab notes are folded into the Summary page.
-Session state is shared across pages natively (one script run per rerun), so the
-selected cluster / markers / chat / notes carry over between tabs.
+Streamlit entrypoint; this file only wires panels together. Every number shown
+comes from the agent layer. The top-bar tabs are built by ``ui/nav.py`` from the
+workflow registry; this file supplies only :data:`_SURFACES` (which renderer draws a
+surface id, and whether this study has a result for it).
 """
 from __future__ import annotations
 
@@ -37,27 +28,16 @@ from panoscope.ui import (
 _LOGO_MARK = nav.ASSETS / "panoscope_logo.png"
 
 
-# Active top-tab page. Held in session state for snappy in-session switching AND
-# mirrored to the URL query param (?page=) so a full browser refresh restores the
-# tab instead of dropping back to the default — the tab is also shareable now.
+# Active page: session state, mirrored to ``?page=`` so a refresh restores it.
 _K_PAGE = nav.PAGE_KEY
-# The onboarding front door. These two are NOT workflows (no study is open yet), so
-# they are named here; every other ?page= name is a registered workflow's own
-# ``UISpec.workflow_id``, read off the registry by ui/nav.py.
+# The onboarding pages are not workflows, so they are named here.
 _PAGE_WELCOME = nav.ONBOARDING_PAGES[0]   # landing
 _PAGE_UPLOAD = nav.ONBOARDING_PAGES[1]    # load-your-data
 
 
 def _resolve_page(strip: tuple[nav.Tab, ...]) -> str:
-    """The active tab, restoring it from the URL after a browser refresh.
-
-    session_state is wiped on a hard refresh but the ``?page=`` query param
-    survives, so on a fresh session we seed the tab from the URL (validated against
-    what this build actually registers), then keep the URL mirrored to the current
-    tab. A name nobody answers to falls back to the landing page rather than to
-    whichever page happens to be first — the same fail-closed rule the registries
-    use for an unknown id.
-    """
+    """The active tab, restored from ``?page=`` on a fresh session. An unknown name
+    falls back to the landing page (fail-closed)."""
     valid = nav.pages(strip)
     if _K_PAGE not in st.session_state:
         url_page = st.query_params.get("page")
@@ -79,10 +59,8 @@ def _resolve_page(strip: tuple[nav.Tab, ...]) -> str:
 
 
 def _restore_selection_from_url() -> None:
-    """On a fresh session (a browser refresh), restore the selected cluster and that
-    cluster's selected markers + gene sets from the URL, so a refresh keeps what the
-    biologist selected instead of resetting to defaults. Runs once per session.
-    """
+    """Once per session, restore the selected cluster and its markers + gene sets
+    from the URL."""
     if st.session_state.get("_sel_restored"):
         return
     st.session_state["_sel_restored"] = True
@@ -100,12 +78,8 @@ def _restore_selection_from_url() -> None:
 
 
 def _sync_selection_to_url(page: str) -> None:
-    """Mirror the current cluster + its selections to the URL (write only on change,
-    so a refresh restores them without triggering redundant reruns).
-
-    The Summary page is dataset-wide, so it carries no cluster/marker params — the
-    URL stays a clean ``?page=summary``. Marker/Pathways pages keep the selection.
-    """
+    """Mirror the current cluster + its selections to the URL (only on change). The
+    Summary page carries no cluster/marker params."""
     qp = st.query_params
     if page == nav.SUMMARY_PAGE:
         for key in ("cluster", "m", "pw"):
@@ -126,19 +100,8 @@ def _sync_selection_to_url(page: str) -> None:
 
 
 def _study_chip() -> tuple[str, str]:
-    """The top-bar context chip, DERIVED from the open study.
-
-    Every value here used to be a literal reading "Xenium human breast · sample 1 /
-    280 genes · 9 clusters". It was correct for the demo and wrong for every other
-    study: ``demo_mini`` is a 9-gene panel over 3 clusters, and the multi-sample
-    fixture is 12 genes over 3 clusters of no tissue at all. CLAUDE.md is explicit
-    that panel size is dynamic across studies and derived from the file, never
-    asserted -- and a chip that names the wrong panel size sits two inches above a
-    table whose denominators come from the right one.
-
-    Each field degrades to silence rather than to a guess: an unstated tissue drops
-    out of the line instead of defaulting to the demo's.
-    """
+    """The top-bar context chip, derived from the open study (panel size from the
+    file, never a constant). A field that cannot be read is omitted, never guessed."""
     from panoscope import methods as _methods
     from panoscope.agent import config as _cfg
     from panoscope.workflows.marker import WORKFLOW_ID as _MARKER_ID
@@ -166,13 +129,7 @@ def _study_chip() -> tuple[str, str]:
 
 
 def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
-    """The single top bar: brand · one tab per registered workflow · study chip.
-
-    The tabs are chromeless buttons styled (theme ``.st-key-pano_topnav``) into a
-    top tab strip — the active one (``type="primary"``) gets an accent underline.
-    Which tabs exist, what they are called and what order they sit in all come from
-    ``ui/nav.py`` reading the workflow registry; nothing is named here.
-    """
+    """The single top bar: brand · one tab per registered workflow · study chip."""
     with st.container(key="pano_appbar"):
         brand_col, tabs_col, ctx_col = st.columns(
             [0.27, 0.46, 0.27], vertical_alignment="center"
@@ -190,13 +147,9 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
             )
         with tabs_col:
             with st.container(key="pano_topnav"):
-                # Summary leads (it is the surface the biologist signs off from),
-                # then the workflows in task-kind order — all decided by nav.tabs().
                 for col, tab in zip(st.columns(len(strip)), strip):
                     with col:
-                        # A workflow with no result in this study keeps its tab and
-                        # says so on hover, rather than vanishing: a missing tab and
-                        # a missing capability look identical, and they are not.
+                        # A workflow with no result keeps its tab and says so on hover.
                         st.button(
                             tab.title,
                             key=tab.key,
@@ -221,29 +174,16 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
 
 @st.fragment
 def _chat_pane_fragment(cluster: str) -> None:
-    """The marker chat as a fragment: sending a message re-renders ONLY the chat pane
-    (no whole-app refresh, no spatial-figure flicker). The chat's own reruns are scoped
-    to this fragment (ui.conversation uses ``st.rerun(scope='fragment')``)."""
+    """The marker chat as a fragment, so a chat turn re-renders only this pane."""
     conversation.render_conversation(cluster)
 
 
 def _kill_cross_page_bleed() -> None:
-    """Hide the "cross-page bleed" — the previous page's faded leftover after a tab switch.
+    """Hide the previous page's stale leftover DOM after a tab switch.
 
-    On a tab switch Streamlit reuses the body container's DOM node and diffs its children in
-    place; going from a taller page (Summary) to a shorter one leaves the taller page's
-    trailing children mounted, marked ``data-stale="true"`` (rendered at opacity 0.33), and
-    only PHYSICALLY removed by a later frontend pass — which on some machines/flows lags long
-    enough that the faded block just sits below the new page. No server-side trick clears it:
-    st.rerun discards the current frame, a programmatic query-param write does not rerun, and
-    a rerun re-renders the CURRENT tree without touching orphaned stale DOM.
-
-    So we hide it at the source. A singleton parent-document watcher adds ``pano-killbleed``
-    to <html> the moment ``?page=`` changes; the CSS below then hides any ``data-stale``
-    element INSIDE a page body (the leftover), scoped so normal same-page reruns still just
-    fade as Streamlit intends. The class lifts as soon as the body has no stale leftover
-    (residue physically gone), with a 4s hard cap so it can never hide content indefinitely.
-    Same ``window.parent`` bridge the chat auto-scroll already uses.
+    A parent-document watcher adds ``pano-killbleed`` to <html> when ``?page=``
+    changes; the CSS hides ``data-stale`` elements inside a page body until none
+    remain (4s hard cap).
     """
     import streamlit.components.v1 as components
 
@@ -254,13 +194,8 @@ def _kill_cross_page_bleed() -> None:
         "</style>",
         unsafe_allow_html=True,
     )
-    # DEPRECATED BY STREAMLIT, AND NOT MIGRATED ON PURPOSE. The warning says
-    # "replace st.components.v1.html with st.iframe", but st.iframe takes
-    # src= (a URL or Path) and this takes an HTML STRING. The script below
-    # reaches window.parent.document; served from a data: URL it would be
-    # cross-origin and the browser would block exactly that access. So the
-    # advice does not apply here -- migrating would break the feature, not
-    # fix it. Revisit when Streamlit offers a srcdoc-shaped replacement.
+    # Not migrated to st.iframe: it takes a src URL, and a data: URL would be
+    # cross-origin and blocked from window.parent.document.
     components.html(
         """
 <script>
@@ -302,16 +237,12 @@ def _kill_cross_page_bleed() -> None:
 
 def _examine_body() -> None:
     """The 3-pane review surface: rail | verdict + evidence + spatial | chat."""
-    # Narrower center (the spatial figures letterbox less horizontally) so the chat
-    # pane gets more room; the rail stays fixed.
     rail_col, center_col, chat_col = st.columns([216, 664, 474], gap="small")
     with rail_col:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
     with center_col:
-        # The declared LabelBandHeader is part of the ASSIGNMENT surface and is drawn
-        # by ui/evidence_table.py. ui/verdict_header.py hand-built the same header
-        # above it and would now render it twice.
+        # The declared header is drawn by the evidence table itself.
         evidence_table.render_evidence_table(cluster)
         spatial_stage.render_spatial_stage(cluster)
     with chat_col:
@@ -319,16 +250,12 @@ def _examine_body() -> None:
 
 
 def _markers_available() -> bool:
-    """Does this study have a marker result to draw? Mirrors ``enrichment_available``
-    — the question is *is there a result*, not *is the method any good*."""
+    """Does this study have a marker result to draw?"""
     return not da.markers_df().empty
 
 
-# The wiring, and the only place this file names a surface: which renderer draws a
-# ``UISpec.workflow_id``, and how to tell whether THIS study has a result for it.
-# Registering a workflow is what puts a tab in the strip; adding a line here is what
-# gives that tab a page. A workflow with no line renders nav's stated-absence page —
-# it keeps its tab, because a hidden tab and an unsupported question read the same.
+# ``UISpec.workflow_id`` -> (renderer, has-a-result check). A registered workflow
+# with no entry keeps its tab and renders nav's stated-absence page.
 _SURFACES: nav.Wiring = {
     "markers": (_examine_body, _markers_available),
     "pathways": (enrichment_table.render_pathways_page, da.enrichment_available),
@@ -344,10 +271,7 @@ st.set_page_config(
 theme.inject_css()
 state.init_state()
 
-# Page routing — each page has a dedicated ?page= URL name: welcome (landing) and
-# upload are the onboarding front door; summary is the integrated review surface;
-# every other name is a registered workflow's own surface id (markers · pathways
-# today, whatever is registered tomorrow).
+# Page routing: onboarding, summary, then one ?page= name per registered workflow.
 TABS = nav.tabs(_SURFACES, summary.render_summary_page)
 page = _resolve_page(TABS)
 
@@ -365,15 +289,11 @@ if page == _PAGE_UPLOAD:
 _restore_selection_from_url()
 _top_bar(page, TABS)
 
-# The dashboard body renders into a page-keyed container. Which renderer runs is the
-# tab's own, from the registry-built strip — there is no page branch here to forget
-# to extend. A tab with no result in this study states the absence instead.
+# The body renders the tab's own renderer, or its stated-absence page.
 active = nav.find(TABS, page)
 with st.container(key=f"page_body_{page}"):
     if active is None:
-        # Not a dashboard page at all. Only reachable with no ScriptRunContext —
-        # under a bare ``import panoscope.app`` the ``st.stop()`` above is a no-op,
-        # so the onboarding pages fall through to here. Nothing to draw.
+        # Only reachable under a bare import (no ScriptRunContext). Nothing to draw.
         pass
     elif active.render is None or not active.available():
         nav.render_unavailable(active)

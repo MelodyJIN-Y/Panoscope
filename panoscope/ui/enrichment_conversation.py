@@ -65,8 +65,7 @@ def render_pathway_conversation(cluster: str) -> None:
             _thread_key(cluster), "Enrichment summary loads when a cluster is selected."
         )
     _process_pending(cluster)
-    # Same two-tap confirm card as the marker chat, on this cluster's pathway thread —
-    # so a program_reinterpretation captured here never collides with the marker draft.
+    # Same confirm card as the marker chat, on this cluster's pathway thread.
     convo._render_draft_card(cluster, thread_key=_thread_key(cluster))
     _render_ask_box(cluster)
     convo._scroll_thread_to_bottom(len(state.get_chat_thread(_thread_key(cluster))))
@@ -110,10 +109,8 @@ def _ensure_opening(cluster: str) -> None:
 
 
 def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
-    """The deterministic, cited opening PROSE plus the PMIDs it cites and the
-    enrichment verify flag. Returned so the bubble renders the same clickable
-    citations + 'Sources' line + re-check note as the marker opening (parity) — with
-    NO live call (the PMIDs are the precomputed real ones from pathway_notes)."""
+    """The deterministic, cited opening prose, the PMIDs it cites (precomputed, from
+    pathway_notes) and the enrichment verify flag. No live call."""
     ce = _ce(cluster)
     ct = da.display_cell_type(cluster).replace("_", " ")  # reflects an override
     verify = bool(getattr(ce, "verify", False))
@@ -123,8 +120,7 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
             "Ask me why, or about any suggestive program.", [], verify,
         )
     parts = [
-        # The census, not a band. No label space means no unit-level confidence to
-        # open with; the counts say more and each one clicks back to its rows.
+        # The census, not a band: no label space, no unit-level confidence.
         f"{cluster} {ct}: {ce.census_line}. Panel-scoped — only the set genes this "
         "panel usably measured are tested, never genome-wide."
     ]
@@ -137,11 +133,7 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
         if pmid and str(pmid).strip().isdigit():
             pmids.append(str(pmid).strip())
         cite = f" PMID:{pmid}" if pmid else ""
-        # The denominator travels with the program. ``ui/report.py`` carries it in
-        # the exported paragraph for this reason -- a set scored on 5 of its 100
-        # genes reads exactly like one scored on 90 without it -- and this bubble
-        # makes the same claim about the same program with the same authority.
-        # Every plot carries its conditionality; a chat sentence is not exempt.
+        # The panel-coverage denominator travels with the program, as in the report.
         scope = (f" [{p.panel_hits}/{p.set_size_full} set genes on panel]"
                  if p.panel_hits and p.set_size_full else "")
         if summ:
@@ -159,9 +151,8 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
 
 
 def _opening_resp(pmids: list[str], verify: bool):
-    """A lightweight cited response for the opening bubble so it renders like the
-    marker opening: sources = jazzPanda (the enrichment scores) + PubMed (the cited
-    notes). No live call — the PMIDs are the precomputed, real ones from pathway_notes."""
+    """A cited response for the opening bubble (sources: jazzPanda + PubMed). No live
+    call."""
     from panoscope.agent.types import AgentResponse, GroundingSidecar, Source
 
     seen = list(dict.fromkeys(pmids))
@@ -195,10 +186,6 @@ def _render_ask_box(cluster: str) -> None:
         # turn runs on the next rerun (see _process_pending).
         key = _thread_key(cluster)
         q = query.strip()
-        # See conversation._submit_query: the identical-text guard that used to
-        # sit here swallowed the re-ask of a question abandoned mid-turn, because
-        # the user turn persists and the pending marker does not. The in-flight
-        # check below is the one that can tell a turn is actually running.
         if st.session_state.get(f"pending_q_{key}"):
             return  # a turn is already queued
         state.append_message(key, {"role": "user", "text": q, "resp": None})

@@ -1,29 +1,11 @@
 """Conversation pane — the primary interface. The chat is the product.
 
-``render_conversation(cluster)`` is the whole third pane of the shell. It is
-**scoped per cluster**: each cluster owns its own thread, so switching clusters
-swaps conversations and never bleeds one cluster's chat into another. On a fresh
-cluster it posts the grounded opening interpretation
-(``agent.loop.opening_interpretation``) as the first turn, then renders the
-running thread inside a fixed-height scroll area, then a pinned ask box that
-calls ``agent.loop.chat``.
-
-The agent's *knowledge* of the whole annotation is NOT carried by this log — it
-comes from the grounded global-interpretation block in the system prompt
-(``agent.loop._cluster_context``). So a per-cluster thread costs the agent no
-global awareness: it still knows every cluster's call and confidence, and durable
-overrides persist across clusters through scope-enforced notes, not the chat.
-
-Override-at-chat: the biologist just tells the agent ("this is CAF, our own
-data"); the agent's ``memory_draft`` tool proposes a scope-enforced note, the
-biologist confirms the save, and the prose reports the agreement/dissent. This pane confirms the save inline (detected
-by the notes-count delta) — never a bare "got it".
-
-Grounding discipline: this module renders values the engine produced and never
-computes one. It reads the agent's ``AgentResponse`` verbatim. Pinning a marker
-the agent chose (``resp.pin_marker``) is a viewing control — one session key, no
-recompute. Streamlit is imported lazily so importing ``ui.conversation`` needs no
-running server.
+``render_conversation(cluster)`` renders one thread per cluster: the grounded
+opening interpretation, the running thread, a confirm card for a proposed note,
+and the ask box. Cross-cluster awareness comes from the agent's system prompt,
+never from another cluster's log. An override is saved only after the biologist
+confirms it. This module renders the agent's ``AgentResponse`` verbatim and
+computes no value. Streamlit is imported lazily.
 """
 
 from __future__ import annotations
@@ -56,15 +38,7 @@ _SRC_NAME: dict[str, str] = {
     "mem": "note",
 }  # dict order is the condensed line's left-to-right order (grounded floor first)
 
-# Session key for the ask input (namespaced so no other pane collides).
-#
-# PER CLUSTER. One shared key made it literally the same widget on every
-# cluster -- Streamlit drops form_id from widget identity once a user key is
-# given, so the enclosing ``ask_form_{cluster}`` did not separate them. A
-# half-typed question followed the biologist across a cluster switch, and
-# pressing Ask sent a question written about one unit against another. The
-# pane's own contract is that switching clusters "never bleeds one cluster's
-# chat into another".
+# Per-cluster ask-input key, so a half-typed question never follows a cluster switch.
 def _ask_key(cluster: str) -> str:
     return f"conv_ask_input_{cluster}"
 
@@ -203,11 +177,7 @@ div[class*="st-key-conv_draft"] [data-testid="stButton"] button { min-height: 34
 # --------------------------------------------------------------------------- #
 def render_conversation(cluster: str) -> None:
     """Render the conversation pane for ``cluster`` (header + thread + ask box).
-
-    Per-cluster: reads/writes only ``cluster``'s thread. Posts the opening
-    interpretation exactly once per cluster (guarded by ``opening_was_posted``).
-    Never raises into the caller: the agent layer returns a grounded fallback.
-    """
+    Never raises into the caller."""
     import streamlit as st
 
     st.markdown(_CONVO_CSS, unsafe_allow_html=True)
@@ -232,9 +202,7 @@ def render_conversation(cluster: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Second opinion — the adversarial skeptic, surfaced where it helps: auto on a
-# verify-flagged call, on-demand ("Pressure-test this call") elsewhere. It only
-# argues from grounded facts (agent/skeptic.py) and never touches a number.
+# Second opinion: the deterministic skeptic, shown on a verify-flagged call.
 # --------------------------------------------------------------------------- #
 _SKEPTIC_CSS = """
 <style>
@@ -263,11 +231,8 @@ div[class*="st-key-conv_"] [data-testid="InputInstructions"] { display: none !im
 
 
 def _render_second_opinion(cluster: str) -> None:
-    """The deterministic RISK FLAG: a numbers-only triage light (challenges + verdict),
-    auto-shown on a verify-flagged call only.
-
-    Not an agent — a grounded screen over jazzPanda numbers, shown instantly. The live
-    agent is the on-demand pressure-test."""
+    """The deterministic risk flag (``skeptic.second_opinion``), shown on a
+    verify-flagged call only."""
     if not getattr(_verdict_or_none(cluster), "verify", False):
         return
     import streamlit as st
@@ -302,12 +267,7 @@ def _render_header(cluster: str) -> None:
     """Title + active cluster/cell-type + a per-cluster 'Clear' control."""
     import streamlit as st
 
-    # ``display_cell_type`` reflects a confirmed override, which is what the rail
-    # and the verdict header three inches away already show. Reading the raw
-    # verdict here meant the one cluster the biologist had actually overridden was
-    # the one where the chat pane told them their call had not been taken -- and
-    # the sibling pathway pane (enrichment_conversation.py:80) does it correctly,
-    # with a comment saying so.
+    # Override-aware, matching the rail and the header.
     verdict = _verdict_or_none(cluster)
     cell_type = (html.escape(dax.display_cell_type(cluster).replace("_", " "))
                  if verdict else "")
@@ -341,12 +301,8 @@ def _clear_conversation(key: str) -> None:
 # Opening interpretation — the first turn of a cluster's thread, once per cluster.
 # --------------------------------------------------------------------------- #
 def _ensure_opening(cluster: str) -> None:
-    """Post the grounded opening interpretation the first time a cluster opens.
-
-    Guarded by ``opening_was_posted`` so a rerun never double-posts. No auto-pin:
-    a cluster opens with NO genes selected (marker selection is per-cluster and
-    driven by the evidence table).
-    """
+    """Post the grounded opening interpretation once per call (re-posted after an
+    override)."""
     call = dax.display_cell_type(cluster)
     if not state.opening_needed(cluster, call):
         return
@@ -365,16 +321,8 @@ def _safe_opening(cluster: str) -> AgentResponse:
         try:
             return agent_loop.opening_interpretation(cluster)
         except Exception as exc:  # noqa: BLE001 - the FALLBACK can fail too
-            # This handler promised "never raise into the render path" and then
-            # called a fallback that raises on the same inputs. A study with no
-            # inputs/panel.parquet, or a missing/corrupt manifest.json, put a
-            # traceback on the Markers page from inside the guard written to
-            # prevent exactly that.
-            #
-            # Nothing is invented here: an AgentResponse carrying the reason,
-            # which the pane renders as its opening bubble. Saying what is
-            # missing is an answer; a traceback is not. verify=True because an
-            # interpretation that could not be built is one a human must look at.
+            # State what is missing instead of a traceback; verify=True because
+            # an interpretation that could not be built needs a human.
             from panoscope.agent.types import GroundingSidecar
 
             return AgentResponse(
@@ -437,12 +385,7 @@ def _render_system_bubble(text: str) -> None:
 
 
 def _render_agent_bubble(msg: dict) -> None:
-    """Render one agent turn: prose (inline clickable PMIDs) + verify + sources.
-
-    ``PMID:xxx`` mentions in the prose ARE the citation affordance now — each is a
-    real link straight to PubMed, so there is no separate citation box below the
-    bubble.
-    """
+    """Render one agent turn: prose (inline PubMed links) + verify + sources."""
     import streamlit as st
 
     resp: Optional[AgentResponse] = msg.get("resp")
@@ -483,12 +426,8 @@ def _verify_line_html(resp: Optional[AgentResponse]) -> str:
 
 
 def _sources_line_html(sources: tuple[Source, ...]) -> str:
-    """ONE condensed provenance line for a turn (empty when no sources).
-
-    Names only the source KINDS present (deduped), e.g.
-    ``Sources jazzPanda · PubMed · note`` — the numbers stay inline in the
-    prose and cited PMIDs stay clickable via the buttons below.
-    """
+    """One condensed line naming the source kinds present, e.g.
+    ``Sources jazzPanda · PubMed · note`` (empty when none)."""
     kinds_present = {s.kind for s in sources}
     names = [n for k, n in _SRC_NAME.items() if k in kinds_present]
     if not names:
@@ -503,11 +442,7 @@ def _sources_line_html(sources: tuple[Source, ...]) -> str:
 # Inline citation linkification
 # --------------------------------------------------------------------------- #
 def _linkify_citations(text: str) -> str:
-    """Escape prose and turn ``PMID:xxx`` mentions into real PubMed links.
-
-    Each PMID becomes a clickable anchor to pubmed.ncbi.nlm.nih.gov (new tab) —
-    the citation is one click away inline, so no separate citation box is needed.
-    """
+    """Escape prose and turn ``PMID:xxx`` mentions into PubMed links (new tab)."""
     text = _plain_prose(text)
     parts: list[str] = []
     last = 0
@@ -520,8 +455,7 @@ def _linkify_citations(text: str) -> str:
         )
         last = m.end()
     parts.append(html.escape(text[last:]))
-    # Newlines -> <br> so NOTHING sits at a line start for Streamlit's markdown to
-    # promote into a giant header / table. The chat renders as plain prose, always.
+    # Newlines -> <br> so markdown never promotes a line into a header or table.
     return "".join(parts).replace("\n", "<br>")
 
 
@@ -545,17 +479,12 @@ def _plain_prose(text: str) -> str:
 # Ask box — pinned just below the scroll area.
 # --------------------------------------------------------------------------- #
 def _render_ask_box(cluster: str) -> None:
-    """Render the ask input + send. On submit, run one grounded chat turn.
+    """Render the ask input + send; a submit queues one grounded chat turn.
 
-    Appends the user turn to THIS cluster's thread, calls ``agent.loop.chat`` with
-    only this cluster's history, appends the grounded answer, applies any pin the
-    agent chose, and — if the turn wrote a note — confirms the save inline.
+    One input for questions, overrides and rival hypotheses; the agent picks the tool.
     """
     import streamlit as st
 
-    # One input. Open chat about the biology, an override, OR a rival hypothesis: when
-    # the biologist suggests a different cell type, the agent detects it and runs the
-    # grounded comparison itself (the discriminate_call tool), no separate control.
     with st.container(key="conv_ask"):
         with st.form(key=f"ask_form_{cluster}", clear_on_submit=True):
             c_in, c_send = st.columns([0.78, 0.22], vertical_alignment="bottom")
@@ -576,27 +505,11 @@ def _render_ask_box(cluster: str) -> None:
 
 
 def _submit_query(cluster: str, query: str) -> None:
-    """Append the user turn and mark it pending, then rerun so the message + a thinking
-    indicator appear INSTANTLY; the (slower) grounded agent turn runs on that rerun
-    (see ``process_pending``), not while the user waits with nothing on screen.
-
-    Ignores an immediate duplicate: if the last message is the SAME question still
-    awaiting an answer (the user re-sent it because a slow turn looked stuck), we drop
-    the resend rather than stacking a second identical bubble + a second turn."""
+    """Append the user turn and mark it pending, then rerun so it shows at once; the
+    agent turn runs on that rerun (``process_pending``). Ignored while a turn for
+    this cluster is already queued."""
     import streamlit as st
 
-    # The in-flight check BELOW is the whole guard. This used to also reject a
-    # question identical to the thread's last message -- but the user turn is
-    # persisted the moment it is submitted, while the work item lives only in
-    # session state. A page reload mid-turn therefore restored the thread without
-    # re-queueing the turn, leaving an unanswered user message as thread[-1] --
-    # and the natural recovery, asking the same thing again, was swallowed with no
-    # bubble, no spinner and no message, after the form had already cleared the
-    # box. The biologist's text simply vanished until they asked something else.
-    #
-    # The rationale it carried ("the user re-sent it because a slow turn looked
-    # stuck") is exactly what the pending check handles, and that is the only one
-    # of the two that can tell a turn is actually running.
     if st.session_state.get(_pending_key(cluster)):  # a turn is already queued
         return
     state.append_message(cluster, {"role": _ROLE_USER, "text": query, "resp": None})
@@ -650,11 +563,10 @@ _RIVAL_HINT = re.compile(
 
 
 def _run_agent_turn(cluster: str, query: str) -> None:
-    """Run the agent for an already-appended user query and append its grounded answer.
+    """Run the agent for an already-appended user query and append its answer.
 
-    A chat-driven override does NOT persist a note on the model's word: the agent
-    proposes one (``resp.note_draft``) and we stash it so the confirm card renders.
-    Nothing is written until the biologist saves — see ``_render_draft_card``.
+    A proposed note is only stashed for the confirm card; nothing is written until
+    the biologist saves.
     """
     resp = _safe_chat(cluster, query)
     state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
@@ -669,21 +581,15 @@ def _run_agent_turn(cluster: str, query: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Confirm-to-save card — one tap (basis), then Save. Scope is inferred: we work one
-# dataset at a time, so a note is dataset-local by construction and shown as a static
-# label, not a toggle. Status carries the agent's proposal. An optional "save to my
-# memory" keeps a portable, distilled copy across projects. Nothing persists until
-# Save; Discard drops the draft. Sits between the thread and the ask box.
+# Confirm-to-save card: one tap (basis), then Save. Scope is inferred and shown
+# read-only. Nothing persists until Save.
 # --------------------------------------------------------------------------- #
 def _render_draft_card(cluster: str, *, thread_key: Optional[str] = None,
                        trigger: str = "override") -> None:
     """Render the pending note draft (if any) as a confirm card.
 
-    ``thread_key`` is the pending-draft slot + message target (defaults to ``cluster``);
-    the Pathways chat passes its ``pw::{cluster}`` thread so its draft never collides
-    with the marker chat's. ``cluster`` stays the real cluster for the scope label and
-    the saved note's cluster. ``trigger`` records where the note was born (``override``
-    from a chat, ``holistic_review`` from a refinement capture).
+    ``thread_key`` is the draft slot + message target (defaults to ``cluster``);
+    ``trigger`` records where the note was born.
     """
     import dataclasses
 
@@ -746,11 +652,8 @@ def _scope_static_label(draft: Any, cluster: str) -> str:
 
 
 def _seg(st: Any, label: str, opts, default_value: str, key: str) -> str:
-    """A segmented control over (label, value) options.
-
-    Seeds from ``default_value`` (the agent's proposal); the widget key carries the
-    draft nonce so a NEW draft starts fresh. Returns the chosen enum value.
-    """
+    """A segmented control over (label, value) options, seeded from the agent's
+    proposal. Returns the chosen enum value."""
     labels = [lab for lab, _ in opts]
     val_by_label = {lab: val for lab, val in opts}
     label_by_val = {val: lab for lab, val in opts}
@@ -827,11 +730,7 @@ def _pmid_links(cites) -> str:
 def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override",
                         *, to_memory: bool = False) -> None:
     """Persist the confirmed draft and post an inline saved confirmation.
-
-    ``thread_key`` is the pending-draft slot / message target (the cluster for the
-    marker chat, ``pw::{cluster}`` for the Pathways chat). ``trigger`` records the
-    note's origin (chat override vs holistic-review refinement). ``to_memory`` also
-    writes a portable, distilled copy to the local cross-project user memory."""
+    ``to_memory`` also writes a distilled copy to the local user memory."""
     try:
         note = dax.save_note_draft(edited, trigger=trigger)
     except Exception:  # noqa: BLE001 - surface a clean message, never crash the pane
@@ -849,12 +748,8 @@ def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override",
 
 
 def _save_to_user_memory(note: Any) -> bool:
-    """Write a distilled, portable copy of ``note`` to the local user memory.
-
-    Best-effort and local-only: composes a tissue-tagged headline from the note's
-    own (agent-written) claim + markers, and appends it to ``context/user_memory.jsonl``.
-    Never raises; returns whether it was written. It stores prose only, never a number
-    that could later override jazzPanda."""
+    """Write a distilled, tissue-tagged copy of ``note`` to the local user memory
+    (prose only, never a number). Returns whether it was written; never raises."""
     try:
         from panoscope.agent import config as cfg
         from panoscope.agent import user_memory
@@ -917,10 +812,7 @@ def _safe_chat(
     cluster: str, query: str, *, thread_key: Optional[str] = None,
     skill: Optional[str] = None,
 ) -> AgentResponse:
-    """Run one chat turn with THIS thread's history; never raise into render.
-
-    ``thread_key`` defaults to the cluster (the marker thread); ``skill`` is passed
-    to the agent only when a pane names one (else the agent's default)."""
+    """Run one chat turn with this thread's history; never raise into render."""
     kw = {"skill": skill} if skill else {}
     try:
         history = _history_for_agent(thread_key or cluster)
@@ -932,12 +824,7 @@ def _safe_chat(
 
 
 def _history_for_agent(key: str) -> list[dict]:
-    """Flatten ONLY thread ``key`` into role/text history for the agent.
-
-    Cross-cluster history is deliberately excluded: the agent's awareness of the
-    other clusters comes from the grounded global-interpretation context in the
-    system prompt, not from another cluster's chat log.
-    """
+    """Flatten only thread ``key`` into role/text history for the agent."""
     out: list[dict] = []
     for msg in state.get_chat_thread(key):
         role = msg.get("role")
@@ -960,9 +847,8 @@ def _verdict_or_none(cluster: str) -> Optional[Any]:
 
 
 def _rerun(st: Any, *, scope: Optional[str] = None) -> None:
-    """Rerun the script, or just the current fragment when ``scope='fragment'`` (so a chat
-    turn re-renders only the chat pane, not the whole app). Falls back to a full rerun if
-    scoping is unsupported or we are not inside a fragment."""
+    """Rerun the current fragment when ``scope`` is given, else (or on failure) the
+    whole script."""
     if scope:
         try:
             st.rerun(scope=scope)
@@ -973,28 +859,18 @@ def _rerun(st: Any, *, scope: Optional[str] = None) -> None:
 
 
 def _scroll_thread_to_bottom(nonce: Any) -> None:
-    """Scroll the chat thread to the newest message so a reply pops into view without the
-    user scrolling. ``nonce`` (the message count) makes the injected script unique so it
-    re-runs on each new message."""
+    """Scroll the chat thread to the newest message. ``nonce`` (the message count)
+    makes the injected script unique per message."""
     try:
         import streamlit.components.v1 as components
 
-        # DEPRECATED BY STREAMLIT, AND NOT MIGRATED ON PURPOSE. The warning says
-        # "replace st.components.v1.html with st.iframe", but st.iframe takes
-        # src= (a URL or Path) and this takes an HTML STRING. The script below
-        # reaches window.parent.document; served from a data: URL it would be
-        # cross-origin and the browser would block exactly that access. So the
-        # advice does not apply here -- migrating would break the feature, not
-        # fix it. Revisit when Streamlit offers a srcdoc-shaped replacement.
+        # Not migrated to st.iframe: it takes a src URL, and a data: URL would be
+        # cross-origin and blocked from window.parent.document.
         components.html(
             f"<script>/*{nonce}*/setTimeout(function(){{"
             "var els=window.parent.document.querySelectorAll('[class*=\"st-key-conv_thread\"]');"
             "els.forEach(function(e){e.scrollTop=e.scrollHeight;});"
-            # ONE closing brace. This segment is a PLAIN string, not the f-string
-            # the first line is, so "}}" was never unescaped -- it emitted two
-            # literal braces and the browser answered "missing ) after argument
-            # list". The auto-scroll had never once run. Nothing caught it: the
-            # except below only sees Python, and the failure is in the browser.
+            # Plain string, not an f-string: one literal closing brace.
             "},60);</script>",
             height=0,
         )

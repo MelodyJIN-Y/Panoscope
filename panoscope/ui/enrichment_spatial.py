@@ -12,11 +12,9 @@ top to bottom:
     per-cell expression, plasma low->high).
   * A dot plot of the leading-edge genes across all nine clusters.
 
-This is the view that answers what the score/q cannot: *is the enriched program
-spatially in this cluster's cells, or bleeding in from a neighbour?* Grounding
-invariant: the set density is a SUM of measured per-gene densities (a viewing
-representation), area-normalized, and is NOT the enrichment statistic — the bin
-size is a viewing control that changes the picture, never a value.
+It answers what the score cannot: is the program spatially in this cluster's
+cells? The set density is a viewing sum of measured densities, not the enrichment
+statistic; the bin size changes the picture, never a value.
 """
 
 from __future__ import annotations
@@ -51,26 +49,8 @@ from panoscope.ui.spatial_stage import (
 
 
 def _n_with_density(genes: tuple[str, ...], bin_um: int) -> int:
-    """How many driving genes actually contributed a frame to the sum.
-
-    ``leading_edge_density`` skips a gene with no precomputed frame, and the summed
-    picture cannot show which ones are missing — so the count goes in the
-    conditionality. Counted HERE the way the sum sums: by asking for each gene's
-    frame at this bin size and counting the ones that come back non-empty.
-
-    It used to count against ``available_density_markers()``, which is the density
-    index's DECLARATION of what was precomputed (and, with no index at all, the
-    study's demo marker set). That is a claim about the run, not a reading of what
-    was read: on a study declaring ``density: true`` with a partial precompute it
-    counted three of three driving genes for a figure summed from one frame, so the
-    caption stated a count larger than the evidence behind the picture. R5 — plots
-    render, they do not derive — and a count in a caption is a derived statistic: it
-    has to come from what was drawn. The bin size is part of that, because a frame
-    exists per (gene, bin_um) and the viewing control picks which.
-
-    ``hexbins`` is cached per (gene, bin_um) and the sum has just asked for the same
-    frames, so this costs cache hits rather than a second read.
-    """
+    """How many driving genes actually contributed a frame to the sum at this bin
+    size, counted the way the sum reads them (cache hits), never from a declaration."""
     n = 0
     for g in genes:
         try:
@@ -91,10 +71,7 @@ def _n_with_expr(genes: tuple[str, ...]) -> int:
 def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
     """The leading-edge set's transcript density (sum of the driving genes'
     precomputed hex densities), drawn as a ratio-locked tissue image."""
-    # Guarded for the same reason as the panel below, though this one never raised
-    # (``leading_edge_density`` skips a gene with no frame and returns None): without
-    # the guard the empty state read "no precomputed density for the leading-edge
-    # genes", which blames the genes for an absence that belongs to the whole study.
+    # An absent view belongs to the study, not to the genes.
     missing = _unavailable("density")
     if missing:
         _unavailable_panel(missing, height=_TISSUE_HEIGHT)
@@ -119,12 +96,7 @@ def _render_set_density(program: str, genes: tuple[str, ...]) -> None:
 
 def _render_set_feature_umap(program: str, cluster: str, genes: tuple[str, ...]) -> None:
     """UMAP recoloured by the leading-edge set's mean per-cell expression."""
-    # This stage reuses the marker page's renderers, each of which carries its own
-    # view guard -- but the two panels it owns itself had none, so on a study whose
-    # viz stage never ran the Pathways page still took the loader's traceback here:
-    # ``leading_edge_expr`` and ``umap_df`` are both read before any guarded call.
-    # Two views, for the same reason the marker feature UMAP needs two -- the
-    # embedding is the layout, the exported expression is the colour.
+    # Needs the embedding (layout) and the exported expression (colour).
     missing = _unavailable("umap", "expr")
     if missing:
         _unavailable_panel(missing)
@@ -208,8 +180,5 @@ def render_pathways_spatial(cluster: str, pathways: list) -> None:
     # Dot plot: the union of the selected programs' leading-edge genes across clusters.
     if all_genes:
         _panel_title("Leading-edge genes across clusters")
-        # The UNCAPPED count, or the caption computes both halves of its
-        # "N of M" from the already-truncated list and reads "14 of 14 selected
-        # genes" while 24 were selected. ``spatial_stage._render_dotplot`` takes
-        # ``n_selected`` for exactly this; the markers path passes it.
+        # The uncapped count, so "N of M" names what was left out.
         _render_dotplot(all_genes[:14], cluster, n_selected=len(all_genes))

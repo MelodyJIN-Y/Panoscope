@@ -1,20 +1,9 @@
 """Panoscope UI package.
 
-The Streamlit surface for the annotation-confidence layer: a 3-pane shell
-(cluster rail | evidence + spatial stage | conversation) built on the pure
-``agent`` modules. This package owns only presentation and session state — it
-never computes a marker, a number, or a confidence value. Every value it shows
-traces to ``agent.data`` (jazzPanda output + panel), ``pipeline.v1_verdicts``, or a
-stored note read through ``agent.memory``.
-
-Foundation modules (import-safe with no server running):
-- ``ui.state``       — session_state schema + typed accessors + ``init_state()``
-- ``ui.theme``       — ``inject_css()`` design tokens (teal accent, chip colors)
-- ``ui.data_access`` — cached wrappers over ``agent.data`` / ``pipeline.v1_verdicts``
-- ``ui.format``      — pure formatters (confidence/role chips, cluster colors)
-
-Submodules are imported lazily by callers (not re-exported here) so that
-importing ``ui`` does not pull in Streamlit at package-import time.
+The Streamlit surface: presentation and session state only. It never computes a
+marker, a number or a confidence value; every value traces to ``agent.data``,
+``pipeline``, or a stored note. Submodules are not re-exported, so importing
+``ui`` does not pull in Streamlit.
 """
 
 from __future__ import annotations

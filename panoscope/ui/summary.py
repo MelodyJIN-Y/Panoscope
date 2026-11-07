@@ -1,27 +1,10 @@
 """Summary page — the two-pane report editor (the final, integrated step).
 
-Both workflows land here. The page reads like a manuscript you finalise:
-
-* a **contents rail** on the left — ``Overall`` (the whole-dataset map + the
-  cross-cluster check), then every cluster, then ``Caveats`` and ``My notes``;
-* a **right pane** that shows exactly one section at a time: the Overall page is
-  the merged overview table + the editable global check; a cluster page is that
-  cluster's editable identity+programs write-up; the dataset pages are their own
-  editors / note cards.
-
-Grounding is preserved end to end — nothing here computes a value. The overview is
-a straight projection of :func:`ui.data_access.all_verdicts` +
-:func:`~ui.data_access.all_enrichments`; each draft is
-:func:`ui.report.default_cluster_summary` / ``global_check_text`` / ``caveats_text``
-(live-cited, PMID-carrying); the exports are byte-for-byte what you edit.
-
-"Auto-seed, edits win": each editable region seeds once from the latest draft and
-then keeps your edits (held in plain ``wsval_*`` session keys, so switching sections
-never drops one). One "refresh all" re-drafts every region from the freshest calls,
-programs, and my notes.
-
-Streamlit is imported lazily inside the render function so ``import ui.summary``
-works with no server running.
+Overall (sign-off board + cross-cluster synthesis), one drill-down per cluster
+(evidence, then the editable write-up), Caveats and My notes. Nothing here computes
+a value: the board projects the composed verdicts and every draft comes from
+``ui.report``. Editable regions auto-seed from the latest draft and keep the
+biologist's edits; the exports are what was edited. Streamlit is imported lazily.
 """
 
 from __future__ import annotations
@@ -45,8 +28,7 @@ from panoscope.ui import state
 # --------------------------------------------------------------------------- #
 _TITLE = "Interpretation summary"
 
-# The interpretation report, in the two formats a biologist reaches for: an editable
-# Word document and a locked PDF. Both lead with the confirmed-call overview table.
+# The report as an editable Word document and a locked PDF.
 _DOCX_LABEL = "⬇  Report (Word)"
 _DOCX_NAME = "panoscope_interpretation.docx"
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -54,16 +36,13 @@ _PDF_LABEL = "⬇  Report (PDF)"
 _PDF_NAME = "panoscope_interpretation.pdf"
 _PDF_MIME = "application/pdf"
 
-# Editor auto-height: 13.5px font * 1.65 line-height ≈ 22px/line; the wide 0.76 pane
-# fits ~150 chars/line, so we estimate at 110 (a safe under-count → a little headroom,
-# never a clip). Sizes each box to its content so nothing hides below an inner scroll.
+# Editor auto-height: ~22px/line; 110 chars/line under-counts the pane, so never a clip.
 _WRAP_CHARS = 110
 _PX_PER_LINE = 22
 _ED_PAD = 28
 _ED_MAX_PX = 1600
 
-# Rail sections. "overall" hosts the overview + the (editable) cross-cluster check;
-# then one entry per cluster; then the two dataset-level editors/cards.
+# Sections: overall, one per cluster, then the dataset-level caveats and notes.
 _SEC_OVERALL = "overall"
 _SEC_CAVEATS = "caveats"
 _SEC_NOTES = "labnotes"
@@ -326,9 +305,7 @@ div[class*="st-key-sofcard_"] { border: 1px solid var(--hair); border-radius: 11
 
 
 # --------------------------------------------------------------------------- #
-# Sign-off board — the Overall pane's hero. A review cockpit: the whole call-set
-# triaged into what needs the biologist vs what is signed off, each row grounded
-# in the verdict evidence and acted on inline. Nothing here computes a value.
+# Sign-off board: the call set triaged into needs-you / to-review / signed off.
 # --------------------------------------------------------------------------- #
 _BUCKET_NEEDS = "needs"
 _BUCKET_REVIEW = "review"
@@ -348,11 +325,8 @@ def _refinements_by_cluster() -> dict:
 
 
 def _flag_reason(v: ClusterVerdict) -> str:
-    """The grounded reason a call is flagged for re-check, projected from the verdict —
-    NOT a blanket 'thin'. jazzPanda's `verify` has distinct causes: a fragile cluster
-    (few assigned genes), or a low-specificity demotion recorded as a driver caveat
-    (localizes better with another cluster / spatial pattern not unique). We surface the
-    real one so the reason line and any saved sign-off note never misstate why."""
+    """The real reason a call is flagged for re-check (few assigned genes, or a
+    low-specificity demotion), projected from the verdict; never a blanket 'thin'."""
     n = len(v.evidence)
     if n <= 2:
         return f"rests on {n} marker{'s' if n != 1 else ''}"
@@ -425,9 +399,8 @@ def _undo_sign_off(cluster: str) -> None:
 
 
 def _begin_signoff(cluster: str, claim: str) -> None:
-    """on_click: draft a validation note for a contested sign-off (a flagged call or an
-    override the literature dissents from), reconciled live against the literature, and
-    stash it so the confirm card renders. Nothing persists until the biologist confirms."""
+    """on_click: draft a validation note for a contested sign-off, reconciled against
+    the literature. Nothing persists until the biologist confirms."""
     from panoscope.agent import memory
 
     try:
@@ -441,9 +414,8 @@ def _begin_signoff(cluster: str, claim: str) -> None:
 
 
 def _render_signoff_card(st, cluster: str) -> None:
-    """The contested-sign-off confirm card: the drafted validation claim + its live
-    literature check + a basis toggle. On confirm it saves the note AND records the
-    sign-off (which clears the re-check flag at composition). Cancel drops the draft."""
+    """The contested-sign-off confirm card. Confirm saves the note and records the
+    sign-off; Cancel drops the draft."""
     import dataclasses
 
     from panoscope.ui import conversation as convo
@@ -452,8 +424,7 @@ def _render_signoff_card(st, cluster: str) -> None:
     draft = state.get_pending_draft(slot)
     if draft is None:
         return
-    # Per-cluster container key so two pending sign-off cards never collide, and a
-    # draft-nonce on the basis toggle so each fresh draft re-seeds from its proposal.
+    # Per-cluster container key; draft-nonce so each fresh draft re-seeds its toggle.
     nonce = convo._draft_nonce(draft)
     with st.container(key=f"sofcard_{cluster}"):
         st.markdown(
@@ -484,17 +455,14 @@ def _render_signoff_card(st, cluster: str) -> None:
 
 # --- Row + board rendering -------------------------------------------------- #
 def _conf_badge(confidence: str) -> str:
-    """Confidence as a soft, ramp-coloured badge (grounded label; the colour is the
-    design-system confidence band, projected — no value invented)."""
+    """Confidence as a soft, ramp-coloured badge."""
     css, _ = fmt.confidence_chip(confidence)          # e.g. "cf-vh"
     level = css.replace("cf-", "") or "m"
     return f'<span class="pano-cfb pano-cfb-{html.escape(level)}">{html.escape(confidence)}</span>'
 
 
 # --------------------------------------------------------------------------- #
-# The review table — a real HTML <table> (auto-sized columns locked to their
-# headers; something st.columns cannot deliver). Every action is a query-param
-# link the page dispatches on click; nothing here computes a value.
+# The review table: pure HTML; every action is a query-param link.
 # --------------------------------------------------------------------------- #
 def _attention_note(v: ClusterVerdict, override, refinement) -> str:
     """The short 'needs attention' reason for a caveat pill (grounded), or '' if none."""
@@ -508,21 +476,16 @@ def _attention_note(v: ClusterVerdict, override, refinement) -> str:
 
 
 def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
-    """Biology · relevance (cited): a two-sentence cell-type summary — the grounded,
-    live-cited note (summary + real PMID), followed by a grounded key-markers sentence
-    when the note is a single sentence — then a caveat pill for a cluster that needs a
-    closer look. No glm/pearson. Every word/PMID/marker is projected from the pipeline's
-    cited celltype_notes + the jazzPanda verdict; nothing invented."""
-    # Read through the guard, not out of the dict: a note written about the call the
-    # biologist has since replaced must not render under the new call's name.
+    """Biology cell: the live-cited cell-type note (plus a key-markers sentence when
+    it is one sentence long), then a caveat pill if the cluster needs a closer look."""
+    # Through the guard: no note under a call it was not written about.
     note = da.celltype_note_for(v) if ct_notes else {}
     summary = str(note.get("summary") or "")
     pmid = note.get("pmid")
     body: list[str] = []
     if summary:
         body.append(f'<span class="bio">{html.escape(summary)}</span>')
-        # A grounded second sentence naming the key markers, only when the stored note
-        # is a single sentence (a live regen writes its own two sentences -> skip).
+        # Key-markers sentence only when the stored note is a single sentence.
         if summary.count(".") <= 1 and v.key_markers:
             km = ", ".join(str(g) for g in v.key_markers[:4])
             body.append(f'<span class="bio">Key markers: {html.escape(km)}.</span>')
@@ -591,16 +554,10 @@ def _overview_bullets_html(text: str) -> str:
 
 def _handle_table_actions(st, verdicts: list[ClusterVerdict], overrides: dict,
                           refinements: dict) -> None:
-    """Dispatch a table click that arrived as a query param, then clear it. The table
-    is pure HTML, so every action comes this way.
+    """Dispatch a table click that arrived as a query param, then clear it.
 
-    Five names are handled; only ``sign``, ``undo`` and ``drill`` are ever SENT.
-    Nothing in ``panoscope/ui/`` emits ``?confirm=`` or ``?accept=`` -- observed in a
-    real browser (``tests/test_ui_browser.py``), not inferred from reading the
-    generator. Those two branches, and the ``a.act.confirm`` / ``a.act.accept`` CSS
-    above, are reachable code with no caller. Left in place rather than deleted:
-    both are landing points for the contested-sign-off card, so removing them is a
-    product decision, not a cleanup.
+    Only ``sign``, ``undo`` and ``drill`` are currently sent; ``confirm`` and
+    ``accept`` are kept as landing points for the contested-sign-off card.
     """
     qp = st.query_params
     vmap = {v.cluster: v for v in verdicts}
@@ -685,9 +642,8 @@ def _anchored_note_html(notes: list) -> str:
 
 
 def _marker_evidence_table_html(v: ClusterVerdict, notes: dict = None) -> str:
-    """The cluster's marker evidence with jazzPanda stats — top genes by glm_coef.
-    A grounded projection of ``ClusterVerdict.evidence``; nothing invented. Any note
-    anchored to a gene renders as a caveat row directly beneath that gene's driver row."""
+    """The cluster's marker evidence (top genes by glm_coef), with any note anchored
+    to a gene as a caveat row beneath it."""
     gene_notes = (notes or {}).get("gene", {})
     ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)[:8]
     if not ev:
@@ -715,9 +671,8 @@ def _marker_evidence_table_html(v: ClusterVerdict, notes: dict = None) -> str:
 
 
 def _enrichment_evidence_table_html(ce, notes: dict = None) -> str:
-    """The cluster's enriched (and suggestive) programs with jazzPanda stats +
-    panel coverage. A grounded projection of ``ClusterEnrichment``. A note anchored
-    to a gene set renders as a caveat row directly beneath that program's row."""
+    """The cluster's enriched and suggestive programs with stats and panel coverage,
+    with any note anchored to a gene set as a caveat row beneath it."""
     set_notes = (notes or {}).get("gene_set", {})
     if ce is None:
         return '<div class="pano-lk-empty">No enrichment slice for this dataset.</div>'
@@ -752,32 +707,15 @@ def _enrichment_evidence_table_html(ce, notes: dict = None) -> str:
 # ``wsval_*`` keys so navigating away never drops them.
 # --------------------------------------------------------------------------- #
 def _skey(name: str) -> str:
-    """``name``, scoped to the CURRENT study's tree — every session key on this page.
-
-    The working-space keys used to be study-agnostic (``wsval_c1``, ``_sum_seeded``,
-    ``_sum_saved_snapshot``), which is a wrong-value bug the moment a study picker
-    lands: on a switch within one session the seeding block is skipped (``_sum_seeded``
-    is already set), the ``wsval_*`` keys still hold study A's prose, every region then
-    differs from study B's ``ws_defaults`` — and the autosave below writes A's text into
-    B's tree as biologist-authored edits. Not the wrong thing displayed: one study's
-    prose PERSISTED into another study's record as if a human wrote it.
-
-    This is ``agent.data._per_study``'s fix, applied to session state instead of an
-    ``lru_cache``: the study identity goes INTO the key, so a collision across studies
-    is unrepresentable rather than merely tested for. The identity is the study's tree
-    PATH, not its id, because two data roots may hold the same id (``ui.data_access``
-    keys on the same thing, for the same reason). It is hashed short because these
-    strings are also widget keys, and Streamlit echoes a widget key into a CSS class
-    (``st-key-<key>``) that this page's own selectors match on.
-    """
+    """``name``, scoped to the current study's tree path (hashed short, since it is
+    also a widget key), so one study's edits can never be saved into another's."""
     tag = hashlib.sha1(str(cfg.current_study().dir).encode("utf-8")).hexdigest()[:8]
     return f"{name}__{tag}"
 
 
 def _autoheight(text: str, *, min_lines: int) -> int:
-    """Pixel height that fits ``text``: hard newlines plus ~``_WRAP_CHARS``-char soft
-    wraps, floored at ``min_lines`` and capped so a huge paste can't make a page-tall
-    box. Sizes each editor to its real content so nothing hides below an inner scroll."""
+    """Pixel height that fits ``text`` (newlines plus soft wraps), floored at
+    ``min_lines`` and capped."""
     lines = sum(max(1, math.ceil(len(line) / _WRAP_CHARS)) for line in text.split("\n"))
     return min(_ED_MAX_PX, max(min_lines, lines) * _PX_PER_LINE + _ED_PAD)
 
@@ -798,11 +736,8 @@ def _save_now() -> None:
 
 
 def _draft_refinement(r) -> None:
-    """on_click: draft a celltype_override from a holistic refinement (its from_call ->
-    to_call), reconciled against the literature, and stash it on the cluster's holistic
-    thread so the same two-tap confirm card renders. Saved with trigger=holistic_review.
-    A refinement is a within-lineage subtype sharpening, so lineage/category are left to
-    the computed values (subject_cell_type carries the new call)."""
+    """on_click: draft a celltype_override from a holistic refinement, reconciled
+    against the literature, for the two-tap confirm card (trigger=holistic_review)."""
     from panoscope.agent import memory
     from panoscope.ui import state
 
@@ -826,9 +761,8 @@ def _draft_refinement(r) -> None:
 
 
 def _editor(st, name: str, default: str, height: int) -> None:
-    """Render one editable region. Canonical text lives in ``wsval_{name}`` (a plain
-    key that survives when the widget is unmounted); the ``wsw_{name}`` widget seeds
-    from it. The caller reconciles ``wsval`` from ``wsw`` before this runs."""
+    """Render one editable region: canonical text in ``wsval_{name}`` (survives
+    unmount), seeding the ``wsw_{name}`` widget."""
     vkey = _skey(f"wsval_{name}")
     if vkey not in st.session_state:
         st.session_state[vkey] = default
@@ -856,10 +790,6 @@ def _render_lab_note_cards(st, notes: list) -> None:
                     unsafe_allow_html=True)
         return
     for n in sorted(notes, key=lambda x: (x.created_at, x.id), reverse=True):
-        # One spelling of a note's scope, shared with the exported report: the lab rung
-        # names the study it was FORMED on, because that rung travels across studies and
-        # a judgement arriving on another tissue with its conditions stripped is exactly
-        # the tension the reader has to be able to see (report.note_scope_label).
         scope = report.note_scope_label(n)
         date = n.created_at.split("T", 1)[0] if n.created_at else "n/a"
         st.markdown(
@@ -872,18 +802,8 @@ def _render_lab_note_cards(st, notes: list) -> None:
 
 
 def _render_withheld_notes(st, notes: list) -> None:
-    """The notes this study must NOT apply, said out loud instead of dropped.
-
-    ``data_access.withheld_notes`` is the other half of the fail-closed scope gate.
-    The gate is right to refuse a note naming no dataset -- cluster ids are c1..cN in
-    every study, so assuming it belongs to whichever one happens to be open is a
-    collision by default. But a judgement the biologist committed, vanishing from the
-    board with no sentence, is its own failure: they have no way to tell "we weighed it
-    and it does not apply here" from "it was never saved".
-
-    Empty in the normal case, so this renders nothing at all unless a hand-edited or
-    pre-schema file genuinely needs its study added.
-    """
+    """The notes this study must NOT apply (no study named; fail-closed), said out
+    loud instead of silently dropped. Renders nothing in the normal case."""
     if not notes:
         return
     st.markdown(
@@ -914,10 +834,7 @@ def render_summary_page() -> None:
 
     st.markdown(f"<style>{_SUMMARY_CSS}</style>", unsafe_allow_html=True)
 
-    # Guarded: this reaches cfg.CLUSTER_ORDER, which raises when the study has no
-    # readable inputs/markers_top.csv. Markers and Pathways both degrade to an
-    # honest "no result" page in that case; Summary was the one surface that put a
-    # traceback on screen instead, and it is the sign-off surface.
+    # No readable method output is a message, not a traceback.
     try:
         verdicts = da.composed_verdicts()  # overrides/excludes reflected everywhere
     except Exception as exc:  # noqa: BLE001 - no method output is a message, not a crash
@@ -930,16 +847,9 @@ def render_summary_page() -> None:
     overrides = {c: o for c, o in overrides.items() if o}
     sec_by_id = {v.cluster: v for v in verdicts}
     refinements = _refinements_by_cluster()
-    # A table click arrives as a query param (the table is pure HTML) — dispatch it
-    # BEFORE reading the sign-off state so this render reflects it immediately.
+    # Dispatch a table click before reading sign-off state.
     _handle_table_actions(st, verdicts, overrides, refinements)
-    # RE-READ after the dispatch. ``composed_verdicts`` clears ``verify`` for a
-    # signed-off unit, so a sign or undo click changes the verdicts themselves --
-    # and these were read before the click was handled. Reopening a flagged call
-    # therefore rendered it CLEAN for one full render: no warning glyph, no
-    # "rests on 2 markers" reason, and a one-click sign-off link on a call the
-    # deterministic rubric says needs a second look. The flag is the whole point
-    # of the board.
+    # Re-read: a sign/undo click changes ``verify`` on the composed verdicts.
     verdicts = da.composed_verdicts()
     sec_by_id = {v.cluster: v for v in verdicts}
     # Sign-off state drives the board triage AND the header finish line.
@@ -957,14 +867,8 @@ def render_summary_page() -> None:
         enrichments = []
     enr_map = {ce.cluster: ce for ce in enrichments}
 
-    # Latest per-section drafts (grounded). Computed up front so one button can
-    # re-draft everything and the exports read the freshest text.
-    # Guarded for the reason the ``n_panel`` block nine lines above is guarded, and
-    # it was not: ``build_report_from_sources`` reaches the SAME
-    # ``len(da.panel_names())`` through report.py, plus the manifest's platform.
-    # So one absent input file -- panel.parquet, or a missing/corrupt manifest.json
-    # -- turned the sign-off surface into a nav strip and a traceback, while
-    # Markers and Pathways carried on fine.
+    # Latest per-section drafts, computed up front. Guarded like ``n_panel``: a
+    # missing input is a message, not a traceback.
     try:
         rep = report.build_report_from_sources(
             generated_at=datetime.date.today().isoformat())
@@ -1002,16 +906,8 @@ def render_summary_page() -> None:
         st.session_state[_skey("_sum_seeded")] = True
         for name in ws_defaults:
             st.session_state.setdefault(_skey(f"wsval_{name}"), _seed(name))
-            # Remember WHICH draft each region was seeded from. Without it a region
-            # the biologist never touched becomes an "edit" the moment the draft
-            # changes underneath it -- and the draft changes on the most ordinary
-            # action there is. Signing c9 off clears its verify flag, so
-            # default_cluster_summary and caveats_text regenerate without "(flagged
-            # to re-check)", the session value still carries it, and the comparison
-            # below reads the stale auto-draft as the biologist's own prose. Four
-            # clicks produced a document saying "0 flagged for re-check" on page one
-            # and "Flagged for re-check - c9" later in the same file, with the
-            # contradiction persisted into the study tree and attributed to them.
+            # Remember which draft each region was seeded from, so an untouched
+            # region is never mistaken for an edit when the draft changes.
             st.session_state.setdefault(_skey(f"wsseed_{name}"), _seed(name))
 
     # A region still identical to the draft it was seeded from was never edited, so
@@ -1036,15 +932,8 @@ def render_summary_page() -> None:
     def _val(name: str) -> str:
         return st.session_state.get(_skey(f"wsval_{name}"), _seed(name))
 
-    # Autosave: persist only regions the biologist changed from the auto-draft
-    # (self-cleaning). Idempotent — writes only when the edit set actually changed.
-    #
-    # ``edits or saved`` is what keeps this page a READ surface until the biologist
-    # actually edits something. On a first open there are no edits and no snapshot,
-    # so the inequality alone fired and wrote ``{"edits": {}}`` into the study tree:
-    # merely LOOKING at a study dirtied it, with a file that says nothing. The second
-    # arm keeps the one empty write that does mean something — the biologist reverting
-    # every region, where ``{}`` has to be written to clear what is on disk.
+    # Autosave only regions changed from the auto-draft, only when the edit set
+    # changed. ``edits or saved``: viewing never writes; reverting all writes ``{}``.
     edits = {n: _val(n) for n in ws_defaults if _val(n) != ws_defaults[n]}
     save_error = ""
     if (store is not None and (edits or saved)
@@ -1121,8 +1010,6 @@ def render_summary_page() -> None:
 
     with st.container(key="pano_pane"):
         if active == _SEC_OVERALL:
-            # The cross-cluster synthesis as read-only bullets at the top (grounded prose;
-            # not editable here), then the instruction, then the full-width review table.
             bullets = _overview_bullets_html(ws_defaults.get(_ED_GLOBAL, ""))
             if bullets:
                 st.markdown(bullets, unsafe_allow_html=True)
@@ -1130,9 +1017,6 @@ def render_summary_page() -> None:
             with st.container(key="pano_tblcard"):
                 st.markdown(_table_html(verdicts, overrides, signed, refinements),
                             unsafe_allow_html=True)
-            # A cluster that needs attention shows only a ⚠ in the table; its full reason
-            # and Confirm / Accept actions live on the click-through drill-down. Any draft
-            # started there renders its confirm card on that drill-down, not here.
 
         elif active in sec_by_id:
             with st.container(key="backlink"):
@@ -1145,9 +1029,6 @@ def render_summary_page() -> None:
             st.markdown(_ws_head_html(s.cluster, s.cell_type, s.confidence, s.verify),
                         unsafe_allow_html=True)
 
-            # Sign off right here — the same controls the table row offers, so the
-            # biologist can read the evidence below and accept the call on one screen
-            # instead of bouncing back to the table.
             _render_drilldown_actions(st, s, overrides.get(s.cluster),
                                       signed.get(s.cluster), refinements.get(s.cluster))
             _render_signoff_card(st, s.cluster)
@@ -1157,9 +1038,7 @@ def render_summary_page() -> None:
                 convo._render_draft_card(s.cluster, thread_key=f"holistic::{s.cluster}",
                                          trigger="holistic_review")
 
-            # Evidence first — this drill-down is reached from the board's "Evidence"
-            # action, so the grounded jazzPanda numbers the call rests on lead. Any note
-            # anchored to a driver / program renders beneath the exact row it modifies.
+            # Evidence first, then the editable write-up.
             anch = da.anchored_notes(s.cluster)
             st.markdown(
                 '<div class="pano-ref-cap">Marker evidence'
@@ -1172,8 +1051,6 @@ def render_summary_page() -> None:
                 unsafe_allow_html=True)
             st.markdown(_enrichment_evidence_table_html(ce, anch), unsafe_allow_html=True)
 
-            # ...then the editable write-up (what exports for this cluster) — demoted
-            # below the evidence, no longer the first thing the biologist faces.
             st.markdown('<hr class="pano-ed-hr"/>', unsafe_allow_html=True)
             _eyebrow(st, "Write-up · exports for this cluster")
             _editor(st, s.cluster, _seed(s.cluster),

@@ -1,23 +1,10 @@
 """The dedicated interpretation summary — assembled, reviewable, downloadable.
 
-The Summary page keeps its marker table, pathways result, and cross-cluster
-review, and gains this fourth region: a per-dataset interpretation report the
-biologist reviews on-page and downloads as .docx and PDF.
-
-It is assembled ENTIRELY from durable, already-grounded artifacts — the per-cluster
-verdicts (jazzPanda numbers), the cited cell-type biology notes, the deterministic
-"what would settle it" line for shaky calls, your own notes with their
-agree/dissent citations, and the cross-cluster holistic review. There is **no live
-network at build/download time**: nothing is fetched, nothing is recomputed, so the
-report is reproducible and unit-testable, yet it still reads as "what came out of
-your conversations with the agent."
-
-Design boundaries:
-- ``build_report`` is a pure function of its inputs (no I/O) → fully testable.
-- Streamlit / ``ui.data_access`` are imported lazily, so ``build_report`` /
-  ``report_to_docx`` / ``report_to_pdf`` work with no server running.
-- No new ``ui.data_access`` accessor is added (the concurrent enrichment session
-  owns that file's tail); this module calls only committed accessors.
+A per-dataset report the biologist reviews on the Summary page and downloads as
+.docx and PDF. Assembled entirely from durable, grounded artifacts (verdicts,
+cited notes, the settle line, the biologist's notes, the holistic review); no
+network and no recomputation at build time. ``build_report`` is pure; Streamlit
+and ``ui.data_access`` are imported lazily.
 """
 from __future__ import annotations
 
@@ -32,8 +19,6 @@ from panoscope.agent.types import ClusterVerdict, MarkerEvidence, Note
 
 # --------------------------------------------------------------------------- #
 # Human labels for the closed note vocabularies (relabel only; never change one).
-# Inlined here (rather than importing ui.lab_knowledge) so this module's pure
-# functions stay free of Streamlit / data_access.
 # --------------------------------------------------------------------------- #
 _SCOPE_LABEL = {"cluster": "cluster", "dataset": "this dataset", "lab": "all datasets"}
 _BASIS_LABEL = {"paper": "a paper", "own_validation": "our own data", "convention": "convention"}
@@ -67,29 +52,14 @@ class ClusterSection:
     notes: tuple[NoteLine, ...]
     enrichment: str = ""             # plain-text enriched-programs block (with PMIDs), "" if none
     enrichment_census: str = ""      # "N supported · N suggestive · N untestable", "" if none
-    #: The record's own undecidable sentences, verbatim — what this measurement did
-    #: NOT settle. Today they are the §9.10 replicate read; the field is the record's
-    #: field, not concordance's, so a later producer's undecidable travels too.
+    #: The record's own undecidable sentences, verbatim.
     undecidable: tuple[str, ...] = ()
-    #: The biologist withdrew this unit. NOT a reason to drop the section: the
-    #: document is the record, and a unit that silently vanishes cannot be
-    #: argued with. It is rendered WITH the withdrawal stated.
+    #: Withdrawn by the biologist: rendered with the withdrawal stated, never dropped.
     excluded: bool = False
     lineage: str = ""                # for the overview table
     key_markers: str = ""            # top gene names (no numbers), for the overview table
-    #: The panel-absence rule, carried into the document: ``(gene, message)`` for
-    #: every canonical marker of this call the panel never measured.
-    #:
-    #: It was missing, and it was the worst omission in the export. On screen c2
-    #: names COL1A1, COL1A2, DCN, VIM and FAP as never measured; the document a
-    #: biologist hands on named none of them, so a reader could not tell a call
-    #: resting on a complete canonical set from one where five of its markers were
-    #: never on the panel. ``ClusterVerdict.offpanel_notes`` had carried them the
-    #: whole time -- ``build_report`` simply never read the field.
-    #:
-    #: Pairs rather than the ``OffPanelNote`` object: this model is the boundary
-    #: between the v1 verdict and three renderers, and it holds plain data so a
-    #: renderer cannot reach past it for something it was not meant to expose.
+    #: Panel-absence rule: ``(gene, message)`` for every canonical marker of this
+    #: call the panel never measured. Plain pairs, so renderers see only this.
     off_panel: tuple[tuple[str, str], ...] = ()
 
 
@@ -107,17 +77,8 @@ class ReportModel:
     tissue: str = ""                     # header context (from the manifest)
     platform: str = ""                   # header context (from the manifest)
     method: str = "jazzPanda spatial markers"
-    # ----------------------------------------------------------------------- #
-    # ARCHITECTURE §14's REPORT header: "study, dataset, platform, frames +
-    # hashes, reference releases, corpus version + staleness, generator model +
-    # version + access date, spec version". Everything after `platform` was
-    # missing, so the document carried no way to tell which panel produced it,
-    # whether reference data was consulted, or which spec version wrote it.
-    #
-    # Each field says what it IS or says plainly that it was not consulted. "No
-    # reference source registered" and "corpus not built" are answers; a blank
-    # line is not, and silence here reads as "checked and fine".
-    # ----------------------------------------------------------------------- #
+    # ARCHITECTURE §14 provenance. Each field states what it is or that it was not
+    # consulted; a blank would read as "checked and fine".
     #: ``(frame name, digest)`` for every capability frame the reading stood on.
     frames: tuple[tuple[str, str], ...] = ()
     #: One line per registered reference source, or empty -- rendered as "not
@@ -130,10 +91,7 @@ class ReportModel:
     #: ``core.record.SPEC_VERSION`` -- which contract wrote this document.
     spec_version: str = ""
 
-    #: How many of those panel genes produced no usable spatial signal. The
-    #: detectability frame as a NUMBER, not a digest: the header said "280-gene
-    #: panel" and the frame line carried only a truncated hash, so a reader
-    #: believed 280 genes informed every call when 231 did.
+    #: How many panel genes produced no usable spatial signal (detectability frame).
     panel_no_signal: int = 0
 
 
@@ -154,13 +112,7 @@ def _tension_text(note: Note) -> str:
         if t.dissent:
             bits.append(f"dissents ({len(t.dissent)}): {_pmids(t.dissent)}")
         return "literature tension: " + " · ".join(bits)
-    # Asked of ``lookup_state``, not of the stored ``thin`` boolean. The export was
-    # the one reader still trusting that flag, and it collapsed two different facts
-    # into one sentence: a search that RAN and found nothing (thin literature -- a
-    # finding, and sayable) and a search that never completed (which says nothing
-    # about the literature at all). Both printed "literature thin: no supporting
-    # reference on file" in the document that leaves the lab. ``claims/notes.py``
-    # derives this from ``looked_up_at`` for exactly that reason.
+    # ``lookup_state`` separates "searched, found nothing" from "never looked up".
     from panoscope.claims.notes import Resolution, lookup_state
 
     state = lookup_state(t)
@@ -172,29 +124,14 @@ def _tension_text(note: Note) -> str:
 
 
 def note_scope_label(note: Note) -> str:
-    """The note's scope as one readable span — the LAB rung carrying its formation study.
-
-    The lab rung is deliberately cross-study: a standing judgement is MEANT to travel,
-    and ``memory.note_in_study`` lets it. What it must not do is travel with its
-    conditions stripped. Rendered as a bare "all datasets", a call formed while looking
-    at one 280-gene FFPE breast panel arrives on an off-target kidney IO panel under the
-    biologist's own authority with nothing on screen naming the study that formed it --
-    so the reader cannot see the tension, and "the value is in the disagreement" requires
-    that they can. ``scope_ref.dataset`` was stored and correct all along; this names it.
-
-    One spelling for both surfaces (the exported report and the Summary note board), so
-    the two cannot drift into disagreeing about what a note's scope is.
-
-    Only the lab rung gets the suffix: a dataset- or cluster-scoped note fires nowhere
-    but the study it names, so "this dataset" already says which study formed it.
+    """The note's scope as one readable span; a lab-scoped note names the study that
+    formed it, so its conditions travel with it. Shared by the report and the board.
     """
     if note.scope == "cluster" and note.scope_ref.cluster:
         return f"cluster {note.scope_ref.cluster}"
     label = _SCOPE_LABEL.get(note.scope, note.scope)
     if note.scope != "lab":
         return label
-    # A pre-schema note can name no dataset. Saying that out loud is the honest
-    # answer; a bare "all datasets" reads as though the formation study were known.
     if not note.scope_ref.dataset:
         return f"{label} · formation study not recorded"
     return f"{label} · formed on {note.scope_ref.dataset}"
@@ -225,16 +162,8 @@ def _driver_line(v: ClusterVerdict) -> str:
 def _settle_for(cluster: str, verify: bool, cell_type: str = "") -> str:
     """The 'what would settle it' summary, only when there is a genuine rival.
 
-    Withheld when the section's call is not the one the discrimination was computed
-    for. ``discriminate`` reads ``data.cell_type_for(cluster)`` -- the deterministic
-    table, never an override -- so after the biologist overrode c3 to Dendritic the
-    document still printed "To tell Macrophages from T Cells in c3: Macrophages is
-    supported here by LYZ (glm_coef 11.84)...": a discrimination argued for a call
-    they had rejected, carrying real statistics.
-
-    Silence rather than a recomputation. Re-running the rival test against the new
-    call is a real answer and belongs in ``discriminate``, which would have to take
-    the call as an argument; inventing one here from the old result would not be.
+    Withheld (not recomputed) when an override replaced the call the discrimination
+    was computed for.
     """
     d = discriminate.discriminate(cluster)
     computed_for = str(getattr(d, "call_A", "") or "").strip().casefold()
@@ -246,14 +175,8 @@ def _settle_for(cluster: str, verify: bool, cell_type: str = "") -> str:
 
 
 def _n_no_signal() -> int:
-    """How many panel genes produced no usable spatial signal. Derived, per study.
-
-    CLAUDE.md calls detectability a capability frame rather than a footnote, and on
-    this demo it is 49 of 280 -- 17.5% of the panel that could not inform any call.
-    Counted off the method table through the adapter's own predicate, so the demo's
-    49 is read and never asserted; a study with full detectability answers 0 and the
-    header simply does not mention it.
-    """
+    """How many panel genes produced no usable spatial signal, counted off the method
+    table per study (never asserted); 0 when unreadable."""
     try:
         from panoscope.agent import data as _data
         from panoscope.platforms.xenium import is_no_signal
@@ -267,15 +190,8 @@ def _n_no_signal() -> int:
 def _celltype_note_for(celltype_notes: dict, v) -> dict:
     """This section's cell-type note, or ``{}`` when it describes another call.
 
-    Every note records the ``cell_type`` it was written about, and nothing read it.
-    Override c3 from Macrophages to Dendritic and the exported document kept the
-    macrophage paragraph and its PMID under a heading that now read Dendritic -- a
-    real citation attributed to a call it was never about, which is worse than
-    carrying no citation at all. The guard data was in the note the whole time.
-
-    Empty rather than relabelled: after an override this study has no cited biology
-    for the new call yet, and writing one would be inventing it. The on-screen
-    table reads it too, through ``ui.data_access.celltype_note_for``.
+    A citation must never be attributed to a call it was not written about, so an
+    overridden call gets no biology rather than the old call's.
     """
     note = celltype_notes.get(getattr(v, "cluster", "")) or {}
     if not note:
@@ -288,22 +204,10 @@ def _celltype_note_for(celltype_notes: dict, v) -> dict:
 def _enrichment_block(ce, pathway_notes_for_cluster: dict,
                       cell_type: str = "") -> tuple[str, str]:
     """A plain-text block of the cluster's enriched programs + cited biology, and the
-    enrichment CENSUS. ('' , '') when there is no enrichment for the cluster.
-
-    The second element used to be ``ce.confidence`` -- a unit-level band on a task
-    with no label space, which is the one shape the no-band rule exists to catch.
-    It is now ``ce.census_line`` ("4 supported - 0 suggestive - 2 untestable"),
-    which says the thing the band could not: how many programs the panel could not
-    test at all.
-    """
+    per-item census (never a band). ('', '') when there is no enrichment."""
     if ce is None:
         return "", ""
-    # The ENRICHMENT rubric's re-check flag, which reached no export at all.
-    # It is deterministic and per workflow, and it is True on 7 of the demo's 9
-    # clusters -- so the Pathways header said "re-check this" while the .docx
-    # and the PDF carried the same programs with nothing beside them. A
-    # document that leaves the lab must not be quieter than the screen it came
-    # from.
+    # The enrichment rubric's re-check flag, carried into the export.
     flag = " — re-check this." if getattr(ce, "verify", False) else ""
     if not getattr(ce, "enriched", ()):  # no program clears the gate
         return "", ce.census_line + flag
@@ -311,25 +215,15 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict,
     for p in ce.enriched[:4]:
         short = pretty_gene_set(p.gene_set)
         note = (pathway_notes_for_cluster or {}).get(p.gene_set) or {}
-        # The SAME guard the celltype note gets. A pathway note records the
-        # cell_type it was written about, and this block did not read it -- so
-        # overriding c3 from Macrophages to Dendritic kept four real PMIDs,
-        # argued for macrophage biology, under a Dendritic heading. Guarding one
-        # of a section's two cited-prose blocks fixes half the defect.
+        # Same guard as the cell-type note: no citation under another call.
         described = str(note.get("cell_type") or "").strip().casefold()
         if described and cell_type and described != str(cell_type).strip().casefold():
             note = {}
-        # The join below ends the whole line, so a bit must not end one too:
-        # "driving genes CCND1, CENPF, HMGA1.." is what the document printed for
-        # every program whose note carries no PMID to close the clause.
+        # The join ends the line, so a bit must not end with its own period.
         bio = str(note.get("summary") or "").strip().removesuffix(".").rstrip()
         pmid = note.get("pmid")
         cite = f" (PMID:{pmid})" if pmid else ""
-        # The denominator travels with the program. The Pathways surface shows it
-        # per row ("5/100") and the stored artifact carries it, but the document
-        # printed the program name and its biology alone -- so a set scored on 5 of
-        # its 100 genes read exactly like one scored on 90. Every plot carries its
-        # conditionality (§R4); a paragraph is not exempt because it is prose.
+        # The panel-coverage denominator travels with the program (R4).
         hits = getattr(p, "panel_hits", None)
         full = getattr(p, "set_size_full", None)
         scope = f" [{hits}/{full} set genes on panel]" if hits and full else ""
@@ -352,8 +246,7 @@ def build_report(
     tissue: str = "",
     platform: str = "",
     undecidable: dict | None = None,
-    # §14 provenance. Defaulted so every existing caller and test keeps working;
-    # `build_report_from_sources` fills them from what actually ran.
+    # §14 provenance, filled by `build_report_from_sources`.
     frames: tuple[tuple[str, str], ...] = (),
     reference_releases: tuple[str, ...] = (),
     corpus_status: str = "",
@@ -363,21 +256,9 @@ def build_report(
     """Assemble the interpretation report from durable, grounded inputs. Pure.
 
     ``enrichments`` maps cluster -> ClusterEnrichment and ``pathway_notes`` maps
-    cluster -> {gene_set: note}; when given, each section integrates the cluster's
-    enriched programs + their cited biology alongside the marker call. ``tissue`` /
-    ``platform`` populate the report header (grounded context, from the manifest).
-
-    ``undecidable`` maps cluster -> the v2 record's own undecidable sentences, and
-    is the half of the interpretation that had no way out of the building. The
-    exported document is what goes into a slide, a thesis chapter or a supplementary
-    file; a report that is honest on screen and silent in the file that leaves the
-    lab is not honest, and until this parameter existed the §9.10 replicate read --
-    *these two sections read this gene differently* -- reached ``panoscope explain``
-    and the markers page and stopped there, while the document named the diverging
-    gene as a driver and called the unit High confidence. The sentences are carried
-    verbatim, never summarised: they are the one place the three §9.10 outcomes stay
-    apart, and a document that renders "divergent" and "could not be compared" with
-    one word is the four-states-into-two collapse arriving in the export.
+    cluster -> {gene_set: note}. ``undecidable`` maps cluster -> the v2 record's
+    undecidable sentences, carried verbatim so the export is never quieter than
+    the screen.
     """
     dataset = dataset or cfg.DATASET_ID
     enrichments = enrichments or {}
@@ -385,9 +266,7 @@ def build_report(
     undecidable = undecidable or {}
     sections: list[ClusterSection] = []
     for v in verdicts:
-        # Through the guard: an overridden call must not inherit the previous
-        # call's cited biology. ``verdicts`` here are the COMPOSED ones, so
-        # ``v.cell_type`` is the call this section is actually headed with.
+        # Guarded against the composed call this section is headed with.
         ct_note = _celltype_note_for(celltype_notes, v)
         cluster_notes = tuple(
             _note_line(n)
@@ -414,9 +293,7 @@ def build_report(
                 undecidable=tuple(undecidable.get(v.cluster) or ()),
                 lineage=getattr(v, "lineage", "") or "",
                 key_markers=", ".join(v.key_markers[:4]) if v.key_markers else "",
-                # Read off the verdict, never re-derived: the same objects the
-                # evidence table renders, so the document cannot disagree with the
-                # screen about which markers were never measured.
+                # Read off the verdict, never re-derived.
                 off_panel=tuple((o.gene, o.message)
                                 for o in getattr(v, "offpanel_notes", ()) or ()),
             )
@@ -455,21 +332,9 @@ def build_report(
 
 
 def _dataset_undecidables(dataset: str) -> dict:
-    """``{cluster: (sentence, ...)}`` off the v2 records, for the report's caveats.
+    """``{cluster: (sentence, ...)}`` off the v2 records (``interp/records/``).
 
-    Read from ``interp/records/<task_kind>/<unit>.json`` rather than from the v1
-    ``ClusterVerdict``, because the v1 shape has no field for an undecidable and
-    inventing one would mean re-deriving in the UI what ``core/record`` already
-    wrote. ``core/compat.with_v1_replicate_read`` does put the §9.10 sentences into
-    the v1 ``notes`` string for the CSV's sake; parsing them back out of that
-    sentence here would be prose-matching, which is the failure
-    ``ui/evidence_table``'s ``FLAG_COPY`` was rebuilt to stop.
-
-    ``{}`` when the records are unreadable -- an unbuilt study, or one built before
-    the records existed. That is a thinner report, never a wrong one: the sections
-    then carry no undecidable line at all, which is the same thing the record says.
-    Same ``except Exception`` as the manifest reader directly above, for the same
-    reason: the Summary page must render on a half-built tree.
+    ``{}`` when the records are unreadable: a thinner report, never a wrong one.
     """
     try:
         import json
@@ -493,10 +358,7 @@ def _dataset_undecidables(dataset: str) -> dict:
 def _provenance(dataset: str) -> dict:
     """ARCHITECTURE §14's provenance header, read off what actually ran.
 
-    Fail-soft per field and never silent: a field that cannot be established says
-    so, because an omitted reference line reads as though reference data agreed.
-    Nothing here consults the network -- §14's REPORT block is explicit that the
-    document is assembled "from durable artifacts, no live network".
+    Fail-soft per field and never silent. No network.
     """
     frames: tuple[tuple[str, str], ...] = ()
     try:
@@ -521,15 +383,7 @@ def _provenance(dataset: str) -> dict:
         from panoscope.corpus import store as corpus_store
 
         c = corpus_store.load(corpus_store.corpus_path(dataset))
-        # The fields Corpus ACTUALLY has: records, misses, built, spec_version.
-        # This read ``version`` and ``sources``, neither of which exists, so both
-        # getattrs always took their defaults and a corpus holding two records and
-        # a build stamp rendered as "? · 0 source(s)" -- a §14 provenance line
-        # whose stated purpose is that "corpus not built" is an answer and a blank
-        # is not. It was neither: it was a built corpus reported as empty.
-        #
-        # ``misses`` is counted alongside ``records`` because it is first class
-        # here: it is what separates "asked and found nothing" from "never asked".
+        # ``misses`` separates "asked and found nothing" from "never asked".
         built = getattr(c, "built", "") or "no build stamp"
         corpus = (f"{built} · {len(getattr(c, 'records', ()))} record(s), "
                   f"{len(getattr(c, 'misses', ()))} miss(es) · spec "
@@ -543,19 +397,9 @@ def _provenance(dataset: str) -> dict:
     except Exception:  # noqa: BLE001
         spec = ""
 
-    # §14 asks for generator model + version + access date. What this said instead
-    # was ``cfg.PRIMARY_MODEL`` -- which is ``os.getenv("PANOSCOPE_MODEL",
-    # "claude-sonnet-4-6")``, a DEFAULT and not a record of anything -- plus
-    # "reachable", inferred from an env var being set in whatever shell ran the
-    # export. Nothing is called here: this module assembles from durable artifacts
-    # with no network. So the header named a model that never ran and a
-    # reachability nobody tested, and emitted no date at all; exporting with a
-    # deliberately invalid key still printed "reachable".
-    #
-    # What is true: every number, band and absence in this document is
-    # deterministic, and the only model-written content is the cited note prose,
-    # whose generator the notes stage does not record. Both halves are now stated,
-    # and the access date is the study build's own timestamp.
+    # Generator: numbers, bands and absences are deterministic; the only model-written
+    # content is the cited note prose, whose generator is not recorded. The access
+    # date is the study build's timestamp. Never a configured default model name.
     built = version = ""
     try:
         manifest = cfg.current_study().manifest
@@ -581,11 +425,7 @@ def _provenance(dataset: str) -> dict:
 
 
 def build_report_from_sources(generated_at: str = "") -> ReportModel:
-    """Convenience: pull the durable artifacts from ``ui.data_access`` and assemble.
-
-    Used by the Summary page. Lazily imports data_access so the pure functions above
-    (and the doc exporters) never require a Streamlit runtime.
-    """
+    """Pull the durable artifacts from ``ui.data_access`` and assemble the report."""
     from panoscope.ui import data_access as da
 
     try:
@@ -615,19 +455,14 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
 
 
 # --------------------------------------------------------------------------- #
-# Header + overview table — shared by the documents. The
-# overview table is the skill's Output 1 lead: the confirmed call per cluster.
+# Header + overview table (the confirmed call per cluster), shared by the documents.
 # --------------------------------------------------------------------------- #
 _OVERVIEW_COLS = ("Cluster", "Cell type", "Lineage", "Confidence", "Top markers")
 
 
 def _header_meta(report: ReportModel) -> list[str]:
-    """Grounded header lines for the report -- ARCHITECTURE §14's REPORT header.
-
-    Every provenance line is emitted even when the answer is "not consulted". A
-    document that simply omits the reference line reads as though reference data
-    agreed; one that says *no reference source was registered* cannot be misread.
-    """
+    """Grounded header lines (ARCHITECTURE §14). Every provenance line is emitted,
+    even when the answer is "not consulted"."""
     ctx = " · ".join(p for p in (report.tissue, report.platform) if p)
     lines = [report.dataset + (f" · {ctx}" if ctx else "")]
     lines.append(
@@ -689,8 +524,7 @@ def _note_text(nl: NoteLine) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Clickable PMID links in the exported documents. A ``PMID:xxxx`` token becomes a hyperlink to its PubMed record in both the
-# .docx and the PDF, so every cited claim in the report is one click from the paper.
+# ``PMID:xxxx`` tokens become PubMed hyperlinks in both the .docx and the PDF.
 # --------------------------------------------------------------------------- #
 _PMID_LINK_RE = _re.compile(r"PMID:\s*(\d+)", _re.IGNORECASE)
 _LINK_HEX = "0F7B87"          # teal, matches the app accent
@@ -744,12 +578,7 @@ def _pdf_write_linked(pdf: Any, text: str, h: float) -> None:
             pdf.write(h, _pdf_safe(text[last:m.start()]))
         pmid = m.group(1)
         token = _pdf_safe(f"PMID:{pmid}")
-        # Keep the citation whole. ``write`` wraps at the margin wherever it
-        # happens to be, so a PMID that starts near the right edge is split
-        # across two lines -- the reader sees "PMID:374797" ending one line and
-        # the remaining digits beginning the next, which reads as a different,
-        # wrong identifier, and only the first half carries the link. Break the
-        # line first when the whole token will not fit.
+        # Keep the citation whole: break the line first if the token will not fit.
         try:
             room = pdf.w - pdf.r_margin - pdf.get_x()
             if pdf.get_string_width(token) > room:
@@ -794,8 +623,7 @@ def _section_lines(report: ReportModel) -> list[tuple[str, str]]:
             lines.append(("body", f"Programs{conf}, panel-scoped: {s.enrichment}"))
         if s.settle:
             lines.append(("body", f"What would settle it: {s.settle}"))
-        # One line per sentence, never joined: each is a different outcome of the
-        # same check, and a reader skimming a paragraph reads the first clause.
+        # One line per sentence, never joined.
         if s.off_panel:
             names = ", ".join(g for g, _m in s.off_panel)
             lines.append(("body",
@@ -868,15 +696,8 @@ _PDF_COL_W = (16, 40, 32, 26, 68)
 
 
 def _fit_cell(pdf, text: str, w: float) -> str:
-    """Trim ``text`` to what actually fits in a ``w``-mm cell, with an ellipsis.
-
-    The truncation was a flat 44 CHARACTERS for every column, while the columns
-    are 16 to 68 mm wide. A 16mm cell holds about a dozen characters at this
-    size, so 44 of them ran straight through the border and over the neighbour
-    -- and the cell that overflowed was still cut off, so the reader lost the
-    end of one value and the start of the next. Measuring is the only way to
-    know, because the font is proportional.
-    """
+    """Trim ``text`` to what fits in a ``w``-mm cell (measured; the font is
+    proportional), with an ellipsis."""
     limit = w - 2  # the cell's own left/right padding
     if pdf.get_string_width(text) <= limit:
         return text
@@ -957,15 +778,10 @@ def report_to_pdf(report: ReportModel) -> bytes:
 # Editable working space — the auto-seed per-cluster summary + its export.
 # --------------------------------------------------------------------------- #
 def default_cluster_summary(s: ClusterSection) -> str:
-    """The auto-seed integrated per-cluster summary (the editable working space).
+    """The auto-seed per-cluster summary for the editable working space.
 
-    Reads like a biologist's synthesis, in two grounded movements: IDENTITY (the
-    marker cell-type call + its drivers + cited biology — *what the cell is*) and
-    PROGRAMS (the enriched gene sets + their cited biology — *what the cell is
-    doing*, panel-scoped), then any what-would-settle-it line and this cluster's
-    your notes. Plain text with PMID:xxx inline (linkified on-page, kept verbatim in
-    the exported document). The concordance read (do the programs fit the call?) is
-    carried by the per-program biology, which flags cross-lineage signal explicitly.
+    Identity (call, drivers, cited biology), then programs (panel-scoped), then the
+    settle line, never-measured markers, undecidables and notes. PMIDs inline.
     """
     ident = (
         f"Identity — {s.cluster} is {s.cell_type} at {s.confidence} confidence"
@@ -987,9 +803,7 @@ def default_cluster_summary(s: ClusterSection) -> str:
 
     if s.settle:
         paras.append(f"What would settle it — {s.settle}")
-    # Seeded into the EDITABLE space as well as the assembled report, because
-    # ``working_docx`` exports this text and not ``_section_lines``. A caveat that
-    # only reaches one of the two documents is the same defect one export out.
+    # Also seeded here: ``working_docx`` exports this text, not ``_section_lines``.
     if s.off_panel:
         names = ", ".join(g for g, _m in s.off_panel)
         paras.append(

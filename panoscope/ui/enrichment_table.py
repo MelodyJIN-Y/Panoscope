@@ -1,41 +1,11 @@
 """Pathways page — gene-set enrichment interpretation (second workflow).
 
-**The center stage is no longer hand-built.** It is rendered by ``ui/surface.py``
-from ``workflows/enrichment.py``'s ``UISpec`` — the header variant, every column,
-every absence block, the sort key and the coverage ribbon are read off the
-declaration, and this module's job is reduced to the one thing a declaration cannot
-do: adapt this method's rows (``PathwayEvidence``) into resolved ``SurfaceRow``\\s
-with a measurement state on each. That is the shape ARCHITECTURE §13 asks for —
-*the review surface is part of the interpretation contract, declared by the
-workflow, not a UI concern.*
-
-Two consequences are visible on screen:
-
-* **The confidence band is gone.** This page used to import the assignment header's
-  id line and render ``ce.confidence`` as a ``cf-*`` pill — the counter-example
-  ``docs/interface-design.md`` §3.1 names: a CHARACTERISATION surface inheriting a
-  unit-level band it had no right to, on a task with no label space. The declared
-  header is a ``CensusHeader``, which has no band slot, and
-  ``surface.label_band_html`` refuses a non-ASSIGNMENT spec, so the old shape is
-  unreachable from here rather than merely discouraged.
-* **Untestable programs are rows now.** The page showed ``enriched`` and
-  ``suggestive`` only; every set the panel could not test simply did not render,
-  which is indistinguishable from a set that was tested and found nothing. All of
-  ``ce.all_tested`` is adapted, and the declared blocks put each set under the
-  state that produced it, with its number hatched where there is none.
-
-Laid out like the Marker-genes page: a 3-pane shell — the cluster **rail** (shared
-selection), the **center stage** (the declared surface + the pinned pathway's
-leading-edge spatial views), and a **side column** with the cross-cluster themes.
-
-Selecting pathways is a viewing control (``ui.state.toggle_pathway``, a per-cluster
-multi-select): it drives the spatial stage (``ui.enrichment_spatial``) small-multiples
-and nothing else. Every value
-is read off the enrichment records (``ui.data_access``); this module computes
-nothing and never generates biology text (the per-pathway note is the pipeline's,
-live-cited). Each pathway carries its panel-scope caveat; only gated sets show.
-
-Streamlit is imported lazily so ``import ui.enrichment_table`` needs no server.
+The center stage is ``ui/surface.py`` rendering ``workflows/enrichment.py``'s
+``UISpec``: a ``CensusHeader`` with no band slot (CHARACTERISATION has no label
+space), and every tested set as a row under the state that produced it, so an
+untestable program is visible rather than missing. This module only adapts
+``PathwayEvidence`` into ``SurfaceRow``\\s. Selecting pathways is a viewing control;
+nothing here computes a value or generates biology text.
 """
 
 from __future__ import annotations
@@ -59,8 +29,7 @@ from panoscope.ui import surface
 
 @st.fragment
 def _pathway_chat_fragment(cluster: str) -> None:
-    """The Pathways chat as a fragment: a chat turn re-renders only this pane, not the
-    whole Pathways page (its reruns are scoped via ``convo._rerun(scope='fragment')``)."""
+    """The Pathways chat as a fragment, so a chat turn re-renders only this pane."""
     enrichment_conversation.render_pathway_conversation(cluster)
 
 
@@ -73,24 +42,11 @@ _ENR_CSS = """
 """
 
 # --------------------------------------------------------------------------- #
-# The adapter: this method's rows -> resolved SurfaceRows.
-#
-# The ONLY thing left that is specific to jazzPanda's enrichment output. Everything
-# downstream of it is read off the declaration. Nothing here computes a statistic:
-# the score, the q and the K of N are read off `PathwayEvidence`, and the state is
-# read off the same gates `agent/enrichment.py` already applied to produce the tier.
+# The adapter: PathwayEvidence -> SurfaceRows. Values and state are read, never computed.
 # --------------------------------------------------------------------------- #
 def _reason(p: PathwayEvidence, mstate: MeasuredState) -> str:
-    """Why this row is in this state -- the hover on the hatch, named not implied.
-
-    Both counts say *usably measured*, not *on panel*. Neither number is a panel
-    fact any more: ``panel_hits`` is the set genes every gene capability frame
-    admits, and ``n_leading_edge`` is the selected genes those same frames admit,
-    so a sentence that called either one "on panel" would describe the panel design
-    where it is reporting what the apparatus could actually see -- and on exactly
-    the rows (a set below the leading-edge floor only because the detectability
-    frame rejected its drivers) where the difference is the whole explanation.
-    """
+    """Why this row is in this state (the hatch hover). Counts are of *usably
+    measured* genes (every capability frame applied), never "on panel"."""
     if mstate is MeasuredState.UNDERPOWERED:
         return (f"{p.panel_hits} of {p.set_size_full} set genes usably measured "
                 f"(floor {cfg.MIN_PANEL_HITS}), {p.n_leading_edge} driving gene(s) "
@@ -109,11 +65,8 @@ def _key_of(p: PathwayEvidence) -> str:
 
 
 def _cite_value(note: dict | None):
-    """The CITATION cell: ``(prose, url)``. The renderer escapes and links it.
-
-    Never generated here -- the prose is the pipeline's precomputed, live-cited note
-    and a set with no note gets no sentence rather than an invented one.
-    """
+    """The CITATION cell: ``(prose, url)`` from the pipeline's live-cited note; no
+    note, no sentence."""
     if not note or not note.get("summary"):
         return ""
     pmid = note.get("pmid")
@@ -123,14 +76,8 @@ def _cite_value(note: dict | None):
 
 
 def _row(cluster: str, p: PathwayEvidence) -> surface.SurfaceRow:
-    """One ``PathwayEvidence`` as a resolved row.
-
-    ``statistic`` and ``p_adj_bh`` are withheld on every state that does not carry a
-    number, so those cells hatch. That is not politeness: ``cell_html`` refuses a
-    number on such a row outright, which is the structural form of *statistic is
-    None iff the state is not OBSERVED* -- read off ``Measured.carries_number``,
-    so UNDERPOWERED withholds its number too.
-    """
+    """One ``PathwayEvidence`` as a resolved row; numbers are withheld wherever the
+    state forbids one (``cell_html`` refuses them)."""
     mstate = p.measured_state  # the four-state split lives on the evidence object
     observed = mstate is MeasuredState.OBSERVED
     return surface.SurfaceRow(
@@ -141,9 +88,7 @@ def _row(cluster: str, p: PathwayEvidence) -> surface.SurfaceRow:
             "gene_set": pretty_gene_set(p.gene_set),
             "statistic": p.score if observed else None,
             "p_adj_bh": p.q_value if observed else None,
-            # TEXT, not a numeric kind, by declaration: the K of N is the REASON a
-            # row has no statistic, so hatching it would hide the panel-coverage
-            # rule on exactly the rows it decided.
+            # TEXT by declaration: K of N explains a missing statistic, so never hatch it.
             "coverage": f"{p.panel_hits}/{p.set_size_full}",
             "leading_edge": p.leading_edge[:4],
             "citation": _cite_value(da.pathway_note(cluster, p.gene_set)),
@@ -162,11 +107,8 @@ def _unit_scope(cluster: str) -> str:
 
 def _header_values(ce: ClusterEnrichment,
                    rows: list[surface.SurfaceRow]) -> dict:
-    """The fields the declared ``CensusHeader`` names. Counts, denominators, gates.
-
-    No band, and nowhere to put one. The cell type is passed as imported context:
-    the header attributes it to the marker workflow and does not re-derive it.
-    """
+    """The fields the declared ``CensusHeader`` names: counts, denominators, gates.
+    No band. The cell type is imported context from the marker workflow."""
     top = ce.enriched[0] if ce.enriched else None
     values = {
         "unit_scope": _unit_scope(ce.cluster),
@@ -206,12 +148,7 @@ def _header_values(ce: ClusterEnrichment,
 # Center: the declared surface + the pinned programs' spatial stage
 # --------------------------------------------------------------------------- #
 def _render_center(st, ce: ClusterEnrichment) -> None:
-    """Render the declaration, then the figures the pinned rows select.
-
-    This function no longer decides what the page looks like. It adapts rows, hands
-    them to the renderer with the workflow's own ``UISpec``, and maps a pin back to
-    the gene set id the spatial stage takes.
-    """
+    """Render the declared surface, then the figures the pinned rows select."""
     spec = enrichment_workflow.WORKFLOW.uispec()
     rows = [_row(ce.cluster, p) for p in ce.all_tested]
     by_key = {r.key: p for r, p in zip(rows, ce.all_tested)}

@@ -1,20 +1,9 @@
 """Cached read layer between the UI and the pure agent modules.
 
-Thin ``@st.cache_data`` wrappers over ``agent.data`` (markers, panel, cells,
-umap, density, marker-expression) and over the per-unit verdict so it is computed
-exactly once and every Streamlit rerun is a cache hit.
-This is what lets viewing controls (pin, bin size, view toggle) rerun the script
-without ever recomputing a value — they only re-read an already-cached frame.
-
-``get_agent`` is a ``@st.cache_resource`` singleton around ``agent.loop`` so the
-chat agent (and its warm MCP session) survives reruns.
-
-``read_notes`` is deliberately NOT cached: notes mutate on save, so it must
-re-read ``context/corrections/`` every call (never a stale drawer).
-
-Streamlit's decorators are applied through a tiny shim so this module imports
-with no server running (importing ``ui.data_access`` never needs a live app);
-the underlying functions are plain and independently testable.
+Viewing controls rerun the script and re-read cached frames; they never
+recompute a value. Notes and sign-offs are never cached (they mutate at
+runtime). The Streamlit cache decorators go through a shim so the module
+imports, uncached, without a running app.
 """
 
 from __future__ import annotations
@@ -32,14 +21,7 @@ from panoscope.agent import data as agent_data
 from panoscope.agent.types import ClusterVerdict, Note
 from panoscope.data import spatial
 
-# --------------------------------------------------------------------------- #
-# File paths this module reads directly (marker_expr + density index; everything
-# else goes through agent.data). Both resolve to the per-dataset pipeline tree
-# (data/studies/<id>/viz/) when present, falling back to the legacy flat path.
-#   expr.parquet : cell_id (int) + one float column per panel marker
-# --------------------------------------------------------------------------- #
-# Resolution (tree-first, demo-only legacy fallback) is agent.data.resolved -- this
-# module is a thin wrapper over agent.data and must not own a second copy of it.
+# Paths read directly; resolution (tree-first, legacy fallback) is agent.data.resolved.
 def _marker_expr_parquet() -> Path:
     return agent_data.resolved("viz/expr.parquet", "embeddings/marker_expr.parquet")
 
@@ -53,12 +35,7 @@ def _density_index() -> Path:
 
 
 # --------------------------------------------------------------------------- #
-# Streamlit-cache shim
-# --------------------------------------------------------------------------- #
-# We want @st.cache_data / @st.cache_resource semantics in the running app, but
-# a plain callable when imported outside Streamlit (tests, `python -c import`).
-# These resolve the real decorator lazily; if Streamlit is unavailable they fall
-# through to an identity decorator so the wrapped function still works (uncached).
+# Streamlit-cache shim: the real decorator in the app, identity outside it.
 # --------------------------------------------------------------------------- #
 def _identity(*_dargs: Any, **_dkw: Any) -> Callable:
     """Return a decorator that leaves the function unchanged (no caching)."""
@@ -70,27 +47,11 @@ def _identity(*_dargs: Any, **_dkw: Any) -> Callable:
 
 
 def _cache_data(*dargs: Any, **dkw: Any) -> Callable:
-    """``st.cache_data``, KEYED ON THE CURRENT STUDY, else a no-op decorator.
+    """``st.cache_data`` keyed on the current study's tree path, else a no-op.
 
-    The readers below are either zero-arg or keyed on a cluster/gene, so a plain
-    ``st.cache_data`` keys the demo's 280-gene panel and the second study's
-    12-gene panel to the SAME cache entry: whichever study is opened first wins
-    for the life of the session, and every later study silently reads its frames
-    — a measured value from the wrong study reaching a plot header and the band.
-    Not reachable today (there is no in-app study picker), but the kidney study is
-    the second study on disk and the picker is what would make it reachable.
-
-    The fix is ``agent.data._per_study``'s, applied at the one place every reader
-    in this module routes through rather than as a second mechanism: the real
-    function is cached behind a leading study key and the public wrapper supplies
-    it, so cross-study staleness is unrepresentable instead of merely tested for.
-    The key is the study's tree path, not its id, because two studies under
-    different data roots may share an id (``tests`` open exactly that pair).
-
-    ``functools.wraps`` is load-bearing here: Streamlit derives a function's cache
-    namespace from ``__module__``/``__qualname__`` plus ``inspect.getsource``, and
-    ``getsource`` unwraps. Without it every reader in this module would share one
-    namespace — the same collision one level worse.
+    The study key makes a cross-study cache hit unrepresentable (a path, not an
+    id: two data roots may share an id). ``functools.wraps`` is load-bearing:
+    Streamlit derives each function's cache namespace from it.
     """
     try:
         import streamlit as st
@@ -174,14 +135,8 @@ def umap_df() -> pd.DataFrame:
 def hexbins(gene: str, bin_um: float = 50) -> pd.DataFrame:
     """Hex-bin density (hx, hy, count, density) for one marker at one bin size.
 
-    Prefers the study's SpatialData Points store (ARCHITECTURE §5.1), which bins
-    at request time and so accepts ANY ``bin_um``; falls back to the precomputed
-    frames, which only hold the three sizes the one-time script baked. The two
-    agree bin-for-bin on all 840 committed frames, which is the validation §5.1's
-    sequencing note asks for.
-
-    Cached per (gene, bin_um). Raises the loader's ``FileNotFoundError`` when
-    neither path has the frame, so the caller can fall back to the cell map.
+    SpatialData store first (any ``bin_um``), else the precomputed frames. Raises
+    ``FileNotFoundError`` when neither has it, so the caller falls back to the cell map.
     """
     store = cfg.current_study().spatial
     if store.is_dir():
@@ -197,19 +152,9 @@ def hexbins(gene: str, bin_um: float = 50) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
 def marker_expr_df() -> pd.DataFrame:
-    """Per-cell expression for ALL panel genes (cell_id + one column per gene),
-    on a cluster-stratified cell subsample. Read once and cached; parquet-first
-    (the committed artifact), CSV fallback for a raw prep output.
-
-    Through ``agent.data``'s reader rather than a local parquet/CSV pair, for the
-    sake of the error: the hand-rolled version ended in a bare ``pd.read_csv`` and so
-    failed with ``[Errno 2] No such file or directory`` naming whichever CSV it tried
-    last -- no producer clause, and for the demo a path under the LEGACY flat root
-    rather than a study tree. Every other tidy table in the app names the study's own
-    path and the prep step that writes it, and this one -- the file a half-prepped
-    study is likeliest to be missing, because ``prep_expr.py`` is Panoscope's own
-    extra step -- had the least informative message of the lot. Same resolution and
-    same parquet-before-CSV preference; only the failure is now the common one.
+    """Per-cell expression for ALL panel genes (cell_id + one column per gene) on a
+    cluster-stratified subsample. Parquet first, CSV fallback; a missing file raises
+    ``agent.data``'s error naming the study path and the prep step that writes it.
     """
     return agent_data._read_table(
         _marker_expr_parquet(),
@@ -259,19 +204,13 @@ def expr_by_cluster(gene: str) -> Optional[pd.DataFrame]:
 
 
 # --------------------------------------------------------------------------- #
-# Gene-SET aggregates (enrichment leading edge) — the spatial view of a program.
-# A gene set's tissue footprint is the SUM of its leading-edge genes' precomputed,
-# area-normalized transcript densities (a view of measured values, never a new
-# statistic); its per-cell activity is the MEAN of their exported expression.
+# Gene-set aggregates (leading edge): a view of measured values, never a new statistic.
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
 def leading_edge_density(genes: tuple[str, ...], bin_um: int = 50) -> Optional[pd.DataFrame]:
-    """Aggregated hex-bin density (hx, hy, count, density) for a gene set.
+    """Bin-by-bin sum of the set's per-gene density frames (hx, hy, count, density).
 
-    Sums the precomputed per-gene density frames bin-by-bin (each gene's density is
-    tx/µm², already area-normalized, so the sum is the program's area-normalized
-    footprint). Genes with no precomputed frame are honestly skipped. None if none
-    of the set's genes have a density frame.
+    Genes with no frame are skipped; None if none of them has one.
     """
     frames = []
     for g in genes:
@@ -310,10 +249,7 @@ def leading_edge_expr(genes: tuple[str, ...]) -> Optional[pd.DataFrame]:
 
 
 # --------------------------------------------------------------------------- #
-# Grounded per-gene biology notes: the skill's Output-4 notes produced by the
-# pipeline (``pipeline/stages/notes.py`` -> ``interp/gene_notes.json``), each with
-# a REAL live PubMed citation. The evidence table reads these; it never generates
-# biology text (confident floor). Falls back to the legacy flat file below.
+# Grounded per-gene biology notes, each live-cited. Read only; never generated here.
 # --------------------------------------------------------------------------- #
 _GENE_NOTES_JSON = cfg.DATA_DIR_PATH / "gene_notes" / "notes.json"
 
@@ -322,10 +258,7 @@ _GENE_NOTES_JSON = cfg.DATA_DIR_PATH / "gene_notes" / "notes.json"
 def gene_notes() -> dict:
     """All grounded gene notes as ``{cluster: {gene: note}}`` (``{}`` if none).
 
-    Prefers the pipeline's SKILL-grounded notes (``interp/gene_notes.json``: the
-    per-gene evaluation + the Output-4 biology note); falls back to the legacy flat
-    ``data/gene_notes/notes.json`` during migration. Read-only cache; the column
-    shows nothing for a gene without a note.
+    Pipeline tree first, legacy ``data/gene_notes/notes.json`` fallback.
     """
     import json
 
@@ -350,19 +283,8 @@ def gene_note(cluster: str, gene: str) -> Optional[dict]:
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
 def verdict_for(cluster: str) -> ClusterVerdict:
-    """Verdict for one cluster (cached once per session).
-
-    Prefers the verdict PERSISTED by the per-dataset pipeline
-    (``data/studies/<id>/interp/clusters/c{n}.json``); falls back to BUILDING it
-    live when the pipeline tree is absent. Depends only on the cluster id.
-
-    Both arms are now the same engine. The persisted file is written by
-    ``pipeline/stages/verdicts.py`` through ``core/``, and the fallback goes through
-    ``pipeline.v1_verdicts``, which is that stage's own projection. It used to call
-    ``agent/verdict.py``, so an unbuilt study showed the v1 band in the table and a
-    built one showed the v2 band — identical on the nine demo units
-    (``tests/test_core_compat.py``) and pinned nowhere else.
-    """
+    """Verdict for one cluster: the persisted pipeline verdict, else built live
+    through ``pipeline.v1_verdicts`` (the same engine)."""
     from panoscope.pipeline import store, v1_verdicts
 
     persisted = store.load_verdict(cluster)
@@ -376,12 +298,8 @@ def all_verdicts() -> list[ClusterVerdict]:
 
 
 def _excluded_clusters() -> set:
-    """Clusters carrying a firing `exclude` note. Applied at COMPOSITION only — the
-    deterministic jazzPanda verdict on disk is never mutated (docs/note-capture-design.md).
-
-    Reads through ``memory.notes_in_study`` rather than ``read_notes``: the note store
-    is ONE directory for every study, and cluster ids are c1..cN in all of them, so an
-    ungated read attributes one study's judgement to another study's cluster."""
+    """Clusters carrying a firing `exclude` note. Applied at composition only; the
+    verdict on disk is never mutated. Study-gated: cluster ids repeat across studies."""
     from panoscope.agent import memory
 
     try:
@@ -395,12 +313,8 @@ def _excluded_clusters() -> set:
 
 
 def _signed_off_clusters() -> set:
-    """Clusters the biologist has reviewed and accepted on the Summary board.
-
-    Read fresh from the runtime review-state file (never cached — sign-offs mutate
-    as the biologist works). A signed-off call is treated as adjudicated: its
-    ``verify`` flag is cleared at COMPOSITION only (the deterministic verdict on
-    disk is never mutated)."""
+    """Clusters signed off on the Summary board (fresh read, never cached). Their
+    ``verify`` clears at composition only; the verdict on disk is never mutated."""
     from panoscope.pipeline import store
 
     try:
@@ -410,12 +324,8 @@ def _signed_off_clusters() -> set:
 
 
 def composed_verdicts() -> list[ClusterVerdict]:
-    """``all_verdicts()`` with your confirmed overlays applied — ``exclude`` notes,
-    ``celltype_override`` notes (new cell type + lineage/category; verify flagged
-    only when the literature dissents), and sign-offs (a reviewed call's ``verify``
-    flag clears). Returns NEW objects; the cached deterministic verdicts are never
-    mutated, so the computed output stays intact and only the composed view/export
-    changes. NOT cached: notes and sign-offs are added at runtime."""
+    """``all_verdicts()`` with exclude notes, cell-type overrides and sign-offs
+    applied. Returns new objects (the cached verdicts are never mutated); not cached."""
     excluded = _excluded_clusters()
     overrides = compose.override_notes()
     signed_off = _signed_off_clusters()
@@ -431,9 +341,7 @@ def composed_verdicts() -> list[ClusterVerdict]:
         changes: dict = {}
         if v.cluster in excluded:
             changes["exclude"] = True
-        # A signed-off call is adjudicated: clear its re-check flag (a contested
-        # sign-off wrote a validation note recording the biologist's acceptance).
-        # Applied last so it wins over an override's dissent flag.
+        # Sign-off clears verify; applied last so it wins over an override's dissent flag.
         if v.cluster in signed_off:
             changes["verify"] = False
         out.append(dataclasses.replace(v, **changes) if changes else v)
@@ -455,11 +363,7 @@ def display_verdict_for(cluster: str) -> ClusterVerdict:
     ov = compose.override_notes().get(cluster)
     call = (getattr(ov, "subject_cell_type", "") or "").strip() if ov else ""
 
-    # A signed-off call is adjudicated, so its re-check flag clears -- the same
-    # rule ``composed_verdicts`` states and performs, and which the board and the
-    # exports consume. This applied only the override, so after signing a flagged
-    # call off the board said "done" while the marker header beside it went on
-    # showing "⚑ re-check this" for the same unit.
+    # Sign-off clears verify, as in ``composed_verdicts``.
     signed = cluster in _signed_off_clusters()
     if not call:
         return dataclasses.replace(v, verify=False) if (signed and v.verify) else v
@@ -516,14 +420,8 @@ def override_info(cluster: str) -> "Optional[dict]":
 
 
 def verdict_csv() -> str:
-    """The 11-column CSV export, with any `exclude` notes applied at composition.
-
-    Rendered through ``core/export``'s ASSIGNMENT profile — the registry that pairs
-    each column name with the getter that fills it — rather than ``agent/verdict``'s
-    hand-written pair of tuples. Byte-identical: ``tests/test_core_export.py`` proves
-    it by string equality against the function this replaces, including the
-    un-tidied ``confidence_score`` (0.7, not 0.70).
-    """
+    """The 11-column CSV export of the composed verdicts, via ``core/export``'s
+    ASSIGNMENT profile."""
     from panoscope.core.export import to_csv
     from panoscope.types.outputs import TaskKind
 
@@ -532,13 +430,9 @@ def verdict_csv() -> str:
 
 @_cache_data(show_spinner=False)
 def celltype_notes() -> dict:
-    """Per-cluster cell-type summary notes, as the notes stage wrote them (cached).
-
-    Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
-    the pipeline notes stage has not run. Each summary is a short, grounded,
-    live-cited description of the cell type (never fabricated). Read one through
-    :func:`celltype_note_for`, which drops a note written about another call.
-    """
+    """Per-cluster cell-type notes ``{cluster: {cell_type, summary, pmid, citation,
+    verify}}`` (``{}`` if the notes stage has not run). Read one through
+    :func:`celltype_note_for`."""
     from panoscope.pipeline import store
 
     return store.load_celltype_notes()
@@ -547,11 +441,8 @@ def celltype_notes() -> dict:
 def celltype_note_for(verdict: Any) -> dict:
     """This verdict's cell-type note, or ``{}`` when the note describes another call.
 
-    Matched against the verdict BEING RENDERED rather than against the override
-    note, because the two are not the same question: ``_table_html`` can be handed
-    either composed or uncomposed verdicts, and filtering on the override alone
-    blanks the biology for a row whose heading still shows the original call. The
-    guard itself is ``report._celltype_note_for``.
+    Matched against the verdict being rendered; the guard is
+    ``report._celltype_note_for``.
     """
     from panoscope.ui import report
 
@@ -559,28 +450,17 @@ def celltype_note_for(verdict: Any) -> dict:
 
 
 def holistic():
-    """The cross-cluster holistic review (Step 4), with confirmed overrides applied.
+    """The cross-cluster holistic review with confirmed call overrides applied.
 
-    NOT cached, for ``composed_verdicts``' reason: an override arrives at runtime.
-    The computed review underneath it still is, so the common path (no overrides)
-    returns the cached artifact untouched and recomputes nothing.
-
-    The review reads this study's CALLS, and it read them from the annotation --
-    which is no longer where they live once the biologist has overridden one. The
-    exported document carried an overview calling c2 CAF and, under
-    "Cross-cluster global check" on the same page, "Stromal (Stromal)" and "all 9
-    called clusters carry distinct cell types (Tumor, Stromal, ...)". One document,
-    two incompatible claims about one cluster, and the wrong one was the
-    biologist's own call being overruled in silence.
+    Not cached (overrides arrive at runtime); with no override it returns the
+    cached computed review.
     """
     overrides = compose.override_notes()
     if not overrides:
         return _holistic_computed()
     from panoscope.agent import holistic as agent_holistic
 
-    # Calls only. ``exclude`` is deliberately NOT applied: an excluded cluster is
-    # still one of this study's clusters, and dropping it would change the cell
-    # counts and the "N called clusters" denominators the notes state.
+    # Calls only: ``exclude`` is not applied, so cell counts and denominators hold.
     metas = {
         c: {"cell_type": (ov.subject_cell_type or "").strip(),
             "category": (ov.subject_category or "").strip()
@@ -592,12 +472,8 @@ def holistic():
 
 
 def annotation_category(cluster: str) -> str:
-    """This study's annotated category for ``cluster`` ("" if it names none).
-
-    An override that changes only the call keeps the compartment it was grouped
-    under, rather than falling into "Unknown" and inventing a compartment move
-    the biologist never made.
-    """
+    """This study's annotated category for ``cluster`` ("" if it names none), so a
+    call-only override keeps its compartment."""
     from panoscope.agent import annotation
 
     try:
@@ -608,16 +484,7 @@ def annotation_category(cluster: str) -> str:
 
 @_cache_data(show_spinner=False)
 def _holistic_computed():
-    """The cross-cluster holistic review as COMPUTED, cached once per session.
-
-    Prefers the review PERSISTED by the pipeline (``interp/holistic.json``); falls
-    back to computing it live when the tree is absent. The review is deterministic,
-    so the persisted object is byte-faithful to the computed one
-    (``tests/test_pipeline.py`` round-trip gate) — reading it just avoids
-    recomputation and makes the review a portable dataset artifact. The one live
-    piece (the refinement's citation) is still fetched at render time in
-    ``ui.holistic``; this returns only the grounded coherence + refinement data.
-    """
+    """The cross-cluster holistic review as computed: persisted first, else live."""
     from panoscope.agent import holistic as agent_holistic
 
     from panoscope.pipeline import store
@@ -627,9 +494,7 @@ def _holistic_computed():
 
 
 # --------------------------------------------------------------------------- #
-# Gene-set enrichment (second workflow) — tree-first readers, mirroring the
-# marker verdict readers. A dataset with no enrichment result simply has no
-# Pathways slice (enrichment_available() is False).
+# Gene-set enrichment — tree-first readers. No result means no Pathways slice.
 # --------------------------------------------------------------------------- #
 @_cache_data(show_spinner=False)
 def enrichment_for(cluster: str):
@@ -683,11 +548,7 @@ def pathway_note(cluster: str, gene_set: str) -> Optional[dict]:
 # --------------------------------------------------------------------------- #
 @_cache_resource(show_spinner=False)
 def get_agent() -> Any:
-    """Return the persistent chat agent (warm MCP session), cached as a resource.
-
-    Wrapping ``agent.loop``'s module-level default agent keeps one instance (and
-    its background MCP loop) alive across Streamlit reruns.
-    """
+    """The persistent chat agent (warm MCP session), kept alive across reruns."""
     from panoscope.agent import loop as agent_loop
 
     return agent_loop._default_agent()
@@ -697,34 +558,19 @@ def get_agent() -> Any:
 # Notes — NOT cached (mutate on save). Always a fresh read.
 # --------------------------------------------------------------------------- #
 def read_notes() -> list[Note]:
-    """This study's notes, fresh from disk (never cached — notes mutate on save).
+    """This study's notes (plus lab-scoped ones), fresh from disk, never cached.
 
-    "All notes" is not what any caller wants: the note store is a single directory
-    shared by every study, so the lab-note board and the exported report both asked
-    for the current study's record and got the whole lab's. Study-gated here rather
-    than in each caller, because the gate has to hold for the ones nobody remembers to
-    change. Lab-scoped notes are kept — holding across studies is what that rung is.
-
-    Notes belonging to OTHER studies are not withheld knowledge: they are shown in
-    their own study. The ones that genuinely disappear are the unscoped ones, and
-    :func:`withheld_notes` is where those are said out loud."""
+    Study-gated here so every caller gets the gate. Unscoped notes are surfaced by
+    :func:`withheld_notes`."""
     from panoscope.agent import memory
 
     return memory.notes_in_study()
 
 
 def withheld_notes() -> list[Note]:
-    """Stored notes this study must NOT apply because they name no study at all.
+    """Stored notes this study must NOT apply because they name no study (fail-closed).
 
-    The fail-closed gate is right — a note with no ``scope_ref.dataset`` cannot be
-    assumed to belong to whichever study happens to be open — but a biologist's
-    committed judgement vanishing with no sentence is its own failure. These are the
-    notes to say that sentence about: each is a real :class:`~agent.types.Note`, so it
-    carries its id and ``memory.cite_note`` resolves it, and the sentence that names it
-    clicks back to the note like any other.
-
-    Empty in the normal case: every note written since ``scope_ref`` existed names its
-    dataset. Non-empty means a hand-edited or pre-schema file needs its study added."""
+    Returned so the UI can say so; each is a real Note, so it still clicks back."""
     from panoscope.agent import memory
 
     return [n for n in memory.read_notes() if not n.scope_ref.dataset and n.scope != "lab"]
@@ -733,12 +579,8 @@ def withheld_notes() -> list[Note]:
 def save_note_draft(draft: Any, trigger: str = "override") -> Note:
     """Persist a biologist-confirmed :class:`~agent.types.NoteDraft` as a note.
 
-    The second half of capture-at-override: the confirm card produced a (possibly
-    edited) draft, and this writes it via ``agent.memory.save_draft`` into the SAME
-    base dir the agent reads notes from — so a just-saved note is immediately in scope
-    for recall. No second literature lookup (the tension is already on the draft).
-    ``trigger`` records where the note was born (``override`` from a chat, or
-    ``holistic_review`` from a cross-cluster refinement). Returns the written Note.
+    Written to the same base dir the agent reads, so it is in scope at once.
+    ``trigger`` records where the note was born (``override`` or ``holistic_review``).
     """
     from panoscope.agent import memory
     from panoscope.agent import tools
@@ -747,10 +589,7 @@ def save_note_draft(draft: Any, trigger: str = "override") -> Note:
 
 
 # --------------------------------------------------------------------------- #
-# Sign-off state — the biologist's review checkmarks on the Summary board. NOT
-# cached (mutates as the biologist works). A record of which calls were reviewed
-# and accepted; never a computed value. A contested sign-off also carries the id
-# of the validation note it wrote, so the board can link to the biologist's basis.
+# Sign-off state: the biologist's review record, never a computed value. Not cached.
 # --------------------------------------------------------------------------- #
 def signed_off() -> dict:
     """The full sign-off map ``{cluster: {at, note_id}}`` (fresh read)."""
@@ -763,11 +602,10 @@ def signed_off() -> dict:
 
 
 def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
-    """Record that the biologist reviewed and accepted ``cluster``'s call.
+    """Record that the biologist reviewed and accepted ``cluster``'s call (idempotent).
 
-    ``note_id`` links the validation note a contested sign-off wrote (``None`` for a
-    clean checkmark). ``at`` is an ISO timestamp passed in by the caller (this stays
-    free of clock calls). Idempotent: re-signing a cluster just refreshes its record.
+    ``note_id`` links a contested sign-off's validation note; ``at`` is the caller's
+    ISO timestamp.
     """
     from panoscope.pipeline import store
 
@@ -780,9 +618,7 @@ def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -
 
 
 def clear_signoff(cluster: str, at: str = "") -> None:
-    """Undo a sign-off: drop ``cluster`` from the review state (the call is unreviewed
-    again). The validation note a contested sign-off wrote is left in My notes — undo
-    reopens the review, it does not erase the biologist's recorded basis."""
+    """Undo a sign-off. Any validation note it wrote is kept."""
     from panoscope.pipeline import store
 
     try:

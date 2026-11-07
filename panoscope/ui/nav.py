@@ -1,36 +1,15 @@
 """The tab strip, derived from the workflow registry.
 
-``app.py`` asserted three tabs. A registry the navigation does not read gives you a
-declared surface nobody can reach, so the strip is built from
-:data:`panoscope.workflows.WORKFLOWS` instead: one tab per registered question,
-titled by that question's own ``UISpec.title`` and routed on its own
-``UISpec.workflow_id`` -- which is already what ``?page=`` spells, so the existing
-URL contract needs no alias table.
+One tab per workflow in :data:`panoscope.workflows.WORKFLOWS`, titled by its
+``UISpec.title`` and routed on its ``UISpec.workflow_id`` (the ``?page=`` value).
+Tabs sort by ``TaskKind``, ties by surface id.
 
-**Order is declared, not listed.** Tabs sort by ``TaskKind`` -- assignment, then
-characterisation, then comparison: *what is this* before *what is running* before
-*does this make sense*, which is the order the evidence is read in. ``TaskKind`` is
-frozen at three (CLAUDE.md), so this is a total order no new workflow can need a
-line added to. Ties inside a kind break on the surface id, because dict insertion
-order is import order and import order is a fact about nothing.
+A registered workflow with no data for this study still gets a tab, opening on a
+page that states the absence: "no result here" must stay distinguishable from
+"cannot interpret this". That is not ``uispec.degraded_spec``, which is for an
+undeclared analysis type.
 
-**A registered workflow with no data for this study still gets a tab**, marked in
-the strip, opening on a page that states the absence. Hiding it is the
-navigation-level version of collapsing ``NEVER_MEASURED`` into "absent": the
-biologist could not tell *this study has no enrichment result* from *Panoscope
-cannot interpret enrichment*, and the second is a far bigger claim to make silently.
-This is recurring, not a DE special case -- the kidney study arrives with a panel
-that answers one of these questions well and another barely at all.
-
-It is deliberately **not** ``uispec.degraded_spec``. That one is for an analysis
-type *nobody declared*, and it degrades the surface down to provenance because the
-declaration is missing. Here the declaration is present and correct; what is missing
-is a result to draw on it. Degrading the surface would throw away a good declaration
-because of an absent file, and would make the two cases indistinguishable again.
-
-This module is pure -- no module-level Streamlit import -- so the strip can be built
-and asserted with no server running. ``app.py`` owns the wiring (which renderer,
-which availability check); this module owns the model.
+No module-level Streamlit import; ``app.py`` owns the wiring.
 """
 
 from __future__ import annotations
@@ -81,9 +60,7 @@ _TASK_ORDER: dict[TaskKind, int] = {
     TaskKind.COMPARISON: 2,
 }
 
-#: ``{surface_id: (render, has_data)}``. Supplied by ``app.py``; a surface id with
-#: no entry has no page wired, which from the biologist's seat is the same fact as
-#: no data -- there is nothing to draw -- and reads the same on screen.
+#: ``{surface_id: (render, has_data)}``, supplied by ``app.py``. No entry reads as no data.
 Wiring = Mapping[str, tuple[Callable[[], None], Callable[[], bool]]]
 
 
@@ -103,14 +80,8 @@ class Tab:
         return f"nav_{self.page}"
 
     def available(self) -> bool:
-        """Does this study have something to draw here?
-
-        Deliberately a call and not a field: building the strip must not read a
-        parquet. The onboarding screens resolve the page before any study is open,
-        and an eagerly-resolved field would load every workflow's result to decide
-        which tab to underline. A missing or unreadable result is *no data*, never
-        a traceback in the nav bar.
-        """
+        """Does this study have something to draw here? A call, not a field, so
+        building the strip reads no data; an unreadable result is *no data*."""
         if self.has_data is None:
             return False
         try:
@@ -120,11 +91,7 @@ class Tab:
 
 
 def tabs(wired: Wiring, summary: Callable[[], None]) -> tuple[Tab, ...]:
-    """The strip: Summary, then one tab per registered workflow in task-kind order.
-
-    Summary leads because it is the surface the biologist lands on and signs off
-    from; the per-workflow panes are the evidence it stands on.
-    """
+    """The strip: Summary, then one tab per registered workflow in task-kind order."""
     ordered = sorted(
         workflows.WORKFLOWS.values(),
         key=lambda w: (_TASK_ORDER.get(w.task_kind, len(_TASK_ORDER)),
@@ -155,11 +122,8 @@ def find(strip: tuple[Tab, ...], page: str) -> Tab | None:
 
 
 def render_unavailable(tab: Tab) -> None:
-    """The page for a registered workflow with no result in this study.
-
-    It names the question the workflow would have answered, because that is what is
-    missing -- not the tab, and not the capability.
-    """
+    """The page for a registered workflow with no result in this study, naming the
+    question it would have answered."""
     import html
 
     import streamlit as st

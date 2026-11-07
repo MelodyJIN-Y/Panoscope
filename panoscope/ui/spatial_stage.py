@@ -1,51 +1,13 @@
 """The spatial stage: a fixed grid of linked Plotly views for the selected markers.
 
-Public entry point: ``render_spatial_stage(cluster)``.
+Public entry point: ``render_spatial_stage(cluster)``. Row 1 is the cluster cell
+map beside the cluster UMAP; then one density | feature-UMAP row per selected
+marker; then a dot plot across clusters.
 
-The stage is a fixed grid — there is no view toggle. It always shows, top to
-bottom:
-
-  * **Row 1 (context, always on)** — the cluster **cell map** (segmented cells at
-    tissue coordinates, selected cluster brought forward) beside the cluster
-    **UMAP** (expression space, coloured by cluster). "Did the call land in the
-    right cells, and is the cluster a clean island."
-  * **One small-multiple row per selected marker** — that gene's transcript
-    **density** (precomputed, area-normalized hex-bins, before cell calling)
-    beside its **feature UMAP** (the same UMAP recoloured by that gene's per-cell
-    expression). "Is the raw signal really there, and where does it sit in
-    expression space." The 25 / 50 / 100 µm bin control lives on the density
-    panel and nowhere else.
-  * **A full-width grouped violin** — each selected gene's per-cell expression
-    distribution across all nine clusters, one violin per cluster in cluster
-    colour. "How cluster-specific is this marker, holistically."
-
-When no marker is selected only Row 1 renders, followed by an honest placeholder
-inviting a pick — nothing is faked.
-
-Grounding invariant (the load-bearing one): every control on this stage is a
-**viewing** control. The bin size and the selected-marker set change *the
-picture*, never a value. The bin control selects which *precomputed* density
-frame to draw (``ui.data_access.hexbins`` reads a different file per bin) — it
-never re-bins, and the colour scale is the frame's already-area-normalized
-``density`` column so a coarser bin cannot look hotter than a finer one. The
-violin draws the per-cell expression the prep step exported and joins it onto the
-authoritative cluster labels; nothing in this module computes a statistic or a
-confidence.
-
-Tissue aspect ratio: the cell map and the density map are true tissue images, so
-they lock a 1:1 data aspect ratio (``_tissue_layout``: ``scaleanchor="x"``,
-``scaleratio=1``, y reversed) — a coarse bin or a wide container can never stretch
-the slide. The UMAP and the violin are abstract spaces and keep the free
-``_base_layout``.
-
-State is read through ``ui.state`` (never a raw session-state key): the selected
-markers (``active_markers()``, capped for small-multiples legibility) and the bin
-size (``get_bin_um()``). When a selected marker has no precomputed density or
-expression frame, that panel shows an honest "not precomputed for this marker"
-placeholder — it never fakes a value.
-
-Streamlit and Plotly are imported lazily inside the render functions so the
-module imports cleanly with no server running.
+Every control here is a viewing control: the bin size picks a precomputed,
+area-normalized frame and the selection picks genes; neither changes a value.
+Tissue panels lock a 1:1 aspect. A missing frame renders a placeholder, never a
+faked plot. Streamlit and Plotly are imported lazily.
 """
 
 
@@ -65,22 +27,12 @@ from panoscope.ui import state
 # --------------------------------------------------------------------------- #
 # Constants — all purely cosmetic (viewing only)
 # --------------------------------------------------------------------------- #
-# Background-point ceiling per scattergl trace. 158k cells render fine in WebGL,
-# but a hard ceiling on the *background* keeps the first paint snappy and browser
-# memory bounded. This is a *display* downsample: it thins how many context dots
-# we paint, it never changes a value and never touches the selected cluster
-# (always drawn in full). The budget applies to the background only, so the
-# selected cluster can exceed it and the background still never collapses to zero
-# — the largest cluster (Tumor ≈ 62.7k) always keeps surrounding tissue context.
+# Display-only cap on BACKGROUND points; the selected cluster is always drawn in full.
 _MAX_BG_POINTS = 45_000
 
 _FADE_COLOR = "#D3D8DC"        # non-selected cells on the cell map (muted grey)
-# Plasma (matplotlib) — HIGHER = BRIGHTER, LOWER = DARKER: low = deep purple,
-# high = bright yellow (the viridis "plasma" ramp; hot spots read bright). Shared
-# by the transcript-density hex bins, the feature-UMAP, and the dotplot so the
-# spatial value plots read on one perceptual ramp. A sqrt transform on the value
-# (applied where each is drawn, matching trans="sqrt") lifts the low end so sparse
-# signal stays visible.
+# Plasma ramp (higher = brighter), shared by density, feature UMAP and dot plot.
+# Values are sqrt-transformed where drawn so sparse signal stays visible.
 _PLASMA = [
     [0.0, "#0D0887"],
     [0.2, "#7E03A8"],
@@ -90,20 +42,11 @@ _PLASMA = [
     [1.0, "#F0F921"],
 ]
 
-# Panel heights. The tissue panels (cell map / density) are square-locked images
-# (7520×5470 µm ⇒ W:H ≈ 1.375); the ratio lock does the shaping, this is only the
-# panel's drawing height. The UMAP + violin are abstract and use the default.
-# One shared height for the paired panels so the two columns of a row line up
-# (the tissue image letterboxes within it; the UMAP fills it). The violin is a
-# full-width chart of its own.
+# Panel heights; paired panels share one so a row's two columns line up.
 _PLOT_HEIGHT = 300          # UMAP (abstract space — free ratio)
 _TISSUE_HEIGHT = 300        # cell map / density (ratio-locked tissue image)
 _VIOLIN_HEIGHT = 340        # full-width grouped violin
 _PLOT_BG = "#FFFFFF"
-
-# Density is drawn as data-coordinate cells (go.Heatmap): each bin is exactly
-# bin_um wide on the tissue, so tile size tracks the µm control instead of a fixed
-# pixel size that could never line up with the selected bin.
 
 
 # --------------------------------------------------------------------------- #
@@ -116,11 +59,7 @@ def _st() -> Any:
 
 
 # --------------------------------------------------------------------------- #
-# Stage-local styling. These classes (.pempty / .plegend / .ptitle) are used
-# only by this stage and are not part of the shared theme, so the stage ships
-# them itself. Injected once per session (idempotent flag) so reruns never
-# restyle. Colours reference the theme's CSS custom properties so it stays in
-# the design system.
+# Stage-local styling (theme custom properties).
 # --------------------------------------------------------------------------- #
 _STAGE_CSS = """
 .plegend {
@@ -153,20 +92,8 @@ div[class*="st-key-pano_binctl"] [data-testid="stRadio"] [role="radiogroup"] { a
 
 
 def _inject_stage_css() -> None:
-    """Inject stage-local CSS on EVERY run. Import-safe: Streamlit imported lazily.
-
-    This used to set a ``_stage_css_done`` session flag and return early
-    afterwards, on the belief that "reruns re-inject harmlessly". They do not:
-    Streamlit rebuilds the element tree each run, so an element that is not
-    re-emitted is REMOVED. Measured in a browser -- a fresh load carries the style
-    block and ``.plegend`` computes to 11px IBM Plex Mono; after one rerun, from
-    any trigger (a gene button, the bin-size radio), the block count is 0 and the
-    caption falls back to 16px body copy, for the rest of the session.
-
-    What loses its styling is the conditionality caption -- the R4 record that is
-    the entire reason ``render_panel`` exists -- so from the biologist's first
-    click onward it reads as ordinary prose rather than as the plot's conditions.
-    """
+    """Inject stage-local CSS on EVERY run: Streamlit drops elements not re-emitted,
+    and the conditionality caption would lose its styling."""
     _st().markdown(f"<style>{_STAGE_CSS}</style>", unsafe_allow_html=True)
 
 
@@ -182,13 +109,8 @@ def _go() -> Any:
 def _base_layout(
     go_mod: Any, *, showlegend: bool, height: int = _PLOT_HEIGHT, equal_aspect: bool = False
 ) -> Any:
-    """A shared, chrome-light Plotly layout (no axis ticks — this is a map).
-
-    Used by the abstract views (UMAP, and the violin after it re-enables its axes):
-    axes are hidden. ``equal_aspect`` locks 1:1 unit scaling on the y-axis so an
-    embedding (the UMAP) keeps its true shape instead of stretching to fill a wide
-    panel; the violin leaves it off (its axes are not comparable).
-    """
+    """A shared, chrome-light Plotly layout with hidden axes. ``equal_aspect`` locks
+    1:1 scaling so an embedding keeps its shape."""
     axis = dict(
         showgrid=False,
         zeroline=False,
@@ -199,8 +121,6 @@ def _base_layout(
     )
     yaxis = dict(axis)
     if equal_aspect:
-        # lock one UMAP unit on y to one on x, so the point cloud keeps its shape and
-        # letterboxes within a wide panel rather than stretching.
         yaxis.update(scaleanchor="x", scaleratio=1)
     return go_mod.Layout(
         height=height,
@@ -216,16 +136,8 @@ def _base_layout(
 
 
 def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
-    """Layout for a **true tissue image** (cell map / density): 1:1 data aspect.
-
-    ``yaxis.scaleanchor="x"`` + ``scaleratio=1`` lock one micron on x to one
-    micron on y, so the slide keeps its real shape (W:H ≈ 1.375) no matter how
-    wide the container is or how coarse the density bin is — a viewing control can
-    never stretch the tissue. ``autorange="reversed"`` flips y so the map reads
-    top-down like the physical slide. Axes stay hidden (a map, not a chart), and
-    ``autoScale2d`` is removed from the toolbar (see ``_PLOT_CONFIG``) so the user
-    cannot unlock the ratio.
-    """
+    """Layout for a true tissue image (cell map / density): 1:1 micron aspect, y
+    reversed so the map reads like the slide."""
     lay = _base_layout(go_mod, showlegend=False, height=height, equal_aspect=True)
     lay.yaxis.autorange = "reversed"  # tissue reads top-down like the slide
     return lay
@@ -297,13 +209,10 @@ def _sqrt_colorbar(vmax: float, title: str) -> dict:
 
 
 def _count_colorbar(dmax: float, count_max: float) -> dict:
-    """Colorbar for the density panel, LABELLED in bin counts.
+    """Colorbar for the density panel, labelled in bin counts.
 
-    The colour stays the sqrt of the area-normalized density (so switching bin
-    size never makes coarser bins look uniformly hotter — a confident-floor
-    invariant), but the ticks read the intuitive per-bin transcript COUNT. Within
-    one bin size count is proportional to density (uniform bin area), so tick
-    positions on the sqrt-density axis map exactly to count labels.
+    Colour stays sqrt(area-normalized density) so a coarser bin never looks hotter;
+    within one bin size count is proportional to density, so the labels map exactly.
     """
     dmax = float(dmax) if dmax and dmax > 0 else 1.0
     dens_ticks = [0.0, dmax * 0.5, dmax]
@@ -319,15 +228,8 @@ def _count_colorbar(dmax: float, count_max: float) -> dict:
 # Display-only downsample of a background frame (never touches selected cluster)
 # --------------------------------------------------------------------------- #
 def _downsample_bg(df: pd.DataFrame, keep_mask: pd.Series, bg_cap: int) -> pd.DataFrame:
-    """Return ``df`` with every ``keep_mask`` row kept in full (the selected
-    cluster) plus at most ``bg_cap`` background rows.
-
-    ``bg_cap`` bounds the BACKGROUND only, not the total — so a large selected
-    cluster (Tumor ≈ 62.7k > the cap) is still drawn in full while the surrounding
-    tissue keeps a bounded, non-zero sample for context. Deterministic (fixed
-    seed) so the picture is stable across reruns. This is a rendering optimisation
-    only: it changes how many context dots we paint, never a value.
-    """
+    """Return ``df`` with every ``keep_mask`` row kept in full plus at most
+    ``bg_cap`` background rows (fixed seed). Display only, never a value."""
     keep = df[keep_mask]
     rest = df[~keep_mask]
     if len(rest) > bg_cap:
@@ -339,14 +241,8 @@ def _downsample_bg(df: pd.DataFrame, keep_mask: pd.Series, bg_cap: int) -> pd.Da
 # Cell-type labels for hover (read the authoritative key; never computes a value)
 # --------------------------------------------------------------------------- #
 def _cluster_celltype_map() -> dict:
-    """Map each cluster id to its human cell-type label for hover tooltips.
-
-    Read through ``data_access.display_cell_type``, so a hover says what the rail,
-    the header and the chat beside it say. Reading ``cfg.CLUSTER_KEY`` directly
-    left the map as the one label on the screen that did not follow an override:
-    the rail said CAF and the tissue tooltip said Stromal, in the same viewport.
-    Unassigned cells (blank cluster) read as ``unassigned``. Nothing is computed.
-    """
+    """Map each cluster id to its displayed cell-type label (override-aware) for
+    hover; blank reads as ``unassigned``."""
     from panoscope.ui import data_access as _da
 
     labels = {
@@ -360,23 +256,8 @@ def _cluster_celltype_map() -> dict:
 # --------------------------------------------------------------------------- #
 # Declared views — what this study's manifest says was never prepped
 # --------------------------------------------------------------------------- #
-# Every study's manifest carries ``views_available`` (pipeline/run.py derives it from
-# the files the viz stage actually wrote). Nothing in the UI read it, so a study built
-# without a viz precompute — the shape the kidney study arrives in — took the loader's
-# FileNotFoundError all the way to a Streamlit traceback, and the whole Markers page
-# with it. A traceback is not an interpretation.
-#
-# The guard is here rather than at the loader because the loader is right to fail
-# loudly: a *required* file that is missing is a broken study. What the manifest adds
-# is the one thing a missing file cannot say — that nobody ever promised this view.
-# Same principle as R4 ("a plot with no conditionality record refuses to draw"), one
-# step earlier: a view with nothing behind it refuses to draw and says what would have
-# produced it, naming the prep step exactly as the loader's own error does. An absent
-# view is not an empty one, so it is neither a blank panel nor a zeroed plot.
-#
-# It lives on these four renderers rather than on their callers because
-# ``enrichment_spatial.py`` imports every one of them; a guard per caller would have
-# left the pathways stage drawing the same traceback.
+# A view the manifest declares unavailable refuses to draw and names the prep step
+# that would produce it. Guarded in the renderers, which enrichment_spatial reuses.
 _VIEW_SOURCE: dict[str, str] = {
     "cell_map": "viz/cells.parquet · scripts/prep_data.R",
     "umap": "viz/umap.parquet · scripts/prep_data.R",
@@ -394,11 +275,8 @@ _VIEW_LABEL: dict[str, str] = {
 def _unavailable(*views: str) -> Optional[str]:
     """The first of ``views`` this study declares unavailable, or None to draw.
 
-    An unknown key, an absent ``views_available`` and an unreadable manifest all read
-    as *available*, matching ``PlatformAdapter.available_views``: a manifest may VETO
-    a view whose files exist, but it may never grant one whose files do not. So this
-    guard only ever subtracts, and the loader stays the backstop for a study whose
-    manifest claims a view it no longer has.
+    The manifest may only veto a view; unknown or unreadable reads as available and
+    the loader stays the backstop.
     """
     try:
         declared = cfg.current_study().views_available
@@ -421,14 +299,8 @@ def _unavailable_panel(view: str, *, height: int = _PLOT_HEIGHT) -> None:
 # View 1 — Cell map (tissue image; ratio-locked)
 # --------------------------------------------------------------------------- #
 def _render_cell_map(cluster: str) -> None:
-    """Scattergl of all cells at tissue x/y, coloured by cluster; selected cluster
-    brought forward (full colour + thin outline), the rest faded to grey.
-
-    Pure viewing surface: it draws ``cells_df()`` (already cached) and the
-    selected cluster comes straight from ``cluster``. No value is computed. The
-    tissue aspect ratio is locked by ``_tissue_layout`` so the slide is never
-    stretched.
-    """
+    """Scattergl of all cells at tissue x/y; the selected cluster in colour, the
+    rest faded to grey."""
     missing = _unavailable("cell_map")
     if missing:
         _unavailable_panel(missing, height=_TISSUE_HEIGHT)
@@ -465,23 +337,13 @@ def _render_cell_map(cluster: str) -> None:
 # View 2 — UMAP (cluster colour in Row 1; per-gene feature colour in gene rows)
 # --------------------------------------------------------------------------- #
 def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> None:
-    """Scattergl in UMAP space (abstract — free aspect ratio via ``_base_layout``).
+    """Scattergl in UMAP space.
 
-    ``feature=False`` (Row 1): always cluster-coloured (``_selected_vs_rest``),
-    selected cluster outlined.
-    ``feature=True`` (a gene row): recolour by ``gene``'s per-cell expression
-    (``marker_expr_col``) if exported (``_umap_feature``); if the gene has no
-    exported expression, fall back to the cluster-coloured UMAP with an honest
-    note. ``gene`` is required when ``feature`` is True.
+    ``feature=False``: cluster-coloured. ``feature=True``: recoloured by ``gene``'s
+    per-cell expression, falling back to cluster colour with a note when the gene
+    has none exported.
     """
-    # Two views in the feature branch, not one: the recolour reads the exported
-    # expression matrix (``marker_expr_col``) as well as the embedding. A study that
-    # ran ``prep_data.R`` but not ``prep_expr.py`` declares ``{umap: true, expr:
-    # false}`` -- Panoscope's own extra step is the one most likely to be missing --
-    # and guarding on ``umap`` alone let exactly that study past the guard and into
-    # the loader's error, a traceback over the whole Markers page with the evidence
-    # table killed mid-draw. Row 1 (``feature=False``) needs the embedding only, so
-    # it still draws: an absent view subtracts its own panels, never the page.
+    # The feature recolour also needs the expression matrix, not just the embedding.
     missing = _unavailable("umap", "expr") if feature else _unavailable("umap")
     if missing:
         _unavailable_panel(missing)
@@ -506,8 +368,6 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
 
     if feature and gene and expr is not None:
         _umap_feature(fig, go, view, expr, cluster)
-        # Legend is shared once in the control row above; the conditionality
-        # caption is per-panel because its denominator is per-panel.
         cnd.render_panel(
             fig,
             cnd.feature_umap_cond(
@@ -522,12 +382,8 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
         )
         return
 
-    # Cluster-coloured UMAP: Row 1 default, or a gene row whose expression is
-    # not exported (honest fallback).
+    # Cluster-coloured UMAP: Row 1, or a gene with no exported expression.
     _selected_vs_rest(fig, go, view, cluster)
-    # Row-1 cluster UMAP: the caption was once removed for a cleaner grid. It is
-    # back as a conditionality record, not a label — a UMAP that does not say it
-    # is a layout reads as a measurement.
     cnd.render_panel(
         fig,
         cnd.cluster_umap_cond(
@@ -538,10 +394,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
             n_bg_total=n_bg_total,
         ),
         config=_PLOT_CONFIG,
-        # Two different panels reach this draw: Row 1's cluster UMAP, and the
-        # honest fallback for a gene with no exported expression column. Same
-        # figure, same conditionality -- so without distinct keys the second one
-        # collided and took the rest of the page down with it.
+        # Distinct keys: Row 1 and a gene's fallback draw the same figure.
         key=(f"pano_umap_nofeature_{cluster}_{gene}" if feature and gene
              else f"pano_umap_clusters_{cluster}"),
     )
@@ -556,10 +409,8 @@ def _selected_vs_rest(
     fig: Any, go: Any, view: pd.DataFrame, cluster: str,
     x: str = "umap_1", y: str = "umap_2", *, bg_opacity: float = 0.5,
 ) -> None:
-    """Grey out every other cluster; fill the selected cluster with its own
-    palette colour (no outline). Shared by the cell map (``x``/``y``) and the
-    cluster UMAP so the two Row-1 panels read the same way. Hovering any cell shows
-    its cell type (read from the authoritative key), not the opaque cell id."""
+    """Grey out every other cluster and fill the selected one with its palette
+    colour; hover shows the cell type. Shared by the cell map and cluster UMAP."""
     view = view.assign(
         cell_type=view["cluster"].map(_cluster_celltype_map()).fillna("unassigned")
     )
@@ -594,34 +445,16 @@ def _selected_vs_rest(
 def _umap_feature(
     fig: Any, go: Any, view: pd.DataFrame, expr: pd.DataFrame, cluster: str
 ) -> None:
-    """Colour the UMAP by per-cell marker expression (plasma low->high ramp).
-
-    ``expr`` is (cell_id, value). A feature plot in two layers so higher=brighter
-    reads cleanly on a light panel and there is no dark blob:
-
-    * NON-expressing cells (value <= 0 or no exported value) are a light-grey base
-      that recedes — not dark purple, which would swamp the plot.
-    * EXPRESSING cells (value > 0) are drawn ON TOP, sqrt-transformed and coloured
-      plasma (dark = low, bright = high), in ascending order so the brightest
-      cells land last and stay visible.
-
-    No cluster outline: the Row-1 UMAP already shows where the cluster sits, and a
-    dark outline over a large cluster collapses into a black mass.
-    """
+    """Colour the UMAP by per-cell expression ``expr`` (cell_id, value): non-expressing
+    cells as a grey base, expressing cells on top in sqrt plasma, brightest last."""
     merged = view.merge(expr, on="cell_id", how="left")
     vals = merged["value"]
     is_pos = vals > 0
     off = merged[~is_pos]
     pos = merged[is_pos].sort_values("value", ascending=True)
 
-    # THE GENE'S maximum, not the drawn subset's. ``view`` is thinned -- all of
-    # the selected cluster plus a capped background sample -- so the brightest
-    # cell for this gene is often not in it, and the colourbar then printed a
-    # number that CHANGED when the biologist clicked a different cluster. On 38
-    # of the first 40 panel genes: ABCC11's maximum is 9.21 and the panel showed
-    # 7.42, 7.82 or 8.52 depending on the selection; ADIPOQ showed 6.34 against
-    # a true 9.21. The caption beside it says "this gene's own maximum", and a
-    # viewing control must change the picture, never a value.
+    # The gene's own maximum, not the thinned view's: a viewing control (which
+    # cluster is selected) must never change the colourbar's value.
     gene_max = float(expr["value"].max()) if len(expr) else 0.0
 
     # Base: non-expressing cells, muted grey so they recede into the panel.
@@ -665,25 +498,13 @@ def _umap_feature(
 # View 3 — Density (precomputed, area-normalized hex-bins; tissue image)
 # --------------------------------------------------------------------------- #
 def _render_density(gene: str) -> None:
-    """Precomputed transcript density for ``gene`` as an area-normalized map.
-
-    The global 25 / 50 / 100 µm bin control (``_render_density_controls``) picks which
-    *precomputed* frame this reads; the colour is that frame's ``density``
-    (transcripts / µm²) so bins are comparable across sizes. Each bin is rendered as
-    a data-coordinate ``go.Heatmap`` cell exactly ``bin_um`` wide, so the tiles tile
-    the slide and their size visibly matches the µm the biologist selected (a fixed
-    pixel marker never could). If the gene has no precomputed density frame, show an
-    honest placeholder — never a synthesized field. The tissue aspect ratio is locked
-    by ``_tissue_layout`` so a coarse bin never stretches the slide.
-    """
+    """Precomputed transcript density for ``gene`` at the global bin size, or a
+    placeholder when no frame exists (never a synthesized field)."""
     missing = _unavailable("density")
     if missing:
         _unavailable_panel(missing, height=_TISSUE_HEIGHT)
         return
 
-    # Bin size is a single GLOBAL viewing control (``_render_density_controls``, drawn
-    # once above the gene rows), so this panel just reads it — no per-panel control
-    # to offset the density plot from its feature-UMAP neighbour.
     bin_um = state.get_bin_um()
     try:
         hb = da.hexbins(gene, bin_um)
@@ -706,17 +527,11 @@ def _render_density_frame(
     hb: Any, bin_um: int, *, cond: Any, empty: str = "density not precomputed",
     key: str | None = None,
 ) -> None:
-    """Draw a precomputed (or aggregated) hex-density frame as an area-normalized,
-    ratio-locked tissue image. Shared by the single-marker density and the
-    enrichment leading-edge set density (a sum of measured per-gene densities).
+    """Draw a hex-density frame (hx, hy, count, density) as a ratio-locked tissue
+    image: colour sqrt(density), hover the real values, absent bins transparent.
 
-    ``hb`` has columns hx, hy, count, density. The colour is sqrt(density) (lifts
-    the low end); hover shows the real count + density. Absent bins stay NaN and
-    render transparent so the slide reads through the holes.
-
-    ``cond`` is the caller's conditionality record — required, because the two
-    callers draw different things (one gene's detections vs a SUM over a
-    program's driving genes) and only the caller knows which.
+    ``cond`` is required: only the caller knows what the frame is (one gene, or a
+    sum over a gene set).
     """
     go = _go()
 
@@ -725,18 +540,11 @@ def _render_density_frame(
         return
 
     dens = hb["density"]
-    # sqrt transform on the density for the colour mapping (trans="sqrt"): it lifts
-    # the low end so sparse bins stay visible. The hover still shows the REAL count
-    # and density — the transform is display-only and never changes a value.
+    # Display-only sqrt for colour; hover shows the real values.
     dens_sqrt = (dens.clip(lower=0) ** 0.5).to_numpy(dtype="float64")
     cmax = float(dens_sqrt.max()) if dens_sqrt.size and np.isfinite(dens_sqrt).any() else 1.0
 
-    # Draw each bin as a DATA-COORDINATE cell (go.Heatmap), not a fixed-pixel marker:
-    # a "50 µm" bin is exactly 50 µm wide on the tissue, so the tiles tile the slide
-    # and the picture visibly scales with the 25/50/100 µm control (a pixel-sized
-    # marker could never line up with the µm the biologist picked). The sparse
-    # precomputed bins are placed onto their regular grid; absent bins stay NaN and
-    # render transparent (hoverongaps=False) so the slide reads through the holes.
+    # Data-coordinate cells: each tile is exactly bin_um wide; absent bins stay NaN.
     hx = hb["hx"].to_numpy(dtype="float64")
     hy = hb["hy"].to_numpy(dtype="float64")
     x0, y0 = hx.min(), hy.min()
@@ -779,30 +587,17 @@ def _render_density_frame(
         )
     )
 
-    # No per-panel legend: the shared control+legend row above every gene row
-    # carries the ramp and the units once (see _render_density_controls). The
-    # conditionality caption is per-panel — the bin µm and the colour maximum it
-    # states are this panel's.
     cnd.render_panel(fig, cond, config=_PLOT_CONFIG, key=key)
 
 
 # --------------------------------------------------------------------------- #
-# View 4 — Grouped violin (per-cell expression across all nine clusters)
+# View 4 — Dot plot (per-cell expression across clusters)
 # --------------------------------------------------------------------------- #
 def _render_dotplot(genes: list[str], cluster: str,
                     n_selected: int | None = None) -> None:
-    """Dot plot of each selected gene's expression across the nine clusters.
-
-    The standard single-cell summary: for every (gene, cluster) a dot whose SIZE
-    is the fraction of that cluster's cells expressing the gene (value > 0) and
-    whose COLOUR is the mean per-cell expression. Both come straight from
-    ``expr_by_cluster`` (the exported per-cell values joined to the authoritative
-    cluster labels) — this derives nothing beyond a mean and a fraction of source
-    values. x = clusters (c1..c9), y = the selected genes.
-    """
-    # Two views, because ``expr_by_cluster`` joins the exported expression onto the
-    # authoritative cluster labels in the cell table: without either one there is no
-    # (gene, cluster) cell to draw.
+    """Dot plot of each selected gene across clusters: size = % of cells expressing,
+    colour = mean per-cell expression, both from ``expr_by_cluster``."""
+    # Needs both the expression matrix and the cell table's cluster labels.
     missing = _unavailable("expr", "cell_map")
     if missing:
         _unavailable_panel(missing, height=_VIOLIN_HEIGHT)
@@ -810,8 +605,7 @@ def _render_dotplot(genes: list[str], cluster: str,
 
     go = _go()
 
-    # Only plot genes that actually have exported per-cell expression; the rest
-    # are honestly omitted (never faked).
+    # Genes with no exported expression are omitted, never faked.
     frames: list[tuple[str, pd.DataFrame]] = []
     for g in genes:
         by = da.expr_by_cluster(g)
@@ -825,9 +619,7 @@ def _render_dotplot(genes: list[str], cluster: str,
         )
         return
 
-    # (gene, cluster) -> mean expression + % of cells expressing (value > 0),
-    # straight from the exported per-cell values (a mean and a fraction; nothing
-    # else is derived).
+    # (gene, cluster) -> mean expression + % of cells expressing (value > 0).
     rows: list[tuple[str, str, float, float]] = []
     for gene, by in frames:
         for c in cfg.CLUSTER_ORDER:
@@ -846,8 +638,7 @@ def _render_dotplot(genes: list[str], cluster: str,
     pct_max = max(1.0, float(df["pct"].max()))
     sizeref = 2.0 * pct_max / (max_px ** 2)
     mean_max = float(df["mean"].max())
-    # sqrt colour transform (trans="sqrt"): colour the dots by sqrt(mean), but keep
-    # the colourbar labelled in REAL mean units so the axis stays honest.
+    # Colour by sqrt(mean); the colourbar is labelled in real mean units.
     mean_sqrt = df["mean"].clip(lower=0) ** 0.5
     cmax_sqrt = float(mean_sqrt.max()) if mean_sqrt.notna().any() and mean_sqrt.max() > 0 else 1.0
     _bar_orig = [0.0, mean_max * 0.25, mean_max * 0.5, mean_max] if mean_max > 0 else [0.0, 1.0]
@@ -924,11 +715,7 @@ def _render_dotplot(genes: list[str], cluster: str,
         fig,
         cnd.dotplot_cond(
             genes_drawn=len(gene_order),
-            # The UNCAPPED selection. ``active_markers`` caps the small-multiples
-            # at four, and this counted the capped list -- so selecting six genes
-            # drew four and the caption read "4 of 4 selected genes" while the
-            # other two appeared nowhere on the stage. The "N of M" field exists
-            # precisely to name what the figure left out.
+            # The uncapped selection, so "N of M" names what the figure left out.
             genes_selected=(len(genes) if n_selected is None else n_selected),
             n_clusters=len(cfg.CLUSTER_ORDER),
             n_expr_cells=len(da.marker_expr_df()),
@@ -944,17 +731,8 @@ def _render_dotplot(genes: list[str], cluster: str,
 # Global density bin control (one control for every density panel)
 # --------------------------------------------------------------------------- #
 def _render_density_controls() -> None:
-    """One tidy row for the whole density section: the bin-size selector beside a
-    single shared colour legend.
-
-    Bin size is ONE global viewing control — the same size is used for every
-    selected gene (it picks which precomputed frame each density panel reads, never
-    re-binning a value). Rendering it once here, with the legend, means the gene
-    rows below carry no repeated control and no per-panel legend.
-    """
-    # No density frames in this study -> no control. A viewing control whose only
-    # effect is to pick between pictures that do not exist is not an honest absence
-    # statement, it is a dead knob; the density panels below say what is missing.
+    """The one global bin-size control for every density panel (viewing only)."""
+    # No density frames -> no control; the panels below say what is missing.
     if _unavailable("density"):
         return
 
@@ -979,8 +757,6 @@ def _render_density_controls() -> None:
                 label_visibility="collapsed",
                 key="bin_um_global",
             )
-    # Read fresh in the same run — the density panels below pick it up immediately.
-    # Each panel carries its own numeric colorbar, so no shared text legend here.
     state.set_bin_um(picked)
 
 
@@ -988,22 +764,7 @@ def _render_density_controls() -> None:
 # Public entry point
 # --------------------------------------------------------------------------- #
 def render_spatial_stage(cluster: str) -> None:
-    """Render the fixed spatial grid for ``cluster``.
-
-    The grid is:
-      * Row 1 — cluster cell map | cluster UMAP (always on, the context row).
-      * One small-multiple row per selected marker — density | feature UMAP.
-      * A full-width grouped violin across all nine clusters (selected markers).
-      * A placeholder inviting a pick when no marker is selected.
-
-    Reads state via ``ui.state``:
-      * ``active_markers()`` — the selected markers, capped for small-multiples.
-      * ``get_bin_um()``     — which precomputed density frame (density panels).
-
-    Every control here is a viewing control. Selecting markers or changing the
-    bin changes the picture only — this function never calls a verdict and never
-    derives a statistic.
-    """
+    """Render the fixed spatial grid for ``cluster`` (see the module docstring)."""
     st = _st()
     _inject_stage_css()
 
@@ -1026,10 +787,8 @@ def render_spatial_stage(cluster: str) -> None:
         )
         return
 
-    # Breathing room between the cell-level row and the transcript hex-bin rows.
     st.markdown('<div style="height:22px"></div>', unsafe_allow_html=True)
 
-    # Single tidy control+legend row (one bin size for every gene, shared legend).
     _render_density_controls()
 
     # One small-multiple row per selected marker: density (tissue) | feature UMAP.

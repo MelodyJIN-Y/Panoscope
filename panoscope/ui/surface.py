@@ -1,42 +1,22 @@
 """The generic renderer: a ``UISpec`` in, the review surface out.
 
-``panoscope/types/uispec.py`` made the review surface declarable. Three workflows
-declared one. Nothing read them: ``app.py`` hardcoded three tabs and every page was
-hand-built per method, which is the thing ARCHITECTURE §13 says Panoscope does not
-do. This module is the half that was missing -- *"the review surface is part of the
-interpretation contract, declared by the workflow"* with pixels behind it.
+ARCHITECTURE §13: the review surface is declared by the workflow. Pure ``*_html``
+functions decide every cell (testable without a server); :func:`render_surface`
+is the only Streamlit entry point.
 
-**The split: pure HTML functions, one thin Streamlit wrapper.** Everything that
-decides what a cell says is a pure ``*_html`` function over a spec and rows, so the
-guards below are testable with no server running and the surface can be diffed as a
-string. :func:`render_surface` is the only function that imports Streamlit, and all
-it does is ``st.markdown`` what the pure half returned (plus the per-row pin button,
-which has to be a widget).
+Rules enforced here:
 
-**Four rules this renderer enforces rather than documents.**
-
-1. *Degradation goes DOWN.* :func:`label_band_html` refuses a surface whose task
-   kind has no label space, and :func:`provenance_html` refuses one that declared
-   a task kind. ``UISpec.__post_init__`` already makes the illegal *declaration*
-   unconstructable; this is the same rule at the other end, because the bug it is
-   named for -- ``ui/enrichment_table.py`` importing the assignment header -- was a
-   renderer reaching for another task kind's header, not a bad declaration.
+1. *Degradation goes down.* :func:`label_band_html` refuses a task kind with no
+   label space; :func:`provenance_html` refuses one that declared a task kind.
 2. *A never-measured item is not a blank row and not a zero.* A numeric cell with
-   no number hatches, with the state and its reason on the hover. A number arriving
-   on a row whose state forbids one is refused outright rather than drawn.
-3. *Click-back.* Every row and every claim-bearing header sentence carries a
-   ``Subject.key`` anchor; one that does not is not rendered, it raises.
-4. *Plots render, they do not derive.* The spec types have nowhere to write a
-   computation down; :func:`_no_code` checks that nothing put one there anyway
-   before a single cell is drawn, so a callable leaking into a column fails here
-   instead of running in the renderer.
+   no number hatches; a number on a row whose state forbids one is refused.
+3. *Click-back.* Every row and claim-bearing header sentence carries a
+   ``Subject.key`` anchor, or it raises.
+4. *Plots render, they do not derive.* :func:`_no_code` refuses a computation in
+   the spec before any cell is drawn.
 
-**What the renderer does not decide.** Not the measurement state (it arrives on the
-row, resolved server-side), not a number's value (it formats what it is handed, to
-the declared precision), not the block order or the sort key (declared), and not
-which rows exist. Sorting happens *within* a block, never across one, because
-sorting across blocks is how a top-N hides every absence at the bottom of a list
-nobody scrolls.
+State, values, block order and sort are all handed in. Sorting is within a block,
+never across, so absences cannot sink below a top-N.
 """
 
 from __future__ import annotations
@@ -62,9 +42,7 @@ from panoscope.types.uispec import (
     UISpec,
     anchored,
 )
-# Imported, never re-listed. uispec.py derives both from `Measured.carries_number`,
-# and a second copy here would be the exact bug its own comment warns about: a
-# widened property would move the hatching in one file and leave this one behind.
+# Imported, never re-listed: uispec.py derives both from `Measured.carries_number`.
 from panoscope.types.uispec import _NO_NUMBER, _NUMERIC_KINDS
 from panoscope.ui import format as fmt
 
@@ -76,31 +54,21 @@ from panoscope.ui import format as fmt
 class SurfaceRow:
     """One item row, already adjudicated.
 
-    ``key`` is a ``Subject.key`` and is the click-back anchor -- the same string
-    reconciliation joins on, so a row in the table and a claim in a record resolve
-    to each other without a second identity scheme.
-
-    ``values`` maps a declared ``ColumnSpec.key`` to an already-resolved value.
-    ``None`` means *there is no number here*, which is a different fact from zero
-    and is rendered differently.
+    ``key`` is a ``Subject.key`` (the click-back anchor). ``values`` maps a declared
+    ``ColumnSpec.key`` to a resolved value; ``None`` means no number, never zero.
     """
 
     key: str
     state: MeasuredState
     values: Mapping[str, Any] = field(default_factory=dict)
     reason: str = ""          # why this state -- the hover on the hatch
-    #: The capability frame that produced ``state``, verbatim from
-    #: ``Measured.frame`` ("panel:<study>", "detect:<study>"). Carried as its own
-    #: field rather than parsed back out of ``reason``, because a block that
-    #: selects on it (``BlockSpec.frame_prefix``) must not break when that
-    #: sentence is copy-edited -- the defect this table already has a comment
-    #: about, one layer up.
+    #: The capability frame that produced ``state`` (``Measured.frame``), its own
+    #: field so ``BlockSpec.frame_prefix`` never parses prose.
     frame: str = ""
 
 
 # ● measured  ◐ measured, not here  ◌ below the floor  ⊘ never measured.
-# Four glyphs because there are four states; the two-glyph version of this table is
-# the collapse the whole lattice exists to stop.
+# Four glyphs for four states; never collapse to two.
 _GLYPH: dict[MeasuredState, tuple[str, str]] = {
     MeasuredState.OBSERVED: ("&#9679;", "observed"),
     MeasuredState.TESTED_ABSENT: ("&#9680;", "measured, not here"),
@@ -114,18 +82,7 @@ _DEFAULT_FR: dict[ColumnKind, int] = {
     ColumnKind.CITATION: 3,
     ColumnKind.NOTE_CHIP: 2,
     ColumnKind.TEXT: 2,
-    # A numeric column is not narrow, because on a non-observed row it does not
-    # hold a number -- it holds the hatch, "◐&nbsp;measured, not here", whose
-    # non-breaking space binds the glyph to its label so the whole run cannot
-    # wrap. Measured in a browser: it wants 78px and a 1fr track gave it 42 at
-    # 1024 and 63 at 1440, so the text spilled into the next column. The header
-    # "SPECIFICITY" wants 72 and got 42.
-    #
-    # This only became visible once the tracks started honouring their fractions
-    # (``minmax(0, Nfr)``). Before that each box sized to its own content, which
-    # is exactly why the header and the rows disagreed and the headings sat over
-    # the wrong columns. The fractions are the fix; they just have to be big
-    # enough for what the cells actually carry.
+    # Numeric columns must fit the hatch text ("◐ measured, not here"), not just a number.
     ColumnKind.NUMBER: 2,
     ColumnKind.SPECIFICITY_PAIR: 2,
     ColumnKind.GLYPH: 2,
@@ -149,13 +106,8 @@ def _no_code(spec: UISpec) -> None:
 
 
 def _anchor(inner: str, key: str, cls: str) -> str:
-    """Wrap a rendered claim in its click-back anchor, or refuse to render it.
-
-    The check is ``uispec.anchored`` rather than an ``if`` here: a row emits its
-    anchor and its target in one span, so it resolves to itself by construction and
-    has nothing to be checked against -- but a sentence ABOUT a subject does not,
-    and that half of the rule was missing from both renderers' private copies of it.
-    """
+    """Wrap a rendered claim in its click-back anchor (``uispec.anchored``), or
+    refuse to render it."""
     return (f'<span class="{cls}" data-claim="{_esc(anchored(key, what=cls))}">'
             f'{inner}</span>')
 
@@ -227,21 +179,8 @@ def _fr(col: ColumnSpec) -> int:
 
 
 def _grid_style(cols: Sequence[ColumnSpec], *, skip_first: bool = False) -> str:
-    """The shared track list. ``minmax(0, Nfr)``, never a bare ``Nfr``.
-
-    A bare ``1fr`` is ``minmax(auto, 1fr)``, so a track never shrinks below its own
-    content and the SAME declaration resolves differently in every box it is
-    applied to. The header and the rows are separate grids carrying one string, and
-    measured in a browser that string produced three different track sets on one
-    page -- header ``101 103 117 51 101 152``, one row group ``117 78 78 59 117
-    176``, another ``125 63 63 63 125 188``. "observed" rendered under the SPATIAL
-    SPECIFICITY heading with no overlap of its own, and the cited biology under
-    CAVEATS.
-
-    ``minmax(0, ...)`` lets a track shrink below its content, so the fractions are
-    honoured identically everywhere and the columns line up. Verified in the same
-    browser: all six offsets go to 0.0px.
-    """
+    """The shared track list. ``minmax(0, Nfr)``, never a bare ``Nfr``: a bare
+    ``1fr`` sizes to content, so the header and row grids would not line up."""
     used = cols[1:] if skip_first else cols
     return ("grid-template-columns:"
             + " ".join(f"minmax(0,{_fr(c)}fr)" for c in used) + ";")
@@ -281,29 +220,10 @@ def block_label_html(block: BlockSpec, n: int) -> str:
 
 
 def method_limits_html(spec: UISpec) -> str:
-    """What the method that produced these numbers does **not** measure.
+    """What the methods registered into this workflow do **not** measure
+    (``does_not_measure``), shown where the number is read. ``""`` when none.
 
-    ``types/contracts.py`` has said ``does_not_measure`` is "MANDATORY, from the
-    paper, rendered in the UI" since the Protocol was written, and
-    ``IMPLEMENTATION.md`` repeats it -- but nothing read the field. The registry's
-    own docstring names the failure that leaves: "a ``glm_coef`` with no
-    ``does_not_measure`` beside it is indistinguishable from a fold change, and the
-    confidence assessment silently stops being an audit of someone else's output."
-    The biologist is the one person who has to defend the number and the only one
-    who did not run the method, so the limits belong on the surface where the
-    number is read, not only in the module that declares them.
-
-    A workflow's surface carries the limits of whichever methods registered into
-    it -- including one this repo never sees. Returns ``""`` when no method is
-    registered, which is a degraded surface's problem to announce, not this
-    function's.
-
-    ``UISpec.workflow_id`` is the short surface id the shell routes on ("markers")
-    and a method registers against the workflow's ``name``, the skill directory
-    ("marker-interpretation"). ``workflows/marker.py`` keeps them deliberately
-    different so that renaming a tab cannot silently re-point a skill, so the link
-    is *looked up* through the workflow that owns the spec rather than restated
-    here as a mapping -- the second list is the one nobody updates.
+    The surface id is looked up through its workflow, never restated as a mapping.
     """
     from panoscope import methods, workflows
 
@@ -333,11 +253,7 @@ def method_limits_html(spec: UISpec) -> str:
 
 
 def block_html(spec: UISpec, block: BlockSpec, rows: Sequence[SurfaceRow]) -> str:
-    """A block header and its rows -- the header even at zero, with its empty text.
-
-    A block that disappears at zero is the panel-absence rule disappearing at the
-    moment it had something to say.
-    """
+    """A block header and its rows -- the header even at zero, with its empty text."""
     got = rows_for(block, rows)
     out = [block_label_html(block, len(got))]
     if not got:
@@ -349,11 +265,7 @@ def block_html(spec: UISpec, block: BlockSpec, rows: Sequence[SurfaceRow]) -> st
 
 
 def ribbon_html(spec: UISpec, rows: Sequence[SurfaceRow]) -> str:
-    """The table's own conditionality: one stacked bar, every count labelled.
-
-    What stops a screen of twelve supporting programs from reading as twelve of
-    twelve.
-    """
+    """The table's own conditionality: one stacked bar, every count labelled."""
     if not spec.coverage_ribbon.enabled or not rows:
         return ""
     total = len(rows)
@@ -399,13 +311,8 @@ def _idline(values: Mapping[str, Any]) -> str:
 
 
 def label_band_html(spec: UISpec, values: Mapping[str, Any]) -> str:
-    """ASSIGNMENT only. The band, its driver, and the rejected alternative.
-
-    The guard is the point of the function. ``ui/enrichment_table.py`` reached for
-    this header from a characterisation page and inherited a confidence band it had
-    no right to; a renderer that cannot be reached that way is the fix, and a
-    comment saying "do not import this" is not.
-    """
+    """ASSIGNMENT only (refuses any other task kind). The band, its driver, and the
+    rejected alternative."""
     h = spec.header
     if not isinstance(h, LabelBandHeader) or spec.task_kind is not TaskKind.ASSIGNMENT:
         raise DegradedUpward(
@@ -437,11 +344,7 @@ def label_band_html(spec: UISpec, values: Mapping[str, Any]) -> str:
 
 
 def census_html(spec: UISpec, values: Mapping[str, Any]) -> str:
-    """CHARACTERISATION-shaped. Per-item counts, each with its denominator; no band.
-
-    There is no band slot to fill, which is the structural form of the rule rather
-    than a reminder about it.
-    """
+    """CHARACTERISATION-shaped. Per-item counts, each with its denominator; no band."""
     h = spec.header
     if not isinstance(h, CensusHeader):
         raise DegradedUpward(f"{spec.workflow_id}: census_html called on a "
@@ -501,12 +404,8 @@ def checklist_html(spec: UISpec, values: Mapping[str, Any]) -> str:
 
 
 def provenance_html(spec: UISpec, values: Mapping[str, Any]) -> str:
-    """The degraded header. A banner and the file -- no claim of any kind.
-
-    Refuses a spec that DID declare a task kind: degrading a registered workflow to
-    "we know nothing" hides a working interpretation behind a disclaimer, which is
-    the mirror-image failure of degrading upward and just as dishonest.
-    """
+    """The degraded header. A banner and the file -- no claim of any kind. Refuses a
+    spec that declared a task kind."""
     h = spec.header
     if not isinstance(h, ProvenanceOnlyHeader) or spec.task_kind is not None:
         raise DegradedUpward(
@@ -695,10 +594,8 @@ def render_surface(
 ) -> None:
     """Draw the declared surface into the current Streamlit container.
 
-    ``on_select`` makes the first column a pin button. It is honoured only where
-    pinning is declared (``spec.pin_kinds``) and only on rows that carry a
-    measurement: a never-scored program has no leading edge to map, so offering to
-    pin it would be a control that promises a figure it cannot draw.
+    ``on_select`` makes the first column a pin button, only where ``spec.pin_kinds``
+    declares it and only on rows that carry a measurement.
     """
     import streamlit as st
 
@@ -708,13 +605,8 @@ def render_surface(
 
     pinnable = on_select is not None and bool(spec.pin_kinds)
     st.markdown(ribbon_html(spec, rows), unsafe_allow_html=True)
-    # The header keeps ALL its columns, pinnable or not, because all three row
-    # shapes now put the first column in the same place: a non-observed row spans
-    # the full grid, and a pinnable row's button sits in an ``st.columns`` split
-    # using the SAME fraction (first / sum-of-rest). A header that skipped the
-    # first column matched the rows only while those rows also skipped it -- and
-    # once they stopped, it labelled every remaining column one place to the left,
-    # putting "glm_coef" over the gene names.
+    # The header keeps all its columns; every row shape puts the first column in
+    # the same place.
     st.markdown(column_header_html(spec), unsafe_allow_html=True)
 
     for block in spec.blocks:
@@ -729,17 +621,11 @@ def render_surface(
             if pinnable and row.state is MeasuredState.OBSERVED:
                 _render_pinnable_row(st, spec, row, on_select, selected)
             else:
-                # NOT skip_first, even when the table is pinnable. A pinnable
-                # table draws the first column as a button, which only measured
-                # rows get -- but dropping the column from every other row drops
-                # the NAME with it, and a never-measured row that does not say
-                # WHICH entity was never measured is exactly the blank row the
-                # interface contract forbids. The button is withheld here; the
-                # identifier never is.
+                # Not skip_first: an unpinnable row withholds the button, never
+                # the entity's name.
                 st.markdown(row_html(spec, row), unsafe_allow_html=True)
 
-    # Under the numbers it qualifies. A reader who has only the number cannot tell
-    # which question produced it, so the question arrives with it.
+    # Under the numbers it qualifies.
     limits = method_limits_html(spec)
     if limits:
         st.markdown(limits, unsafe_allow_html=True)

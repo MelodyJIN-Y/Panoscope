@@ -1,9 +1,7 @@
 """Pure UI formatters — no Streamlit, no I/O, importable anywhere.
 
-Everything here is a total function over already-loaded values. Colors and CSS
-class names mirror the design tokens in ``theme.py`` and the wireframe
-(``docs/archive/dashboard_wireframe_panels.html``). Nothing in this module computes a spatial
-statistic or a confidence value — it only *labels* values the engine produced.
+Total functions over already-loaded values; colours and CSS class names mirror
+``theme.py``. Nothing here computes a value — it only labels what the engine produced.
 """
 
 
@@ -13,13 +11,9 @@ from panoscope.agent import config as cfg
 from typing import Optional
 
 # --------------------------------------------------------------------------- #
-# Cluster colors — one stable color per cluster c1..c9.
-# Distinct, print-safe hues; teal (c1) matches the brand accent so the primary
-# cluster reads as "home". Keyed by cluster id, never by index, so a reorder
-# never reassigns a color.
+# Cluster colors — one stable color per unit, keyed by id.
 # --------------------------------------------------------------------------- #
-# The bundled demo's hand-assigned hues, kept so the demo's figures are stable and
-# each colour still matches its cell type.
+# The bundled demo's hand-assigned hues, matched to its cell types.
 _DEMO_CLUSTER_COLORS: dict[str, str] = {
     "c1": "#FC8D62",  # orange (Tumor)
     "c2": "#66C2A5",  # teal-green (Stromal)
@@ -32,9 +26,7 @@ _DEMO_CLUSTER_COLORS: dict[str, str] = {
     "c9": "#0000FF",  # blue (Mast cells)
 }
 
-# A qualitative scale for any other study. 24 entries, so a study with more units
-# than the demo does not render most of them identical grey -- which is what a
-# nine-entry literal did.
+# A 24-entry qualitative scale for any other study.
 _QUALITATIVE: tuple[str, ...] = (
     "#FC8D62", "#66C2A5", "#8DA0CB", "#E78AC3", "#A6D854", "#87CEEB",
     "#7D26CD", "#E5C498", "#0000FF", "#FFD92F", "#B3B3B3", "#1B9E77",
@@ -45,12 +37,8 @@ _FALLBACK_CLUSTER_COLOR = "#9AA3AB"
 
 
 def cluster_color(cluster: str) -> str:
-    """Stable hex colour for a unit id, for ANY study.
-
-    The demo keeps its hand-assigned hues. Any other study indexes the qualitative
-    scale by the unit's position in that study's own order, so the assignment is
-    stable per study and never collapses to grey past nine units.
-    """
+    """Stable hex colour for a unit id: the demo's hand-assigned hues, else the
+    qualitative scale indexed by the unit's position in the study's order."""
     if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and cluster in _DEMO_CLUSTER_COLORS:
         return _DEMO_CLUSTER_COLORS[cluster]
     order = cfg.CLUSTER_ORDER
@@ -73,11 +61,8 @@ _CONFIDENCE_CLASS: dict[str, str] = {
 
 
 def confidence_chip(label: str) -> tuple[str, str]:
-    """Return ``(css_class, text)`` for a confidence band label.
-
-    Unknown labels degrade to the "Low" styling with the raw label as text, so a
-    stray value renders visibly rather than crashing the header.
-    """
+    """Return ``(css_class, text)`` for a confidence band label; an unknown label
+    gets the "Low" styling with its raw text."""
     css = _CONFIDENCE_CLASS.get(label, "cf-l")
     return css, f"{label} confidence"
 
@@ -86,11 +71,7 @@ def confidence_chip(label: str) -> tuple[str, str]:
 # Number formatting — mono, honest, never invents precision.
 # --------------------------------------------------------------------------- #
 def num_fmt(value: Optional[float], digits: int = 2) -> str:
-    """Format a number for the mono columns; ``None``/NaN -> an em dash.
-
-    Keeps a fixed number of decimals so columns align. Does not round-then-lie:
-    it shows exactly ``digits`` places of the stored value.
-    """
+    """Format a number to exactly ``digits`` places; ``None``/NaN -> ``"n/a"``."""
     if value is None:
         return "n/a"  # no value
     try:
