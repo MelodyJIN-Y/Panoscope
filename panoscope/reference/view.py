@@ -58,12 +58,6 @@ class View:
         return tuple(dict.fromkeys(e.object.id for e in self.graph.edges
                                    if e.predicate == "marks"))
 
-    def cl_id(self, label: str) -> str:
-        """The label's Cell Ontology id, or "" if the ontology holds no such name."""
-        name = self._primary().get(label, label)
-        return next((a for n in self.graph.nodes if n.entity.id == name
-                     for a in sorted(n.aliases) if a.startswith("CL:")), "")
-
     def reads_as(self, label: str) -> str:
         """The sentence for a label's reference lookup; never "does not exist"."""
         return graph.lookup(self.graph, Entity(EntityKind.CELL_TYPE, label)).value.reads_as
@@ -83,12 +77,14 @@ def _sources(study) -> tuple:
 
 
 def for_study(study) -> View:
-    """The study's reference view; rebuilt when its lab list changes."""
-    return _view(study, sources.LabCurated(study.dir / LAB_FILE, "").release)
+    """The study's reference view; rebuilt when its tissue, cache or lab list changes."""
+    # ponytail: a source fetched into the same cache mid-process is seen on restart.
+    return _view(study, study.tissue, sources.cache_root(),
+                 sources.LabCurated(study.dir / LAB_FILE, "").release)
 
 
 @lru_cache(maxsize=8)
-def _view(study, _lab_release: str) -> View:
+def _view(study, _tissue, _cache_root, _lab_release: str) -> View:
     srcs = _sources(study)
     g = sources.build(srcs=srcs).value
     return View(g, tuple((s.name, s.release) for s in srcs if s.name in g.consulted))

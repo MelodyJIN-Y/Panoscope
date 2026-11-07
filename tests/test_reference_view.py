@@ -63,7 +63,6 @@ def test_a_breast_only_label_has_no_canonical_set_in_a_kidney_view(tmp_path, mon
     assert "not in reference data" in v.reads_as("Luminal epithelial cells")
     # labels match through a real exact synonym, never an ambiguous one
     assert v.canonical("glomerular visceral epithelial cell") == ("NPHS2",)
-    assert v.cl_id("podocyte") == "CL:0000653"
     assert v.canonical("shared name") == ()
 
 
@@ -92,3 +91,15 @@ def test_a_lab_list_edge_carries_licence_lab_and_its_canonical_flag(tmp_path) ->
     assert v.releases[0][0] == "lab:t"
     assert v.markers("T cell") == ("CD3E", "VIM")
     assert v.canonical("T cell") == ("CD3E",)
+
+
+def test_a_corrected_tissue_rebuilds_the_view(tmp_path) -> None:
+    """Re-answering tissue at intake must not keep the first tissue's lists."""
+    from panoscope.data import study as study_mod
+
+    lab = "cell_type,gene,tissue\nT cell,CD3E,a\nT cell,MS4A1,b\n"
+    s = _study(tmp_path, "s", "a", lab)
+    assert view.for_study(s).canonical("T cell") == ("CD3E",)
+    (s.dir / "manifest.json").write_text(json.dumps({"dataset_id": "s", "tissue": "b"}))
+    study_mod.clear_cache()
+    assert view.for_study(s).canonical("T cell") == ("MS4A1",)
