@@ -69,7 +69,7 @@ def test_exclude_note_flips_the_export_at_composition(monkeypatch) -> None:
 
 def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     """A confirmed celltype_override overlays the new call + lineage/category at
-    composition (verify flagged only when the literature dissents), never mutating the
+    composition (literature dissent never flips verify: rubric only), never mutating the
     deterministic verdict (docs/note-capture-design.md; user decision 2026-07-10)."""
     from panoscope.agent import config as cfg
     from panoscope.agent.types import Citation, Note, ScopeRef, Tension
@@ -89,7 +89,7 @@ def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     comp = {v.cluster: v for v in da.composed_verdicts()}
     assert comp["c2"].cell_type == "CAF"
     assert comp["c2"].lineage == "Fibroblast" and comp["c2"].category == "Stromal"
-    assert comp["c2"].verify is True          # literature dissents -> flagged
+    assert comp["c2"].verify is False         # dissent is a display flag, not verify
     assert comp["c1"].cell_type != "CAF"       # other clusters untouched
     assert da.verdict_for("c2").cell_type == "Stromal"  # deterministic verdict never mutated
 
@@ -132,31 +132,6 @@ def test_sign_off_clears_verify_at_composition(monkeypatch) -> None:
     # and the CSV row for c9 now reads verify=FALSE
     c9_row = [ln for ln in da.verdict_csv().splitlines() if ln.startswith("c9,")][0]
     assert c9_row.strip().upper().endswith("FALSE")
-
-
-def test_sign_off_wins_over_override_dissent_flag(monkeypatch) -> None:
-    """A sign-off is the last word: it clears the verify flag an override's literature
-    dissent would otherwise raise (the biologist adjudicated, with a note recorded)."""
-    from panoscope.agent import config as cfg
-    from panoscope.agent.types import Citation, Note, ScopeRef, Tension
-
-    dissent = Citation(pmid="30000009", title="", authors="", year=2020, journal="",
-                       stance="dissent", is_real=True)
-    ov = Note(
-        id="ov1", claim="c2 is CAF", scope="cluster",
-        scope_ref=ScopeRef(dataset=cfg.DATASET_ID, cluster="c2"), basis="own_validation",
-        status="firm", subject_cell_type="CAF", subject_markers=(),
-        tension=Tension(agree=(), dissent=(dissent,), thin=False, query="", looked_up_at=""),
-        author="", created_at="2026-07-10T00:00:00+00:00", trigger="override", supersedes=None,
-        type="celltype_override", subject_lineage="Fibroblast", subject_category="Stromal",
-    )
-    monkeypatch.setattr(compose, "override_notes", lambda: {"c2": ov})
-    # override alone -> dissent flags verify
-    monkeypatch.setattr(da, "_signed_off_clusters", lambda: set())
-    assert {v.cluster: v for v in da.composed_verdicts()}["c2"].verify is True
-    # sign off the override -> flag clears
-    monkeypatch.setattr(da, "_signed_off_clusters", lambda: {"c2"})
-    assert {v.cluster: v for v in da.composed_verdicts()}["c2"].verify is False
 
 
 def test_triage_bucket_routing() -> None:

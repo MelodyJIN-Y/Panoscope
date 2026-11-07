@@ -341,7 +341,7 @@ def composed_verdicts() -> list[ClusterVerdict]:
         changes: dict = {}
         if v.cluster in excluded:
             changes["exclude"] = True
-        # Sign-off clears verify; applied last so it wins over an override's dissent flag.
+        # Sign-off clears verify.
         if v.cluster in signed_off:
             changes["verify"] = False
         out.append(dataclasses.replace(v, **changes) if changes else v)

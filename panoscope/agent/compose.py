@@ -95,9 +95,7 @@ def offpanel_notes_for(cell_type: str, existing: tuple = ()) -> tuple:
 def compose_verdict(v: ClusterVerdict, ov) -> ClusterVerdict:
     """``v`` with ``ov``'s call, lineage and category applied, notes recomputed.
 
-    ``verify`` is raised only when the LITERATURE dissents from the biologist's
-    call -- a deterministic property of the stored note, not a judgement made
-    here, and not the model's to make.
+    ``verify`` is left as the rubric set it: literature dissent is a display flag only.
     """
     new_call = ov.subject_cell_type.strip()  # non-empty: see override_notes
     changes: dict = {"cell_type": new_call, "cell_type_short": new_call}
@@ -105,8 +103,6 @@ def compose_verdict(v: ClusterVerdict, ov) -> ClusterVerdict:
         changes["lineage"] = ov.subject_lineage.strip()
     if getattr(ov, "subject_category", "").strip():
         changes["category"] = ov.subject_category.strip()
-    if getattr(getattr(ov, "tension", None), "dissent", False):
-        changes["verify"] = True
     changes["offpanel_notes"] = offpanel_notes_for(new_call, v.offpanel_notes)
     # The opening is renamed and carries the new notes; its numbers are untouched.
     changes["opening"] = dataclasses.replace(
