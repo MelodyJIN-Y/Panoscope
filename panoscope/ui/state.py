@@ -22,7 +22,7 @@ K_CHAT_THREAD = "chat_thread"
 K_PENDING_DRAFT = "pending_draft"
 K_OPENING_POSTED = "opening_posted"
 K_INITIALIZED = "_ui_initialized"
-K_STUDY = "_study"  # (data root, study id) this session opened; absent = the default
+K_STUDY = "_study"  # (data root, study id) this session opened; None = the default
 
 # --------------------------------------------------------------------------- #
 # Closed vocabularies for the viewing/interaction controls
@@ -67,14 +67,27 @@ def apply_session_study() -> None:
     """Point this rerun's context at the session's study, or back at the default.
 
     Unconditional: Streamlit may reuse a script thread across reruns, so a context
-    left by another run must not survive.
+    left by another run must not survive. A fresh session restores the study from
+    ``?study=&root=`` (the demo when absent or invalid), and the URL follows the session.
     """
     from pathlib import Path
+
+    import streamlit as st
 
     from panoscope.data import layout
     from panoscope.data.study import Study
 
-    root, sid = _ss().get(K_STUDY) or (None, None)
+    ss, qp = _ss(), st.query_params
+    if K_STUDY not in ss:  # a fresh session: a refresh keeps the study the URL names
+        sid, root = qp.get("study"), qp.get("root")
+        ok = bool(sid and root) and Path(sid).name == sid and Study(id=sid, data_root=Path(root)).exists
+        ss[K_STUDY] = (root, sid) if ok else None
+    root, sid = ss[K_STUDY] or (None, None)
+    for key, value in (("study", sid), ("root", root)):
+        if value and qp.get(key) != value:
+            qp[key] = value
+        elif not value and key in qp:
+            del qp[key]
     layout.set_session_root(Path(root) if root else None)
     cfg.set_study(Study(id=sid, data_root=Path(root)) if sid
                   else layout.default_study_id() or cfg.BUNDLED_DEMO_ID)
@@ -85,8 +98,7 @@ def open_study(store: Any) -> None:
     ss = _ss()
     for key in (*_DEFAULTS, K_INITIALIZED, K_STUDY):
         ss.pop(key, None)
-    if store is not None:
-        ss[K_STUDY] = (str(store.data_root), store.id)
+    ss[K_STUDY] = (str(store.data_root), store.id) if store is not None else None
     apply_session_study()
 
 

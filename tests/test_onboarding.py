@@ -174,6 +174,7 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
         raise RuntimeError("no model key")
 
     monkeypatch.setattr(agent_loop, "chat", no_model)
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: False)
 
     at = AppTest.from_file(str(Path(panoscope.__file__).parent / "app.py"), default_timeout=300)
     at.session_state["active_page"] = "upload"
@@ -188,11 +189,15 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     assert not at.exception, [str(e.value) for e in at.exception]
 
     at.run()  # a later rerun starts from a fresh context: only the session names the study
-    root = tmp_path / "home" / ".panoscope" / "data"
+    root = (tmp_path / "home" / ".panoscope" / "data").resolve()
+    sid = onboarding._stage(folder).id
+    assert sid.startswith("mystudy-")
     assert at.session_state["active_page"] == "summary"
-    assert at.session_state[state.K_STUDY] == (str(root.resolve()), "mystudy")
-    built = Study(id="mystudy", data_root=root.resolve())
+    assert at.session_state[state.K_STUDY] == (str(root), sid)
+    built = Study(id=sid, data_root=root)
     assert built.manifest["tissue"] == "human breast cancer" and len(built.units) == 9
+    assert built.manifest["stated"] == ["platform", "tissue"]  # survives the build
+    assert (at.query_params["study"], at.query_params["root"]) == ([sid], [str(root)])
     assert "not yet called" in "\n".join(m.value for m in at.markdown)
     at.session_state["active_page"] = "markers"
     at.run()
@@ -211,3 +216,47 @@ def test_opening_a_study_drops_the_last_studys_ui_state(monkeypatch) -> None:
     monkeypatch.setattr(state, "apply_session_study", lambda: None)
     state.open_study(SimpleNamespace(data_root=Path("/r"), id="mine"))
     assert ss == {state.K_STUDY: ("/r", "mine")}
+
+
+def test_a_refresh_keeps_the_study_the_url_names_and_a_bad_one_falls_back(tmp_path) -> None:
+    """A fresh session reads ?study=&root=; one naming no study opens the demo."""
+    from streamlit.testing.v1 import AppTest
+
+    import panoscope
+    from panoscope.ui import state
+
+    root = Study.open(FIXTURE).data_root
+    for sid, want in ((FIXTURE, (str(root), FIXTURE)), ("../x", None), ("nope", None)):
+        at = AppTest.from_file(str(Path(panoscope.__file__).parent / "app.py"), default_timeout=300)
+        at.query_params.update(page="summary", study=sid, root=str(root))
+        at.run()
+        assert at.session_state[state.K_STUDY] == want, sid
+        assert ("study" in at.query_params) is bool(want)
+
+
+def test_staging_keeps_two_same_named_folders_apart_and_links_samples(tmp_path, monkeypatch) -> None:
+    from panoscope.data import layout
+
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path / "root"))
+    a, b = tmp_path / "a" / "run", tmp_path / "b" / "run"
+    for d in (a, b):
+        (d / "samples" / "s1").mkdir(parents=True)
+        (d / "samples" / "s2").mkdir()
+        (d / "samples" / "s1" / "markers_top.csv").write_text("gene\n")
+    sa, sb = onboarding._stage(a), onboarding._stage(b)
+    assert sa.id != sb.id
+    assert (sa.inputs / "samples" / "s1" / "markers_top.csv").is_file()
+    assert sa.manifest["samples"] == ["s1", "s2"]
+
+
+def test_user_studies_default_to_the_home_root_unless_the_env_names_one(tmp_path, monkeypatch) -> None:
+    from panoscope.data import layout
+
+    (tmp_path / "data").mkdir()  # a ./data in the cwd is not where user studies go
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv(layout.ENV_DATA_ROOT, raising=False)
+    layout.clear_cache()
+    assert layout.user_data_root() == (tmp_path / "home" / ".panoscope" / "data").resolve()
+    monkeypatch.setenv(layout.ENV_DATA_ROOT, str(tmp_path / "elsewhere"))
+    assert layout.user_data_root() == (tmp_path / "elsewhere").resolve()

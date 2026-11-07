@@ -177,6 +177,7 @@ def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_pat
         raise RuntimeError("no model key")
 
     monkeypatch.setattr(agent_loop, "chat", no_model)
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: True)
     pipeline_run.run("fresh")
     clusters = json.loads(paths.manifest_json("fresh").read_text())["clusters"]
     assert len(clusters) == 9 and len(asked) == 9
@@ -202,9 +203,25 @@ def test_a_proposal_written_during_the_build_is_what_that_build_reads(tmp_path, 
     body = json.dumps({"cell_type": "T cell", "cell_type_short": "T", "category": "Immune",
                        "lineage": "Lymphoid", "canonical_markers": ["CD3E"]})
     monkeypatch.setattr(agent_loop, "chat", lambda *a, **k: SimpleNamespace(text=body))
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: True)
     pipeline_run.run("fresh")
     clusters = json.loads(paths.manifest_json("fresh").read_text())["clusters"]
     assert {store.load_verdict(c, "fresh").cell_type for c in clusters} == {"T cell"}
+
+
+def test_with_no_model_key_the_build_asks_nothing_until_a_key_exists(tmp_path, monkeypatch):
+    """No key: no proposal call, and nothing written that would stop a later build asking."""
+    from panoscope.agent import loop as agent_loop
+
+    _fresh_study(tmp_path, monkeypatch)
+    asked: list[str] = []
+    monkeypatch.setattr(agent_loop, "chat", lambda m, cluster=None, **_: asked.append(cluster))
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: False)
+    pipeline_run.run("fresh")
+    assert asked == []
+    monkeypatch.setattr(agent_loop, "has_model_key", lambda: True)
+    pipeline_run.run("fresh")
+    assert len(asked) == 9
 
 
 def test_a_de_only_folder_builds_without_marker_inputs(tmp_path, monkeypatch):
@@ -230,6 +247,7 @@ def test_a_de_only_folder_builds_without_marker_inputs(tmp_path, monkeypatch):
     pipeline_run.run("deonly")
     man = json.loads(paths.manifest_json("deonly").read_text())
     assert man["workflows"] == ["de-interpretation"] and man["clusters"] == ["c1", "c2"]
+    assert man["inputs"]["de_seurat.csv"]["file"] == "de_seurat.csv"
     recs = paths.interp_dir("deonly") / "records"
     assert sorted(p.name for p in recs.rglob("*.json")) == ["c1.json", "c2.json"]
     assert (recs / "comparison" / "de_seurat").is_dir()

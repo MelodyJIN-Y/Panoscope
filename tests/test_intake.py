@@ -435,3 +435,25 @@ def test_expected_cell_types_never_enter_the_label_space(tmp_path: Path) -> None
               for m in f.members}
     assert labels == {"T cell"}
     assert "Zeta cell" not in repr(draft.resolve())
+
+
+def test_a_stated_answer_reads_back_stated_and_a_plain_key_still_reads_read(tmp_path: Path) -> None:
+    """The manifest's ``stated`` list carries provenance; plain keys stay READ."""
+    store = _store(tmp_path, "st", platform="Xenium", tissue="human kidney",
+                   disease_state="ccRCC", disease_subtype="clear cell",
+                   samples=["s1", "s2"], clustering_mode="joint",
+                   stated=["tissue", "disease_state", "clustering_mode"])
+    draft = derive(ADAPTER, store)
+    assert draft.tissue.provenance is Provenance.STATED
+    assert draft.disease_state.provenance is Provenance.STATED
+    assert draft.clustering.provenance is Provenance.STATED
+    assert draft.assay.provenance is Provenance.READ
+    assert draft.disease_subtype.provenance is Provenance.READ
+
+
+def test_the_background_is_shown_on_the_checklist(demo: Study) -> None:
+    draft = derive(ADAPTER, demo).stated("expected_cell_types", "Zeta cell")
+    shown = draft.stated("research_background", "TLS in kidney").checklist().render()
+    assert "expected_cell_types: Zeta cell  (stated by the biologist)" in shown
+    assert "research_background: TLS in kidney" in shown
+    assert "Background" not in derive(ADAPTER, demo).checklist().render()

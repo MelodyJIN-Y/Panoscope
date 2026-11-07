@@ -475,13 +475,17 @@ class XeniumAdapter:
     def reads(self, store: Study) -> dict[str, Condition]:
         """What the store states about the experiment, with provenance.
 
-        ``READ`` for everything parsed out of a file, ``UNKNOWN`` otherwise; never
-        ``INFERRED``. Never raises on a missing field: blocking is
-        :class:`Conditions`' job, through :meth:`standing_conditions`.
+        ``READ`` for everything parsed out of a file, ``STATED`` for a key the manifest's
+        ``stated`` list names, ``UNKNOWN`` otherwise; never ``INFERRED``. Never raises on
+        a missing field: blocking is :class:`Conditions`' job, through
+        :meth:`standing_conditions`.
         """
+        stated = store.manifest.get("stated") or ()  # keys the biologist stated at intake
+
         def read(key: str) -> Condition:
             v = store.manifest.get(key)
-            return Condition(str(v), Provenance.READ) if v else UNKNOWN
+            prov = Provenance.STATED if key in stated else Provenance.READ
+            return Condition(str(v), prov) if v else UNKNOWN
 
         # Modality follows from the platform and is not a guess. A Xenium store is
         # imaging-based spatial transcriptomics by construction -- the same kind of

@@ -1360,6 +1360,12 @@ def opening_interpretation(cluster: str) -> AgentResponse:
     return _default_agent().opening_interpretation(cluster)
 
 
+def has_model_key() -> bool:
+    """True when a model call could go live: the SDK imports and a key is configured."""
+    load_dotenv()
+    return _ANTHROPIC_IMPORTED and bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def chat(
     user_msg: str,
     cluster: Optional[str] = None,
@@ -1384,5 +1390,6 @@ __all__ = [
     "build_system_prompt",
     "opening_interpretation",
     "chat",
+    "has_model_key",
     "pressure_test",
 ]

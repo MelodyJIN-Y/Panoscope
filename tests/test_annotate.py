@@ -30,6 +30,12 @@ _GOOD = ('{"cell_type":"Tumor","cell_type_short":"Tum_Epi","category":"Epithelia
          '"lineage":"Epithelial","canonical_markers":["ERBB2","EPCAM"]}')
 
 
+@pytest.fixture(autouse=True)
+def _a_model_key(monkeypatch):
+    """The stage asks only with a key; these mock the call, so they need one too."""
+    monkeypatch.setattr(annotate.agent_loop, "has_model_key", lambda: True)
+
+
 class _Resp:
     def __init__(self, text: str):
         self.text = text

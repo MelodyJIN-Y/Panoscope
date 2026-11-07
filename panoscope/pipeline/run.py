@@ -111,6 +111,8 @@ def _copy_inputs(dataset_id: str, root: Optional[Path]) -> dict[str, dict[str, A
     extra = idir / "enrichment.csv"  # per-dataset enrichment result, if provided
     if extra.exists():
         prov["enrichment.csv"] = {"file": "enrichment.csv", "sha256": manifest_mod.sha256_file(extra)}
+    for p in sorted(idir.glob("de_*.csv")):  # every DE table the stage builds from
+        prov[p.name] = {"file": p.name, "sha256": manifest_mod.sha256_file(p)}
     return prov
 
 

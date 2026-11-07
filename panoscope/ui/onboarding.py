@@ -13,6 +13,7 @@ A two-step gate the app shows before the dashboard:
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import json
 import time
@@ -330,23 +331,27 @@ _KEY_OF = {"assay": "platform"}  # checklist field -> manifest key, where they d
 
 
 def _stage(folder: Path) -> Study:
-    """Link the folder's top-level files into a study under the user data root. Copies nothing."""
-    store = Study(id=folder.name, data_root=layout.user_data_root())
+    """Link the folder's files (and its ``samples/`` subfolder) into a study under the user root.
+
+    Copies nothing. The id carries a hash of the resolved path, so two folders sharing a
+    name never share a study.
+    """
+    folder = folder.resolve()
+    sid = f"{folder.name}-{hashlib.sha1(str(folder).encode()).hexdigest()[:8]}"
+    store = Study(id=sid, data_root=layout.user_data_root())
     store.inputs.mkdir(parents=True, exist_ok=True)
     for p in folder.iterdir():
         dst = store.inputs / p.name
-        if p.is_file() and p.name != "manifest.json" and not (dst.is_symlink() or dst.exists()):
+        wanted = (p.is_file() and p.name != "manifest.json") or (p.is_dir() and p.name == "samples")
+        if wanted and not (dst.is_symlink() or dst.exists()):
             dst.symlink_to(p.resolve())
     if not store.exists:
         own = folder / "manifest.json"
-        _write_manifest(store, {**(json.loads(own.read_text()) if own.is_file() else {}),
-                                "dataset_id": store.id})
+        man = {**(json.loads(own.read_text()) if own.is_file() else {}), "dataset_id": store.id}
+        if (folder / "samples").is_dir() and "samples" not in man:  # read off the folder names
+            man["samples"] = sorted(d.name for d in (folder / "samples").iterdir() if d.is_dir())
+        _write_manifest(store, man)
     return store
-
-
-def _stated(store: Study) -> dict[str, str]:
-    """What the biologist stated for this staged study this session, by field."""
-    return st.session_state.setdefault("_ob_stated", {}).setdefault(store.id, {})
 
 
 def _write_manifest(store: Study, man: dict) -> None:
@@ -354,9 +359,15 @@ def _write_manifest(store: Study, man: dict) -> None:
     study_mod.clear_cache()
 
 
+def _state(man: dict, fields: dict[str, str]) -> dict:
+    """``man`` with the biologist's answers set and named in ``stated``, so they read back STATED."""
+    keys = {_KEY_OF.get(f, f): v for f, v in fields.items()}
+    return {**man, **keys, "stated": sorted({*(man.get("stated") or ()), *keys})}
+
+
 def _apply(store: Study, draft: intake.Draft, answers: dict[str, str]) -> bool:
     """The biologist's answers, validated by the draft, written to the staged manifest."""
-    stated, ok = _stated(store), True
+    stated, ok = {}, True
     for field, value in answers.items():
         many = field in intake.BACKGROUND[1:]  # list-valued: comma-separated entries
         try:
@@ -369,9 +380,8 @@ def _apply(store: Study, draft: intake.Draft, answers: dict[str, str]) -> bool:
             continue
         if value.strip() and field not in intake.BACKGROUND:
             stated[field] = draft.condition(field).value
-    man = {**store.manifest, "background": draft.background.to_manifest()}
-    man.update({_KEY_OF.get(f, f): v for f, v in stated.items()})
-    _write_manifest(store, man)
+    _write_manifest(store, _state({**store.manifest, "background": draft.background.to_manifest()},
+                                  stated))
     return ok
 
 
@@ -410,13 +420,10 @@ def _render_folder_intake() -> None:
         choice = st.selectbox("Platform (blocks the study until declared)", platforms.names(),
                               index=None, key="ob_platform")
         if choice:
-            _stated(store)["assay"] = choice
-            _write_manifest(store, {**store.manifest, "platform": choice})
+            _write_manifest(store, _state(store.manifest, {"assay": choice}))
             st.rerun()
         return
     draft = intake.derive(platforms.for_study(store), store)
-    for field, value in _stated(store).items():
-        draft = draft.stated(field, value)
     st.code(draft.checklist().render(), language=None)
 
     with st.form("ob_intake", clear_on_submit=True):

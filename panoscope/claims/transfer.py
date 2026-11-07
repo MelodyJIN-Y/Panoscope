@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from typing import Final
 
 from panoscope.types.claim import Authority, Claim
-from panoscope.types.conditions import BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, Conditions
+from panoscope.types.conditions import (
+    BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, DISEASE_STATE, Conditions,
+)
 from panoscope.types.trace import Trace, Traced, ref
 
 MISMATCH: Final = "mismatch"
@@ -149,8 +151,11 @@ def transfer_check(claim: Claim, context: Conditions) -> Traced[TransferResult]:
             (Delta("conditions", None, None, CANNOT_BE_SETTLED),),
         ))
 
-    deltas = tuple(d for f in FIELDS
-                   if (d := _delta(f, claim.conditions, context)) is not None)
+    # The qualifiers are subordinate to the disease state: an unsettled value is one delta.
+    ds = _delta(DISEASE_STATE[0], claim.conditions, context)
+    skip = DISEASE_STATE[1:] if ds and ds.severity == CANNOT_BE_SETTLED else ()
+    deltas = tuple(d for f in FIELDS if f not in skip
+                   and (d := _delta(f, claim.conditions, context)) is not None)
 
     if not deltas:
         t.note("transfer:transferable", RETURN,

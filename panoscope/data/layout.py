@@ -61,10 +61,9 @@ def set_session_root(root: Optional[Path]) -> None:
 
 
 def user_data_root() -> Path:
-    """Where the app builds a biologist's own study: the resolved root, never the repo's."""
-    root = resolve_data_root()
-    repo = (_package_repo_root() / _DATA_DIRNAME).resolve()
-    return Path.home().joinpath(".panoscope", "data").resolve() if root == repo else root
+    """Where the app builds a biologist's own study: ``$PANOSCOPE_DATA_ROOT``, else ~/.panoscope/data."""
+    env = os.getenv(ENV_DATA_ROOT)
+    return Path(env or Path.home() / ".panoscope" / "data").expanduser().resolve()
 
 
 def clear_cache() -> None:

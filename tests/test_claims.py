@@ -360,6 +360,13 @@ def test_unknown_condition_never_silently_applies():
     assert [d.rule for d in got.decisions] == ["transfer:cannot_be_settled"]
 
 
+def test_an_undeclared_disease_state_is_one_delta_not_four():
+    """The qualifiers are subordinate to the value: an unknown value is one unsettled delta."""
+    formed = _conditions(**{f: UNKNOWN for f in DISEASE_STATE})
+    named = {d.field: d.severity for d in transfer_check(_lab(conditions=formed), HERE).value.deltas}
+    assert named == {"disease_state": CANNOT_BE_SETTLED}
+
+
 def test_blocked_is_surfaced_with_its_reason():
     """§10.3. A blocked claim still comes back, carrying what blocked it."""
     formed = _conditions(assay=Condition("cosmx", Provenance.READ))

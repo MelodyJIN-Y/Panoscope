@@ -300,6 +300,8 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     print(f"  cwd           {Path.cwd()}")
     print(f"  data root     {data_root}  [{'ok' if data_root.is_dir() else 'MISSING'}]")
     print(f"  {layout.ENV_DATA_ROOT:<13} {os.getenv(layout.ENV_DATA_ROOT) or '(unset)'}")
+    how = "from env" if os.getenv(layout.ENV_DATA_ROOT) else f"default; set {layout.ENV_DATA_ROOT} to move"
+    print(f"  user studies  {layout.user_data_root()}  (studies built from a results folder; {how})")
     print(f"  {layout.ENV_STUDY:<13} {os.getenv(layout.ENV_STUDY) or '(unset)'}")
     print(f"  skills        {_pkg_dir_state('skills')}")
     print(f"  assets        {_pkg_dir_state('assets')}")

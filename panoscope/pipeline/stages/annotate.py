@@ -122,9 +122,15 @@ def run_annotate(
 
     Reads an existing file and only fills clusters that are missing or "Unknown"
     (unless ``force``). Always writes the file, so a build does not re-ask for
-    clusters left not yet called. Clears the annotation cache.
+    clusters left not yet called. With no model key it makes no call and writes
+    nothing. Clears the annotation cache.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
+    if not agent_loop.has_model_key():
+        # No call, no file: a rebuild once a key exists asks for these clusters.
+        print("  [annotate] no proposal: no model key; every cluster is the biologist's to call",
+              flush=True)
+        return {}
     out_path = paths.interp_dir(dataset_id, root) / "annotation.json"
     clusters: dict[str, dict] = {} if force else _load_existing(out_path)
 

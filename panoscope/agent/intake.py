@@ -224,6 +224,8 @@ class Checklist:
     """``PlatformAdapter.validate``, verbatim. It reports gaps the condition fields
     cannot -- a missing detectability frame, a store that declares no units --
     and intake does not re-derive what the adapter already says."""
+    background: Background = Background()
+    """§6.4's optional context, shown as given; never a condition."""
 
     def of(self, status: Status) -> tuple[Item, ...]:
         return tuple(i for i in self.items if i.status is status)
@@ -259,6 +261,15 @@ class Checklist:
                 self.of(Status.BLOCKING), " ")
         section("Optional -- tick what you can supply; skippable, addable later:",
                 self.of(Status.OPTIONAL), " ")
+        given = []
+        for n in BACKGROUND:
+            v = getattr(self.background, n)
+            conds = [c for c in (v if isinstance(v, tuple) else (v,)) if c.known]
+            if conds:
+                given.append(f"  {n}: " + "; ".join(c.value for c in conds)
+                             + f"  ({_HOW[conds[0].provenance]})")
+        if given:
+            out += ["Background -- context only, never feeds the call:", *given, ""]
         if self.problems:
             out.append("The store itself reports:")
             out.extend(f"  - {p}" for p in self.problems)
@@ -461,6 +472,7 @@ class Draft:
             items=tuple(self._item(f) for f in ITEMS),
             unread_because=self.unread_because,
             problems=tuple(p for p in self.problems if p != answered),
+            background=self.background,
         )
 
     def _item(self, field: str) -> Item:
@@ -510,8 +522,11 @@ def derive(adapter: PlatformAdapter, store: Any) -> Draft:
                   "the same as the files being silent")
     read = {f: got.get(f, UNKNOWN) for f in FIELDS}
 
+    manifest = getattr(store, "manifest", None) or {}
     try:
-        clustering = Condition(str(adapter.clustering_mode(store)), Provenance.READ)
+        clustering = Condition(str(adapter.clustering_mode(store)),
+                               Provenance.STATED if CLUSTERING in (manifest.get("stated") or ())
+                               else Provenance.READ)
         because = ""
     except UndeclaredClustering as exc:
         clustering, because = UNKNOWN, str(exc)
@@ -521,6 +536,5 @@ def derive(adapter: PlatformAdapter, store: Any) -> Draft:
         unread_because=unread,
         study=str(getattr(store, "id", "") or ""),
         problems=tuple(adapter.validate(store)), **read,
-        background=Background.from_manifest(
-            (getattr(store, "manifest", None) or {}).get("background")),
+        background=Background.from_manifest(manifest.get("background")),
     )
