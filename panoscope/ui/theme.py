@@ -165,16 +165,6 @@ html, body, .stApp {{
   padding: 3px 8px; border-radius: 6px; white-space: nowrap;
 }}
 
-/* ---- role chips (classes returned by ui.format.role_chip) ---- */
-.role {{
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--mono); font-size: 11px; padding: 3px 9px;
-  border-radius: 20px; white-space: nowrap;
-}}
-.role-sup {{ background: var(--support-bg); color: var(--support); }}
-.role-abs {{ background: var(--absent-bg);  color: var(--absent); }}
-.role-off {{ background: var(--offpanel-bg); color: var(--offpanel); }}
-
 /* ---- evidence numbers ---- */
 .num {{ font-family: var(--mono); font-size: 13px; }}
 .num.dim {{ color: var(--faint); }}

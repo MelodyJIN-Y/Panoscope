@@ -23,10 +23,8 @@ What it covers (IMPLEMENTATION.md §7 Phase A.4):
 See :func:`pinned_enrichment` for why the enrichment half reads its raw rows from
 the committed ``interp/enrichment/`` records rather than the gitignored source CSV.
 
-**Why not ``pipeline.run.run()``.** ``pipeline/stages/viz.py`` collects the viz
-frames with ``shutil.move`` — running the full pipeline from a test would MOVE
-real files out of the repo working tree, and ``run()`` additionally reaches for
-the live annotate stage on an incomplete dataset. The four artifacts above are
+**Why not ``pipeline.run.run()``.** ``run()`` writes into the study tree and
+reaches for the live annotate stage on an incomplete dataset. The four artifacts above are
 Tier A (pure functions of the committed ``inputs/``), so this module computes
 them straight from the ``agent.*`` / ``pipeline.calibration`` entry points that
 ``run()`` itself calls. Nothing here writes to the repo, opens a socket, or

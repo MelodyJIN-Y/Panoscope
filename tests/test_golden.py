@@ -22,8 +22,8 @@ Design notes:
   * the projection is built by ``tests/golden_projection.py``, the same module
     ``scripts/regenerate_golden.py`` writes from, so checked and generated
     values cannot drift
-  * it never calls ``pipeline.run.run()``: ``pipeline/stages/viz.py`` uses
-    ``shutil.move`` and would relocate real repo files. The four artifacts are
+  * it never calls ``pipeline.run.run()``, which writes into the study tree and
+    reaches for the live annotate stage. The four artifacts are
     Tier A pure functions of the committed ``inputs/``, so they are computed
     directly. No network, no LLM, no writes into the repo
   * floats are pinned at ``{:.6f}`` and mappings are key-sorted, so the hash
