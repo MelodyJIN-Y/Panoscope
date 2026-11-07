@@ -1,41 +1,20 @@
 """The second renderer: the same ``UISpec``, in plain text.
 
-``ui/surface.py`` reads a declared surface and emits HTML for Streamlit. It is the
-only thing that has ever read a ``UISpec``, and while that is true, *"the review
-surface is declared by the workflow, not a UI concern"* (ARCHITECTURE §13) and
-*"the review surface is hand-built in exactly one place"* produce identical
-evidence. This module is the difference: a renderer in a different medium, sharing
-no code with the first, consuming the same declaration and the same rows.
+Consumes the same declaration and rows as ``ui/surface.py`` but shares no code with it
+and imports nothing from ``panoscope.ui`` (``tests/test_render_text.py``), which tests
+that the declaration alone is enough to render from (ARCHITECTURE §13).
 
-It imports nothing from ``panoscope.ui`` -- deliberately, and
-``tests/test_render_text.py`` pins it. A wrapper around the HTML renderer would
-prove that the HTML renderer is reusable, which was never in doubt; what is in
-doubt is whether the *declaration* is enough to render from. So the glyph table,
-the number formatting, the hatching rule and the four guards are written again
-here from the declaration alone. Where the two renderers agree, they agree because
-the spec said so; where they would disagree, the cross-renderer test fails.
+The four properties, each enforced here independently:
 
-**The four properties are of the declaration, not of the medium**, so each is
-enforced here independently rather than inherited:
+1. *Degradation goes DOWN.* :func:`label_band_text` refuses a surface whose task kind has
+   no label space; :func:`provenance_text` refuses one that declared a task kind.
+2. *A never-measured cell is neither blank nor zero.* It prints ``[⊘ never measured]``
+   with the reason on a continuation line.
+3. *Click-back.* Every row line ends in its ``Subject.key``; a row with no key raises.
+4. *Plots render, they do not derive.* :func:`_no_code` refuses a declaration carrying a
+   callable.
 
-1. *Degradation goes DOWN.* :func:`label_band_text` refuses a surface whose task
-   kind has no label space; :func:`provenance_text` refuses one that declared a
-   task kind.
-2. *A never-measured cell is neither blank nor zero.* In a terminal there is no
-   hover, so the cell is bracketed -- ``[⊘ never measured]`` -- and the reason the
-   HTML puts in a ``title`` attribute takes its own continuation line. That is the
-   one thing the HTML surface can say in a place text does not have.
-3. *Click-back.* Every row line ends in its ``Subject.key``. A row with no key
-   raises rather than printing as unanchored prose, which in a terminal looks
-   exactly like anchored prose.
-4. *Plots render, they do not derive.* :func:`_no_code` refuses a declaration
-   carrying a callable before a line is built.
-
-**What it does not do.** No plots: a ``PlotSpec`` is a promise to draw a figure,
-and none of the three workflows declares one (R4 -- no conditionality builder has
-landed). If one did, this renderer would have to print the conditionality caption
-and refuse the figure, which is the honest terminal rendering of a plot and is not
-written until there is a plot to refuse.
+No plots: no workflow declares a ``PlotSpec`` yet (R4).
 """
 
 from __future__ import annotations

@@ -1,56 +1,24 @@
-"""The four registry contracts: what a method, a platform, a source and a workflow
-must *declare* before anything may use one.
+"""The four registry contracts: what a method, a platform, a source and a workflow must
+*declare* before anything may use one.
 
-Everything extensible in this system is a registry, and a registry entry is only as
-trustworthy as the thing it is required to say about itself. These are ``Protocol``\\s
-rather than base classes on purpose: structural typing means a method module declares
-its contract by having the attributes, not by importing a class from here and
-inheriting it. The four registries therefore have no shared ancestor and no import
-edge between them -- adding a platform cannot break a method, and the out-of-tree CI
-job can register a plugin that never imported Panoscope's base classes at all.
+They are ``Protocol`` classes, not base classes: an entry declares its contract by having
+the attributes, so the registries share no ancestor and a plugin need not import
+Panoscope's classes.
 
-**The one declaration this module exists to force.** A :class:`MethodModule` is a
-machine-readable statement of what a method's paper says it measures *and does not
-measure*. ``does_not_measure`` and ``assumptions`` are mandatory fields, not optional
-ones, because the failure this whole design is built against is a method's output
-being read for something the method never measured -- a mean-expression statistic
-read as spatial localisation, a spatial coefficient read as a fold change. A method
-that does not declare its limits is precisely the input that produces that failure,
-so it must be unregisterable rather than merely discouraged.
-``test_every_method_declares_limits`` makes the fields non-empty; the Protocol makes
-them *present*, which is the half that fails at import rather than at review time.
+- :class:`MethodModule` is a machine-readable statement of what a method's paper says it
+  measures and does not measure. ``does_not_measure`` and ``assumptions`` are mandatory;
+  the Protocol makes them present, ``test_every_method_declares_limits`` non-empty.
+- Clustering mode (§6.3's conditional blocker) belongs to the adapter:
+  :meth:`PlatformAdapter.samples` holds the sample count and
+  :meth:`PlatformAdapter.clustering_mode` raises :class:`UndeclaredClustering` rather
+  than guessing.
+- No protocol method accepts a ``Trace``; decisions flow out
+  (``test_no_protocol_method_accepts_a_trace``).
 
-**Clustering mode is the adapter's job, and only the adapter's.** §6.3's fourth
-blocker blocks only when a study has more than one sample, and ``Conditions``
-deliberately carries no sample count (see ``conditions.py``'s docstring), so it
-cannot express a conditional blocker. :meth:`PlatformAdapter.samples` is where the
-sample count is held first-hand and :meth:`PlatformAdapter.clustering_mode` is
-alongside it, raising :class:`UndeclaredClustering` rather than guessing. Putting the
-check anywhere else means inventing a second, weaker copy of a fact the adapter
-already owns -- and a guessed "joint" silently makes cross-sample clusters
-comparable when they are not.
-
-**Nothing here takes a ``Trace``.** Every method that reasons returns ``Traced[T]``
-and accepts no recorder, for the reason ``trace.py`` gives: a ``Trace`` parameter is
-an injection seam through which a caller could narrate the analysis layer.
-``tests/test_contracts.py`` enforces this over ``core/``;
-``test_no_protocol_method_accepts_a_trace`` enforces it here, before any
-implementation exists to retrofit.
-
-**Names this module forward-references rather than defines.**
-
-- ``UISpec`` lives in ``panoscope.types.uispec`` (§1's layout) and is being written
-  in parallel. It is imported under ``TYPE_CHECKING`` so this module lands first and
-  neither stream blocks the other.
-- ``Node`` and ``Edge`` belong to ``panoscope.reference.graph`` by the same layout,
-  and are left to the reference stream for the same reason.
-
-``UnitSpec``, ``Check`` and ``RivalResult`` appear in §3's signatures with no home
-declared anywhere in §1. They are defined here, minimally, because a Protocol whose
-return type does not exist is vocabulary nobody can implement against -- which is the
-one thing a contracts module must not be. Each is a plain carrier with no logic; if a
-stream later needs more, widening a frozen carrier is a reviewed contract change, as
-§11 requires.
+``UISpec`` and ``reference.graph``'s ``Node``/``Edge`` are imported under
+``TYPE_CHECKING``. ``UnitSpec``, ``Check`` and ``RivalResult`` appear in §3's signatures
+with no declared home, so they are defined here as plain carriers; widening one is a
+reviewed contract change (§11).
 """
 
 from __future__ import annotations
@@ -129,17 +97,9 @@ class Check:
 class CheckState(StrEnum):
     """Three states, and the third is the point.
 
-    ``CANNOT_BE_SETTLED`` is not a soft ``FLAGGED``. A flagged check has been asked
-    and answered against the result; an unsettled one could not be asked at all, and
-    the honest output names what is missing rather than letting the reader infer that
-    nothing was wrong.
-
-    Here rather than in a workflow because it is the vocabulary **every** workflow's
-    checks need, and ``core/`` needs it too: ``core/propagate.py`` turns a declared
-    unknown into one of these, and a core module importing a workflow would let a
-    broken workflow break the core. A second workflow wanting a three-valued check
-    imports it from here; before this moved it would have imported ``workflows/de``,
-    which is a workflow depending on another workflow.
+    ``CANNOT_BE_SETTLED`` is not a soft ``FLAGGED``: a flagged check was asked and answered;
+    an unsettled one could not be asked, and names what is missing. Here, not in a workflow,
+    because every workflow and ``core/propagate.py`` need it.
     """
 
     OK = "ok"
@@ -252,19 +212,10 @@ class PlatformAdapter(Protocol):
     def reads(self, store: Any) -> Mapping[str, Condition]:
         """The partial read: ``Conditions`` field name -> what the files say.
 
-        ``Provenance.READ`` for anything parsed out of the files, ``UNKNOWN`` where
-        they are silent. The adapter never writes ``INFERRED``, and it never decides
-        whether what it read is *enough* -- that is intake's job, and the adapter's
-        is to report what the store declares.
-
-        This exists because :meth:`standing_conditions` cannot do it.
-        ``Conditions`` is the **finished** object and raises on a blocking unknown,
-        so a store declaring ``platform: Xenium`` and no tissue gave intake nothing
-        at all -- including the assay the file plainly states. A mapping asserts no
-        completeness, so the partial read survives the gap that blocks the study.
-
-        ``frames`` is not here: it is not a ``Condition``, it has no provenance, and
-        :meth:`frames` already returns it first-hand.
+        ``Provenance.READ`` for anything parsed out of the files, ``UNKNOWN`` where they are
+        silent; never ``INFERRED``. Whether it is enough is intake's job. A mapping, unlike
+        :meth:`standing_conditions`, survives a blocking unknown, so intake still gets what the
+        store does declare. ``frames`` is not here; :meth:`frames` returns it.
         """
 
     def standing_conditions(self, store: Any) -> Conditions:
@@ -314,15 +265,9 @@ class MethodModule(Protocol):
              store: Any) -> "Traced[dict[str, NormalisedEvidence]]":
         """Precomputed output in, normalised evidence out, keyed by unit.
 
-        **Reads, never recomputes.** The method's output is a consumed input; the
-        analysis is not run here, and that is the whole basis of the audit.
-
-        Returns ``Traced`` because loading DECIDES: it drops rows, applies frames
-        and withholds statistics the frame refuses. The spec originally returned a
-        bare dict, which destroyed exactly those decisions at the registry
-        boundary -- and a statistic silently dropped during load is
-        indistinguishable from a method that reported nothing, which is the
-        failure ``core/measure.py`` exists to prevent.
+        **Reads, never recomputes.** The method's output is a consumed input; that is the basis
+        of the audit. Returns ``Traced`` because loading decides: it drops rows, applies frames
+        and withholds statistics the frame refuses.
         """
 
     def absence_reads_as(self, subject: Subject, measured: Measured) -> str:

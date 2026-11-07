@@ -1,57 +1,26 @@
 """UISpec: the review surface as part of the interpretation contract.
 
-A workflow owns an interpretive question AND the surface its answers are reviewed
-on, because you cannot audit a cell-type call with the figure you would use to audit
-an enrichment result (ARCHITECTURE §13). So the surface is *declared*, here, next to
-the other contracts -- not hand-built in ``ui/``. A hand-built screen per method does
-not generalise and cannot be tested; a declaration can be both.
+A workflow declares the surface its answers are reviewed on (ARCHITECTURE §13), here
+beside the other contracts rather than hand-built in ``ui/``. Rules enforced
+structurally:
 
-Three rules are enforced structurally rather than reviewed, and they are the reason
-this is a type and not a config file:
+- **R4 -- no conditionality record, no plot.** :class:`Conditionality` requires its four
+  fields, and :class:`PlotSpec` requires a way to build one.
+- **R2 -- degradation goes DOWN.** :meth:`UISpec.__post_init__`: a non-assignment surface
+  cannot hold a ``LabelBandHeader``; an undeclared task kind holds only
+  ``ProvenanceOnlyHeader``, no plots and no pins.
+- **R8 -- every surface can say "never measured".**
+- **Plots render, they do not derive.** No type here has a slot for an expression,
+  formula or callable (``test_no_spec_type_can_carry_a_computation``).
 
-**R4 -- no conditionality record, no plot.** A volcano on a 280-gene panel is
-pixel-identical to one on the whole transcriptome, and a reader infers genome-wide
-coverage unless the figure says otherwise. A misleading figure travels further than a
-misleading sentence, because it goes in a talk. So :class:`Conditionality` refuses to
-exist without its four mandatory fields, and :class:`PlotSpec` refuses to exist
-without a way to build one. Two gates, one principle: the declaration cannot promise
-a figure it has no conditions for, and the figure cannot be drawn without them.
+Deviations from ``docs/interface-design.md`` §3:
 
-**R2 -- degradation goes DOWN, toward making no claim.** ``ui/enrichment_table.py``
-degraded *upward*: it imported the assignment header and inherited a confidence band
-it had no right to, putting a unit-level band on a task with no label space. The
-guards in :meth:`UISpec.__post_init__` make that construction impossible -- a
-non-assignment surface cannot hold a ``LabelBandHeader``, and an undeclared task kind
-can hold nothing but ``ProvenanceOnlyHeader``, no plots and no pins.
-
-**R8 -- every surface must be able to say "never measured".** A declared workflow
-whose blocks cannot render ``NEVER_MEASURED`` has nowhere for the panel-absence rule
-to appear, which is the project's headline claim with no pixel behind it.
-
-**Plots render, they do not derive.** There is deliberately no slot on any type here
-for an expression, a formula or a callable: ``PlotSpec`` names *fields and views*,
-never a computation. The structural version of "no plot computes a statistic that is
-not already in the normalised evidence" is that there is nowhere to write one down.
-``test_no_spec_type_can_carry_a_computation`` pins it.
-
-Three deviations from ``docs/interface-design.md`` §3, each because the design doc's
-sketch predates a landed type and would have forked a vocabulary:
-
-* ``task_kind`` is ``TaskKind | None``, not a four-member ``Literal`` with
-  ``"unknown"``. ``TaskKind`` is frozen at three (CLAUDE.md), and "unknown" exists in
-  the sketch only to spell the degraded case. ``None`` spells it without reopening a
-  frozen enum that every exhaustive match would then have to handle. ``item_kind``
-  is ``str | None`` for the same reason.
-* Row status is :class:`MeasuredState`, not a sixth-member ``MeasurementStatus``
-  ``Literal``. ``measured.py`` exists because the codebase already had three
-  vocabularies for one idea; a fourth, living in the UI layer, is the same bug with
-  better manners. The sketch's ``qc_failed`` is ``NEVER_MEASURED`` under the
-  detectability frame -- that is what the second gene frame is for -- and its
-  ``detected``/``not_supporting`` split is ``OBSERVED``/``TESTED_ABSENT`` exactly.
-* A method declares ``does_not_measure``, not ``caveats`` (``methods/``). CLAUDE.md
-  makes ``does_not_measure`` and ``assumptions`` mandatory; two near-synonymous
-  tuples would be filled arbitrarily, and the one that is mandatory is the one that
-  must carry the weight.
+* ``task_kind`` is ``TaskKind | None`` (``None`` is the degraded case; ``TaskKind`` stays
+  frozen at three). ``item_kind`` is ``str | None`` likewise.
+* Row status is :class:`MeasuredState`, not a UI-local enum. The sketch's ``qc_failed``
+  is ``NEVER_MEASURED`` under the detectability frame; ``detected``/``not_supporting``
+  are ``OBSERVED``/``TESTED_ABSENT``.
+* A method declares ``does_not_measure`` (mandatory), not ``caveats``.
 """
 
 from __future__ import annotations
@@ -334,27 +303,12 @@ class BlockSpec:
     statuses: tuple[MeasuredState, ...] = ()
     #: Narrow the block to rows refused by ONE capability frame, matched against
     #: the prefix of ``Measured.frame`` ("panel:", "detect:"). Empty: every frame.
-    #:
-    #: One state is not always one sentence. A gene kept out by ``panel:`` was
-    #: never probed; a gene kept out by ``detect:`` WAS probed and produced no
-    #: usable signal. Both are NEVER_MEASURED -- correctly, since neither absence
-    #: is evidence -- but one block header has to assert one of them, and on a
-    #: 280-gene panel carrying 49 undetectable genes the wrong one is a false
-    #: statement about every row beneath it. So the block splits, rather than the
-    #: label hedging into "outside the frame" and telling the biologist nothing.
+    #: Off-panel (never probed) and undetectable (probed, no usable signal) are both
+    #: NEVER_MEASURED but need different block headers.
     frame_prefix: str = ""
-    #: The complement of ``frame_prefix``, and the reason the two blocks PARTITION
-    #: rather than merely select.
-    #:
-    #: Two blocks sharing a state and each naming a prefix leave a hole: a row whose
-    #: adapter set no frame matches neither and silently disappears from the table
-    #: while the coverage ribbon still counts it. That is a defect that leaves every
-    #: remaining number correct, which is the kind nobody finds -- and it is exactly
-    #: what the first version of this split did to ``render/text.py``'s rows.
-    #:
-    #: So the specific block names its prefix and the general one EXCLUDES it. An
-    #: unknown frame then falls to the general block, which is both the conservative
-    #: reading and what the surface did before the split.
+    #: The complement of ``frame_prefix``, so the blocks PARTITION the rows: the
+    #: specific block names its prefix and the general one EXCLUDES it, so a row
+    #: with an unknown frame falls to the general block instead of vanishing.
     frame_excludes: tuple[str, ...] = ()
     sort_by: str = ""
     sort_desc: bool = True
@@ -386,19 +340,13 @@ class CoverageRibbonSpec:
 class PlotSpec:
     """One declared figure. Names fields, views and artifacts -- never a computation.
 
-    ``conditionality_builder`` is a dotted path to a pure function returning a
-    :class:`Conditionality`, and it is MANDATORY. IMPLEMENTATION §4 puts a literal
-    ``Conditionality`` on the spec instead; that cannot work, because half of what a
-    conditionality has to say -- the cell count for this unit, the sha of the
-    artifact actually read, the shared colour maximum -- is only known once the view
-    model exists. But a builder defaulting to ``""`` would have made R4
-    unenforceable at declaration time, which is the one place it costs nothing. So:
-    a builder, required.
+    ``conditionality_builder`` is a MANDATORY dotted path to a pure function returning a
+    :class:`Conditionality` (a builder, not a literal, because cell counts and artifact
+    shas are only known once the view model exists). Required, so R4 is enforced at
+    declaration time.
 
-    The two failure strings are deliberately distinct. "This view does not accept a
-    gene set" and "this artifact was not precomputed for this dataset" are different
-    facts about the world, and one shared "unavailable" message teaches a biologist
-    that the tool is broken when it is in fact being honest.
+    The two failure strings stay distinct: "this view does not accept a gene set" and "this
+    artifact was not precomputed for this dataset" are different facts.
     """
 
     key: str
@@ -435,37 +383,20 @@ class PlotSpec:
 class NothingToClick(ValueError):
     """Raised for a rendered claim that resolves to nothing.
 
-    *"Every sentence resolves to its claim, with authority and conditions visible.
-    A sentence with nothing to click should not have been rendered."* An
-    unanchored sentence is a bug in the caller, not a sentence to draw without
-    its anchor, so this raises rather than degrading.
-
-    It lives HERE, not in a renderer, because it is a property of the
-    DECLARATION. It was defined in ``ui.surface`` first, so the second renderer
-    could not reuse it without importing the first, and ``except NothingToClick``
-    caught one medium's violation and not the other's. A second renderer is what
-    made that visible.
+    *"Every sentence resolves to its claim, with authority and conditions visible. A
+    sentence with nothing to click should not have been rendered."* Lives here because it
+    is a property of the declaration, shared by every renderer.
     """
 
 
 def anchored(key: str, resolvable: Container[str] | None = None,
              what: str = "sentence") -> str:
-    """``key``, checked -- or :class:`NothingToClick`. The whole rule, not half.
+    """``key``, checked -- or :class:`NothingToClick`.
 
-    Both renderers enforced this guard by testing the key for the EMPTY STRING,
-    which is the half that fires when a caller forgot an anchor altogether -- a bug
-    that does not survive its first run. The half that reached a biologist was a
-    sentence anchored on a subject NO ROW ON THE PAGE carries: a gene only a
-    per-sample table reported, rendered into the replicate read with a
-    ``data-claim`` none of the anchors on that page resolves. A click-back that
-    lands nowhere is the same defect as no click-back, with a key in it to make it
-    look answered -- so it belongs in this guard rather than in a second one
-    nobody would wire into the second renderer either.
-
-    ``resolvable`` is the set of anchors the page actually carries. ``None`` means
-    the caller emits the anchor and its target together -- a table row resolves to
-    itself, by construction -- so there is nothing to check it against, and the
-    empty check is the whole rule there.
+    Raises for an empty key, and for a key that is not in ``resolvable`` (the anchors the
+    page actually carries): a click-back that lands nowhere is no click-back. ``None``
+    means the caller emits the anchor and its target together, so only the empty check
+    applies.
     """
     if not str(key).strip():
         raise NothingToClick(

@@ -1,41 +1,14 @@
 """The measure step: what the apparatus was CAPABLE of seeing, recorded as decisions.
 
-This is where "the panel said no" stops being a value and becomes a click-backable
-decision. The split with ``types/measured.py`` is deliberate and is the layering of
-the whole ``core/`` package:
+``types.measured.resolve`` is the pure lattice (meet over required roles, demoted by
+coverage). This module wraps it: records which of the four states came out and why,
+binds or withholds the statistic, and returns ``Traced[...]``. Deleting every ``note``
+leaves measurement status unchanged.
 
-- ``types.measured.resolve`` is the **lattice** -- a meet over required roles,
-  demoted by coverage. Pure data in, pure data out, no tracing. It is the thing a
-  property test can hammer.
-- this module **wraps** it: it calls the lattice, records which of the four states
-  came out and why, binds (or withholds) the statistic, and hands back
-  ``Traced[...]``.
-
-Keeping the computation out of the traced layer is what stops the record from
-becoming the implementation. A reader can delete every ``note`` below and the
-measurement status is unchanged; delete the lattice and nothing works. That is the
-right dependency direction for something whose output is audited.
-
-**The failure this module exists to prevent.** ``EvidenceItem`` raises when a
-statistic and a measurement status disagree, so a fabricated number is already
-unrepresentable. The remaining failure is quieter and worse: a number silently
-dropped. An item whose statistic vanished without a decision is indistinguishable
-from a method that reported nothing at all -- so the biologist cannot tell a real
-refusal from a lost measurement, and the panel-absence rule reads as paralysis
-rather than as a finding. Every withholding here is therefore *recorded*, naming
-the number that was withheld and the state that forbade it.
-
-**Corroborators are withheld with the statistic.** ``EvidenceItem`` guards the
-``statistic`` field only, but ``corroborating`` is a second channel for numbers
-about the same subject: a pearson carried alongside a withheld glm_coef would put
-a measurement back into an item the frame says was never measured. They travel
-together or not at all.
-
-One decision per subject, not one per lattice step: the lattice returns a single
-settled state, and re-deriving the pre-demotion state here would be a second
-implementation of the thing ``types/`` already owns -- the duplicate nobody updates.
-``Measured.because`` already carries both halves ("what blocked the meet" and
-"which coverage failed"), so it is quoted rather than re-written.
+- Every withholding is recorded, naming the number withheld and the state that forbade
+  it, so a refusal is distinguishable from a lost measurement.
+- Corroborators are withheld with the statistic: they travel together or not at all.
+- One decision per subject; ``Measured.because`` is quoted, not re-written.
 """
 
 from __future__ import annotations
@@ -81,15 +54,9 @@ def resolve(subject: Subject, world: MeasuredWorld, reported: frozenset[str],
             coverage: tuple[Coverage, ...] = ()) -> Traced[Measured]:
     """Measurement status for one subject, with the decision that produced it.
 
-    The rule ids are written as literals, one branch each, rather than looked up in
-    a ``{state: rule}`` table. The table reads better and is wrong:
-    ``test_every_decision_rule_is_registered`` scans for *literal* ids passed to
-    ``note``, so a computed id is a decision the static check cannot see -- the one
-    place an unregistered rule could re-enter after all this.
-
-    ``refs`` carries the bare subject anchor and never a number here: this function
-    settles capability, and a ref with a statistic in it would assert a measurement
-    for a subject that may have none.
+    Rule ids are literals, one branch each, because
+    ``test_every_decision_rule_is_registered`` scans for literal ids passed to ``note``.
+    ``refs`` carries the bare subject anchor, never a number: this settles capability only.
     """
     t = Trace()
     m = _lattice(subject, world, reported, coverage)

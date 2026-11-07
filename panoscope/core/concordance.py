@@ -1,56 +1,22 @@
 """Replicate concordance: a unit's profile across samples, under JOINT clustering.
 
-ARCHITECTURE §9.10, in full:
+ARCHITECTURE §9.10:
 
 > Under joint clustering, compare a unit's profile across replicates. Divergence is a
 > flag: batch effect, section quality, or real biology, and the check does not claim
 > which. **Agreement never raises confidence** -- replicates are not independent
 > witnesses. Raises rather than returning a number under independent clustering.
 
-Three constraints, all of them enforced rather than documented.
-
-**It raises under independent clustering.** Cluster 3 in sample A and cluster 3 in
-sample B are the same label by coincidence of numbering, not the same unit, and
-comparing their profiles is a join on a key that does not mean anything. Returning a
-"divergent" flag there would be confidently wrong about a comparison that was never
-licensed, so :class:`IndependentClustering` is raised instead -- the one place this
-package prefers a traceback to an output, because there is no honest output.
-
-**Agreement never raises confidence**, and there is no field it could raise one in.
-:class:`Concordance` carries no band, no score and no weight. ``divergent`` is a flag
-and a flag only. The asymmetry is the point: replicates of one study share a panel,
-a protocol, an operator and usually a day, so their agreeing is close to tautological
-while their disagreeing is informative.
-
-**The check does not claim which.** Batch effect, section quality and real biology
-produce the same divergence, and this module cannot separate them; it reports the
-divergence and names the subjects and samples it was read off, and stops there.
-
-**The lattice applies here too, and it is why this shares ``reconcile._compare``.**
-A subject never measured in sample B is not a divergence from sample A -- the join
-across samples has exactly the same three outcomes as the join across methods, and
-re-implementing the gate here would be a second place the four states could be
-collapsed back into two.
-
-**What is deliberately left undefined.** A subject a sample emitted *no item at all*
-for is reported as not-comparable naming that sample, and no attempt is made to
-adjudicate it against that sample's frames the way ``reconcile`` does. The honest
-reading of a missing row is that this module cannot tell whether the reader dropped
-it or the method never emitted it, and guessing either way would invent a measurement
-status, which is the one thing the lattice exists to prevent.
-
-**The replicates do NOT share one capability frame, and the items are what say so.**
-Joint clustering joins the *units*; it says nothing about what each section was
-capable of observing. One panel was run across the sections, so the panel frame is
-shared -- but detectability is read off each section's own markers table, and a gene
-that produced no usable signal there was not tested there. Each :class:`Replicate`'s
-items therefore arrive already carrying that sample's own frames
-(``pipeline/records.py`` builds them through ``adapter.for_sample``), and ``_compare``
-reads each state off the item rather than off any frame this module holds -- which is
-why it holds none. When one pooled frame was handed to every replicate instead, a
-gene reported in one section and ``NoSig`` in the other came out of ``_compare`` as a
-measured absence and therefore a CONFLICT: a divergence manufactured out of a
-measurement that was never made.
+- Under independent clustering :class:`IndependentClustering` is raised: equal labels
+  across samples are not the same unit.
+- :class:`Concordance` carries no band, score or weight; ``divergent`` is a flag only.
+- The lattice applies: comparison shares ``reconcile._compare``, so a subject never
+  measured in one sample is not a divergence.
+- A subject a sample emitted no item for is reported not-comparable, naming the sample,
+  without guessing a measurement status.
+- Replicates do not share one capability frame: each :class:`Replicate`'s items carry
+  that sample's own frames (``pipeline/records.py`` via ``adapter.for_sample``), and
+  ``_compare`` reads state off the item.
 """
 
 from __future__ import annotations
@@ -136,30 +102,16 @@ def concordance(unit: str, replicates: tuple[Replicate, ...],
                 joint: bool) -> Traced[Concordance]:
     """Compare a unit's profile across replicates. Raises under independent clustering.
 
-    The first replicate is the reference and every other is compared against it,
-    rather than all pairs: with the reference fixed the result is O(n) decisions in a
-    stated order, and "sample B diverges from sample A" is the statement a biologist
-    acts on. All-pairs would add a quadratic record that says the same thing twice in
-    an order nothing pins.
+    The first replicate is the reference and every other is compared against it. Subject
+    order is the reference sample's item order, then subjects only later samples reported,
+    in their order (hashed into the record; not sorted).
 
-    Subject order is the reference sample's own item order, then any subject only a
-    later sample reported, in that sample's order. Not sorted: this order is hashed
-    into the record, and most of these rows have no number to sort by.
+    The coverage floor is :data:`~panoscope.core.verdict.REPLICATE_COVERAGE_FLOOR`, not a
+    parameter, since it feeds ``verify``.
 
-    The ``floor`` the coverage is counted against is
-    :data:`~panoscope.core.verdict.REPLICATE_COVERAGE_FLOOR`, not a parameter. It was
-    one -- defaulting to ``1``, which ``Coverage.ok`` clears at every point of the
-    gradient -- and a threshold a caller supplies is a threshold a caller can choose,
-    which is the seam ``verify`` is not allowed to have: this K of N now demotes a
-    band and sets the rubric's flag. The constant lives beside the other tuned band
-    constants, with the honest note that it is structural rather than calibrated and
-    why.
-
-    One subject is CONFLICT if it conflicts in **any** replicate, NOT_COMPARABLE if
-    it could not be compared in any and never conflicted, and CONSISTENT only if at
-    least one comparison was made and none conflicted. A subject blocked in one
-    sample and divergent in another is reported as divergent -- the divergence is a
-    real measurement and the block is a caveat on top of it, not a reason to drop it.
+    A subject is CONFLICT if it conflicts in any replicate, NOT_COMPARABLE if it could not
+    be compared in any and never conflicted, and CONSISTENT only if compared at least once
+    without conflict.
     """
     if not joint:
         raise IndependentClustering(

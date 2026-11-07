@@ -1,84 +1,25 @@
-"""How a declared unknown travels: from intake, into every check that reads it.
+"""How a declared unknown travels from intake into every check that reads it.
 
-CLAUDE.md states the rule twice and the codebase implements it nowhere:
-
-> ``unknown`` is first-class and propagates.
-> A check reading an unknown field returns **cannot be settled** and names what is
-> missing.
-
-``types/conditions.py`` holds up its end. ``Condition`` makes "a value exists iff it
-is known" structural, ``Conditions.declared_unknown`` names the unknown fields in a
-stable order, and its docstring says exactly what is supposed to happen next: *"A
-check that reads one of these must return cannot be settled and NAME what is
-missing."* Then nothing reads it. ``grep`` finds ``declared_unknown`` in three test
-files and in one docstring, and in no check anywhere -- so the propagation is a rule
-the type is shaped for and no caller performs.
-
-``workflows/de.py`` holds up the other end, by hand, four times over. Its checks are
-three-valued, their ``missing`` is actionable prose, and each one hand-rolls the same
-two steps: notice an input is absent, refuse, name what would settle it. Not one of
-them refuses on a ``Condition`` -- they refuse on a frame, a replicate count, an
-abundance table, a second method's result. The condition fields the study genuinely
-does not know (segmentation and fixation on the demo study; modality and method too,
-on the kidney one) propagate into nothing.
-
-This module is that missing edge, and it is one function.
-
-**The return type is a ``CheckResult``**, the same object a workflow's own checks
-return, so a check that cannot be asked composes into the checklist rather than
-needing a second shape spliced into it::
+CLAUDE.md: ``unknown`` is first-class and propagates; a check reading an unknown field
+returns **cannot be settled** and names what is missing. :func:`requires` is that edge::
 
     r = propagate.requires(conditions, COMPOSITION, "segmentation")
     if not r.value.settled:
         return r
 
-``CheckState`` and ``CheckResult`` live in ``types/contracts.py``, beside the
-``Check`` they answer. They were in ``workflows/de.py`` and this module carried its
-own two-tuple primitive instead, because ``core/`` cannot import ``workflows/`` --
-the dependency runs the other way, and inverting it would let a broken workflow break
-the core. Moving the vocabulary to ``types/`` was the reviewed contract change that
-removed the primitive; a type nobody emits is dead vocabulary.
+- It returns a ``CheckResult`` (``types/contracts.py``), so an unaskable check composes
+  into the checklist like any other.
+- ``OK`` means only that every declared condition is known; the caller overwrites it with
+  its own answer. ``CANNOT_BE_SETTLED`` is returned as-is.
+- ``missing`` is actionable sentences, not field names; the bare names come from
+  ``Conditions.declared_unknown``.
+- A blocking field (§6.3) can never appear in ``missing``: ``Conditions`` refuses to
+  construct with one unknown.
 
-**``OK`` here is not a verdict on the result.** It says only that every condition the
-check declared is known -- that the question could be asked. The caller keeps going
-and overwrites it with its own answer. Only ``CANNOT_BE_SETTLED`` is returned as-is,
-because that *is* the answer: there is nothing left to ask.
-
-**``missing`` is sentences, not field names.** It is built to drop straight into
-``CheckResult.missing``, whose contract is that each entry names a thing that would
-settle the check. "segmentation" is a field name a biologist cannot act on; "the
-segmentation version this result was produced under, which was declared unknown at
-intake" is something they can go and get. The bare names are not duplicated here:
-``Conditions.declared_unknown`` already returns them, and a second copy with a
-different order is how two callers come to disagree about what was missing.
-
-**A blocking field can never appear in ``missing``, and that is not a special case.**
-``Conditions.__post_init__`` refuses to construct an object whose ``assay`` or
-``tissue`` is unknown, so a check that declares it reads ``tissue`` is settled by
-construction. That is the §6.3 line doing its job one layer down: the blocking fields
-block the study, the rest propagate.
-
-**Wired.** ``workflows/de.composition_vs_expression`` declares its dependency on
-``segmentation`` through :func:`requires` -- the call the example above gives. The
-dependency is real rather than manufactured to supply one: ``DEAudit.abundance`` is
-this unit's share of CELLS per arm, and cells are what segmentation produces, so
-with the segmentation version declared unknown a difference in share cannot be
-attributed. It is a mixture change, or it is two segmentations counting
-differently, and the result does not say which. On the demo, where segmentation is
-unknown, that check now refuses and names the version as the thing that would
-settle it -- which is the rule CLAUDE.md states twice and nothing performed.
-
-**It is the ONLY caller, and that is guarded.** The hazard with this mechanism is
-not that nobody calls it; it is decoration. A check declaring a condition it does
-not read turns a settled answer into CANNOT BE SETTLED on a fabricated ground, and
-on a study with two unknown fields that silences real results.
-``tests/test_core_unwired.py`` pins the caller set to one and checks which FIELD it
-names, so a second dependency has to be argued for rather than added.
-
-The other checks were considered and do not qualify. ``panel_scoping`` reads the
-gene frame, which ``types/conditions.py`` says is explicitly not a ``Condition``.
-``replicate_confound`` reads a sample count, which ``Conditions`` deliberately
-cannot express. ``cross_method_coherence`` takes the other method's ``Side``.
+The only caller is ``workflows/de.composition_vs_expression`` (segmentation: abundance is
+a share of cells, and cells are what segmentation produces). ``tests/test_core_unwired.py``
+pins the caller set, so a new dependency has to be argued for: a check declaring a
+condition it does not read silences real results.
 """
 
 from __future__ import annotations
@@ -111,26 +52,10 @@ def requires(conditions: Conditions, check_id: str,
              *fields: str) -> Traced[CheckResult]:
     """The conditions a check depends on, and the unknowns that stop it settling.
 
-    ``fields`` is the check's own declaration of what it reads. Declaring it is the
-    point: a check that reaches into ``Conditions`` directly can read an unknown and
-    carry on, and nothing downstream can tell that it did -- the answer it returns is
-    shaped exactly like one it reached honestly.
-
-    ``check_id`` is the registered id of the check this answers for, not prose. It is
-    required rather than defaulted because a ``CheckResult`` with no ``check_id``
-    cannot be put on the review surface next to the checks that did fire, which is
-    the one thing an unsettled check exists to be.
-
-    Order is ``Conditions``' declaration order, never the caller's. ``missing`` is
-    hashed into a record through the ``CheckResult`` it travels in, and two checks
-    reading the same two fields in different orders must not produce two different
-    records of the same gap.
-
-    ``UNKNOWN`` is not reported as a caveat on the answer. It *is* the answer: the
-    check could not be asked. That distinction is why this returns a tuple of things
-    to go and get rather than a confidence adjustment -- CLAUDE.md's rule is that the
-    band is a function of one method's output, and a missing condition is not that
-    method's output being weaker.
+    ``fields`` is the check's declaration of what it reads; ``check_id`` is its registered
+    id (required, so the result can sit on the review surface). ``missing`` follows
+    ``Conditions``' declaration order, never the caller's, since it is hashed into records.
+    An unknown is the answer (cannot be settled), never a confidence adjustment.
     """
     t = Trace()
     bad = tuple(f for f in fields if f not in CONDITION_FIELDS)

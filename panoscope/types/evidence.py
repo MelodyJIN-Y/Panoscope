@@ -1,42 +1,19 @@
 """Evidence: the INPUT side of an interpretation, and the IFF that grounds it.
 
-An ``EvidenceItem`` is what a method *reported*, before anything interprets it.
-There is deliberately no tier, no band and no ``verify`` here -- those are the
-interpreter's output, and keeping them off the input is what stops a method from
-grading its own homework.
+An ``EvidenceItem`` is what a method reported. No tier, band or ``verify`` here; those
+are the interpreter's output.
 
-**The one rule this module exists to enforce.** A statistic may be present only
-where the subject was actually observed::
+**The rule this module enforces**, in ``__post_init__``, by raising::
 
     statistic is None  IFF  not measured.carries_number
 
-The check is derived from :attr:`Measured.carries_number` rather than from a
-re-listed set of states, because the two drift. ``IMPLEMENTATION.md`` §2.2 and
-``CLAUDE.md`` both used to state the rule as ``{TESTED_ABSENT, NEVER_MEASURED}``,
-omitting ``UNDERPOWERED`` -- which was wrong: "in frame, below the floor" is a
-state where absence is not evidence either, and a number quoted from it is a
-number the measurement could not support. ``measured.py`` always had it right and
-both documents now say so. Spelling the states out a second time here would have
-made that spec bug permanent, and the second list is the one nobody updates.
+Derived from :attr:`Measured.carries_number`, never from a re-listed set of states
+(``UNDERPOWERED`` withholds the number too).
 
-It is enforced in ``__post_init__`` and it *raises*. Quoting a number for a thing
-that was never measured is the single worst failure this project can produce, and
-a failure of that size must be unrepresentable, not merely tested for.
-
-``flags`` are REGISTERED ids, never prose, for the same reason ``Decision.rule`` is
-(``trace.py``): the UI decided whether to draw a specificity badge by matching the
-exact English phrase "localizes better with another cluster"
-(``ui/evidence_table.py``), so a copy edit in the analysis layer silently stopped
-the badge rendering -- and the test asserted the same literal, so it stayed green.
-Ids are what code matches on; English lives in ``FLAGS[...].what`` and in the UI's
-``FLAG_COPY``, where editing it is harmless.
-
-``corroborating`` is a SORTED tuple of pairs rather than the dict the spec sketch
-shows. A dict field on a frozen dataclass is unhashable, and its insertion order
-flows through ``dataclasses.asdict`` into the serialised bytes -- so the golden
-record would differ by the order a reader happened to add corroborators. Sorting at
-construction makes byte-determinism a property of the type rather than a habit of
-every caller.
+- ``flags`` are REGISTERED ids; English lives in ``FLAGS[...].what`` and the UI's
+  ``FLAG_COPY``.
+- ``corroborating`` is a SORTED tuple of pairs, not a dict: hashable, and byte-stable in
+  the serialised record whatever order a reader added them.
 """
 
 from __future__ import annotations
@@ -71,9 +48,8 @@ def _flags(*flags: Flag) -> dict[str, Flag]:
 
 
 # --------------------------------------------------------------------------- #
-# The registry. Each entry is a caveat the analysis layer actually emits today
-# (agent/verdict.py::_caveats_for) -- a transcription of current behaviour, not a
-# wish list. A flag nobody emits is a badge nobody can test.
+# The registry. Each entry is a caveat the analysis layer actually emits. A flag
+# nobody emits is a badge nobody can test.
 # --------------------------------------------------------------------------- #
 FLAGS: dict[str, Flag] = _flags(
     Flag("specificity:localises_elsewhere",

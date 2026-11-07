@@ -1,41 +1,17 @@
-"""Condition deltas -- and the far larger set of claims that must never get a verdict.
+"""Condition deltas, and the larger set of claims that must never get a verdict.
 
-This is the second half of ARCHITECTURE §7.5's split, and it is defined as much by
-what it REFUSES to run on as by what it computes.
+The second half of ARCHITECTURE §7.5's split. §7.4 measured the conditional-validity
+check at 0.000 bits over 280 curated vendor-panel edges: a constant. So the
+verdict-bearing half runs only where conditions came from a manifest, and
+:func:`manifest_sourced` is that gate.
 
-**The retraction.** §7.4 measured the v4 conditional-validity check and it returned
-``0.000 bits`` over 280 curated vendor-panel edges: rules 3, 4, 6 and 7 fired on
-100.0% of them, rule 5 on 0.0%, and ``H(mismatch-tuple)`` was also 0.000 -- the same
-four strings every time. A counterfactual sweep across Xenium/breast/FFPE,
-fresh-frozen, CosMx/lung, Visium, IHC and matched scRNA-seq returned ``conditional``
-for five of six, the exception being the degenerate case where the context *is* the
-claim's formation conditions. And the verdict predicted nothing: AUROC undefined
-because constant, while the measurement's own ``1 - pearson`` managed 0.667.
-
-A check that cannot vary is not a safety property, it is a banner printed per row. So
-the fix is not a better threshold -- it is to stop running the verdict-bearing half on
-the class where it is constant. :func:`manifest_sourced` is that gate, and it is the
-most important function in the module.
-
-**Database-curated and literature claims get a provenance stamp, not a verdict.** The
-stamp says where the knowledge came from and lets §7.5's class-level banner be
-rendered once -- *"curated edges in this corpus were established in dissociated
-scRNA-seq on fresh tissue; you are in FFPE in-situ"* -- rather than repeating the same
-four deltas on every claim. Those claims are still adjudicated; just by the
-measurement (:mod:`panoscope.claims.evaluability`, §7.6), which is the only thing that
-ever could adjudicate them.
-
-**Frames are deliberately not a delta.** Comparing the claim's ``FrameRef`` digests
-against the context's would fire on nearly every claim and reintroduce exactly the
-constant §7.4 caught -- one extra negative-control probe reads as a different world.
-The capability question is answered per entity, per frame, by ``evaluability``, which
-is strictly more informative: it names the gene and the frame that refused it instead
-of announcing that two digests differ.
-
-**Never report a verdict distribution.** The return carries the named deltas. The
-``action`` exists because §10.3 requires a blocked claim to be SURFACED with its
-reason, so something must say "surfaced, but blocked" -- it is a display instruction,
-not a score, and aggregating it is the mistake §7.4 documents.
+- Database-curated and literature claims get a provenance stamp, not a verdict, so
+  §7.5's class-level banner renders once; the measurement adjudicates them
+  (:mod:`panoscope.claims.evaluability`, §7.6).
+- Frames are not a delta: digest comparison would fire on nearly every claim.
+  Capability is answered per entity, per frame, by ``evaluability``.
+- The return carries named deltas. ``action`` is a display instruction (§10.3: a blocked
+  claim is surfaced with its reason), not a score; never aggregate it.
 
 Pure: no IO, no clock.
 """

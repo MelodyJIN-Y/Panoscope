@@ -1,41 +1,16 @@
 """The record: what was read, what was decided, and which half of that a model wrote.
 
-The record is the reproducibility claim. Rebuild it from the same hashed inputs and
-it must come out byte-identical, which is what lets §10's migration gate compare a v3
-record against the committed v1 JSON field by field instead of eyeballing a report.
-Everything in this module exists to make that identity a property of the types rather
-than a discipline the writers are asked to keep.
+Rebuilt from the same hashed inputs it must come out byte-identical (§10's migration
+gate). The types make that a property, not a discipline:
 
-**``drop_reasons`` is a sorted tuple of pairs, never a dict.** A dict field on a
-frozen dataclass is unhashable, and its insertion order flows through
-``dataclasses.asdict`` into the serialised bytes -- so two runs that dropped the same
-rows for the same reasons would hash differently because a reader happened to
-encounter a malformed row before an out-of-frame one. ``EvidenceItem.corroborating``
-has the same shape for the same reason and sorts in ``__post_init__``; this does too,
-so neither type depends on its callers remembering. ``IMPLEMENTATION.md``'s v2-to-v3
-table lists both dicts as the pair of bugs that made ``test_record_deterministic``
-unsatisfiable.
-
-**Dropped rows are counted and named, not silently discarded.** ``rows_in`` minus
-``rows_dropped`` is the only place the biologist can see that a quarter of the table
-never reached the interpretation, and ``drop_reasons`` is what makes that actionable
-rather than alarming.
-
-**``entities_outside_frame`` and ``entities_not_in_reference`` are two different
-facts and stay apart.** The first is the panel-absence rule -- the apparatus could
-not have seen it, so its absence argues nothing. The second is a gap in *our*
-knowledge of something that was measured perfectly well. Collapsing them into one
-"unknown" list is exactly the four-states-into-a-boolean mistake ``measured.py``
-exists to prevent, one layer up: a gene we measured but cannot annotate is a
-literature gap to report, not a measurement that did not happen.
-
-**``prose`` is the generated layer and is marked as such.** Every other field on
-:class:`InterpretationRecord` is deterministic output from ``core/``; ``prose`` is
-the only one a model may have written, so ``grounding_check`` gates it separately and
-``prose=None`` is a complete, valid record -- the one the demo falls back to when a
-request is slow or fails. :data:`GENERATED_FIELDS` names it in a form code can read,
-because a gate that hardcodes the string ``"prose"`` silently stops covering the
-second generated field the day one is added.
+- ``drop_reasons`` is a sorted tuple of pairs, never a dict (hashable; byte-stable).
+- Dropped rows are counted and named: ``rows_in``, ``rows_dropped``, ``drop_reasons``.
+- ``entities_outside_frame`` (panel-absence: absence argues nothing) and
+  ``entities_not_in_reference`` (a gap in our knowledge of something measured) stay
+  apart.
+- ``prose`` is the only generated field; ``grounding_check`` gates it and ``prose=None``
+  is a complete record (the deterministic fallback). :data:`GENERATED_FIELDS` names it
+  for code to read.
 """
 
 from __future__ import annotations
@@ -110,22 +85,8 @@ class InterpretationRecord:
     undecidable: tuple[str, ...]
     spec_version: str
     #: ARCHITECTURE §9.8's named failure modes this unit's reading raised, as
-    #: REGISTERED ids in ``core/failure_modes.MODES`` declaration order.
-    #:
-    #: Ids and not prose, for the reason ``Verdict.demotions`` carries rule ids: a
-    #: mode's ``what`` and ``ask`` are human-readable and never matched on, so
-    #: copying them into every record would be a second copy of the registry that
-    #: drifts the first time a sentence is reworded. ``failure_modes.explain``
-    #: resolves one and raises if its detector has left ``RULES`` or ``FLAGS``.
-    #:
-    #: Nothing is DETECTED to fill this. Every id restates a decision already in
-    #: ``decisions``; what it adds is the naming -- a biologist reading
-    #: ``adjacency:bleed_candidate`` beside ``band:fragile_cap`` has no way to know
-    #: the first is transcript bleed and the second a thin profile. §9.8 asks for
-    #: the modes to be "named, computed, more actionable than a low band", and
-    #: computed they already were.
-    #:
-    #: Declared after ``spec_version`` only because a dataclass field with a default
-    #: cannot precede one without. It is record content, not metadata.
+    #: REGISTERED ids in ``core/failure_modes.MODES`` declaration order; each names
+    #: a decision already in ``decisions`` (``failure_modes.explain`` resolves one).
+    #: After ``spec_version`` only because it has a default.
     failure_modes: tuple[str, ...] = ()
     prose: str | None = None                         # GENERATED layer; gated separately

@@ -1,22 +1,11 @@
 """What an evidence item is *about*: one key space shared by every task kind.
 
-The decisive argument for this abstraction is reconciliation. Asking whether the
-marker result, the DE result and a ligand-receptor result agree about ERBB2 is a
-**join across task kinds on the item key**. That join only works if every workflow
-keys its items identically. Under the shape the v2 spec proposed it could not:
-assignments keyed on a bare gene string, characterisations on an ``Item.name``, held
-together by convention.
+Reconciliation is a **join across task kinds on the item key**, so every workflow keys
+its items identically. The registry of subject kinds is data, not a closed union: adding
+an analysis family is a dict entry, and no type, serializer or consumer changes.
 
-A tagged union was rejected for a different reason. A union is a *closed* type, so
-each of the unbuilt analysis families -- ligand-receptor, niche, neighbourhood,
-co-localisation, differential abundance, co-expression -- would force it open again
-and reopen every exhaustive match over it. That is a scheduled rewrite, not a frozen
-contract. Here the closed thing is the *registry*, which is data: adding a family is
-a dict entry, and no type, serializer or consumer changes.
-
-``Subject.key`` is the join key. It is stable, sortable and canonical, which is why
-symmetric role groups are sorted at construction -- an unordered cell-type pair must
-be one subject however the reader happened to emit it.
+``Subject.key`` is the join key: stable, sortable and canonical. Symmetric role groups
+are sorted at construction, so an unordered pair is one subject however it was emitted.
 """
 
 from __future__ import annotations
@@ -159,15 +148,9 @@ class Subject:
     def key(self) -> str:
         """Stable, sortable, join-safe identity. The one thing consumers may rely on.
 
-        MEMBER roles are EXCLUDED. They are coverage, not identity: HALLMARK_EMT is
-        HALLMARK_EMT whether 22 or 180 of its genes fell inside the capability frame.
-        Including them made a subject's identity depend on the apparatus, so the same
-        gene set read off a 280-gene panel and a 5,000-gene panel produced two keys
-        that could never join -- and reconciliation is a join across task kinds on
-        exactly this key, so it would have under-reported in silence.
-
-        This also makes the rule consistent with ``resolve()``, where MEMBER roles are
-        already excluded from the meet and contribute only via ``Coverage``.
+        MEMBER roles are EXCLUDED: they are coverage, not identity, so the same gene set read off
+        different panels joins on one key. Consistent with ``resolve()``, where MEMBER roles are
+        excluded from the meet and contribute only via ``Coverage``.
         """
         sh = SHAPES.get(self.shape)
         parts = self.parts if sh is None else tuple(

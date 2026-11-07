@@ -1,51 +1,18 @@
-"""ARCHITECTURE §9.8's named failure modes -- as an INDEX of what already fires.
+"""ARCHITECTURE §9.8's named failure modes, as an INDEX of what already fires.
 
-§9.8 asks for the modes to be "named, computed, more actionable than a low band".
-Three of those four words were already true before this module existed. The system
-computes these conditions today, in ``core/adjacency.py``, ``core/verdict.py``,
-``core/rival.py``, ``core/concordance.py``, ``core/reconcile.py`` and
-``workflows/de.py``, and every one of them is already *registered* -- as a rule id in
-``types/trace.py::RULES`` or as a flag id in ``types/evidence.py::FLAGS``. What was
-missing was only the naming: a biologist reading a record sees
-``adjacency:bleed_candidate`` next to ``band:fragile_cap`` next to
-``reconcile:tension`` and has no way to know that the first is §9.8's transcript
-bleed, the second is a thin profile, and the third is not a unit-coherence question
-at all.
+:data:`MODES` maps a biologist-facing failure mode onto the registered ids (rule ids in
+``types/trace.py::RULES``, flag ids in ``types/evidence.py::FLAGS``) that already emit
+it; :func:`detect` reads a unit's evidence and the caller's traces. It detects nothing
+itself: a second implementation of an unmeasured display flag (§9.9) would be a second
+firing rate.
 
-**So this module detects nothing.** :data:`MODES` maps a biologist-facing failure
-mode onto the registered ids that already emit it, and :func:`detect` reads a unit's
-evidence and the traces a caller already holds. That is a deliberate refusal to write
-the obvious alternative. A second implementation -- re-deriving "is this unit
-spatially coherent" from the items here -- would be a second place a flag is decided,
-and §9.9 is explicit that these are display flags whose firing rate has not been
-measured; two implementations of an unmeasured flag is two firing rates.
-
-**Two of §9.8's four modes have NO detector, and they are named rather than
-quietly absent.** :data:`UNDETECTED` carries them. "Spatially incoherent cells" and
-"a tissue region rather than a cell type" need a per-cell spatial dispersion
-statistic that no method module in this repo reports, and inventing ids for them here
-would be exactly the dead vocabulary ``FLAGS`` and ``RULES`` both have a stated rule
-against -- a registry nobody emits is a traversal nobody can test. Naming them as
-undetected is the honest half: a reviewer can see that the apparatus does not ask
-these two, which is the same discipline the four-state lattice applies to a
-measurement.
-
-**``detected_by`` mixes two registries on purpose.** A failure mode is a fact about
-the reading, and the reading is condemned by whichever layer noticed: a non-specific
-marker is flagged on the ``EvidenceItem`` by the method layer
-(``specificity:localises_elsewhere``) *and* by the spatial check in
-``core/adjacency.py`` (``adjacency:specificity``), and a mode that listed only one of
-them would go quiet whenever the other was the one that fired.
-``test_every_detector_id_is_registered`` pins that every id lands in exactly one of
-the two registries, so a rule renamed in ``RULES`` cannot leave a mode pointing at
-nothing.
-
-**No decision of its own, and no ordering of its own.** Every mode this module
-reports is a re-read of a decision already in the record; noting it again would be
-the duplicate that drifts, and ``core/record.py`` returns ``Traced`` with empty
-decisions for the same reason. The result is in :data:`MODES` declaration order
-rather than in firing order, because firing order depends on which trace a caller
-passed first, which is a property of the call site and not of the study.
+- :data:`UNDETECTED` names the two §9.8 modes with no detector (spatially incoherent
+  cells; a tissue region rather than a cell type): no method reports a per-cell
+  dispersion statistic, and an unemitted id would be dead vocabulary.
+- ``detected_by`` spans both registries, because a mode can be noticed by either layer;
+  ``test_every_detector_id_is_registered`` pins each id to exactly one registry.
+- No decisions of its own; results are in :data:`MODES` declaration order, not firing
+  order.
 """
 
 from __future__ import annotations

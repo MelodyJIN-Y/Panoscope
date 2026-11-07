@@ -1,34 +1,14 @@
-"""Outputs: what an interpretation says, and the two shapes it is allowed to say it in.
+"""Outputs: what an interpretation says, and the two shapes it may say it in.
 
-``EvidenceItem`` is the input side (``evidence.py``); everything here is the output
-side -- tier, ``verify``, band, summary. The split is what stops a method grading its
-own homework, so nothing in this module may be constructed by a method module.
+The output side (tier, ``verify``, band, summary); never constructed by a method module.
 
-**Two output types, not one, because of the label space.** ``ASSIGNMENT`` asks "what
-*is* this?", so there is a set of alternatives and probability mass has somewhere to
-sit: a band is meaningful. ``CHARACTERISATION`` and ``COMPARISON`` have no label
-space, so a unit-level band is *undefined*, not merely unhelpful -- there is no
-"instead" for the remaining confidence to be confidence *in*. That asymmetry is the
-entire boundary between :class:`Assignment` and :class:`Finding`, and it is why
-``Finding`` is a separate type rather than an ``Assignment`` with ``band=None``: an
-optional field invites a caller to fill it, a missing field cannot be filled.
-
-**Four tiers, not the three the spec lists.** ``IMPLEMENTATION.md`` §2.4 gives
-``SUPPORTED | SUGGESTIVE | UNTESTABLE``, which collapses two different answers into
-one word for exactly the reason ``measured.py`` refuses to collapse four states into
-a boolean. ``UNTESTABLE`` means *we could not ask the question*. A subject that was
-in frame, was tested and came back absent HAS been asked and HAS been answered, and
-the answer argues **against** -- that is the productive half of the panel-absence
-rule, the half that lets a discriminator rule a rival out because the rival's markers
-were measured and peaked elsewhere. Filed under ``UNTESTABLE`` it reads to the
-biologist as "we don't know", and the discriminator silently stops discriminating
-while every test stays green. So: ``NOT_SUPPORTED``.
-
-**The tier/measured correspondence is derived, not re-listed.** ``permitted_tiers``
-reads ``Measured.carries_number`` and ``Measured.absence_is_evidence`` -- the same two
-properties ``evidence.py`` derives its IFF from -- rather than enumerating states a
-second time. A hand-maintained second list of states is how the §2.2 spec bug got
-written down, and the copy nobody updates is always the one that governs.
+- ``ASSIGNMENT`` has a label space, so a band is meaningful: :class:`Assignment`.
+  ``CHARACTERISATION`` and ``COMPARISON`` have none, so a unit-level band is undefined:
+  :class:`Finding`, a separate type with no band field to fill.
+- Four tiers, not §2.4's three: ``NOT_SUPPORTED`` is tested and absent, which argues
+  against; ``UNTESTABLE`` is the question could not be asked.
+- ``permitted_tiers`` derives from ``Measured.carries_number`` and
+  ``Measured.absence_is_evidence``, never from a re-listed set of states.
 """
 
 from __future__ import annotations
@@ -191,16 +171,9 @@ class Assignment:
 class Finding:
     """CHARACTERISATION and COMPARISON. No band. No confidence. Ever.
 
-    There is no label space, so there is no alternative for the remaining
-    probability mass to sit on and a unit-level band is undefined. The header for
-    these is per-item counts -- "4 enriched, 3 untestable, top EMT z 4.2 on 18/200
-    panel genes" -- which is a statement about the items and survives having no
-    denominator.
-
-    The absence of a band is enforced as a FIELD-NAME guard in the tests rather than
-    by checking that nothing populates one: a behavioural test only catches a band
-    that is filled in, while the field guard fails the moment the field is
-    *declared*, which is when the mistake costs nothing to undo.
+    No label space, so a unit-level band is undefined. The header is per-item counts --
+    "4 enriched, 3 untestable, top EMT z 4.2 on 18/200 panel genes". The absence of a band
+    is pinned by a field-name guard in the tests.
     """
 
     unit: str

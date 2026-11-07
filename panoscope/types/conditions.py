@@ -1,42 +1,21 @@
 """Study conditions: what was true of the experiment, and *how we know it*.
 
-Intake writes this object (ARCHITECTURE §6.2) and every applicability check in the
-system reads it. That makes it the one place where fabrication could enter the
-**foundation** rather than an answer: if a model infers "probably breast" from a
-handful of gene names and that lands here as a bare string, every downstream check is
-built on a guess and nothing downstream can tell. So a value never travels alone --
-it travels as a :class:`Condition`, value plus how it was obtained.
+Intake writes this object (ARCHITECTURE §6.2) and every applicability check reads it, so
+a value never travels alone: it is a :class:`Condition`, value plus how it was obtained.
 
-**``unknown`` is first-class, which is not the same as tolerated everywhere.** The
-architecture draws a line (§6.3) and that line is most of this module:
+The §6.3 line:
 
-- ``BLOCKS_THE_STUDY`` -- tissue and platform/assay, plus the measured set. Unknown
-  here is a validation failure, not a caveat. Tissue is the corpus scoping key, so a
-  guessed tissue silently scopes the literature to the wrong organ; and a study with
-  no declared frame has no capability frame at all, which makes every absence in it
-  ``NEVER_MEASURED`` and the panel-absence rule a machine that says nothing.
-- ``DECLARED_UNKNOWN_OK`` -- fixation, segmentation, and the two unclassified fields
-  below. A biologist working from a collaborator's section may genuinely not know the
-  segmentation version, and forcing an answer teaches intake to guess, which is the
-  failure this module exists to prevent. These propagate instead: a check reading one
-  returns *cannot be settled* and names it.
+- ``BLOCKS_THE_STUDY`` -- tissue and platform/assay, plus the measured set. Unknown here
+  is a validation failure.
+- ``DECLARED_UNKNOWN_OK`` -- fixation, segmentation, ``modality`` and ``method``. These
+  propagate: a check reading one returns *cannot be settled* and names it.
 
-Every ``Condition`` field sits in exactly one of those tuples and
-``test_every_condition_field_is_classified_exactly_once`` pins it, so a seventh field cannot be
-added without someone deciding which side it falls on. ``modality`` and ``method`` are
-not in §6.3's blocking column, and that column is a closed list, so they are
-non-blocking by construction: wrongly blocking a field stops a legitimate study dead,
-which is a worse failure than carrying one more declared unknown.
+Every ``Condition`` field is in exactly one tuple
+(``test_every_condition_field_is_classified_exactly_once``).
 
-**Clustering mode is §6.3's fourth blocker and is deliberately NOT a field here.** It
-blocks only when the study has more than one sample, and ``Conditions`` carries no
-sample count -- the samples are a property of the store, counted by the platform
-adapter (``PlatformAdapter.samples``), which is also where ``clustering_mode`` is
-derived and where §2.6 already records it, on ``ReadingRecord``. Enforcing it here
-would mean inventing a sample count on an object that has no other use for one, and
-then trusting whoever constructed ``Conditions`` to have filled it in honestly -- a
-second, weaker copy of a fact the adapter holds first-hand. The conditional blocker
-belongs to the adapter; this module blocks the three unconditional ones.
+Clustering mode, §6.3's fourth blocker, is not a field here: it blocks only for
+multi-sample studies, and the sample count belongs to the platform adapter
+(``PlatformAdapter.samples`` / ``clustering_mode``).
 """
 
 from __future__ import annotations

@@ -1,38 +1,20 @@
 """Can the instrument say anything about this claim? The capability half of §7.5.
 
-ARCHITECTURE §7.4 reports a measurement and §7.5 the correction that follows from it:
-the single conditional-validity check returned **0.000 bits over 280 curated edges**
--- rules 3, 4, 6 and 7 fired on 100% of them -- so the check was a constant wearing a
-verdict's clothes. The correction is to split it in two:
+ARCHITECTURE §7.4 found the single conditional-validity check constant (0.000 bits over
+280 curated edges); §7.5 splits it:
 
-* **this module** -- a *capability* gate. Are the entities this claim rests on
-  measured here? It applies to EVERY claim in every authority class, and it is a fact
-  about the instrument rather than a judgement about the claim.
-* :mod:`panoscope.claims.transfer` -- the condition deltas, which run only where the
-  conditions came from a manifest.
+* **this module** -- a *capability* gate on every claim: are the entities it rests on
+  measured here? A fact about the instrument, not a judgement about the claim.
+* :mod:`panoscope.claims.transfer` -- condition deltas, manifest-sourced claims only.
 
-**Detectability is why this module has four states and not two.** §7.5: 49 of 280
-panel genes (17.5%) yield no usable spatial signal, and a curated edge on such a gene
-*passes the panel gate and is still unusable*. That gate carries 0.652 bits on curated
-claims -- unlike the seven original rules, it actually varies. Collapsing it into
-``NEVER_MEASURED`` would hide the one signal that discriminates, and would also be
-wrong: an off-panel gene was never on the instrument, while an undetectable one was
-and produced nothing. Those are different sentences to show a biologist.
+Off-panel and undetectable are kept apart (49 of 280 demo panel genes yield no usable
+spatial signal): a refusing frame is a detectability frame iff its ``name`` starts
+``detect:`` (``measured.py``'s naming convention).
 
-The two are told apart by the frame's ``name``: ``measured.py``'s own docstring fixes
-the convention (``"panel:…" | "annotation:…" | "detect:nosig"``), so the prefix is
-part of the frozen contract rather than a convention invented here. A frame that
-refuses a gene is a detectability frame iff its name starts ``detect:``.
+Not ``measured.resolve``: a claim rests on more than its subject (``depends_on``), and
+the point is to name *which* frame refused. ``Frame.contains`` stays the authority.
 
-**Why not just call ``measured.resolve``.** The lattice answers for a *subject* and
-returns the single worst state with the first frame that produced it. A claim rests on
-more than its subject -- ``depends_on`` carries the cell type a ``marks`` edge is about,
-whose frame is the annotation label set, not the panel -- and the whole point here is
-to name *which* frame refused, because panel-absence and undetectability are the two
-outcomes a reader must not confuse. The lattice is still the authority on what a frame
-admits: ``Frame.contains`` is called, nothing is re-derived.
-
-Pure: no IO, no clock. The decisions flow out; nothing flows in.
+Pure: no IO, no clock.
 """
 
 from __future__ import annotations

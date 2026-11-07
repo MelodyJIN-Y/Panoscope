@@ -1,70 +1,26 @@
 """The rival test: what else could produce this reading, and what would settle it.
 
-The rival test is not "name a competing cell type" (ARCHITECTURE §9.6). It is the
-biologist asking **what else could produce this pattern**, and it has one shape
-across every task kind: name a specific alternative account, name the measured
-evidence that separates it from the current reading, then say honestly what the
-measurement cannot settle. Only the space of alternatives changes.
-
-This is ``agent/discriminate.py`` reimplemented against the four-state lattice, per
-IMPLEMENTATION.md §10: *the four buckets become filters on ``Measured.state``*.
-
-**The private vocabulary this replaces.** v1 carried its own status flag -- an
-``off_panel: bool`` on every discriminator marker (``agent/discriminate.py:329``,
-``agent/skeptic.py:177``) -- and asked exactly one capability question,
-``data.panel_contains(gene)``. Everything that answered True and was not a top marker
-of this unit was filed under "localizes elsewhere", which v1 then rendered as *that
-argues against B*. So the only thing a rival's marker had to do in order to count as
-evidence against the rival was **appear in the panel file**.
-
-**The failure that causes.** 49 of the demo study's 280 panel genes yield no usable
-spatial signal; jazzPanda labels them ``NoSig``. They are in the panel and they are
-not a top marker of any unit, so v1 swept all of them into the against-the-rival
-bucket and printed "not significant in any cluster -- that argues against B". Ask it
-whether a macrophage cluster could be NK cells and it rules NK out on GNLY, PRF1,
-KLRF1, NCAM1 and KLRC1: five real panel genes, none of which the measurement was
-capable of localizing anywhere. A negative observation is evidence only if the
-measurement could have produced a positive one, so that verdict is unfounded in
-exactly the way the whole lattice exists to prevent -- and it is unfounded
-*confidently*, which is worse than refusing. Under the detectability frame those five
-are ``NEVER_MEASURED``, the coverage of the rival's canonical set is 0 of 5, and the
-honest output is that the panel cannot settle it.
-
-**And a boolean cannot say which frame refused.** "off the panel" and "on the panel
-but undetectable" are different facts to a biologist -- the first is fixed by ordering
-a different panel, the second is not -- and ``off_panel=True`` collapses them.
-``Measured.frame`` names the frame that refused each marker -- carried on the item and
-spelled out in the ``measure:*`` decision that adjudicated it -- so the record can say
-*CD3D is not in panel:xenium_hbc_v1* and *GNLY failed detect:nosig* in the same
-breath.
-
-**What each bucket now is.** A filter on ``Measured.state``, nothing else:
+Not "name a competing cell type" (ARCHITECTURE §9.6): name a specific alternative, name
+the measured evidence that separates it, and say what the measurement cannot settle.
+Per IMPLEMENTATION.md §10, the buckets are filters on ``Measured.state``:
 
 - ``supports_call``  -- ``OBSERVED``, canonical for the current reading;
-- ``supports_rival`` -- ``OBSERVED``, canonical for the rival: genuine rival signal
-  here, which is ambiguity and not a refutation;
-- ``against_rival``  -- ``TESTED_ABSENT``: in frame, measured, and not reported here.
-  **The productive half.** A rival is argued against precisely when its markers were
-  measured and peaked elsewhere;
+- ``supports_rival`` -- ``OBSERVED``, canonical for the rival: ambiguity, not refutation;
+- ``against_rival``  -- ``TESTED_ABSENT``: in frame, measured, not reported here. The
+  productive half;
 - ``undecidable``    -- ``NEVER_MEASURED`` or ``UNDERPOWERED``. Argues nothing, and is
-  reported rather than dropped. ``agent/skeptic.py``'s ``elif`` chain reached the
-  off-panel branch only when nothing localized elsewhere, so for c3-vs-T_Cells the
-  biologist was told the panel markers localize to c5 and never told that CD3D was
-  never measured at all.
+  reported rather than dropped.
 
-**Reference data selects; it never supplies a value.** ``canonical_call`` and
-``canonical_rival`` are reference lists. They choose *which* subjects are asked about
-and in what order. Every number in the result comes from ``ev.items`` -- that is, from
-the method's own output, adjudicated by ``core.measure`` -- and a canonical marker
-this unit did not report is built here as an ``EvidenceItem`` with no statistic at
-all, which is the shape IMPLEMENTATION.md §10 gives the deleted ``OffPanelNote``.
+Panel membership alone is not capability: a NoSig gene fails the detectability frame and
+is ``NEVER_MEASURED``, so it cannot argue against a rival. ``Measured.frame`` names which
+frame refused each marker (off-panel and undetectable are different facts).
 
-**Deliberately not here.** Deriving the rival from the unit's own off-type markers
-(v1's ``_derive_alt``) needs the whole canonical map rather than one rival's list, and
-it is the workflow's question which alternative is worth testing; and prose
-(``settle_summary``/``settle_line``) is rendering, which core does not do. Both are
-the caller's, and both are strictly easier to write against the buckets below than
-against v1's.
+Reference data selects; it never supplies a value. ``canonical_call`` and
+``canonical_rival`` choose which subjects are asked about; every number comes from
+``ev.items``. A canonical marker this unit did not report becomes an ``EvidenceItem``
+with no statistic.
+
+Not here: deriving the rival (the workflow's question) and prose (rendering).
 """
 
 from __future__ import annotations
@@ -141,22 +97,13 @@ def rival_test(ev: NormalisedEvidence, call: str, alternative: str,
                world: MeasuredWorld, floor: int = 1) -> Traced[Rivalry]:
     """Bucket the evidence that separates ``call`` from ``alternative`` for one unit.
 
-    ``reported`` is derived from ``ev.items`` rather than taken from ``ev.reported``.
-    The two agree for well-formed evidence, but deriving it makes "this unit reported
-    a number for X" and "this unit has an OBSERVED item for X" the same statement by
-    construction, so a rival marker can never be resolved as OBSERVED while having no
-    item to carry the number.
+    ``reported`` is derived from ``ev.items``, so an OBSERVED rival marker always has an
+    item carrying its number.
 
-    The two iteration orders differ on purpose. ``supports_call`` walks ``ev.items``,
-    which is the method's own output order (glm_coef descending for jazzPanda), so the
-    strongest support leads. The rival's markers walk ``canonical_rival``, because a
-    reference list has no ranking and most of them have no statistic to rank by --
-    sorting them would invent an order the data does not support, and decision order
-    is hashed into the record.
+    ``supports_call`` follows ``ev.items`` order (the method's ranking); the rival's markers
+    follow ``canonical_rival`` order, since a reference list has no ranking to sort by.
 
-    ``statistic_name`` is read off the unit's first item: every item under one unit
-    comes from one method and so shares it, and a unit with no items has no number to
-    name.
+    ``statistic_name`` is read off the unit's first item (one method per unit).
     """
     t = Trace()
     stat_name = ev.items[0].statistic_name if ev.items else ""

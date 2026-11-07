@@ -1,69 +1,25 @@
 """Reconciliation: the join across task kinds on ``Subject.key``.
 
-This module is the reason ``types/subject.py`` exists. Its docstring says so:
-
-> Asking whether the marker result, the DE result and a ligand-receptor result agree
-> about ERBB2 is a **join across task kinds on the item key**. That join only works
-> if every workflow keys its items identically.
-
-Everything else in ``types/`` could have been written against bare gene strings. This
-could not: a marker call keyed on ``"ERBB2"``, a DE result keyed on an ``Item.name``
-and a ligand-receptor result keyed on a pair do not join, and the under-report is
-silent -- the subjects simply never meet, and the reconciliation reports nothing
-rather than reporting that it could not look. ``Subject.key`` is what makes the
-failure impossible instead of invisible.
-
-**The distinction this module exists to keep, and it is the project's whole thesis.**
 Disagreement and silence are not the same, and silence has two kinds:
 
-- method A says ERBB2 is a strong driver, method B **never measured** it: B's panel
-  could not see it, so there is no conflict. The honest output is *could not be
-  compared*, naming B and naming the frame that refused it;
-- method B measured ERBB2 and did not report it: that is ``TESTED_ABSENT``, the
-  productive half of the lattice. It **is** evidence, and the two genuinely conflict.
+- B **never measured** the subject: no conflict; *could not be compared*, naming B and
+  the frame that refused it;
+- B measured it and did not report it (``TESTED_ABSENT``): that is evidence, and the two
+  genuinely conflict.
 
-Collapse those and the four-state lattice has bought nothing. ``Measured`` is the
-discriminator and it is consulted *before* any statistic is looked at:
-``carries_number or absence_is_evidence`` is the gate, which is the same pair of
-properties ``outputs.permitted_tiers`` derives its tiers from, rather than a third
-re-listing of states that would drift from both.
+The gate is ``carries_number or absence_is_evidence``, the same pair of properties
+``outputs.permitted_tiers`` derives from. A subject one side never emitted is
+adjudicated against that side's own frames (as ``core/rival.py`` does); the synthesised
+item carries no statistic.
 
-**A subject one side never emitted is not silence either.** The union of the two
-sides' subjects is taken, and a subject the other side has no item for is
-*adjudicated against that side's own frames* -- exactly as ``core/rival.py`` does for
-a canonical marker a unit did not report. That is what turns "B's output has no row
-for ERBB2" into either "B's panel never had ERBB2" or "B had it, tested it and did
-not report it", which are opposite readings that a missing row cannot tell apart.
-Nothing is invented: the synthesised item carries no statistic by construction, and
-``EvidenceItem`` raises if the state and the missing number ever disagree.
-
-**Same question or different question (ARCHITECTURE §9.11).** Two results only agree
-or disagree if they answer the same question, and a workflow *is* the question. Two
-marker methods can agree or disagree. An enrichment result and a cell-type call can
-be coherent or in tension; they can never *agree*, because enrichment is not
-answering the identity question and an "agreement" between them would read to the
-biologist as two witnesses where there is one.
-
-**Reference data may never count as agreement, structurally.** ``Side.authority`` has
-no default, so a caller cannot forget to say where a side came from, and the
-authority gate runs **first** -- before the lattice, before any comparison. A side
-that is not ``Authority.MEASUREMENT`` lands on ``NOT_COMPARABLE`` and
-``corroborates=False`` on every pair, whatever the numbers say. The rule about
-reference data is then not a convention this module tries to honour; it is a branch
-nothing can route around.
-
-**Dependency structure is mandatory (§9.11).** Enrichment computed from the marker
-result agreeing with its parent is not corroboration. ``Relationship.DERIVED``
-therefore clears ``corroborates`` on every pair while leaving the outcome itself
-intact -- "they agree" is still true and still worth showing; "that is a second
-witness" is the false part, and it is the part that is withheld.
-
-**There is deliberately no band here, and no field one could be put in.** The band is
-a function of one method's output; every other layer can only subtract or flag. A
-reconciled band would be a second place a confidence number is computed, and the
-first thing anyone would ask of it is whether agreement raises it. Enforced as a
-field-name guard in the tests, which fails when the field is *declared* -- the moment
-it costs nothing to undo -- rather than when something fills it in.
+- Same question or different question (ARCHITECTURE §9.11): only results answering the
+  same question can agree; others are coherent or in tension.
+- Reference data never counts as agreement: ``Side.authority`` has no default and the
+  authority gate runs first; a non-``MEASUREMENT`` side is ``NOT_COMPARABLE`` with
+  ``corroborates=False``.
+- Dependency structure is mandatory (§9.11): ``Relationship.DERIVED`` clears
+  ``corroborates`` while keeping the outcome.
+- No band, and no field one could go in (pinned by a field-name guard in the tests).
 """
 
 from __future__ import annotations
@@ -238,22 +194,13 @@ def _compare(a: EvidenceItem, a_name: str,
                                                     tuple[str, ...]]:
     """Two readings of one subject -> (comparison, because, blocked side names).
 
-    **The lattice gate comes first and it is the whole module.** A side whose state
-    is ``NEVER_MEASURED`` or ``UNDERPOWERED`` has not produced a negative observation
-    -- it has produced no observation -- so it can neither agree nor conflict, and
-    saying it disagrees is the fabrication the four states exist to make impossible.
-    Both sides are checked before returning, so a pair blocked on both is reported as
-    blocked on both rather than on whichever was looked at first.
-
-    Past the gate there are three cases and they are deliberately not two:
+    The lattice gate comes first: a ``NEVER_MEASURED`` or ``UNDERPOWERED`` side has made no
+    observation and can neither agree nor conflict. Both sides are checked, so a pair
+    blocked on both says so. Past the gate:
 
     - both observed    -> polarity;
-    - one observed, one ``TESTED_ABSENT`` -> **conflict**. This is the productive
-      half: B had it in frame, tested it, and did not report it, so B's silence
-      argues;
-    - both ``TESTED_ABSENT`` -> consistent. Two measurements that both looked and
-      both found nothing agree, and a reconciliation that could not say so would be
-      unable to express the commonest kind of agreement there is.
+    - one observed, one ``TESTED_ABSENT`` -> **conflict** (the productive half);
+    - both ``TESTED_ABSENT`` -> consistent.
     """
     blocked: list[str] = []
     because: list[str] = []

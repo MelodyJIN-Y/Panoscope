@@ -1,33 +1,14 @@
 """Why a value came out the way it did: ``Traced[T]`` and the local-only ``Trace``.
 
-Eight signatures in the pre-refactor code returned ``tuple[R, tuple[Decision, ...]]``
-by hand. This is that, typed -- and the reason it is worth a module is the *direction*
-rule it enforces:
-
 **Decisions flow out, never in.** A ``Trace`` is constructed INSIDE a function and
-returned as frozen data. It is never a parameter. That is what keeps ``core/``
-un-injectable: there is no seam a caller could reach through to supply a recorder, so
-a function is pure in its declared arguments and ``test_record_not_generated`` does
-not have to rest on nobody exploiting one.
+returned as frozen data, never a parameter (nor a ``ContextVar``), so ``core/`` has no
+seam a caller could reach through to supply a recorder.
 
-Three alternatives, each rejected for a stated reason:
+``Decision.rule`` is a REGISTERED id; English lives in ``RULES`` and the UI copy tables.
 
-- a bare ``tuple[R, tuple[Decision, ...]]`` return -- untyped, and unreadable once
-  calls nest;
-- a recorder passed **in** -- invites exactly the caller-injected recorder above;
-- a ``ContextVar`` -- an *ambient* seam, which is the same injection point wearing a
-  disguise, and the one hardest to see in a review.
-
-``Decision.rule`` is a REGISTERED id rather than prose. The code this replaces decided
-whether to draw a UI badge by string-matching the exact English phrase "localizes
-better with another cluster" (``ui/evidence_table.py:53``), so a copy edit in the
-analysis layer silently stopped a badge rendering -- and the test asserted the same
-literal, so it stayed green. Ids are what tests and the UI match on; English lives in
-``RULES`` and in ``ui``'s copy tables, where editing it is harmless.
-
-Determinism: decision order is **code order** -- append, splice on ``absorb``, never
-sort. ``because`` strings are built with ``fmt_num`` at fixed precision and carry no
-clock, because they are hashed into the golden record.
+Determinism: decision order is **code order** (append, splice on ``absorb``, never
+sort). ``because`` strings use ``fmt_num`` at fixed precision and carry no clock,
+because they are hashed into the golden record.
 """
 
 from __future__ import annotations
@@ -73,7 +54,7 @@ RULES: dict[str, Rule] = _rules(
     Rule("measure:observed", "measure", "reported with a statistic"),
     Rule("measure:coverage_floor", "measure",
          "K of N fell below a declared floor; demoted to underpowered"),
-    # -- step: confidence (agent.verdict._compute_band) --
+    # -- step: confidence (core.verdict.assess) --
     Rule("band:no_canonical_driver", "confidence",
          "no canonical marker supports the call"),
     Rule("band:driver_nosig", "confidence", "the driving marker is NoSig"),

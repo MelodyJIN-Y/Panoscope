@@ -1,94 +1,26 @@
 """The confidence band: the one number the biologist acts on, as recorded decisions.
 
-This is ``agent/verdict.py::_compute_band`` moved into ``core/``, under the layering
-``measure.py`` sets out: a **pure ladder** that a property test can hammer, wrapped by
-a traced step that records which rung was taken and why. The band itself is unchanged
--- ``tests/test_core_verdict.py`` runs both implementations over all nine demo
-clusters and asserts band, basis and the ordered adjustments are equal, because the
-band is pinned by the golden record and by a committed CSV that downstream R reads.
+A pure ladder wrapped by a traced step that records which rung was taken and why. The
+band is pinned by the golden record and by the committed verdicts CSV downstream R reads.
 
-**The failure this module exists to prevent.** The old band was a string returned
-beside a tuple of English sentences ("driver localizes better with another cluster ->
--1 band"). The interface decided whether to draw a badge by matching that exact
-sentence (``ui/evidence_table.py:53``), so a copy edit in the analysis layer silently
-stopped a badge rendering and the test, asserting the same literal, stayed green. Here
-each adjustment is a REGISTERED rule id: ``demotions`` carries ids the next layer
-branches on, and the English lives in ``RULES[...].what`` and the UI's copy table,
-where editing it is harmless. The ``Decision`` record carries the same ids with the
-numbers that triggered them, so the value says *what* and the record says *why*.
+Each adjustment is a REGISTERED rule id: ``demotions`` carries ids the next layer
+branches on; English lives in ``RULES[...].what`` and the UI copy table. Ids are matched
+on (``core/failure_modes.py``, the UI, the grounding tests), so they are never renamed
+for prose -- ``band:driver_nosig`` keeps its id though its basis now reads "canonical
+driver tested-absent".
 
-**Why the three demotes key on flags and the promote keys on a number.** The three
-specificity conditions are already computed once, by the method layer, and registered
-as ``specificity:*`` flags on the ``EvidenceItem`` (``evidence.py`` FLAGS, transcribed
-from ``_caveats_for``). Re-deriving them here from the raw corroborators would be a
-second implementation of a rule ``evidence.py`` already owns -- the duplicate nobody
-updates, which is exactly how the §2.2 spec bug got written down. The promote has no
-flag because no caveat corresponds to it: "the driver is unusually specific" is not a
-caveat, so it reads the pearson value itself.
-
-**``verify`` is rubric output and is computed here, never offered to anyone.** It is
-a field on ``Verdict`` rather than a parameter for the same reason ``Finding.verify``
-is a plain field downstream: by the time it is stored the decision has been made, by
-code, from four conditions, with no seam for a model or a caller to express a
-preference. ``test_verify_is_not_an_input_anywhere`` pins that the seam does not exist.
-
-**Two rules are unreachable from today's driver rule, deliberately kept.**
-``band:demote_pearson_low`` cannot fire, because a canonical marker flagged
-``specificity:low`` is not eligible to be the driver in the first place -- the low
-pearson is spent on *disqualification* rather than on a demote. ``band:driver_nosig``
-cannot fire from anything ``agent/verdict.py`` can build, since its evidence is
-assigned rows only. Both are kept because the selection rule above them is the part
-most likely to be loosened, and a transcription that silently drops the branches would
-loosen it into a band change nobody reviewed. The equivalence test asserts neither
-fires on the demo study, so "unreachable" is a measured claim and not a comment.
-
-**Canonical coverage is the one modifier that is about the apparatus.** Every other
-rung reads the driver: its coefficient, its pearson, how many markers carry a number.
-``band:demote_canonical_coverage`` reads the capability frames instead -- K of N of
-the label's canonical list that a frame admitted. It exists because the rest of the
-ladder had a cliff at one: a unit with a single canonical marker on panel and the
-rest never measured took the full band with no demotion and ``verify=False``, while
-zero canonical markers was handled honestly. The curated list still supplies no
-value; it selects which measurement is asked, and the one it selects is still the
-only thing that answers.
-
-**And ``band:demote_replicate_coverage`` is the second.** It reads §9.10's K of N
--- how many of this unit's subjects a second section could be compared on at all.
-Before it, nothing in the confidence apparatus read concordance: ``assess`` was
-called on the POOLED items and the concordance decisions were spliced into the
-record afterwards, so a unit comparable on 1 of 12 subjects and one comparable on 9
-of 12 both came out Very High with ``verify`` false, byte-identical. The only trace
-was one sentence in ``undecidable`` carrying no flag, because the floor was a
-placeholder ``1`` that nothing could fall below. The rung only ever subtracts:
-replicates are not independent witnesses, so there is no promote to match it, and a
-replicate coverage that clears its floor records no decision at all rather than one
-the call is seen to have survived.
-
-**A note on NoSig, and why nothing printed here says it.**
-``MarkerEvidence.top_cluster == "NoSig"`` has no field here, and should not get one:
-NoSig means *in the panel, tested, not assigned to this unit*, which is precisely
-``TESTED_ABSENT``. So the NoSig branch keys on the measurement status, which is the
-general form of the thing the old string encoded.
-
-The sentinel answers two different questions and the two answers are not the same
-fact. ``platforms/xenium.py`` asks *did this gene produce a usable signal anywhere in
-this study?* and builds the detectability frame from the complement of the sentinel,
-so a gene whose only row is NoSig fails that frame and is ``NEVER_MEASURED`` -- its
-absence argues nothing. This module asks *was this gene tested and not assigned to
-THIS unit?*, and an item that reached ``TESTED_ABSENT`` has already passed every
-frame for its kind (``_state_for``: every frame must admit), detectability included.
-The two are consistent, not in tension: a gene that is NoSig everywhere never gets
-here, and a gene that gets here was measured well enough to be assigned somewhere
-else. Which is why ``basis`` says *canonical driver tested-absent* and not "NoSig".
-The v1 string it replaces -- "driving marker is NoSig" -- stated the opposite of the
-measurement on a joint-clustered study, where a canonical marker peaking in a
-different cluster is the ordinary case and not a failed assay.
-
-The rule id stays ``band:driver_nosig``. Ids are matched on -- by
-``core/failure_modes.py``, by the UI copy table, by the grounding tests -- and are
-never read by a biologist; renaming one to improve prose is how a badge stops
-rendering against a green test. The English is the part that was wrong, and the
-English is the part that moved.
+- The three specificity demotes key on the ``specificity:*`` flags ``evidence.py`` owns,
+  never on re-derived corroborators; the promote reads the pearson value itself.
+- ``verify`` is rubric output computed here, never a parameter
+  (``test_verify_is_not_an_input_anywhere``).
+- ``band:demote_pearson_low`` and ``band:driver_nosig`` are unreachable from today's
+  driver rule and kept so that loosening the selection rule cannot silently drop them.
+- ``band:demote_canonical_coverage`` reads the capability frames (K of N of the label's
+  canonical list); the curated list selects which measurement is asked, never a value.
+- ``band:demote_replicate_coverage`` reads §9.10's K of N. It only subtracts: replicates
+  are not independent witnesses, so there is no matching promote.
+- NoSig is ``TESTED_ABSENT`` for this unit (tested, assigned elsewhere); a gene NoSig
+  everywhere fails the detectability frame and is ``NEVER_MEASURED`` before it gets here.
 
 The thresholds below are the one copy: ``core/`` does not import ``agent/``, and
 ``methods/jazzpanda.BAND_EDGES`` is derived from :data:`CONFIDENCE_BANDS`.
@@ -120,17 +52,9 @@ PROMOTE_PEARSON: float = 0.85   # strong spatial specificity on the driver -> +1
 FRAGILE_MARKER_COUNT: int = 2   # "one or two assigned markers" -> capped, always verify
 
 #: How much of the LABEL'S canonical support the panel had to be able to ask for,
-#: as an exact integer ratio so no float epsilon decides a band. One in three: a
-#: confident call must rest on a measurement that could have tested at least a
-#: third of what the reference list says defines the label. Two thirds of a
-#: canonical list may be off-panel or undetectable and the call still stands on
-#: its own number -- below that the panel was not asking this question.
-#:
-#: Chosen inside a band verified against every study on disk: the worst demo
-#: coverage is c7 at 4/7 = 0.571 and the synthetic fixture sits at 1/6 = 0.167,
-#: so any floor strictly between those two demotes the fixture and no demo unit.
-#: 1/3 sits in the middle of that band rather than on either edge, where one new
-#: study would tip it.
+#: as an exact integer ratio so no float epsilon decides a band. One in three:
+#: chosen between the worst demo coverage (c7, 4/7) and the synthetic fixture
+#: (1/6), so it demotes the fixture and no demo unit.
 CANONICAL_COVERAGE_FLOOR: tuple[int, int] = (1, 3)
 
 #: ``Coverage.what`` for the canonical-support count. One string, because the
@@ -142,25 +66,9 @@ CANONICAL_COVERAGE_WHAT: str = "canonical markers in frame"
 #: exact-integer ratio shape as :data:`CANONICAL_COVERAGE_FLOOR`, and read by
 #: ``core/concordance.py``, which is where that K of N is counted.
 #:
-#: **This one is NOT calibrated, and saying so is the honest part.** The value it
-#: replaces was ``1``, a placeholder that kept ``Coverage.ok`` true at every point
-#: of the gradient, so 1-of-12 and 9-of-12 reached the band engine identical.
-#: Calibrating a replacement needs multi-sample studies, and the repository holds
-#: exactly one: ``data/studies/synthetic_multisample_fixture``, whose three units
-#: all sit at 9/12 = 0.750, with 7/12 = 0.583 reachable by the dropout edit
-#: ``tests/test_concordance_wired.py`` already makes. Four points from one
-#: synthetic study, all on one side of any line anyone would draw, is not a
-#: distribution; a ratio fitted to it would be fitted to the fixture. The demo
-#: contributes nothing at all, being single-sample and therefore not-assessed.
-#:
-#: So the number is structural rather than tuned: a **majority**. Below half the
-#: comparison read a minority of the unit's subjects, and a negative result over a
-#: minority is not a negative result about the unit -- which is the one claim the
-#: demote exists to stop. It is deliberately placed where the only real data lies
-#: ABOVE it, so the rule cannot be firing merely because a fixture was built to
-#: trip it. Replace it with a measured value when a second multi-sample study
-#: lands; the K of N travels into ``undecidable`` unconditionally either way, so
-#: the floor decides only whether the band moves with it.
+#: **NOT calibrated**: structural, a majority. The only multi-sample study is the
+#: synthetic fixture (9/12), which sits above it. Replace with a measured value when
+#: a second multi-sample study lands; the K of N reaches ``undecidable`` either way.
 REPLICATE_COVERAGE_FLOOR: tuple[int, int] = (1, 2)
 
 #: ``Coverage.what`` for the replicate-comparison count, for the same reason the
@@ -183,16 +91,12 @@ PEARSON: str = "pearson"        # the corroborating statistic the promote reads
 class Verdict:
     """The band, and everything the layer above branches on to explain it.
 
-    ``demotions`` holds REGISTERED rule ids in the order they were applied, which is
-    the same order and the same length as the English tuple ``agent/verdict.py``
-    returns. It duplicates the ``Decision`` tuple's rule ids on purpose: a consumer
-    that needs to know *whether* the band was capped should not have to parse the
-    audit record to find out, and a consumer that needs to know *why* should not be
-    reading a field. Value and record, not one thing twice.
+    ``demotions`` holds REGISTERED rule ids in the order applied. It mirrors the
+    ``Decision`` tuple's rule ids so a consumer can ask *whether* the band moved without
+    parsing the audit record.
 
-    ``driver`` is the item the band was read off, carried so the interface can click
-    back to the measurement rather than re-running the selection and possibly
-    disagreeing with it.
+    ``driver`` is the item the band was read off, so the interface clicks back to it rather
+    than re-running the selection.
     """
 
     band: str
@@ -257,28 +161,11 @@ def _canonical_coverage(items: tuple[EvidenceItem, ...],
                         canonical: frozenset[str]) -> Coverage:
     """K of N canonical markers the measurement was CAPABLE of reporting.
 
-    N is the label's whole curated list; K is how many of them a capability frame
-    admitted. ``Coverage`` is the one home for every K-of-N in the system, so this
-    is counted, never re-invented.
-
-    **Derived from the items rather than taken as an argument, on purpose.** An
-    optional ``coverage=`` parameter is a soft default: every caller that forgot it
-    would silently get the old, uncapped band back -- and ``workflows/marker.py``
-    and ``pipeline/records.py`` are different callers. Deriving it means there is no
-    seam to forget.
-
-    **What "in frame" means here.** ``measured.testable`` -- OBSERVED or
-    TESTED_ABSENT. ``UNDERPOWERED`` is deliberately NOT counted: the whole rule is
-    that a negative is evidence only where a positive was possible, and
-    underpowered says it was not. A canonical marker with no item at all is not in
-    frame either; that is the off-panel case, which is the common one -- an
-    off-panel gene never appears in a method's table, so its absence from ``items``
-    IS the panel refusing it.
-
-    The direction of the residual risk is stated so it stays a decision: a caller
-    that hands over only the rows a unit was assigned under-counts K and demotes
-    further than it should. That errs toward "look again", never toward a
-    confident call the panel could not support.
+    N is the label's whole curated list; K is how many a capability frame admitted
+    (``measured.testable``: OBSERVED or TESTED_ABSENT; not UNDERPOWERED). A canonical marker
+    with no item is off-panel. Derived from the items rather than passed in, so no caller
+    can forget it. A caller passing only assigned rows under-counts K, which errs toward
+    "look again".
     """
     in_frame = {
         e.id.upper()
@@ -291,7 +178,7 @@ def _canonical_coverage(items: tuple[EvidenceItem, ...],
 
 
 def _v1_coverage_sentence(cov: Coverage) -> str:
-    """The coverage demote in the English ``agent/verdict.py`` writes to disk.
+    """The coverage demote in v1's on-disk English.
 
     Underscored because ``tests/test_contracts.py`` requires every PUBLIC function
     in ``core/`` to return ``Traced`` -- this one is a renderer, not a step, and has
@@ -326,8 +213,7 @@ def _drivers(items: tuple[EvidenceItem, ...],
     statistic is None somewhere arbitrary, and the first element is the whole
     decision.
 
-    A canonical marker flagged ``specificity:low`` is NOT eligible. That is the
-    ``role == "supports"`` filter from ``agent/verdict.py::_build_evidence``, and it
+    A canonical marker flagged ``specificity:low`` is NOT eligible, which
     is why ``band:demote_pearson_low`` cannot fire.
     """
     return tuple(
@@ -340,28 +226,10 @@ def _drivers(items: tuple[EvidenceItem, ...],
 
 def _verify(band: str, driver: EvidenceItem | None, fragile: bool,
             coverage: Coverage, replicate: Coverage | None = None) -> bool:
-    """The rubric. Six conditions, no argument through which a caller states a wish.
+    """The verify rubric: six conditions, never caller-set.
 
-    Private and computed, never passed in: ``verify`` is the flag that says a human
-    must look again, so a layer that could set it could also clear it. The band being
-    Low is one condition of six -- a confident-looking band standing on two markers
-    still asks for a second pair of eyes.
-
-    Thin canonical coverage is the fifth, and it is the reason the demote alone was
-    not enough. One rung off a Very High leaves High, which still reads as a settled
-    call; "re-check this" is what the rubric owes a call the panel could barely ask
-    for. ``coverage`` is a measured K-of-N, not a preference: no caller supplies it.
-
-    Thin REPLICATE coverage is the sixth, and it is the same argument about the
-    second reading rather than about the panel. Its input is the one that does
-    arrive from outside, because a second section cannot be derived from one unit's
-    items; ``None`` means the comparison was never askable (one sample, independent
-    clustering, one section silent about this unit) and is the only value that reads
-    as silence. A ``Coverage`` below its floor says the sections were compared on a
-    minority of this unit's subjects -- so the number on screen is the POOLED one
-    and most of the profile behind it has no second reading at all. It is still a
-    threshold on a measured K-of-N, not a judgement, and still nothing a caller can
-    express a preference through: the only thing passed in is the count.
+    Includes thin canonical coverage and thin replicate coverage, each a threshold on a
+    measured K of N. ``replicate=None`` means the comparison was never askable.
     """
     nosig = driver is not None and not driver.measured.carries_number
     return (band == LOW_BAND or nosig or fragile or driver is None
@@ -376,42 +244,17 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str],
            replicate: Coverage | None = None) -> Traced[Verdict]:
     """Band and ``verify`` for one unit, with the decision behind every adjustment.
 
-    ``canonical`` is the study's own canonical-marker set for the label under test,
-    passed in rather than looked up: ``core/`` does no IO, and a curated marker list
-    is reference data, which may select and order evidence but may never supply a
-    value. It does exactly that here -- it decides *which* measurement is asked for
-    the band, and the measurement alone supplies the number.
+    ``canonical`` is the label's curated marker set, passed in (``core/`` does no IO). It
+    selects which measurement is asked; the measurement alone supplies the number.
 
-    Order of operations, which is load-bearing and is the transcription: base band
-    from the driver's statistic, then at most one promote, then one demote per
-    failing specificity condition, then the fragile cap, then the fragile floor.
-    Promote-before-demote is not arbitrary -- a driver that is both unusually
-    specific and shares its pattern should land back where it started, not a rung
-    lower.
+    Order of operations (load-bearing): base band from the driver's statistic, at most one
+    promote, one demote per failing specificity condition, then the fragile cap, then the
+    fragile floor.
 
-    ``replicate`` is ``core.concordance.Concordance.coverage`` -- K of N of this
-    unit's subjects that a second section could be compared on at all -- or ``None``
-    where §9.10 could not be asked. It is the one argument that is neither the
-    method's items nor reference data, and it is here because the defect it closes
-    was exactly that it was not: the band was computed from the POOLED items and the
-    concordance decisions were spliced into the record afterwards, so a unit
-    comparable on 1 of 12 subjects and one comparable on 9 of 12 came out
-    byte-identical at Very High with ``verify`` false.
-
-    It can only SUBTRACT. Concordance is a second reading of the same method on the
-    same panel, so §9.10 already forbids agreement from raising anything -- there is
-    no promote branch below, and a replicate Coverage that clears its floor records
-    no decision at all, because a rung nobody lost must not appear in the audit as
-    one the call survived. It also supplies no value: the band is still read off the
-    driver's own statistic, and this only moves it down a step.
-
-    It is optional because *not assessed* is the common case and a real one -- the
-    demo is single-sample. That is a softer seam than ``_canonical_coverage``, which
-    is derived precisely so no caller can forget it, and the difference is forced: a
-    second section is not recoverable from one unit's items. ``None`` therefore means
-    "never asked" and never "asked and fine"; the composition root in
-    ``pipeline/records.py`` writes the reason into ``undecidable`` in the same breath,
-    so a reader can always tell which.
+    ``replicate`` is ``core.concordance.Concordance.coverage`` (§9.10) or ``None`` where it
+    could not be asked. It only subtracts, supplies no value, and records nothing when it
+    clears its floor. ``None`` means "never asked", never "asked and fine";
+    ``pipeline/records.py`` writes the reason into ``undecidable``.
     """
     t = Trace()
     canon = frozenset(g.upper() for g in canonical)
@@ -481,9 +324,8 @@ def assess(items: tuple[EvidenceItem, ...], canonical: frozenset[str],
                     f"{fmt_num(PROMOTE_PEARSON)}",),
                    (ref(driver.subject, PEARSON, pearson),))
 
-    # One demote per failing condition. Code order IS record order, and it is the
-    # order agent/verdict.py applies them in; each is a single rung, so the band is
-    # order-independent but the record is not.
+    # One demote per failing condition. Code order IS record order; each is a
+    # single rung, so the band is order-independent but the record is not.
     for flag, rule in (
         (FLAG_LOW_PEARSON, "band:demote_pearson_low"),
         (FLAG_LOCALISES_ELSEWHERE, "band:demote_localises_elsewhere"),

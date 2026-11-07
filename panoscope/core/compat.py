@@ -1,52 +1,19 @@
 """The v1 on-disk view, projected from v2 outputs. One adapter, nothing rewritten.
 
-``IMPLEMENTATION.md`` §10, *On-disk compatibility*: the committed per-unit JSONs are
-never mutated; v2 writes its own records and the v1 files become a **generated
-compatibility view** through one adapter, so ``ui/`` and ``pipeline/store.py`` are
-untouched during the migration. This is that adapter, for ``TaskKind.ASSIGNMENT``.
+IMPLEMENTATION.md §10, *On-disk compatibility*: the committed per-unit JSONs are never
+mutated; v2 writes its own records and the v1 files are a generated compatibility view
+through one adapter. This is that adapter, for ``TaskKind.ASSIGNMENT``.
 
-**The gate is the reason this module is small.** §10: "rebuild each record from the
-same hashed inputs, project it back, and compare field by field." The projection is
-therefore written as a transcription of ``agent/verdict.py``'s composition, not as an
-improvement on it -- every template string, every ``:.2f``, every join character here
-is pinned by ``tests/test_core_compat.py`` against the nine committed JSONs.
+The projection transcribes v1's composition: every template string, format and join is
+pinned by ``tests/test_core_compat.py`` against the committed JSONs. This is the one
+place registered rule ids are rendered back into v1's English sentences, at the
+boundary, so the analysis layer stays on ids.
 
-**Why prose lives here and nowhere else.** ``evidence.py`` and ``trace.py`` moved the
-analysis layer off English onto registered ids, because the interface used to decide
-whether to draw a badge by matching the exact sentence "localizes better with another
-cluster" (``ui/evidence_table.py:74``), so a copy edit silently stopped the badge and
-the test, asserting the same literal, stayed green. The v1 bytes still contain those
-sentences and the untouched UI still matches them, so *something* has to render ids
-back into them. That something is a compat layer -- one reviewable translation table,
-at the boundary, feeding a file format that is on its way out. Putting it anywhere
-inside the analysis layer is what the ids exist to prevent.
-
-**A dict out, not a ``ClusterVerdict``.** ``core/`` does not import ``agent/`` (the
-same layering ``export.py`` keeps by duck-typing its rows), and the thing §10 compares
-is the *on-disk shape*, which is the dict. ``pipeline/serialize.verdict_from_dict``
-rebuilds the dataclass from exactly this shape if a caller wants one.
-
-**No decisions, for ``export.py``'s reason.** Every public function returns
-``Traced[...]`` with an empty decision tuple. A projection makes no judgement -- it
-re-spells an interpretation that has already been made, and a ``note`` emitted here
-would put a rule in the record that explains a format choice as if it were an
-inference.
-
-**What this does NOT do.** It does not project the enrichment workflow. There is no
-v2 ``Finding`` producer for enrichment yet (that is the method refactor), and
-inventing one here to project back would mean writing the thing the projection is
-supposed to be checked against.
-
-**And when it lands, there is one less thing to project.** This docstring used to say
-``ClusterEnrichment.confidence`` stays until the method refactor deletes it. It does
-not: the band is gone now, ahead of that refactor and deliberately, because it was
-being *persisted* -- written into ``interp/enrichment/c*.json`` and exported as the
-``cluster_confidence`` column downstream R reads -- long after the Pathways page
-stopped drawing it. A category error that only an on-disk artifact carries is harder
-to find than one on screen, not easier, so the sequencing §10 asked for happened here
-rather than at refactor time. The replacement is the per-item census
-(``ClusterEnrichment.census``), and ``export.py``'s docstring records the column
-change. ``cluster_verify`` stays, since "a human should look" needs no label space.
+- Returns a dict (the on-disk shape), not a ``ClusterVerdict``: ``core/`` does not import
+  ``agent/``. ``pipeline/serialize.verdict_from_dict`` rebuilds the dataclass.
+- Every public function returns ``Traced[...]`` with no decisions: a projection makes no
+  judgement.
+- Enrichment is not projected; there is no v2 enrichment ``Finding`` producer yet.
 """
 
 from __future__ import annotations
@@ -238,8 +205,8 @@ SCORE_MAP: dict[str, float] = {        # fixed score anchor per band
 EVIDENCE_SOURCE: str = "jazzpanda:top_result"
 OFFPANEL_SOURCE: str = "panel:absence"
 
-# Registered flag id -> the v1 caveat sentence, in agent/verdict._caveats_for's
-# APPEND order. Emitting in this fixed order rather than in the item's flag order
+# Registered flag id -> the v1 caveat sentence, in v1's caveat
+# order. Emitting in this fixed order rather than in the item's flag order
 # makes the bytes independent of how a method happened to assemble its flags.
 CAVEAT_FOR: tuple[tuple[str, str], ...] = (
     (FLAG_LOCALISES_ELSEWHERE, "localizes better with another cluster"),
@@ -315,44 +282,16 @@ def _no_canonical_class(item: EvidenceItem) -> str:
 
 def _no_canonical_reason(items: tuple[EvidenceItem, ...],
                          canon: frozenset[str]) -> str:
-    """Why no canonical marker carried the call -- the reasons kept apart.
+    """Why no canonical marker carried the call, with the reasons kept apart.
 
-    ``band:no_canonical_driver`` had one sentence, "no canonical marker supports the
-    call", and it served three different states at once: a canonical list whose
-    markers are all off-panel, canonical markers measured below the floor, and no
-    canonical list to check. On a study where the panel was designed for a different
-    question -- the kidney one, and the synthetic fixture's c2 -- it is the first of
-    those, and the two readings are opposite statements about the evidence. "No
-    canonical marker supports the call" invites the biologist to doubt the call;
-    "every canonical marker for it is off-panel, so nothing could have supported it"
-    tells them the panel cannot speak to it. That distinction IS the panel-absence
-    rule, in the one column most likely to be skimmed, and the band is identical
-    either way -- this changes the words and nothing else.
+    All off-panel ("nothing could have supported it"), measured below the floor, and no
+    canonical list are different statements about the evidence. Built from the items' own
+    measurement states; the band is unchanged.
 
-    Built from the items' own measurement states rather than from the rule id, so it
-    is true whichever branch of ``core.verdict.assess`` sent us here.
-
-    **The denominator counts NAMES, and so does every numerator.** ``N`` is the
-    curated list's own size, so the clauses have to sum to it: a canonical marker
-    with no item at all is not "unknown", it is the panel refusing it before the
-    method ever ran. The census used to count the no-item class over names and every
-    other class over ITEMS, which prints "of the 4 canonical markers: ... 8" on the
-    two shapes where the two differ -- ``measure_unit`` does not dedupe, so joint
-    clustering with per-sample rows gives several readings of one canonical gene
-    (the kidney shape, over-counting), and a composite subject gives one item
-    carrying two canonical names (under-counting). Names it is: the sentence calls
-    itself a census of the list.
-
-    A name read more than once is filed under its highest-ranked reading
-    (:data:`_CLASS_RANK`) -- a gene OBSERVED in one sample WAS measured, whatever a
-    second row says. That is the same join ``core.verdict._canonical_coverage``
-    takes, which is what makes its docstring's claim to count this the same way
-    true: the two testable classes sum to exactly that function's ``k``, and every
-    class sums to its ``n``, so the band and the sentence describing the band are
-    computed from one set of numbers. ``tests/test_core_verdict.py`` pins it.
-
-    No number here comes from the curated list: it supplies the names to check and
-    nothing else, and every state counted was read off the measurement.
+    The census counts NAMES, so its clauses sum to the curated list's size. A name read more
+    than once is filed under its highest-ranked reading (:data:`_CLASS_RANK`), the same join
+    as ``core.verdict._canonical_coverage``, so the testable classes sum to its ``k``
+    (pinned in ``tests/test_core_verdict.py``). The curated list supplies names only.
     """
     if not canon:
         return "this call has no canonical marker list to check"
@@ -383,33 +322,15 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
                        coverage: Coverage | None = None,
                        no_canonical: str | None = None,
                        replicate: Coverage | None = None) -> str:
-    """One registered band rule id, in the English ``agent/verdict.py`` wrote to disk.
+    """One registered band rule id, in v1's on-disk English.
 
-    The two pearson rules interpolate the driver's own pearson, and the coverage rule
-    interpolates its own K of N, which is why this is a function and not a dict. The
-    coverage sentence itself is imported from ``core.verdict`` rather than written
-    again here: a second copy would drift from v1 silently, and only on a study where
-    the rule fires -- which is never the demo.
+    The pearson and coverage rules interpolate their own numbers, hence a function. The
+    coverage sentence is imported from ``core.verdict``.
 
-    **Two sentences are deliberately NOT v1's, and these are the only two.**
-    The first is ``band:no_canonical_driver``, which is not in the table below at
-    all: it renders the canonical items' own measurement states through
-    :func:`_no_canonical_reason`, because v1's "no canonical marker supports the
-    call" served NEVER_MEASURED, UNDERPOWERED and no-canonical-list-at-all with one
-    sentence, and on a panel designed for another question those are opposite
-    statements about the evidence. The second is this one.
-
-    ``band:driver_nosig`` fires when the leading canonical marker is ``TESTED_ABSENT``
-    -- in frame, tested, and not assigned to this unit. v1 printed "driving marker is
-    NoSig" for it, which a biologist reads as *the assay said nothing about this
-    gene*; the measurement says the opposite, because an item only reaches
-    ``TESTED_ABSENT`` after every frame for its kind admitted it, detectability
-    included (``core/verdict.py``, "A note on NoSig"). Transcribing v1 faithfully here
-    would carry a false sentence into ``interp/verdicts.csv``'s ``notes`` column and
-    the Summary table, and on a joint-clustered study -- where a canonical marker
-    peaking in another cluster is the ordinary case -- it would be there on most
-    units. The BAND is unchanged (still Low, still the same rung, still the same
-    ``verify``); only the words are, and that is true of both divergences.
+    Two sentences deliberately differ from v1 (the band is unchanged in both):
+    ``band:no_canonical_driver`` is rendered by :func:`_no_canonical_reason`, and
+    ``band:driver_nosig`` says the canonical driver was tested-absent here rather than v1's
+    "driving marker is NoSig" (see ``core/verdict.py``).
     """
     if rule == "band:no_canonical_driver":
         if no_canonical is None:
@@ -440,19 +361,9 @@ def _demotion_sentence(rule: str, driver: EvidenceItem | None,
             )
         return _v1_coverage_sentence(coverage)
     if rule == "band:demote_replicate_coverage":
-        # v1 never had this rule -- it predates replicate concordance entirely -- so
-        # unlike the canonical coverage sentence there is no original wording to
-        # reproduce. It still needs a v1 shape: ``pipeline/stages/verdicts.py``
-        # projects every unit in an unguarded loop, so a rule with no sentence here
-        # aborts the whole verdicts stage with a bare NoV1Shape and takes every
-        # OTHER unit's file with it. A multi-sample study with one thin unit could
-        # not be built at all.
-        #
-        # Deliberately NOT ``_v1_coverage_sentence``: that one says "canonical
-        # coverage", and these two K-of-Ns count different things -- canonical
-        # markers the panel could report, versus subjects a second section could be
-        # compared on. Both can fire on one unit, and two sentences reading
-        # "coverage K/N below floor F" with different numbers would be unreadable.
+        # v1 never had this rule, but ``pipeline/stages/verdicts.py`` projects every
+        # unit, so it needs a sentence. Not ``_v1_coverage_sentence``: the two
+        # K-of-Ns count different things and can both fire on one unit.
         if replicate is None:
             raise NoV1Shape(
                 "band:demote_replicate_coverage renders its own K of N into the v1 "
@@ -566,15 +477,9 @@ def _offpanel_note(item: EvidenceItem, cell_type: str) -> dict[str, Any]:
 def _v1_bucket(item: EvidenceItem) -> str:
     """Which v1 shape this v2 item becomes, or which omission class it falls in.
 
-    One classifier, used by the projection and by :func:`v1_omissions`, so the thing
-    that is counted and the thing that is omitted cannot drift. Raises for any state
-    no one has written an entry for.
-
-    Private, and so returns a bare ``str``: ``test_every_core_function_returns_traced``
-    requires every PUBLIC function in ``core/`` to hand its reasoning up, and a
-    per-item classifier that returned ``Traced`` would emit one empty trace per gene
-    -- 280 of them per unit -- to say nothing. The reasoning that matters is the
-    count, which :func:`v1_omissions` carries.
+    One classifier, shared with :func:`v1_omissions`, so what is counted and what is
+    omitted cannot drift. Raises for any state with no entry. Private, so it returns a bare
+    ``str``; :func:`v1_omissions` carries the count.
     """
     if item.measured.carries_number:
         return V1_EVIDENCE
@@ -657,40 +562,12 @@ def _source_trace(rows: tuple[dict[str, Any], ...],
 # --------------------------------------------------------------------------- #
 def with_v1_replicate_read(v1: Mapping[str, Any], undecidable: Iterable[str],
                            replicate: Coverage | None) -> Traced[dict[str, Any]]:
-    """The §9.10 replicate read, into the one v1 field that can hold a sentence.
+    """The §9.10 replicate read, appended to v1's ``notes``.
 
-    Returns a NEW dict whose ``notes`` ends with the record's own undecidable
-    sentences, or an unchanged copy when v1 has no shape for this unit's outcome
-    (:data:`V1_NO_REPLICATE_SHAPE`).
-
-    **Why the sentences are carried verbatim rather than recomposed.** The record
-    already distinguishes the three outcomes §9.10 produces -- a unit whose subjects
-    read differently across sections, a unit nothing could be compared on, and a
-    question that was never askable and why -- and it distinguishes them in prose
-    ``pipeline/records._concordance`` wrote for a biologist to act on. Writing a
-    second, shorter sentence here would be a second place those three can collapse
-    into "concordance: not ok", which is the failure the whole lattice exists to
-    prevent arriving in the compat layer. A ``Concordance`` summarised into one
-    adjective is a fabricated measurement status with a tidy header.
-
-    **The K of N travels because it is one of those sentences.** "replicate
-    concordance compared 1 of 12 subject(s)" and "... 11 of 12" are different facts
-    about how much of a unit's profile has a second reading behind it, and a v1 row
-    on which they read the same is the denominator-thrown-away failure one level out
-    from the one ``Concordance.coverage`` was added for.
-
-    **This is not a number the reader can mistake for a statistic**, and that is why
-    it goes in ``notes`` and not in a twelfth column. The 11 columns are frozen
-    (IMPLEMENTATION.md §10, ``core/export.py``); more to the point, a divergence is a
-    FLAG -- §9.10 does not claim whether it is batch effect, section quality or
-    biology -- and a cell beside ``confidence_score`` is read as a measurement.
-
-    ``replicate is None`` is the gate rather than ``undecidable`` being empty,
-    because the two say different things: ``None`` is "the question was never
-    askable", which is the state :data:`V1_NO_REPLICATE_SHAPE` records and the state
-    every demo unit is in, while an empty ``undecidable`` on a comparison that RAN
-    cannot happen (the K-of-N sentence is unconditional) and would be a record with
-    its reasoning missing, which is not something to paper over here.
+    Returns a NEW dict whose ``notes`` ends with the record's own undecidable sentences
+    (verbatim, including the K of N), or an unchanged copy when ``replicate is None``
+    (:data:`V1_NO_REPLICATE_SHAPE`). In ``notes``, not a new column: the 11 columns are
+    frozen (IMPLEMENTATION.md §10) and a divergence is a flag, not a measurement.
     """
     out = dict(v1)
     said = [s for s in undecidable if s]

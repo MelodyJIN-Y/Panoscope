@@ -1,40 +1,18 @@
 """Claims: one object type for measurement, lab, curated and literature knowledge.
 
-Four very different things -- a GLM coefficient, a biologist's note, a reference
-edge, a sentence from a paper -- are the same shape here, differing only in who may
-change them and how much weight they carry (ARCHITECTURE §10.1). That is the whole
-design: the moment a lab note and a curated edge are *different types*, some code
-path handles one and forgets the other, and the forgotten one is always the lab's.
+The four differ only in who may change them and how much weight they carry
+(ARCHITECTURE §10.1).
 
-**Authority is an ``IntEnum`` because claims are ORDERED and NEVER MERGED.** Ordering
-needs a comparison; merging needs a resolution rule, and there is none. Conflicts are
-grouped and displayed (§10.2). A ``StrEnum`` would have made ``sorted(claims, ...)``
-sort alphabetically -- curated, lab, literature, measurement -- which is exactly
-backwards for three of the four, and silently.
+- ``Authority`` is an ``IntEnum`` because claims are ORDERED and NEVER MERGED; conflicts
+  are grouped and displayed (§10.2).
+- ``predicate`` is an id from :data:`PREDICATES`, never free text.
+- ``source`` is a URI with a known scheme, resolvable to a ``SourceRecord``, so
+  "citations must be real" is checkable.
+- ``scope`` is parsed and enforced **fail-closed**; see :meth:`Claim.applies_in`.
 
-Three fields are REGISTERED or VALIDATED rather than free text, each for a bug that
-was real:
-
-* ``predicate`` is an id from :data:`PREDICATES`, the same pattern as ``trace.py``'s
-  ``RULES`` and ``evidence.py``'s ``FLAGS``. A free-text predicate means retrieval
-  matches on English, and a copy edit silently empties a result set.
-* ``source`` is a URI whose scheme must be known. Claims do not carry abstracts --
-  the URI resolves to a ``SourceRecord`` in a reference store -- which is what makes
-  ``licence`` meaningful and what makes "citations must be real and looked up live"
-  checkable at all. A claim whose source is the string "Smith et al." is unresolvable
-  and therefore uncitable, and the grounding gate cannot tell it from a fabrication.
-* ``scope`` is parsed and enforced **fail-closed**. See :meth:`Claim.applies_in`.
-
-**``conditions`` is optional, and that is a deviation from IMPLEMENTATION §2.7.**
-§2.7 types it ``Conditions`` outright, but ``conditions.py`` blocks construction of a
-``Conditions`` with no frames and with an unknown assay or tissue -- so under §2.7 as
-written, *every* ``Claim`` would already carry frames and §2.7's own stated invariant
-("a LAB claim with no frame reference fails validation") could never fire. An
-invariant that cannot fail is a comment. Worse, a literature claim read off a PMID
-has no study intake behind it: its assay and tissue are genuinely unknown, so it
-cannot have a ``Conditions`` at all, and §2.7 as written makes imported literature
-unstorable. ``None`` is therefore the honest spelling of "this claim was not formed
-under a study", the LAB invariant fires against it, and both halves work.
+``conditions`` is optional, a deviation from IMPLEMENTATION §2.7: a literature claim
+read off a PMID has no study intake behind it, and ``None`` is what lets the LAB
+invariant ("a LAB claim with no frame reference fails validation") fire.
 """
 
 from __future__ import annotations
@@ -264,24 +242,13 @@ class Claim:
     def applies_in(self, context: str) -> bool:
         """Fail-closed scope gate: true only where this claim PROVABLY applies.
 
-        The gate runs before retrieval, as a filter rather than a downgrade
-        (IMPLEMENTATION §5), so a false here means the claim is never seen -- which
-        is exactly why the default answer is no.
+        Runs before retrieval as a filter (IMPLEMENTATION §5), so the default is no.
 
-        Two rules:
+        * An unkeyed scope (``lab``, ``study``) applies downward, never upward; rank decides.
+        * A keyed scope (``dataset:X``, ``sample:Y``) applies only where the context names the
+          same key. Hierarchy is never inferred from the strings.
 
-        * An unkeyed scope (``lab``, ``study``) applies downward, never upward: a
-          lab-wide claim holds in one dataset; a study claim must not be reused
-          lab-wide. Rank decides.
-        * A keyed scope (``dataset:X``, ``sample:Y``) applies only where the context
-          names the same key. Membership is NOT derivable from a scope string --
-          nothing in ``"sample:s1"`` says which dataset s1 belongs to -- so a caller
-          that knows s1 is in d1 asks about both contexts. Inferring the hierarchy
-          from the strings is precisely how a note about one FFPE block ends up
-          qualifying a different one.
-
-        A malformed context is false rather than an error: contexts arrive from the
-        session, and a typo must narrow what is shown, never widen it.
+        A malformed context is false rather than an error: a typo narrows, never widens.
         """
         here = _parse_scope(context)
         if here is None:

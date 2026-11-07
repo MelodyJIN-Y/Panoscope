@@ -1,24 +1,12 @@
 """The bridge from the note schema to ``Claim`` (IMPLEMENTATION §10, the memory row).
 
-``agent/memory.py`` writes a :class:`~panoscope.agent.types.Note` per JSON file under
-``context/corrections/``. Those files hold real lab judgement and are already on disk,
-so this module is a **reader, not a rewriter**: it maps a Note onto one or more
-:class:`~panoscope.types.claim.Claim` objects and never touches the note's bytes. The
-note schema is unchanged by this migration -- nothing here needed a new field -- and
-``memory._note_from_dict`` already accepts both the pre-typed shape (no ``type``, no
-``subject_*`` anchors) and the current one, defaulting the absent fields rather than
-failing. That dual-shape read is what makes this bridge safe to run over the store as
-it stands.
+A **reader, not a rewriter**: maps each :class:`~panoscope.agent.types.Note` under
+``context/corrections/`` onto one or more :class:`~panoscope.types.claim.Claim` objects
+and never touches the note's bytes. ``memory._note_from_dict`` reads both the pre-typed
+and current note shapes.
 
-**Where scope went, and why the lattice did not lose it.** The note lattice is
-``cluster -> dataset -> lab``; the claim lattice is ``sample -> dataset -> study ->
-lab`` and has no cluster rung. Mapping a cluster note onto ``dataset:<id>`` and
-stopping there would WIDEN it -- the c2 note would fire on c3 -- which is the
-fail-closed gate inverted. So the cluster is carried by the **subject** instead: a
-cluster-scoped note becomes a claim about ``unit|u=unit:c2``, and ``ClaimStore.about``
-keys on the subject before scope is even consulted, so it can only ever come back when
-c2 is the thing being asked about. The scope string then does the job the claim lattice
-does model -- the dataset gate -- and the two together reproduce
+**Scope.** The claim lattice has no cluster rung, so the cluster is carried by the
+**subject**, and the scope string does the dataset gate. Together they reproduce
 ``memory.note_in_scope`` exactly:
 
 ===============================  ===============  ================================
@@ -31,38 +19,19 @@ note                             fires for        claim surfaces for
 ``scope=lab``                    everywhere       ``scope="lab"``
 ===============================  ===============  ================================
 
-A note the anchoring rules cannot place raises :class:`UnanchoredNote` rather than
-being dropped: during a migration a note that silently fails to carry over is the
-lab's knowledge going missing, which is the one outcome worse than a loud stop.
+A note the anchoring rules cannot place raises :class:`UnanchoredNote` rather than being
+dropped.
 
-**The gene a note is about rides in ``depends_on``.** A cluster-scoped marker note
-("POSTN here is tumour bleed") is a claim about c2 that *rests on* POSTN, not a claim
-about POSTN -- spelling it the other way round would make it fire wherever POSTN is
-discussed in the dataset. ``depends_on`` is also what ``evaluability`` gates against
-the panel and annotation frames, so the panel-absence rule bites on a note's anchor
-for free.
+- The gene a cluster note is about rides in ``depends_on`` (the claim rests on it), so
+  ``evaluability`` applies the panel-absence rule to it.
+- ``Note.tension``: each real citation becomes a LITERATURE claim about the same subject,
+  and the LAB claim's ``tension`` names the dissenting ones. ``is_real=False`` citations
+  become nothing.
+- :func:`lookup_state` derives the three-state literature signal from fields the note
+  already persists (``looked_up_at``), reusing ``corpus.store.Resolution``; it ignores
+  the stored ``thin`` boolean.
 
-**The tension survives as claims, not as prose.** ``Note.tension`` holds the
-agree/dissent citations the reconciliation pass found; each real one becomes a
-LITERATURE claim about the same subject, and the LAB claim's ``tension`` field names
-the DISSENTING ones by id. ``ClaimStore.about`` then returns the biologist's call and
-the papers that disagree with it together, ordered by authority and never merged --
-which is "keep the call AND the literature cross-check, with the tension visible",
-expressed in the store rather than in a rendered sentence. A citation flagged
-``is_real=False`` becomes nothing at all.
-
-**The thin-literature signal is three states, not two.** ``Tension.thin`` collapsed
-"the lookup found nothing" and "no lookup completed" into one boolean, so a note
-written while the connector was down said "the literature is thin" in the same voice
-as a real empty search -- the bug class of commit ``5b7ab08``. :func:`lookup_state`
-reads the trichotomy back out of the fields the note ALREADY persists
-(``looked_up_at`` distinguishes a completed lookup from none), reusing
-``corpus.store.Resolution`` rather than minting a fourth spelling of the same idea.
-Nothing is added to the note JSON. Like ``claims.store.thin_literature`` it is DERIVED
-and ignores the stored ``thin`` boolean, which is a value a writer could get wrong.
-
-Clock-free, like ``claims/store.py``: every timestamp here is one the note already
-carried.
+Clock-free: every timestamp here is one the note already carried.
 """
 
 from __future__ import annotations

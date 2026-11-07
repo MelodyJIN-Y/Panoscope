@@ -1,73 +1,27 @@
-"""CSV export profiles, keyed on ``TaskKind``. One home for tables written twice.
+"""CSV export profiles, keyed on ``TaskKind``. The one writer for both CSVs.
 
-Two CSV contracts already exist and were written by hand, independently:
-``agent/verdict.py`` (11 columns, the marker verdict) and ``agent/enrichment.py``
-(14 columns, one row per surfaced pathway). They are the same object -- a projection
-of an interpretation onto a flat, R-importable table -- and nothing said so, so the
-column name and the value that fills it lived in two places per table, four in all.
-That is the failure this module exists to prevent: a column renamed in the header
-tuple and not in the row builder shifts every cell one to the left, the file still
-parses, and downstream R reads ``lineage`` out of the ``category`` column. Pairing
-the name with its getter in one :class:`Column` makes that particular drift
-unrepresentable rather than merely unlikely.
+Each :class:`Column` pairs a header name with its getter, so a renamed column cannot
+shift every cell one to the left.
 
-**Byte-identity is the contract, not a nicety.** The 11-column verdict CSV is pinned
-by ``tests/test_golden.py`` and by ``skills/marker-interpretation/SKILL.md`` Output 2,
-and it is consumed by downstream R. So the profiles below reproduce what the two
-exporters do *today*, including their inconsistencies, and ``tests/test_core_export.py``
-proves it by string equality against those functions rather than by inspection:
+**Byte-identity is the contract.** The 11-column verdict CSV is pinned by
+``tests/test_golden.py`` and ``skills/marker-interpretation/SKILL.md`` Output 2 and read
+by downstream R, so the profiles reproduce the existing formatting exactly:
 
-- the verdict table formats nothing. ``confidence_score`` goes to ``csv`` as a raw
-  float, so the anchor 0.70 lands as ``0.7`` and not ``0.70``. Writing ``f"{x:.2f}"``
-  here would read as a tidy-up and would move the golden hash;
+- the verdict table formats nothing (``confidence_score`` 0.70 lands as ``0.7``);
 - the enrichment table pre-formats: ``.4f`` for ``score`` and ``panel_coverage``,
   ``.3e`` for ``q_value``, ``""`` for a missing one.
 
-``fmt_num`` is deliberately **not** used. It is the one home for numbers that go into
-*decisions*, where a drifting precision corrupts the record; these cells are an
-established on-disk interface whose precisions predate it, and unifying the two would
-be a breaking change to a committed artifact disguised as consistency.
+``fmt_num`` is deliberately not used; these cells are an established on-disk interface.
 
-**Why no decisions.** Every public function here returns ``Traced[str]`` with an
-empty decision tuple, which is not an oversight. An export makes no judgement: it
-projects an interpretation that has already been made, and the decisions that
-produced it belong to the step that made them. A ``note`` emitted here would claim
-the export chose something, and the record would carry a rule that explains a
-formatting choice as if it were an inference.
+Every public function returns ``Traced[str]`` with no decisions: an export projects an
+interpretation already made.
 
-Both CSVs are written only through here.
+The characterisation profile carries no band (no label space, IMPLEMENTATION.md §10):
+``cluster_n_supported``, ``cluster_n_suggestive``, ``cluster_n_untestable`` (from
+``ClusterEnrichment.census``) and ``cluster_verify``. A characterisation row is a
+``(unit, item)`` pair, keeping the per-item grain.
 
-**``cluster_confidence`` is gone, and this is the deletion §10 sequenced.** The
-characterisation profile used to end with ``cluster_confidence`` and
-``cluster_verify``. A band on a characterisation row is exactly the shape the no-band
-rule exists to catch -- there is no label space for a pathway finding, so a unit-level
-band over it is undefined, not merely unhelpful. The defence previously written here
-was that it is the *parent cluster assignment's* band riding along on the row; that
-defence does not survive contact with the file, because the column is named
-``cluster_confidence`` on a row whose other thirteen cells are about a gene set, and
-downstream R reading it beside ``gene_set`` and ``tier`` reads "how sure are we this
-pathway is running". A column cannot carry a caveat.
-
-Three count columns replace it -- ``cluster_n_supported``, ``cluster_n_suggestive``,
-``cluster_n_untestable`` -- which is the header IMPLEMENTATION.md §10 specifies for a
-task kind with no label space, and is strictly more informative than the band it
-replaces: the untestable count is the only thing in the file that says how many of
-this cluster's scored programs the panel could not ask the question of at all, since
-those rows are not exported. ``cluster_verify`` stays, since "a human should look" is
-well-defined without a label space.
-
-All four come from ``agent/enrichment.ClusterEnrichment``: ``.census`` for the counts,
-``.verify`` for the flag. The counts are properties over the row lists rather than
-stored fields, so a count here cannot disagree with the rows beneath it.
-
-Row shapes differ between profiles and must. An assignment row is one unit; a
-characterisation row is one *item*, so the unit it belongs to has to travel with it
-as a ``(unit, item)`` pair. Flattening both to "a row is a unit" would lose the
-per-item grain that is the whole header for a no-band task kind.
-
-The getters are duck-typed on purpose: ``core/`` does not import ``agent/``, and
-annotating the row as ``ClusterVerdict`` would invert the layering to buy a type
-check that the byte-equality tests already make redundant.
+Getters are duck-typed: ``core/`` does not import ``agent/``.
 """
 
 from __future__ import annotations
@@ -124,7 +78,7 @@ def _flag(b: object) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# ASSIGNMENT -- the 11-column marker verdict (agent/verdict.py CSV_COLUMNS).
+# ASSIGNMENT -- the 11-column marker verdict.
 # Frozen at 11 columns in exact order: IMPLEMENTATION.md §10.
 # --------------------------------------------------------------------------- #
 ASSIGNMENT_COLUMNS: tuple[Column, ...] = (

@@ -6,26 +6,15 @@
 > evidence -- it is **no** evidence, and it must be reported as such rather than
 > dropped.
 
-This module exists because the codebase contained three independent implementations
-of that one idea, in three vocabularies, with three test suites: a marker role enum,
-an enrichment ``untestable`` tier with K-of-N coverage, and a discriminator that
-nulled statistics for off-panel genes. One rule, one type.
+**Four states, not two.** ``TESTED_ABSENT`` is the productive half: a rival is argued
+against because its markers were measured and peaked elsewhere.
 
-**Four states, not two.** A boolean cannot express two things the code already needs:
+Composite subjects take the *meet* over required roles, naming what pulled it down, then
+are demoted by coverage over member roles.
 
-``TESTED_ABSENT`` is the *productive* half. The discriminator argues **against** a
-rival precisely because its markers were measured and peaked elsewhere. Collapse the
-lattice to a boolean and the panel-absence rule stops being a discriminator and
-becomes paralysis -- everything unobserved reads the same.
-
-Composite subjects need a **composition rule**. An interaction has four constituents;
-a niche has several. State is the *meet* over required roles, naming what pulled it
-down, then demoted by coverage over member roles.
-
-**One frame per entity kind.** The panel is the gene frame; the annotation label set
-is the cell-type frame; the design's replicate counts are the condition frame;
-detectability is a second gene frame. *There is one absence primitive per entity
-kind* -- which is what lets this cover cases nobody has built yet.
+**One frame per entity kind.** The panel is the gene frame; the annotation label set is
+the cell-type frame; the design's replicate counts are the condition frame;
+detectability is a second gene frame.
 """
 
 from __future__ import annotations
@@ -116,23 +105,9 @@ class Frame:
     def contains(self, entity: Entity) -> bool:
         """Membership, normalised on BOTH sides: stripped and case-folded.
 
-        **This is where the two band engines came to disagree about a gene.** The
-        comparison here was exact, while ``agent/data.panel_contains`` -- the v1
-        engine's copy of the same primitive, which ``agent/`` must keep because it
-        may not import ``core/`` -- upper-cased. So one contested row decided two
-        different bands: a ``markers_top.csv`` spelling a panel's ``CD68`` as
-        ``Cd68`` was admitted by the agent engine and refused here, and a
-        ``panel.parquet`` holding ``"CD68 "`` was refused there and admitted here.
-        Measured on a constructed store: Very High with ``verify`` False against
-        Medium-High with ``verify`` True, on the same evidence.
-
-        Normalising here rather than at construction keeps ``members`` the file's
-        own spellings, so ``digest`` and ``size`` still describe what the store
-        actually declared and no claim's ``FrameRef`` changes meaning. The rule
-        matches what this codebase already says about gene identity everywhere else
-        (``is_control_probe``: *"a vendor who writes erbb2 means ERBB2"*), and it is
-        a rule about identity, not about genes -- a label set that distinguishes two
-        cell types only by case is declaring two names for one thing.
+        Matches ``agent/data.panel_contains``, so both layers admit the same genes.
+        ``members`` keeps the file's own spellings, so ``digest`` and ``size`` still describe
+        what the store declared.
         """
         return _normalised(self.members).__contains__(str(entity.id).strip().upper())
 
@@ -206,28 +181,11 @@ def _state_for(entity: Entity, world: MeasuredWorld,
     for f in frames:
         if not f.contains(entity):
             return MeasuredState.NEVER_MEASURED, f.name
-    # ADMITTED states name every frame that admitted the entity, not frames[0].
-    # A kind may declare several frames -- gene declares the panel AND
-    # detectability -- and an admitted entity passed all of them. Naming the
-    # first implied that one frame settled the status, when the name returned
-    # was really just whichever the adapter happened to list first. The refusing
-    # frame above IS singular and is named singly, which is the case that
-    # actually explains something.
+    # Admitted states name every frame that admitted the entity (it passed all).
     admitted = "+".join(f.name for f in frames)
-    # Normalised on BOTH sides, exactly as ``Frame.contains`` is -- and for a
-    # sharper reason. The frame admitted this entity after case-folding; comparing
-    # the reported set EXACTLY meant a gene the method DID report could still fall
-    # through to TESTED_ABSENT, whose contract is that absence IS evidence. A
-    # spelling difference then manufactures a measured absence.
-    #
-    # It bites wherever the entity and the reported set come from different files,
-    # which is every place a curated list meets a method's table: ``core/rival.py``
-    # resolving a canonical marker, and ``core/reconcile.py`` resolving one method's
-    # subject against another's. With a curated rival list spelling it ``Cd3e`` and
-    # the table spelling it ``CD3E``, an OBSERVED gene came back as the measured
-    # absence that SEPARATES the call from that rival -- evidence against a rival,
-    # produced by a capitalisation. ``Frame.contains`` was normalised earlier and
-    # this half was left exact, which is the worse half to leave.
+    # Normalised on BOTH sides, as ``Frame.contains`` is: a spelling difference
+    # between a curated list and a method's table must not manufacture a
+    # TESTED_ABSENT (measured absence is evidence).
     if str(entity.id).strip().upper() in _normalised(reported):
         return MeasuredState.OBSERVED, admitted
     return MeasuredState.TESTED_ABSENT, admitted
