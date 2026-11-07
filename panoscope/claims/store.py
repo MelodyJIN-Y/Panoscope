@@ -34,7 +34,7 @@ from typing import Any, Final
 from panoscope.claims.evaluability import Evaluability, evaluability
 from panoscope.claims.transfer import BLOCKED, TransferResult, transfer_check
 from panoscope.types.claim import Authority, Claim, by_authority
-from panoscope.types.conditions import Condition, Conditions, Provenance
+from panoscope.types.conditions import DISEASE_STATE, Condition, Conditions, Provenance
 from panoscope.types.measured import FrameRef, MeasuredWorld
 from panoscope.types.subject import Entity, EntityKind, Subject, subject
 from panoscope.types.trace import Trace, Traced, ref
@@ -121,6 +121,9 @@ def _conditions_to_dict(c: Conditions) -> dict[str, Any]:
         n: _condition_to_dict(getattr(c, n))
         for n in ("assay", "modality", "tissue", "method", "segmentation", "fixation")
     }
+    # Known only: an undeclared disease state reads back as UNKNOWN, and existing stores stay byte-stable.
+    out.update({n: _condition_to_dict(getattr(c, n))
+                for n in DISEASE_STATE if getattr(c, n).known})
     out["frames"] = [{"kind": f.kind.value, "name": f.name,
                       "digest": f.digest, "size": f.size} for f in c.frames]
     return out
@@ -135,6 +138,7 @@ def _conditions_from_dict(d: dict[str, Any]) -> Conditions:
         assay=cond("assay"), modality=cond("modality"), tissue=cond("tissue"),
         method=cond("method"), segmentation=cond("segmentation"),
         fixation=cond("fixation"),
+        **{n: cond(n) for n in DISEASE_STATE if n in d},
         frames=tuple(FrameRef(EntityKind(f["kind"]), str(f["name"]),
                               str(f["digest"]), int(f["size"]))
                      for f in d.get("frames", ())),

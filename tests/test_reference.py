@@ -41,7 +41,7 @@ from panoscope.reference.sources import (
     NotRedistributable, PanglaoDB, SourceUnavailable, UnrecognisedSource,
 )
 from panoscope.types.claim import PREDICATES, Authority, Claim
-from panoscope.types.conditions import Provenance
+from panoscope.types.conditions import DISEASE_STATE, Provenance
 from panoscope.types.contracts import ReferenceSource
 from panoscope.types.measured import FrameRef
 from panoscope.types.subject import Entity, EntityKind, cell_type, gene, subject
@@ -602,7 +602,7 @@ def test_conditions_are_a_provenance_stamp_with_its_unknowns_declared(cache):
     assert c.assay.value == "scRNA-seq"
     assert c.tissue.provenance is Provenance.READ
     assert "Breast" in (c.tissue.value or "")
-    assert c.declared_unknown == ("method", "segmentation", "fixation")
+    assert c.declared_unknown == ("method", "segmentation", "fixation", *DISEASE_STATE)
     assert len(c.frames) == 1 and isinstance(c.frames[0], FrameRef)
 
 

@@ -30,10 +30,11 @@ from panoscope.agent.intake import (
 from panoscope.data.study import Study
 from panoscope.platforms.xenium import XeniumAdapter
 from panoscope.types.conditions import (
-    BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, UNKNOWN, Blocked, Condition, Conditions,
-    Provenance,
+    BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, DISEASE_STATE, UNKNOWN, Blocked, Condition,
+    Conditions, Provenance,
 )
 from panoscope.types.contracts import UndeclaredClustering
+from panoscope.types.measured import EntityKind
 
 ADAPTER = XeniumAdapter()
 INTAKE_SOURCE = Path(__file__).resolve().parent.parent / "panoscope" / "agent" / "intake.py"
@@ -387,3 +388,47 @@ def test_every_blocking_item_says_what_it_costs(tmp_path: Path) -> None:
         if item.status is Status.BLOCKING:
             assert len(item.why) > 20, item.field
     assert derive(ADAPTER, store).missing  # a real store takes the same path
+
+
+# --------------------------------------------------------------------------- #
+# Disease state and §6.4 background
+# --------------------------------------------------------------------------- #
+def test_an_unknown_disease_state_resolves_and_treatment_takes_no_guess(demo: Study) -> None:
+    """Undeclared disease state is the starting state; "unknown" is not a treatment value."""
+    draft = derive(ADAPTER, demo)
+    assert set(DISEASE_STATE) <= set(draft.resolve().declared_unknown)
+    assert draft.stated("disease_treatment", "Naive").disease_treatment.value == "naive"
+    with pytest.raises(ValueError):
+        draft.stated("disease_treatment", "unknown")
+
+
+def test_an_unknown_tissue_blocks(tmp_path: Path) -> None:
+    draft = derive(ADAPTER, _store(tmp_path, "no_tissue", platform="Xenium"))
+    assert "tissue" in draft.missing
+    with pytest.raises(Blocked):
+        draft.resolve()
+
+
+def test_background_persists_with_provenance_and_papers_are_identifiers(
+        tmp_path: Path) -> None:
+    draft = derive(ADAPTER, _store(tmp_path, "s", platform="Xenium", tissue="t"))
+    draft = draft.stated("papers_of_interest", "pmid:1").stated("lab_conventions", "x")
+    raw = json.loads(json.dumps(draft.background.to_manifest()))
+    again = derive(ADAPTER, _store(tmp_path, "s2", platform="Xenium", tissue="t",
+                                   background=raw))
+    assert again.background == draft.background
+    assert again.background.papers_of_interest[0].provenance is Provenance.STATED
+    with pytest.raises(ValueError):
+        draft.stated("papers_of_interest", "Smith et al. 2020, Nature")
+
+
+def test_expected_cell_types_never_enter_the_label_space(tmp_path: Path) -> None:
+    """A prior to test, not an input: it is in neither the frames nor the conditions."""
+    store = _store(tmp_path, "s", platform="Xenium", tissue="t")
+    (store.inputs / "cluster_key.json").write_text(json.dumps({"c1": {"cell_type": "T cell"}}))
+    draft = derive(ADAPTER, store).stated("expected_cell_types", "Zeta cell")
+    assert draft.background.expected_cell_types[0].value == "Zeta cell"
+    labels = {m for f in ADAPTER.frames(store) if f.kind is EntityKind.CELL_TYPE
+              for m in f.members}
+    assert labels == {"T cell"}
+    assert "Zeta cell" not in repr(draft.resolve())

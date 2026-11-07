@@ -43,7 +43,7 @@ from panoscope.claims.transfer import (
     manifest_sourced, transfer_check,
 )
 from panoscope.types.claim import Authority, Claim
-from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
+from panoscope.types.conditions import DISEASE_STATE, UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.measured import Frame, MeasuredWorld
 from panoscope.types.subject import EntityKind, cell_type, gene, subject
 from panoscope.types.trace import RULES
@@ -75,6 +75,10 @@ def _conditions(**over) -> Conditions:
         segmentation=Condition("v2", Provenance.READ),
         fixation=Condition("ffpe", Provenance.STATED),
         frames=(PANEL.ref(), DETECT.ref(), LABELS.ref()),
+        disease_state=Condition("breast carcinoma", Provenance.STATED),
+        disease_subtype=Condition("HER2+", Provenance.STATED),
+        disease_treatment=Condition("naive", Provenance.STATED),
+        disease_stage=Condition("II", Provenance.STATED),
     )
     return Conditions(**{**base, **over})
 
@@ -609,6 +613,14 @@ def test_a_written_claim_round_trips(tmp_path):
     original = _lab(tension=("curated:marks:ERBB2:Tumor",), spans=("s1",))
     write_claim(original, tmp_path)
     assert load_dir(tmp_path).claims == (original,)
+
+
+def test_an_undeclared_disease_state_round_trips_without_new_keys():
+    """Stores written before disease state existed must stay byte-stable."""
+    c = _lab(conditions=_conditions(**{f: UNKNOWN for f in DISEASE_STATE}))
+    d = to_dict(c)
+    assert not set(DISEASE_STATE) & set(d["conditions"])
+    assert from_dict(d) == c
 
 
 def test_round_trip_preserves_the_join_key():

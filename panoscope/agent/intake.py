@@ -19,7 +19,7 @@ interview*. So the order is fixed and this module implements it in that order:
 half-filled ``Conditions`` cannot exist -- correct for the finished object, and the
 reason every downstream check may read it without a defensive branch. But §6.4's
 checklist has to *show* an incomplete study, which means intake needs a shape that
-can hold one. That shape is :class:`Draft`: the same six fields, no completeness rule,
+can hold one. That shape is :class:`Draft`: the same fields, no completeness rule,
 and exactly one way out -- :meth:`Draft.resolve`, which constructs the real object or
 raises ``Blocked`` naming every gap at once. The validation lives in one place still;
 ``Draft`` simply does not pretend to be the thing it is on the way to becoming.
@@ -59,20 +59,21 @@ artifact belongs to the pipeline.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any, Final
 
 from panoscope.platforms.base import CLUSTERING_MODES
 from panoscope.types.conditions import (
-    BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, UNKNOWN, Blocked, Condition, Conditions,
-    Provenance, gene_frames_admit,
+    BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, TREATMENTS, UNKNOWN, Blocked,
+    Condition, Conditions, Provenance, gene_frames_admit,
 )
 from panoscope.types.contracts import PlatformAdapter, UndeclaredClustering
 from panoscope.types.measured import FrameRef
 
 FIELDS: Final[tuple[str, ...]] = BLOCKS_THE_STUDY + DECLARED_UNKNOWN_OK
-"""The six ``Condition`` fields, from §6.3's two columns. No third list to drift."""
+"""The ``Condition`` fields, from §6.3's two columns. No third list to drift."""
 
 MEASURED_SET: Final[str] = "measured_set"
 """The structural blocker. Not a ``Condition``: it IS the panel file, so it has no
@@ -117,6 +118,58 @@ _HOW: Final[dict[Provenance, str]] = {
     Provenance.INFERRED: "proposed, and confirmed by the biologist",
     Provenance.UNKNOWN: "not known",
 }
+
+
+BACKGROUND: Final[tuple[str, ...]] = (
+    "research_background", "papers_of_interest", "lab_conventions", "expected_cell_types",
+)
+"""§6.4's optional context. Not conditions: none of it feeds the call."""
+
+_PAPER_ID = re.compile(r"(pmid:\d+|doi:10\.\S+)", re.IGNORECASE)
+
+
+@dataclass(frozen=True, slots=True)
+class Background:
+    """§6.4's optional context, each entry with its provenance. Stored in the manifest.
+
+    ``papers_of_interest`` holds identifiers only and nothing here resolves them;
+    ``lab_conventions`` are lab-scoped claims; ``expected_cell_types`` is a claim to
+    test and never enters the label or rival space.
+    """
+
+    research_background: Condition = UNKNOWN
+    papers_of_interest: tuple[Condition, ...] = ()
+    lab_conventions: tuple[Condition, ...] = ()
+    expected_cell_types: tuple[Condition, ...] = ()
+
+    def __post_init__(self) -> None:
+        for name in BACKGROUND[1:]:
+            if not all(c.known for c in getattr(self, name)):
+                raise ValueError(f"{name} holds an unknown entry; leave it out instead")
+        bad = [c.value for c in self.papers_of_interest
+               if not _PAPER_ID.fullmatch(c.value or "")]
+        if bad:
+            raise ValueError(
+                f"papers_of_interest takes identifiers (pmid:<n> or doi:10.<...>), "
+                f"not {bad}. A title would have to be resolved, and that is a lookup."
+            )
+
+    def to_manifest(self) -> dict[str, Any]:
+        def one(c: Condition) -> dict[str, Any]:
+            return {"value": c.value, "provenance": c.provenance.value}
+        out: dict[str, Any] = {n: [one(c) for c in getattr(self, n)] for n in BACKGROUND[1:]}
+        return {"research_background": one(self.research_background), **out}
+
+    @classmethod
+    def from_manifest(cls, raw: Any) -> "Background":
+        if not isinstance(raw, dict):
+            return cls()
+
+        def one(d: dict[str, Any]) -> Condition:
+            return Condition(d["value"], Provenance(d["provenance"]))
+        rb = raw.get("research_background")
+        return cls(research_background=one(rb) if rb else UNKNOWN,
+                   **{n: tuple(one(d) for d in raw.get(n, ())) for n in BACKGROUND[1:]})
 
 
 class Status(StrEnum):
@@ -232,6 +285,11 @@ class Draft:
     fixation: Condition
     frames: tuple[FrameRef, ...]
     clustering: Condition
+    disease_state: Condition = UNKNOWN
+    disease_subtype: Condition = UNKNOWN
+    disease_treatment: Condition = UNKNOWN
+    disease_stage: Condition = UNKNOWN
+    background: Background = Background()
     unread_because: str = ""
     """Which fields the adapter did not report on, and why, or ``""``.
 
@@ -307,7 +365,12 @@ class Draft:
 
     # ---- the three ways a field gets filled --------------------------------- #
     def stated(self, field: str, value: str) -> "Draft":
-        """The biologist said it. The ordinary outcome of the targeted chat."""
+        """The biologist said it. A list-valued background field appends."""
+        if field in BACKGROUND:
+            cond = Condition(self._clean(field, value), Provenance.STATED)
+            old = getattr(self.background, field)
+            new = cond if field == "research_background" else old + (cond,)
+            return replace(self, background=replace(self.background, **{field: new}))
         return self._set(field, Condition(self._clean(field, value), Provenance.STATED))
 
     def confirm(self, proposal: Proposal) -> "Draft":
@@ -359,7 +422,12 @@ class Draft:
                 f"clustering mode {value!r} is not one of {', '.join(CLUSTERING_MODES)}. "
                 "An unrecognised word is not a declaration; say which of the three."
             )
-        return v.lower() if field == CLUSTERING else v
+        if field == "disease_treatment" and v.lower() not in TREATMENTS:
+            raise ValueError(
+                f"disease_treatment {value!r} is not one of {', '.join(TREATMENTS)}; "
+                "if it is not known, declare it unknown."
+            )
+        return v.lower() if field in (CLUSTERING, "disease_treatment") else v
 
     # ---- the one way out ---------------------------------------------------- #
     def resolve(self) -> Conditions:
@@ -376,11 +444,7 @@ class Draft:
                 + "; ".join(f"{f}: {_WHY_BLOCKS.get(f, 'blocking')}" for f in gaps)
                 + ". Ask the biologist; do not record a guess as inferred (§6.3)."
             )
-        return Conditions(
-            assay=self.assay, modality=self.modality, tissue=self.tissue,
-            method=self.method, segmentation=self.segmentation,
-            fixation=self.fixation, frames=self.frames,
-        )
+        return Conditions(**{f: getattr(self, f) for f in FIELDS}, frames=self.frames)
 
     # ---- §6.4 step 2 --------------------------------------------------------- #
     def checklist(self) -> Checklist:
@@ -457,4 +521,6 @@ def derive(adapter: PlatformAdapter, store: Any) -> Draft:
         unread_because=unread,
         study=str(getattr(store, "id", "") or ""),
         problems=tuple(adapter.validate(store)), **read,
+        background=Background.from_manifest(
+            (getattr(store, "manifest", None) or {}).get("background")),
     )

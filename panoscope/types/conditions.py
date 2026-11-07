@@ -7,8 +7,9 @@ The §6.3 line:
 
 - ``BLOCKS_THE_STUDY`` -- tissue and platform/assay, plus the measured set. Unknown here
   is a validation failure.
-- ``DECLARED_UNKNOWN_OK`` -- fixation, segmentation, ``modality`` and ``method``. These
-  propagate: a check reading one returns *cannot be settled* and names it.
+- ``DECLARED_UNKNOWN_OK`` -- fixation, segmentation, ``modality``, ``method`` and the
+  disease state with its three qualifiers. These propagate: a check reading one returns
+  *cannot be settled* and names it.
 
 Every ``Condition`` field is in exactly one tuple
 (``test_every_condition_field_is_classified_exactly_once``).
@@ -89,8 +90,14 @@ UNKNOWN: Final = Condition(None, Provenance.UNKNOWN)
 # it blocks structurally, by being empty, because it *is* the panel file.
 # --------------------------------------------------------------------------- #
 BLOCKS_THE_STUDY: Final[tuple[str, ...]] = ("assay", "tissue")
+DISEASE_STATE: Final[tuple[str, ...]] = (
+    "disease_state", "disease_subtype", "disease_treatment", "disease_stage",
+)
+"""§6.3's disease state: the value and its three qualifiers, each with its own provenance."""
+TREATMENTS: Final[tuple[str, ...]] = ("naive", "treated")
+"""A known ``disease_treatment``; "unknown" is the declared unknown, not a value."""
 DECLARED_UNKNOWN_OK: Final[tuple[str, ...]] = (
-    "modality", "method", "segmentation", "fixation",
+    "modality", "method", "segmentation", "fixation", *DISEASE_STATE,
 )
 
 
@@ -114,7 +121,9 @@ class Conditions:
 
     A default would be a silent one, and §6.2's whole point is that no condition is
     ever filled in without a provenance saying who filled it in. Construct it with
-    ``UNKNOWN`` where that is the honest answer.
+    ``UNKNOWN`` where that is the honest answer. The one exception is the disease
+    state, whose default IS ``UNKNOWN``: undeclared is its starting state, and it
+    still names itself in :attr:`declared_unknown`.
     """
 
     assay: Condition
@@ -124,6 +133,10 @@ class Conditions:
     segmentation: Condition
     fixation: Condition
     frames: tuple[FrameRef, ...]   # replaces panel_hash + panel_genes
+    disease_state: Condition = UNKNOWN
+    disease_subtype: Condition = UNKNOWN
+    disease_treatment: Condition = UNKNOWN    # naive | treated, else UNKNOWN
+    disease_stage: Condition = UNKNOWN
 
     def __post_init__(self) -> None:
         if not gene_frames_admit(self.frames):

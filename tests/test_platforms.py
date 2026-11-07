@@ -33,7 +33,7 @@ from panoscope.platforms.xenium import (
     XeniumAdapter,
     is_no_signal,
 )
-from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
+from panoscope.types.conditions import DISEASE_STATE, UNKNOWN, Condition, Conditions, Provenance
 from panoscope.types.contracts import (
     PlatformAdapter, UndeclaredClustering, UnrecognisedResult,
 )
@@ -358,7 +358,8 @@ def test_standing_conditions_never_write_inferred(demo: Study) -> None:
     # coordinate_system()'s micron scale. The rest are genuinely unstated, and
     # FFPE "sounding right" is not a read.
     assert conds.modality.provenance is Provenance.READ
-    assert set(conds.declared_unknown) == {"method", "segmentation", "fixation"}
+    assert set(conds.declared_unknown) == {"method", "segmentation", "fixation",
+                                           *DISEASE_STATE}
 
 
 def test_the_conditions_carry_every_frame(demo: Study) -> None:

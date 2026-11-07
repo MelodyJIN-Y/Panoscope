@@ -410,16 +410,13 @@ class Field:
     provenance: Provenance
 
 @dataclass(frozen=True, slots=True)
-class DiseaseState:                                      # every field declared-unknown OK; never guessed
-    value: Field; subtype: Field; stage: Field
-    treatment: Field                                    # naive | treated | unknown
-
-@dataclass(frozen=True, slots=True)
 class Conditions:
     assay: Field; modality: Field; tissue: Field        # tissue as an ontology id
     method: Field; segmentation: Field; fixation: Field
-    disease_state: DiseaseState
     frames: tuple[FrameRef, ...]                        # replaces panel_hash + panel_genes
+    # disease state and its qualifiers: declared-unknown OK, never guessed, default UNKNOWN
+    disease_state: Field; disease_subtype: Field; disease_stage: Field
+    disease_treatment: Field                            # naive | treated, else UNKNOWN
 
 @dataclass(frozen=True, slots=True)
 class Claim:

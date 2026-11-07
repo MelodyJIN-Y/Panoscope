@@ -33,7 +33,9 @@ from panoscope.platforms.base import (
     UndeclaredSamples,
     declared_clustering,
 )
-from panoscope.types.conditions import UNKNOWN, Condition, Conditions, Provenance
+from panoscope.types.conditions import (
+    DISEASE_STATE, UNKNOWN, Condition, Conditions, Provenance,
+)
 from panoscope.types.contracts import UndeclaredClustering
 from panoscope.types.measured import Frame
 from panoscope.types.subject import EntityKind
@@ -489,6 +491,7 @@ class XeniumAdapter:
             "method": read("method"),
             "segmentation": read("segmentation"),
             "fixation": read("fixation"),
+            **{f: read(f) for f in DISEASE_STATE},
         }
 
     def standing_conditions(self, store: Study) -> Conditions:

@@ -33,6 +33,10 @@ def conditions(**over) -> Conditions:
         segmentation=Condition("nucleus_expansion_15um", Provenance.STATED),
         fixation=Condition("FFPE", Provenance.STATED),
         frames=(PANEL,),
+        disease_state=Condition("invasive ductal carcinoma", Provenance.STATED),
+        disease_subtype=Condition("HER2+", Provenance.STATED),
+        disease_treatment=Condition("naive", Provenance.STATED),
+        disease_stage=Condition("II", Provenance.STATED),
     )
     return Conditions(**{**base, **over})
 
