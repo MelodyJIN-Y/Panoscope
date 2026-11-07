@@ -198,3 +198,16 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     at.run()
     assert not at.exception, [str(e.value) for e in at.exception]
     assert "xenium · human breast cancer" in "\n".join(m.value for m in at.markdown)  # ours, not the demo's "Xenium"
+
+
+def test_opening_a_study_drops_the_last_studys_ui_state(monkeypatch) -> None:
+    """A demo chat thread must not follow the biologist into their own study."""
+    from types import SimpleNamespace
+
+    from panoscope.ui import state
+
+    ss = {state.K_CHAT_THREAD: {"c1": ["a demo message"]}, state.K_INITIALIZED: True}
+    monkeypatch.setattr(state, "_ss", lambda: ss)
+    monkeypatch.setattr(state, "apply_session_study", lambda: None)
+    state.open_study(SimpleNamespace(data_root=Path("/r"), id="mine"))
+    assert ss == {state.K_STUDY: ("/r", "mine")}

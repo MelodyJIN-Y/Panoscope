@@ -311,8 +311,7 @@ def _ready_line() -> str:
 
 
 def _run_progress() -> None:
-    """Short staged progress so the hand-off feels like real work (it reads the
-    precomputed tree; see the module DEMO NOTE)."""
+    """Short staged progress for the demo hand-off; it reads the precomputed tree, runs nothing."""
     steps = [
         ("Reading jazzPanda output (markers_top.csv)…", 0.28),
         ("Applying the panel-absence rule to the gene panel…", 0.52),
