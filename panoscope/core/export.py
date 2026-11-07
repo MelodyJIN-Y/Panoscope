@@ -35,9 +35,8 @@ produced it belong to the step that made them. A ``note`` emitted here would cla
 the export chose something, and the record would carry a rule that explains a
 formatting choice as if it were an inference.
 
-**Nothing calls this yet, and that is correct.** Rewiring ``verdict.py`` and
-``enrichment.py`` through these profiles is the method refactor (IMPLEMENTATION.md
-§10), a later task with a visible surface.
+The enrichment CSV is written only through here (``pipeline/stages/enrichment.py``);
+``agent/verdict.py`` still carries its own writer, pinned equal by the tests.
 
 **``cluster_confidence`` is gone, and this is the deletion §10 sequenced.** The
 characterisation profile used to end with ``cluster_confidence`` and

@@ -43,6 +43,7 @@ from __future__ import annotations
 import streamlit as st  # module-level for the @st.fragment chat wrapper
 
 from panoscope.agent import config as cfg
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
 from panoscope.types.measured import MeasuredState
 from panoscope.types.subject import gene_set, subject
@@ -61,10 +62,6 @@ def _pathway_chat_fragment(cluster: str) -> None:
     """The Pathways chat as a fragment: a chat turn re-renders only this pane, not the
     whole Pathways page (its reruns are scoped via ``convo._rerun(scope='fragment')``)."""
     enrichment_conversation.render_pathway_conversation(cluster)
-
-
-def _short(gene_set: str) -> str:
-    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
 # --------------------------------------------------------------------------- #
@@ -141,7 +138,7 @@ def _row(cluster: str, p: PathwayEvidence) -> surface.SurfaceRow:
         state=mstate,
         reason=_reason(p, mstate),
         values={
-            "gene_set": _short(p.gene_set),
+            "gene_set": pretty_gene_set(p.gene_set),
             "statistic": p.score if observed else None,
             "p_adj_bh": p.q_value if observed else None,
             # TEXT, not a numeric kind, by declaration: the K of N is the REASON a
@@ -195,7 +192,7 @@ def _header_values(ce: ClusterEnrichment,
     }
     if top is not None:
         values |= {
-            "gene_set": _short(top.gene_set),
+            "gene_set": pretty_gene_set(top.gene_set),
             "statistic_name": "test_statistic",
             "statistic": f"{top.score:.2f}",
             "panel_hits": top.panel_hits,

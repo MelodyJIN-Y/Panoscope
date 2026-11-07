@@ -4,8 +4,9 @@ The single thing this module can get wrong is a byte. The 11-column verdict CSV 
 pinned by ``tests/test_golden.py``, restated in ``skills/marker-interpretation/
 SKILL.md`` Output 2 and read by downstream R; the 14-column enrichment CSV is a
 committed artifact. So the central tests here do not inspect the output and judge it
--- they feed the same rows through ``agent.verdict.to_csv`` / ``agent.enrichment.to_csv``
-and through the profile and assert the two strings are ``==``. "Looks the same" is
+-- they feed the same rows through ``agent.verdict.to_csv`` and through the profile
+and assert the two strings are ``==`` (the enrichment CSV, whose hand-written
+exporter is retired, is pinned by ``tests/test_golden.py``). "Looks the same" is
 what lets a trailing ``\\r`` or a ``0.70`` for a ``0.7`` through.
 
 Both halves are tested: the real demo study (which is what the golden hash covers)
@@ -25,19 +26,12 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from panoscope.agent import enrichment as E
 from panoscope.agent import verdict as V
 from panoscope.core.export import (
     ASSIGNMENT_COLUMNS, CHARACTERISATION_COLUMNS, PROFILES, NoExportProfile, to_csv,
 )
 from panoscope.types.outputs import TaskKind
 from panoscope.types.trace import Traced
-
-
-def _pairs(enrichments) -> list[tuple[object, object]]:
-    """The characterisation row shape: one row per surfaced pathway, carrying its
-    unit. Enriched then suggestive, which is the order the committed file is in."""
-    return [(ce, p) for ce in enrichments for p in (*ce.enriched, *ce.suggestive)]
 
 
 # --------------------------------------------------------------------------- #
@@ -48,39 +42,6 @@ def test_assignment_profile_is_byte_identical_on_the_demo_study():
     assert to_csv(TaskKind.ASSIGNMENT, verdicts).value == V.to_csv(verdicts)
 
 
-#: The CHARACTERISATION half of this module reads the jazzPanda enrichment input,
-#: which is gitignored on purpose -- its rows are MSigDB Hallmark sets scored on
-#: 10x's Xenium demo, and CLAUDE.md is explicit that restrictively-licensed data is
-#: fetched and never bundled. So on a fresh clone, which is to say on CI and for
-#: every reader of this repo, that input is absent.
-#:
-#: Guarded per-test rather than with a module-level ``pytestmark``: the ASSIGNMENT
-#: half and the synthetic-row tests below need no such file, and skipping those too
-#: would retire most of this module's coverage on exactly the machine the README
-#: asks a reviewer to verify on. Four sibling modules already guard this way
-#: (test_enrichment.py:36, test_enrichment_frame_count.py:45,
-#: test_pipeline_enrichment_records.py:48, test_pipeline.py:36); this module was the
-#: one that did not, which is what made ``pytest -m "not live"`` red on a fresh
-#: clone while staying green on a machine that happens to hold the file.
-_needs_enrichment_input = pytest.mark.skipif(
-    not E._jz_enrichment_csv().exists(),
-    reason=(
-        f"jazzPanda enrichment result not present (gitignored): "
-        f"{E._jz_enrichment_csv()}. The ASSIGNMENT half of the byte-identity "
-        f"contract still runs here, and the enrichment CSV itself stays pinned by "
-        f"tests/test_golden.py against the committed records."
-    ),
-)
-
-
-@_needs_enrichment_input
-def test_characterisation_profile_is_byte_identical_on_the_demo_study():
-    enrichments = E.all_enrichments()
-    assert to_csv(TaskKind.CHARACTERISATION, _pairs(enrichments)).value == E.to_csv(
-        enrichments
-    )
-
-
 def test_byte_identical_without_a_header_too():
     """``header=False`` is the append path; a profile that got the header right and
     the rows wrong would still pass the two tests above on their first line."""
@@ -88,16 +49,6 @@ def test_byte_identical_without_a_header_too():
     assert to_csv(TaskKind.ASSIGNMENT, verdicts, header=False).value == V.to_csv(
         verdicts, header=False
     )
-
-
-@_needs_enrichment_input
-def test_byte_identical_without_a_header_on_characterisation_too():
-    """The CHARACTERISATION half of the append path, split out so the ASSIGNMENT
-    half above still runs where the gitignored enrichment input is absent."""
-    enrichments = E.all_enrichments()
-    assert to_csv(
-        TaskKind.CHARACTERISATION, _pairs(enrichments), header=False
-    ).value == E.to_csv(enrichments, header=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -153,16 +104,23 @@ def test_assignment_profile_matches_the_exporter_on_awkward_values():
     assert to_csv(TaskKind.ASSIGNMENT, _VERDICT_STUBS).value == buf.getvalue()
 
 
-def test_characterisation_profile_matches_the_exporter_on_awkward_values():
-    import csv
-    import io
+_CHARACTERISATION_NAMES = (
+    "cluster", "cell_type", "gene_set", "tier", "score", "score_kind", "q_value",
+    "panel_hits", "set_size_full", "panel_coverage", "n_leading_edge", "leading_edge",
+    "cluster_n_supported", "cluster_n_suggestive", "cluster_n_untestable",
+    "cluster_verify",
+)
 
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(E.ENRICHMENT_CSV_COLUMNS)
-    for ce, p in _ENRICHMENT_STUBS:
-        w.writerow(E._csv_row(ce, p))
-    assert to_csv(TaskKind.CHARACTERISATION, _ENRICHMENT_STUBS).value == buf.getvalue()
+
+def test_characterisation_profile_matches_the_exporter_on_awkward_values():
+    # The exact bytes the retired agent/enrichment.to_csv wrote for these rows.
+    assert to_csv(TaskKind.CHARACTERISATION, _ENRICHMENT_STUBS).value == (
+        ",".join(_CHARACTERISATION_NAMES) + "\r\n"
+        "c1,Tumor,HALLMARK_EMT,enriched,6.5000,jazzpanda_enrichment,1.200e-09,6,200,"
+        "0.0300,2,CCND1;SCD,7,3,12,FALSE\r\n"
+        'c2,"Stromal, ""fibro""",HALLMARK_EMT,suggestive,0.0000,jazzpanda_enrichment,,'
+        "6,200,0.0000,0,,0,1,0,TRUE\r\n"
+    )
 
 
 def test_the_band_anchor_is_not_reformatted():
@@ -180,7 +138,7 @@ def test_assignment_columns_are_the_eleven_in_exact_order():
 
 
 def test_characterisation_columns_are_the_sixteen_in_exact_order():
-    assert PROFILES[TaskKind.CHARACTERISATION].names == E.ENRICHMENT_CSV_COLUMNS
+    assert PROFILES[TaskKind.CHARACTERISATION].names == _CHARACTERISATION_NAMES
     assert len(CHARACTERISATION_COLUMNS) == 16
 
 

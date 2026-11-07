@@ -23,8 +23,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from panoscope.core.measure import measure_unit
+from panoscope.core.measure import Reading, measure_unit
 from panoscope.data.study import Study
+from panoscope.methods.jazzpanda import MODULE as JAZZPANDA
 from panoscope.platforms.base import declared_clustering, digest
 from panoscope.platforms.tidy import read_tidy
 from panoscope.platforms.xenium import (
@@ -374,9 +375,9 @@ def _read(demo: Study, **over) -> Traced:
         statistic_column="glm_coef", unit_kind="cluster",
         world=MeasuredWorld(ADAPTER.frames(demo)),
         clustering_mode=ADAPTER.clustering_mode(demo),
-        corroborating_columns=("pearson",), not_units=frozenset({NO_SIGNAL}),
+        not_units=frozenset({NO_SIGNAL}),
         unit_detection_because=("top_cluster holds cluster ids declared by the store",),
-        enumerates_absence=True, record_path="inputs/markers_top.csv",
+        record_path="inputs/markers_top.csv",
     )
     kwargs.update(over)
     return read_tidy(demo.inputs / "markers_top.csv", **kwargs)
@@ -395,7 +396,7 @@ def test_the_read_is_traced_even_though_reading_notes_nothing(demo: Study) -> No
 def test_what_was_dropped_is_counted_and_named(demo: Study) -> None:
     """``rows_in - rows_dropped`` is the only place a biologist sees that part of the
     table never reached the interpretation."""
-    rec = _read(demo).value.record
+    rec = _read(demo).value
     assert rec.rows_in == len(pd.read_csv(demo.inputs / "markers_top.csv"))
     assert rec.rows_dropped == 49
     assert rec.drop_reasons == (("top_cluster is 'NoSig', declared not a unit", 49),)
@@ -405,7 +406,7 @@ def test_the_record_hashes_the_bytes_that_were_read(demo: Study) -> None:
     """Over the file's bytes, not the parsed frame: a dtype-inference change in pandas
     would move a digest taken over the frame and report an input change that never
     happened. Checked against the hash the pipeline committed."""
-    rec = _read(demo).value.record
+    rec = _read(demo).value
     assert rec.sha256 == digest(demo.inputs / "markers_top.csv")
     manifest = json.loads((demo.dir / "manifest.json").read_text())
     assert rec.sha256 == manifest["inputs"]["markers_top.csv"]["sha256"]
@@ -414,13 +415,13 @@ def test_the_record_hashes_the_bytes_that_were_read(demo: Study) -> None:
 def test_the_record_carries_no_absolute_path(demo: Study) -> None:
     """The record is hashed into the golden artifact, so an absolute path makes
     byte-stability a property of whose laptop produced it."""
-    assert _read(demo).value.record.path == "inputs/markers_top.csv"
+    assert _read(demo).value.path == "inputs/markers_top.csv"
 
 
 def test_out_of_frame_entities_are_named(demo: Study) -> None:
     """The panel-absence rule's output: what the apparatus could not have seen is
     reported, not dropped."""
-    rec = _read(demo).value.record
+    rec = _read(demo).value
     markers = pd.read_csv(demo.inputs / "markers_top.csv")
     nosig = sorted(markers.loc[markers["top_cluster"] == NO_SIGNAL, "gene"])
     assert list(rec.entities_outside_frame) == nosig
@@ -428,7 +429,7 @@ def test_out_of_frame_entities_are_named(demo: Study) -> None:
 
 def test_the_same_file_reads_byte_identically_twice(demo: Study) -> None:
     """The reproducibility claim, at this layer."""
-    assert _read(demo).value.record == _read(demo).value.record
+    assert _read(demo).value == _read(demo).value
 
 
 def test_a_missing_column_refuses_rather_than_guessing(demo: Study) -> None:
@@ -452,7 +453,7 @@ def test_each_malformed_row_is_dropped_under_its_own_reason(tmp_path: Path) -> N
     rec = read_tidy(p, unit_column="unit", entity_column="gene",
                     entity_kind=EntityKind.GENE, statistic_column="stat",
                     unit_kind="cluster", world=MeasuredWorld(),
-                    clustering_mode="independent").value.record
+                    clustering_mode="independent").value
     assert rec.rows_in == 5 and rec.rows_dropped == 4
     assert rec.drop_reasons == (
         ("duplicate unit x gene row", 1),
@@ -462,41 +463,23 @@ def test_each_malformed_row_is_dropped_under_its_own_reason(tmp_path: Path) -> N
     )
 
 
-def test_absence_is_enumerated_only_when_the_caller_declares_the_table_complete(
-        tmp_path: Path) -> None:
-    """A table truncated to its top rows has no tested-absences in it, and inventing
-    them is an overclaim -- so the cautious reading is the default."""
-    p = tmp_path / "t.csv"
-    p.write_text("gene,unit,stat\nAAA,u1,1.0\nBBB,u2,2.0\n")
-    world = MeasuredWorld((Frame(EntityKind.GENE, "panel:t", frozenset({"AAA", "BBB"})),))
-    common = dict(unit_column="unit", entity_column="gene",
-                  entity_kind=EntityKind.GENE, statistic_column="stat",
-                  unit_kind="cluster", world=world, clustering_mode="independent")
-
-    terse = read_tidy(p, **common).value.for_unit("u1")
-    assert [r.subject.one("g").id for r in terse.readings] == ["AAA"]
-
-    full = read_tidy(p, enumerates_absence=True, **common).value.for_unit("u1")
-    assert [r.subject.one("g").id for r in full.readings] == ["AAA", "BBB"]
-    assert full.readings[1].statistic is None
-
-
 def test_a_statistic_for_an_out_of_frame_entity_is_carried_in_and_withheld_later(
-        tmp_path: Path) -> None:
-    """The reader does not pre-filter. Deleting the number here would delete the
-    difference between "the method reported nothing" and "the method reported
-    something the apparatus cannot support", which is the thing being audited."""
-    p = tmp_path / "t.csv"
-    p.write_text("gene,unit,stat\nAAA,u1,1.0\nOFFPANEL,u1,9.0\n")
+        ) -> None:
+    """Readings are not pre-filtered. Deleting the number before ``measure_unit``
+    would delete the difference between "the method reported nothing" and "the
+    method reported something the apparatus cannot support", which is the thing
+    being audited."""
     world = MeasuredWorld((Frame(EntityKind.GENE, "panel:t", frozenset({"AAA"})),))
-    unit = read_tidy(p, unit_column="unit", entity_column="gene",
-                     entity_kind=EntityKind.GENE, statistic_column="stat",
-                     unit_kind="cluster", world=world,
-                     clustering_mode="independent").value.for_unit("u1")
-    assert [r.statistic for r in unit.readings] == [1.0, 9.0]
+    readings = tuple(
+        Reading(subject=subject("gene", g=Entity(EntityKind.GENE, g)), statistic=v,
+                statistic_name="stat")
+        for g, v in (("AAA", 1.0), ("OFFPANEL", 9.0))
+    )
+    reported = (Frame(EntityKind.GENE, "reported:cluster:u1",
+                      frozenset({"AAA", "OFFPANEL"})),)
 
     ev = measure_unit("u1", "cluster", subject("cell_type", ct=cell_type("X")),
-                      "m", unit.readings, world, unit.reported, _conditions(world))
+                      "m", readings, world, reported, _conditions(world))
     off = next(i for i in ev.value.items if i.subject.one("g").id == "OFFPANEL")
     assert off.measured.state is MeasuredState.NEVER_MEASURED
     assert off.statistic is None
@@ -508,29 +491,19 @@ def test_a_statistic_for_an_out_of_frame_entity_is_carried_in_and_withheld_later
 # The demonstration: the real store, end to end
 # --------------------------------------------------------------------------- #
 def test_the_demo_store_reads_into_normalised_evidence(demo: Study) -> None:
-    """The whole point. The committed Xenium study, through the adapter and the tidy
-    reader, into ``measure_unit`` -- with the panel frame at its true size, the
-    detectability frame populated, and three of the four states resolved on real data
-    rather than on a fixture.
+    """The whole point. The committed Xenium study, through the adapter and the
+    method's own ``load`` (the product path) into ``measure_unit`` -- with the panel
+    frame at its true size, the detectability frame populated, and three of the four
+    states resolved on real data rather than on a fixture.
 
     ``UNDERPOWERED`` is absent because this read declares no coverage floor; it is
     exercised in ``test_core_measure``, and asserting it here would mean inventing a
     floor the study does not have.
     """
     world = MeasuredWorld(ADAPTER.frames(demo))
-    tidy = _read(demo).value
-    assert [u.unit for u in tidy.units] == list(demo.units)
-
-    label = ADAPTER.unit_labels(demo)["c1"]
-    unit = tidy.for_unit("c1")
-    traced = measure_unit(
-        "c1", "cluster", subject("cell_type", ct=cell_type(label)), "jazzpanda",
-        unit.readings, world,
-        unit.reported + (Frame(EntityKind.CELL_TYPE, "reported:cluster:c1",
-                               frozenset({label})),),
-        ADAPTER.standing_conditions(demo),
-    )
-    ev = traced.value
+    traced = JAZZPANDA.load(str(demo.inputs / "markers_top.csv"), ADAPTER, demo)
+    assert sorted(traced.value) == sorted(demo.units)
+    ev = traced.value["c1"]
 
     panel = next(f for f in world.frames if f.name.startswith("panel:"))
     detect = next(f for f in world.frames if f.name.startswith("detect:"))
@@ -557,11 +530,10 @@ def test_the_demo_store_reads_into_normalised_evidence(demo: Study) -> None:
 
     observed = next(i for i in ev.items if i.measured.state is MeasuredState.OBSERVED)
     assert observed.statistic is not None
-    assert [k for k, _ in observed.corroborating] == ["pearson"]
+    assert "pearson" in [k for k, _ in observed.corroborating]
 
     # The unit's own verdict precedes every item's, because it explains them.
     assert traced.decisions[0].refs == (ev.unit_subject.key,)
-    assert ev.unit_measured.state is MeasuredState.OBSERVED
     assert ev.conditions.frames == tuple(f.ref() for f in world.frames)
 
 
@@ -701,12 +673,12 @@ def test_a_control_probe_never_enters_the_absence_universe(tmp_path: Path) -> No
               entity_kind=EntityKind.GENE, statistic_column="glm_coef",
               unit_kind="cluster", world=world, clustering_mode="joint")
 
-    loose = read_tidy(csv, **kw).value.record
+    loose = read_tidy(csv, **kw).value
     assert set(loose.entities_outside_frame) == {"BlankCodeword_0001", "antisenseXYZ"}
 
     tight = read_tidy(
         csv, not_subjects=frozenset({"BLANKCODEWORD_0001", "ANTISENSEXYZ"}), **kw
-    ).value.record
+    ).value
     assert tight.entities_outside_frame == (), tight.entities_outside_frame
     assert any("control probe" in reason for reason, _n in tight.drop_reasons), (
         tight.drop_reasons

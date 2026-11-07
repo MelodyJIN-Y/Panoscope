@@ -201,7 +201,7 @@ def run_de(marker_evidence: dict[str, Any] | None = None,
         # Store-relative: an absolute path in a hashed record makes byte-stability a
         # property of whose laptop produced it.
         record_path=str(Path(path).relative_to(study.dir)),
-    ).value.record
+    ).value
 
     loaded = method.load(str(path), adapter, study)
     marker_evidence = marker_evidence or {}

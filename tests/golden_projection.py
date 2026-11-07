@@ -17,7 +17,7 @@ What it covers (IMPLEMENTATION.md §7 Phase A.4):
 (mutating ``MIN_PANEL_HITS`` or ``ENRICHMENT_BANDS`` left the hash byte-identical):
 
   * the 9 per-cluster enrichments   ``agent.enrichment`` (tiers, census, caveats)
-  * the enrichment CSV              ``agent.enrichment.to_csv`` (14 columns)
+  * the enrichment CSV              ``core.export.to_csv`` (CHARACTERISATION)
   * the cross-cluster themes        ``agent.enrichment_themes.pathway_themes()``
 
 See :func:`pinned_enrichment` for why the enrichment half reads its raw rows from
@@ -61,8 +61,10 @@ from panoscope.agent import enrichment as E
 from panoscope.agent import enrichment_themes as agent_themes
 from panoscope.agent import holistic as agent_holistic
 from panoscope.agent import verdict as V
+from panoscope.core import export
 from panoscope.pipeline import calibration as calibration_mod
 from panoscope.pipeline import serialize, store
+from panoscope.types.outputs import TaskKind
 
 # --------------------------------------------------------------------------- #
 # Fixture location + the documented regeneration path
@@ -231,7 +233,10 @@ def build_projection() -> dict[str, Any]:
     review = agent_holistic.holistic_review()
     with pinned_enrichment() as enrichments:
         themes = agent_themes.pathway_themes()
-        enrichment_csv = E.to_csv(enrichments).splitlines()
+        enrichment_csv = export.to_csv(
+            TaskKind.CHARACTERISATION,
+            [(ce, p) for ce in enrichments for p in (*ce.enriched, *ce.suggestive)],
+        ).value.splitlines()
     return {
         "schema_version": SCHEMA_VERSION,
         "dataset_id": cfg.DATASET_ID,
@@ -245,7 +250,7 @@ def build_projection() -> dict[str, Any]:
         "holistic": normalise(serialize.holistic_to_dict(review)),
         "calibration_table": calibration_mod.calibration_markdown(verdicts).splitlines(),
         # --- the enrichment workflow (CHARACTERISATION) ------------------- #
-        "enrichment_csv_columns": list(E.ENRICHMENT_CSV_COLUMNS),
+        "enrichment_csv_columns": list(export.PROFILES[TaskKind.CHARACTERISATION].names),
         "enrichment": normalise(
             {e.cluster: serialize.enrichment_to_dict(e) for e in enrichments}
         ),

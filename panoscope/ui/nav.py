@@ -35,7 +35,10 @@ which availability check); this module owns the model.
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from typing import Callable, Mapping
 
 from panoscope import workflows
@@ -47,6 +50,30 @@ SUMMARY_PAGE = "summary"
 
 #: The front door, before any study is open. Also not workflows.
 ONBOARDING_PAGES: tuple[str, ...] = ("welcome", "upload")
+
+#: Session key for the active page, mirrored to the ``?page=`` query param.
+PAGE_KEY = "active_page"
+
+#: Brand assets (the Panoscope logo mark + the with-text logo).
+ASSETS = Path(__file__).resolve().parent.parent / "assets"
+
+
+def set_page(page: str) -> None:
+    """Make ``page`` active: session state, and the URL so a refresh keeps the tab."""
+    import streamlit as st
+
+    st.session_state[PAGE_KEY] = page
+    st.query_params["page"] = page
+
+
+@lru_cache(maxsize=2)
+def logo_data_uri(name: str) -> str:
+    """Base64 data URI for a brand PNG so it embeds inline in header HTML
+    (Streamlit's strict CSP blocks external asset requests). '' if missing."""
+    path = ASSETS / name
+    if not path.exists():
+        return ""
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
 
 _TASK_ORDER: dict[TaskKind, int] = {
     TaskKind.ASSIGNMENT: 0,

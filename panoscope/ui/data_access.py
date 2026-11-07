@@ -27,6 +27,7 @@ from typing import Any, Callable, Optional
 
 import pandas as pd
 
+from panoscope.agent import compose
 from panoscope.agent import data as agent_data
 from panoscope.agent.types import ClusterVerdict, Note
 from panoscope.data import spatial
@@ -130,6 +131,16 @@ def _cache_resource(*dargs: Any, **dkw: Any) -> Callable:
 def markers_df() -> pd.DataFrame:
     """The full jazzPanda top-marker table (280 rows). Cached copy; do not mutate."""
     return agent_data.load_markers()
+
+
+def tissue_platform() -> tuple[str, str]:
+    """(tissue, platform) off the active study's manifest (grounded, derived from the
+    data); ``("", "")`` when it is unreadable."""
+    try:
+        m = cfg.current_study().manifest
+        return str(m.get("tissue", "")).strip(), str(m.get("platform", "")).strip()
+    except Exception:  # noqa: BLE001 - no manifest just means a plainer label
+        return "", ""
 
 
 @_cache_data(show_spinner=False)
@@ -383,18 +394,6 @@ def _excluded_clusters() -> set:
         return set()
 
 
-def _override_notes() -> dict:
-    """The most-recent firing ``celltype_override`` note per cluster.
-
-    Kept as a module-level name because the composition reads it through this
-    module's globals and the suite patches it here. The implementation moved to
-    ``agent.compose``, so the prose generated below the UI composes against the
-    same notes this board does.
-    """
-    from panoscope.agent import compose
-
-    return compose.override_notes()
-
 def _signed_off_clusters() -> set:
     """Clusters the biologist has reviewed and accepted on the Summary board.
 
@@ -418,7 +417,7 @@ def composed_verdicts() -> list[ClusterVerdict]:
     mutated, so the computed output stays intact and only the composed view/export
     changes. NOT cached: notes and sign-offs are added at runtime."""
     excluded = _excluded_clusters()
-    overrides = _override_notes()
+    overrides = compose.override_notes()
     signed_off = _signed_off_clusters()
     if not excluded and not overrides and not signed_off:
         return all_verdicts()
@@ -426,35 +425,12 @@ def composed_verdicts() -> list[ClusterVerdict]:
 
     out: list[ClusterVerdict] = []
     for v in all_verdicts():
+        ov = overrides.get(v.cluster)
+        if ov is not None:
+            v = compose.compose_verdict(v, ov)
         changes: dict = {}
         if v.cluster in excluded:
             changes["exclude"] = True
-        ov = overrides.get(v.cluster)
-        if ov is not None:
-            new_call = ov.subject_cell_type.strip()
-            changes["cell_type"] = new_call
-            changes["cell_type_short"] = new_call
-            if ov.subject_lineage.strip():
-                changes["lineage"] = ov.subject_lineage.strip()
-            if ov.subject_category.strip():
-                changes["category"] = ov.subject_category.strip()
-            if ov.tension.dissent:  # flag for re-check ONLY when the literature dissents
-                changes["verify"] = True
-            # The off-panel canonical set belongs to the CALL, so it moves with it.
-            # It was carried through untouched, and the document then printed
-            # "Never measured (1 off panel): CSF1R" -- the canonical MACROPHAGE
-            # marker -- under a heading the biologist had changed to Dendritic.
-            # That is the panel-absence rule, the project's headline rule, reported
-            # against a call that was replaced.
-            #
-            # Recomputed for the new call where this study's annotation knows it,
-            # and EMPTY where it does not: a call the annotation never names has no
-            # canonical set here, and inventing one would be the fabrication the
-            # rule exists to prevent. Empty is also what the block header renders
-            # as "every canonical marker for this label is on panel", which is why
-            # the rename is worth doing rather than leaving the old set in place.
-            changes["offpanel_notes"] = _offpanel_notes_for(
-                new_call, v.offpanel_notes)
         # A signed-off call is adjudicated: clear its re-check flag (a contested
         # sign-off wrote a validation note recording the biologist's acceptance).
         # Applied last so it wins over an override's dissent flag.
@@ -464,25 +440,10 @@ def composed_verdicts() -> list[ClusterVerdict]:
     return out
 
 
-def _offpanel_notes_for(cell_type: str, existing: tuple = ()) -> tuple:
-    """The off-panel canonical markers for ONE call. See ``agent.compose``."""
-    from panoscope.agent import compose
-
-    return compose.offpanel_notes_for(cell_type, existing)
-
-def _override_call(cluster: str) -> Optional[str]:
-    """The biologist's confirmed NEW cell-type call for a cluster (from a firing
-    ``celltype_override`` note), or None. Display overlay only; never mutates the verdict."""
-    ov = _override_notes().get(cluster)
-    if ov is None:
-        return None
-    return (getattr(ov, "subject_cell_type", "") or "").strip() or None
-
-
 def display_cell_type(cluster: str) -> str:
     """The cell type to SHOW for a cluster: the confirmed override if there is one, else
     the computed call. Reflects an override across the marker rail + Pathways tabs."""
-    return _override_call(cluster) or verdict_for(cluster).cell_type
+    return compose.override_call(cluster) or verdict_for(cluster).cell_type
 
 
 def display_verdict_for(cluster: str) -> ClusterVerdict:
@@ -491,7 +452,7 @@ def display_verdict_for(cluster: str) -> ClusterVerdict:
     import dataclasses
 
     v = verdict_for(cluster)
-    ov = _override_notes().get(cluster)
+    ov = compose.override_notes().get(cluster)
     call = (getattr(ov, "subject_cell_type", "") or "").strip() if ov else ""
 
     # A signed-off call is adjudicated, so its re-check flag clears -- the same
@@ -541,7 +502,7 @@ def override_info(cluster: str) -> "Optional[dict]":
     """For a cluster with a confirmed cell-type override: the new call, the computed
     call it replaces, the note id, and the literature agree/dissent counts — so the UI
     shows the override with the tension visible. None if there is no override."""
-    ov = _override_notes().get(cluster)
+    ov = compose.override_notes().get(cluster)
     if ov is None:
         return None
     computed = verdict_for(cluster)
@@ -570,63 +531,31 @@ def verdict_csv() -> str:
 
 
 @_cache_data(show_spinner=False)
-def _celltype_notes_on_disk() -> dict:
-    """The raw file read, cached. Filtering happens in :func:`celltype_notes`."""
+def celltype_notes() -> dict:
+    """Per-cluster cell-type summary notes, as the notes stage wrote them (cached).
+
+    Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
+    the pipeline notes stage has not run. Each summary is a short, grounded,
+    live-cited description of the cell type (never fabricated). Read one through
+    :func:`celltype_note_for`, which drops a note written about another call.
+    """
     from panoscope.pipeline import store
 
     return store.load_celltype_notes()
 
 
-def celltype_notes() -> dict:
-    """Per-cluster cell-type summary notes, DROPPED where the call has moved.
-
-    Shape ``{cluster: {cell_type, summary, pmid, citation, verify}}``; ``{}`` when
-    the pipeline notes stage has not run. Each summary is a short, grounded,
-    live-cited description of the cell type (never fabricated).
-
-    **Why the filter.** Each note records the ``cell_type`` it describes, and
-    nothing read it. When the biologist overrode c3 from Macrophages to Dendritic,
-    the Summary table and both exported documents kept the macrophage paragraph and
-    its PMID under a heading that now read Dendritic -- a real citation attributed
-    to a call it was never about, which is worse than no citation. The guard data
-    was sitting in the note the whole time.
-
-    Dropped rather than relabelled: the honest state after an override is that this
-    study has no cited biology for the new call yet. Writing one would be inventing
-    it, and the interface contract says a sentence with nothing behind it should not
-    render at all.
-
-    NOT cached, for ``composed_verdicts``' reason: overrides arrive at runtime, and
-    a cached answer here would serve the pre-override note for the rest of the
-    session.
-    """
-    return _celltype_notes_on_disk()
-
-
 def celltype_note_for(verdict: Any) -> dict:
     """This verdict's cell-type note, or ``{}`` when the note describes another call.
-
-    Every note records the ``cell_type`` it was written about, and nothing read it.
-    Override c3 from Macrophages to Dendritic and the Summary table and both
-    exported documents kept the macrophage paragraph and its PMID under a heading
-    that now read Dendritic -- a real citation attributed to a call it was never
-    about, which is worse than no citation. The guard data was in the note already.
 
     Matched against the verdict BEING RENDERED rather than against the override
     note, because the two are not the same question: ``_table_html`` can be handed
     either composed or uncomposed verdicts, and filtering on the override alone
-    blanks the biology for a row whose heading still shows the original call.
-
-    Returns ``{}`` rather than a relabelled note: the honest state after an override
-    is that this study has no cited biology for the new call yet, and writing one
-    would be inventing it.
+    blanks the biology for a row whose heading still shows the original call. The
+    guard itself is ``report._celltype_note_for``.
     """
-    note = (_celltype_notes_on_disk().get(getattr(verdict, "cluster", "")) or {})
-    if not note:
-        return {}
-    described = str(note.get("cell_type") or "").strip().casefold()
-    showing = str(getattr(verdict, "cell_type", "") or "").strip().casefold()
-    return note if (not described or described == showing) else {}
+    from panoscope.ui import report
+
+    return report._celltype_note_for(celltype_notes(), verdict)
 
 
 def holistic():
@@ -644,7 +573,7 @@ def holistic():
     two incompatible claims about one cluster, and the wrong one was the
     biologist's own call being overruled in silence.
     """
-    overrides = _override_notes()
+    overrides = compose.override_notes()
     if not overrides:
         return _holistic_computed()
     from panoscope.agent import holistic as agent_holistic
@@ -707,10 +636,7 @@ def enrichment_for(cluster: str):
     """Enrichment verdict for one cluster (persisted tree first, else live)."""
     from panoscope.agent import enrichment as agent_enrichment
 
-    from panoscope.pipeline import store
-
-    persisted = store.load_enrichment(cluster)
-    return persisted if persisted is not None else agent_enrichment.enrichment_for_cluster(cluster)
+    return agent_enrichment.load_or_compute(cluster)
 
 
 @_cache_data(show_spinner=False)

@@ -59,9 +59,6 @@ class UndeclaredSamples(UndeclaredClustering):
     """
 
 
-_CHUNK: Final[int] = 1 << 20
-
-
 def digest(path: str | Path) -> str:
     """sha256 over the file's BYTES, for ``ReadingRecord.sha256``.
 
@@ -71,15 +68,12 @@ def digest(path: str | Path) -> str:
     digest taken over the frame, and the golden record would then report an input
     change that never happened.
 
-    Chunked because a store's tables are not guaranteed small, and reading one whole
-    file into memory to hash it is how a reader that works on the 280-gene demo
-    falls over on a real transcriptome.
+    Streamed (``hashlib.file_digest``) because a store's tables are not guaranteed
+    small, and reading one whole file into memory to hash it is how a reader that
+    works on the 280-gene demo falls over on a real transcriptome.
     """
-    h = hashlib.sha256()
     with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(_CHUNK), b""):
-            h.update(chunk)
-    return h.hexdigest()
+        return hashlib.file_digest(fh, "sha256").hexdigest()
 
 
 def declared_clustering(samples: Sequence[str], declared: str | None,

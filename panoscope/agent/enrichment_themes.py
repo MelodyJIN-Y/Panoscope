@@ -24,7 +24,8 @@ _RECUR_MIN_CLUSTERS = 2   # enriched in >= 2 clusters to count as a recurring th
 _TOP_PER_CLUSTER = 3      # top enriched programs named per cluster
 
 
-def _short(gene_set: str) -> str:
+def pretty_gene_set(gene_set: str) -> str:
+    """``HALLMARK_TNFA_SIGNALING_VIA_NFKB`` -> ``Tnfa Signaling Via Nfkb``."""
     return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
@@ -70,7 +71,7 @@ class PathwayThemes:
 def _per_cluster_lines(enrichments: list[ClusterEnrichment]) -> tuple[ClusterThemeLine, ...]:
     lines = []
     for ce in enrichments:
-        top = tuple(_short(p.gene_set) for p in ce.enriched[:_TOP_PER_CLUSTER])
+        top = tuple(pretty_gene_set(p.gene_set) for p in ce.enriched[:_TOP_PER_CLUSTER])
         lines.append(
             ClusterThemeLine(
                 cluster=ce.cluster,
@@ -126,7 +127,7 @@ def _coherence_notes(
     # (b) recurring programs (grounded counts)
     if recurring:
         parts = [
-            f"{_short(t.gene_set)} across {', '.join(t.clusters)} ({', '.join(dict.fromkeys(t.cell_types))})"
+            f"{pretty_gene_set(t.gene_set)} across {', '.join(t.clusters)} ({', '.join(dict.fromkeys(t.cell_types))})"
             for t in recurring[:3]
         ]
         notes.append("Programs shared across clusters: " + "; ".join(parts) + ".")

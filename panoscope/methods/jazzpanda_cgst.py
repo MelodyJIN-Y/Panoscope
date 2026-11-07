@@ -46,6 +46,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from panoscope.core.measure import Reading, measure_unit
+from panoscope.methods import _table
 from panoscope.types.contracts import PlatformAdapter, UnitSpec, UnrecognisedResult
 from panoscope.types.evidence import NormalisedEvidence
 from panoscope.types.measured import (
@@ -78,9 +79,9 @@ UNIT_COLUMN: str = "cluster"
 #: restrictively-licensed collection as the source of four invented sets
 #: (SYNSET_ALPHA/BETA/GAMMA/DELTA), in the study whose reason for existing is that
 #: nothing licensed is bundled. ``agent/enrichment.py`` derives the same thing for
-#: the record; the table is deliberately a second copy rather than an import,
-#: for the reason :func:`_columns` gives -- a method module is an independent
-#: declaration, and ``methods/`` does not import from ``agent/`` at all.
+#: the record; the table is deliberately a second copy rather than an import:
+#: a method module is an independent declaration, and ``methods/`` does not
+#: import from ``agent/`` at all.
 COLLECTION_BY_SET_PREFIX: tuple[tuple[str, str], ...] = (
     ("HALLMARK_", "MSigDB_Hallmark"),
 )
@@ -142,39 +143,6 @@ def _split(cell: Any) -> tuple[str, ...]:
     if not s or s.lower() in ("nan", "na"):
         return ()
     return tuple(g.strip() for g in s.split(",") if g.strip())
-
-
-def _columns(table: Any) -> tuple[str, ...]:
-    """Column names off anything table-shaped, without importing a table library.
-
-    Deliberately a second copy of ``jazzpanda.py``'s reader rather than an import of
-    it. A method module is an independent declaration -- the registries have no
-    shared ancestor on purpose -- and importing another method's private schema
-    reader would mean a change to jazzPanda's table handling silently changing what
-    this method reads.
-    """
-    cols = getattr(table, "columns", None)
-    if cols is not None:
-        return tuple(str(c) for c in cols)
-    if isinstance(table, (list, tuple)) and table and isinstance(table[0], dict):
-        return tuple(str(k) for k in table[0])
-    raise UnrecognisedResult(
-        f"cannot read column names off a {type(table).__name__}; the jazzPanda "
-        f"gene-set result is a table with columns {list(REQUIRED_COLUMNS)}"
-    )
-
-
-def _rows(table: Any) -> tuple[dict[str, Any], ...]:
-    """Rows as plain dicts, in the table's own order. Never re-sorted.
-
-    The order is the method's (``test_statistic`` descending within a cluster) and
-    the census header reads the first item as the top program; re-sorting here would
-    have to place the sets carrying no statistic somewhere arbitrary.
-    """
-    to_dict = getattr(table, "to_dict", None)
-    if to_dict is not None:
-        return tuple(to_dict(orient="records"))
-    return tuple(dict(r) for r in table)
 
 
 def _in_frame(symbols: tuple[str, ...], world: MeasuredWorld) -> int:
@@ -273,14 +241,16 @@ class JazzPandaCGST:
     # ----------------------------------------------------------------------- #
     def detect_unit(self, table: Any) -> UnitSpec:
         """Read the unit kind and ids FROM THE SCHEMA, never from a caller's say-so."""
-        cols = _columns(table)
+        cols = _table.columns(
+            table, "the jazzPanda gene-set result is a table with columns "
+                   f"{list(REQUIRED_COLUMNS)}")
         missing = [c for c in REQUIRED_COLUMNS if c not in cols]
         if missing:
             raise UnrecognisedResult(
                 f"{self.name}: not a jazzPanda gene-set result -- missing column(s) "
                 f"{missing}; saw {list(cols)}"
             )
-        seen = {str(r[UNIT_COLUMN]).strip() for r in _rows(table)}
+        seen = {str(r[UNIT_COLUMN]).strip() for r in _table.rows(table)}
         return UnitSpec(
             unit_kind=UNIT_KIND,
             unit_column=UNIT_COLUMN,
@@ -308,7 +278,7 @@ class JazzPandaCGST:
         tr = Trace()
         table = pd.read_csv(path)
         spec = self.detect_unit(table)
-        rows = _rows(table)
+        rows = _table.rows(table)
 
         world = MeasuredWorld(
             tuple(adapter.frames(store)) + (self.scored_frame(table),))
@@ -349,7 +319,7 @@ class JazzPandaCGST:
         states exist to stop, and it would happen in the rival test, where it matters
         most. ``load`` uses this, so there is one spelling of the frame name.
         """
-        scored = frozenset(str(r["gene_set"]).strip() for r in _rows(table))
+        scored = frozenset(str(r["gene_set"]).strip() for r in _table.rows(table))
         return Frame(EntityKind.GENE_SET,
                      f"collection:{_collection(scored)}", scored)
 

@@ -27,6 +27,7 @@ from typing import Any, Optional
 
 from panoscope.agent import config as cfg
 from panoscope.agent import discriminate
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent.types import ClusterVerdict, MarkerEvidence, Note
 
 # --------------------------------------------------------------------------- #
@@ -273,10 +274,8 @@ def _celltype_note_for(celltype_notes: dict, v) -> dict:
     carrying no citation at all. The guard data was in the note the whole time.
 
     Empty rather than relabelled: after an override this study has no cited biology
-    for the new call yet, and writing one would be inventing it. ``ui.data_access``
-    carries the same guard for the on-screen table; the check is duplicated rather
-    than imported because this module builds documents from plain dicts and must
-    stay usable without the cached UI layer.
+    for the new call yet, and writing one would be inventing it. The on-screen
+    table reads it too, through ``ui.data_access.celltype_note_for``.
     """
     note = celltype_notes.get(getattr(v, "cluster", "")) or {}
     if not note:
@@ -310,7 +309,7 @@ def _enrichment_block(ce, pathway_notes_for_cluster: dict,
         return "", ce.census_line + flag
     bits: list[str] = []
     for p in ce.enriched[:4]:
-        short = p.gene_set.replace("HALLMARK_", "").replace("_", " ").title()
+        short = pretty_gene_set(p.gene_set)
         note = (pathway_notes_for_cluster or {}).get(p.gene_set) or {}
         # The SAME guard the celltype note gets. A pathway note records the
         # cell_type it was written about, and this block did not read it -- so
@@ -455,21 +454,6 @@ def build_report(
     )
 
 
-def _dataset_tissue_platform(dataset: str) -> tuple[str, str]:
-    """Read (tissue, platform) from the dataset manifest for the report header.
-
-    Grounded context, straight from the data; ('', '') if the manifest is unreadable."""
-    try:
-        import json
-
-        from panoscope.pipeline import paths
-
-        m = json.loads((paths.dataset_dir(dataset) / "manifest.json").read_text(encoding="utf-8"))
-        return str(m.get("tissue", "")).strip(), str(m.get("platform", "")).strip()
-    except Exception:  # noqa: BLE001 - a missing manifest just means a plainer header
-        return "", ""
-
-
 def _dataset_undecidables(dataset: str) -> dict:
     """``{cluster: (sentence, ...)}`` off the v2 records, for the report's caveats.
 
@@ -610,7 +594,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
     except Exception:  # noqa: BLE001 - no enrichment slice -> marker-only report
         enrichments, pathway_notes = {}, {}
 
-    tissue, platform = _dataset_tissue_platform(cfg.DATASET_ID)
+    tissue, platform = da.tissue_platform()
     prov = _provenance(cfg.DATASET_ID)
     return build_report(
         verdicts=da.composed_verdicts(),  # reflect confirmed overrides/excludes in the report
@@ -1066,10 +1050,6 @@ def _working_lines(
     return lines
 
 
-def _short_set(gene_set: str) -> str:
-    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
-
-
 def global_check_text(holistic, themes) -> str:
     """Cross-cluster global check: does the whole set cohere? Marker coherence +
     the one refinement + the enrichment programs that recur across clusters. Every
@@ -1083,7 +1063,7 @@ def global_check_text(holistic, themes) -> str:
             )
     if themes is not None and getattr(themes, "recurring", ()):
         bits = [
-            f"{_short_set(t.gene_set)} (in {t.n_clusters} clusters: {', '.join(t.clusters)})"
+            f"{pretty_gene_set(t.gene_set)} (in {t.n_clusters} clusters: {', '.join(t.clusters)})"
             for t in themes.recurring[:4]
         ]
         paras.append(

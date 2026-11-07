@@ -42,9 +42,10 @@ import json
 import pytest
 
 from panoscope.agent import config as cfg
-from panoscope.agent import enrichment as EN
 from panoscope.agent import verdict as V
+from panoscope.core.export import PROFILES
 from panoscope.pipeline import serialize, store
+from panoscope.types.outputs import TaskKind
 from tests import golden_projection as G
 
 
@@ -178,7 +179,7 @@ def test_projection_covers_the_enrichment_workflow(projection) -> None:
     """
     enrichment = projection["enrichment"]
     assert sorted(enrichment) == sorted(cfg.CLUSTER_ORDER)
-    assert projection["enrichment_csv_columns"] == list(EN.ENRICHMENT_CSV_COLUMNS)
+    assert projection["enrichment_csv_columns"] == list(PROFILES[TaskKind.CHARACTERISATION].names)
 
     surfaced = 0
     for cluster, e in enrichment.items():

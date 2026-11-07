@@ -65,10 +65,6 @@ class SkepticReport:
     source_trace: tuple[str, ...]
 
 
-def _label(cell_type: str) -> str:
-    return cell_type.replace("_", " ")
-
-
 def _supporting(verdict: ClusterVerdict) -> tuple[MarkerEvidence, ...]:
     """This cluster's supporting drivers, strongest first.
 
@@ -146,7 +142,7 @@ def second_opinion(cluster: str) -> SkepticReport:
     # the call) nor which were never measured at all. All three are reported on
     # every verdict; effects are unchanged, so ``survives`` is untouched.
     if d.alt_B is not None:
-        B = _label(d.alt_B)
+        B = disc._label(d.alt_B)
         if d.b_here:
             genes = ", ".join(
                 f"{m.gene} (glm_coef {m.glm_coef:.2f})" for m in d.b_here if m.glm_coef is not None
@@ -161,10 +157,8 @@ def second_opinion(cluster: str) -> SkepticReport:
             for m in d.b_here:
                 trace.append(f"jz:{m.gene}:glm_coef={m.glm_coef:.6f}")
         if d.b_elsewhere:
-            by_cluster: dict[str, list[str]] = {}
-            for m in d.b_elsewhere:
-                by_cluster.setdefault(m.top_cluster or "NoSig", []).append(m.gene)
-            where = "; ".join(f"{', '.join(g)}->{cl}" for cl, g in by_cluster.items())
+            where = "; ".join(f"{', '.join(g)}->{cl}"
+                              for cl, g in disc._by_cluster(d.b_elsewhere).items())
             challenges.append(
                 SkepticChallenge(
                     kind="checked",
@@ -228,7 +222,7 @@ def _verdict_line(
     challenges: list[SkepticChallenge],
     survives: bool,
 ) -> str:
-    A = _label(call)
+    A = disc._label(call)
     if survives:
         if support:
             top = support[0]
@@ -249,7 +243,7 @@ def _verdict_line(
 def skeptic_summary(report: SkepticReport) -> str:
     """Grounded prose block for a CLI/demo: the challenges, then the verdict."""
     marks = {"weakens": "-", "supports": "+", "neutral": "o"}
-    lines = [f"Second opinion on {report.cluster} ({_label(report.call)}):"]
+    lines = [f"Second opinion on {report.cluster} ({disc._label(report.call)}):"]
     for c in report.challenges:
         lines.append(f"  [{marks.get(c.effect, '?')}] {c.detail}")
     lines.append("")

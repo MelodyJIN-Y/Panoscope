@@ -226,36 +226,9 @@ def _tissue_layout(go_mod: Any, *, height: int = _TISSUE_HEIGHT) -> Any:
     ``autoScale2d`` is removed from the toolbar (see ``_PLOT_CONFIG``) so the user
     cannot unlock the ratio.
     """
-    axis_x = dict(
-        showgrid=False,
-        zeroline=False,
-        showticklabels=False,
-        ticks="",
-        visible=False,
-        fixedrange=True,       # view locked — no zoom/pan (hover still works)
-    )
-    axis_y = dict(
-        showgrid=False,
-        zeroline=False,
-        showticklabels=False,
-        ticks="",
-        visible=False,
-        scaleanchor="x",       # lock 1 µm on y to 1 µm on x — never stretch tissue
-        scaleratio=1,
-        autorange="reversed",  # tissue reads top-down like the slide
-        fixedrange=True,       # view locked — no zoom/pan
-    )
-    return go_mod.Layout(
-        height=height,
-        margin=dict(l=8, r=8, t=8, b=8),
-        paper_bgcolor=_PLOT_BG,
-        plot_bgcolor=_PLOT_BG,
-        xaxis=axis_x,
-        yaxis=axis_y,
-        showlegend=False,
-        font=dict(family="Space Grotesk, system-ui, sans-serif"),
-        dragmode=False,
-    )
+    lay = _base_layout(go_mod, showlegend=False, height=height, equal_aspect=True)
+    lay.yaxis.autorange = "reversed"  # tissue reads top-down like the slide
+    return lay
 
 
 # Plotly display config: the view is LOCKED (no zoom, pan or toolbar); hover stays on.
@@ -470,42 +443,9 @@ def _render_cell_map(cluster: str) -> None:
 
     sel_mask = cells["cluster"] == cluster
     view = _downsample_bg(cells, sel_mask, _MAX_BG_POINTS)
-    view = view.assign(
-        cell_type=view["cluster"].map(_cluster_celltype_map()).fillna("unassigned")
-    )
-    sel = view[view["cluster"] == cluster]
-    bg = view[view["cluster"] != cluster]
 
     fig = go.Figure(layout=_tissue_layout(go))
-
-    # Background: all other clusters, muted. Hovering any cell shows its cell type.
-    fig.add_trace(
-        go.Scattergl(
-            x=bg["x"],
-            y=bg["y"],
-            mode="markers",
-            marker=dict(size=1.6, color=_FADE_COLOR, opacity=0.55),
-            customdata=bg["cell_type"],
-            hovertemplate="%{customdata}<extra></extra>",
-            showlegend=False,
-            name="other clusters",
-        )
-    )
-    # Foreground: the selected cluster filled with its own palette colour (no
-    # outline — just the filled points). Hover shows the cell type.
-    sel_color = fmt.cluster_color(cluster)
-    fig.add_trace(
-        go.Scattergl(
-            x=sel["x"],
-            y=sel["y"],
-            mode="markers",
-            marker=dict(size=2.4, color=sel_color, opacity=0.95),
-            customdata=sel["cell_type"],
-            hovertemplate="%{customdata}<extra></extra>",
-            showlegend=False,
-            name=cluster,
-        )
-    )
+    _selected_vs_rest(fig, go, view, cluster, "x", "y", bg_opacity=0.55)
 
     cnd.render_panel(
         fig,
@@ -513,7 +453,7 @@ def _render_cell_map(cluster: str) -> None:
             cluster=cluster,
             n_total=len(cells),
             n_selected=int(sel_mask.sum()),
-            n_bg_drawn=len(bg),
+            n_bg_drawn=int((view["cluster"] != cluster).sum()),
             n_bg_total=int((~sel_mask).sum()),
         ),
         config=_PLOT_CONFIG,
@@ -527,7 +467,7 @@ def _render_cell_map(cluster: str) -> None:
 def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> None:
     """Scattergl in UMAP space (abstract — free aspect ratio via ``_base_layout``).
 
-    ``feature=False`` (Row 1): always cluster-coloured (``_umap_by_cluster``),
+    ``feature=False`` (Row 1): always cluster-coloured (``_selected_vs_rest``),
     selected cluster outlined.
     ``feature=True`` (a gene row): recolour by ``gene``'s per-cell expression
     (``marker_expr_col``) if exported (``_umap_feature``); if the gene has no
@@ -584,7 +524,7 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
 
     # Cluster-coloured UMAP: Row 1 default, or a gene row whose expression is
     # not exported (honest fallback).
-    _umap_by_cluster(fig, go, view, cluster)
+    _selected_vs_rest(fig, go, view, cluster)
     # Row-1 cluster UMAP: the caption was once removed for a cleaner grid. It is
     # back as a conditionality record, not a label — a UMAP that does not say it
     # is a layout reads as a measurement.
@@ -612,10 +552,13 @@ def _render_umap(cluster: str, *, feature: bool, gene: Optional[str] = None) -> 
         )
 
 
-def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> None:
+def _selected_vs_rest(
+    fig: Any, go: Any, view: pd.DataFrame, cluster: str,
+    x: str = "umap_1", y: str = "umap_2", *, bg_opacity: float = 0.5,
+) -> None:
     """Grey out every other cluster; fill the selected cluster with its own
-    palette colour (no outline). Mirrors the cell map's selected-vs-rest
-    treatment so the two Row-1 panels read the same way. Hovering any cell shows
+    palette colour (no outline). Shared by the cell map (``x``/``y``) and the
+    cluster UMAP so the two Row-1 panels read the same way. Hovering any cell shows
     its cell type (read from the authoritative key), not the opaque cell id."""
     view = view.assign(
         cell_type=view["cluster"].map(_cluster_celltype_map()).fillna("unassigned")
@@ -624,10 +567,10 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
     bg = view[view["cluster"] != cluster]
     fig.add_trace(
         go.Scattergl(
-            x=bg["umap_1"],
-            y=bg["umap_2"],
+            x=bg[x],
+            y=bg[y],
             mode="markers",
-            marker=dict(size=1.6, color=_FADE_COLOR, opacity=0.5),
+            marker=dict(size=1.6, color=_FADE_COLOR, opacity=bg_opacity),
             customdata=bg["cell_type"],
             hovertemplate="%{customdata}<extra></extra>",
             showlegend=False,
@@ -636,8 +579,8 @@ def _umap_by_cluster(fig: Any, go: Any, view: pd.DataFrame, cluster: str) -> Non
     )
     fig.add_trace(
         go.Scattergl(
-            x=sel["umap_1"],
-            y=sel["umap_2"],
+            x=sel[x],
+            y=sel[y],
             mode="markers",
             marker=dict(size=2.4, color=fmt.cluster_color(cluster), opacity=0.95),
             customdata=sel["cell_type"],

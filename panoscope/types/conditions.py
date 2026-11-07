@@ -115,6 +115,20 @@ DECLARED_UNKNOWN_OK: Final[tuple[str, ...]] = (
 )
 
 
+def gene_frames_admit(frames: tuple[FrameRef, ...]) -> bool:
+    """True when there is a GENE frame and EVERY one admits something.
+
+    The GENE frames, not the tuple's truthiness: a store declaring any ``clusters:``
+    frame keeps the tuple non-empty beside an empty or absent gene frame. And every
+    one, because a gene is in frame only when all of them admit it
+    (``measured._state_for``): one empty gene frame empties the measured set, every
+    absence then resolves to NEVER_MEASURED and the panel-absence rule discriminates
+    nothing -- §6.3's structural blocker.
+    """
+    genes = [f for f in frames if f.kind is EntityKind.GENE]
+    return bool(genes) and all(f.size for f in genes)
+
+
 @dataclass(frozen=True, slots=True)
 class Conditions:
     """The conditions a study was produced under. No defaults, by design.
@@ -133,19 +147,9 @@ class Conditions:
     frames: tuple[FrameRef, ...]   # replaces panel_hash + panel_genes
 
     def __post_init__(self) -> None:
-        # The GENE frames, not the tuple's truthiness. A store declaring any
-        # ``clusters:`` frame made the tuple non-empty, so this passed even when the
-        # gene capability frame was absent or admitted nothing -- a controls-only
-        # panel.parquet gives ``panel:`` size 0 beside a populated ``clusters:``,
-        # and §6.3's structural blocker could never fire.
-        #
-        # EVERY gene frame must admit something, because a gene is in frame only
-        # when all of them admit it (``measured._state_for``): one empty gene frame
-        # empties the measured set, and then every absence is NEVER_MEASURED and the
-        # panel-absence rule discriminates nothing -- which is what this refuses.
-        genes = [f for f in self.frames if f.kind is EntityKind.GENE]
-        if not genes or not all(f.size for f in genes):
-            empty = [f.name for f in genes if not f.size]
+        if not gene_frames_admit(self.frames):
+            empty = [f.name for f in self.frames
+                     if f.kind is EntityKind.GENE and not f.size]
             raise Blocked(
                 "the measured set is structural (§6.3): "
                 + (f"the gene frame(s) {', '.join(empty)} admit nothing"

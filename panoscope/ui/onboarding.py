@@ -21,11 +21,11 @@ from __future__ import annotations
 import base64
 import html
 import time
-from pathlib import Path
 
 import streamlit as st
 
 from panoscope.agent import profile as agent_profile
+from panoscope.ui import nav
 
 
 def _detected_tissue() -> str:
@@ -33,34 +33,18 @@ def _detected_tissue() -> str:
 
     Empty string if unreadable. This is the grounded tissue the agent reasons within;
     it is derived from the data, not typed by the biologist."""
-    try:
-        from panoscope.agent import config as cfg
+    from panoscope.ui import data_access as da
 
-        m = cfg.current_study().manifest
-        parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]
-        return " · ".join(p for p in parts if p)
-    except Exception:  # noqa: BLE001 - no manifest just means no detected-tissue chip
-        return ""
-
-_ASSETS = Path(__file__).resolve().parent.parent / "assets"
-_PAGE_KEY = "active_page"        # mirrors app.py's session page key
+    return " · ".join(p for p in da.tissue_platform() if p)
 
 
 # --------------------------------------------------------------------------- #
 # Navigation — each onboarding screen has its own dedicated ?page= name
 # --------------------------------------------------------------------------- #
 def _nav(page: str) -> None:
-    """Navigate to a named page (session + URL, mirroring app.py) and rerun."""
-    st.session_state[_PAGE_KEY] = page
-    st.query_params["page"] = page
+    """Navigate to a named page (session + URL, as app.py does) and rerun."""
+    nav.set_page(page)
     st.rerun()
-
-
-def _logo_uri(name: str) -> str:
-    path = _ASSETS / name
-    if not path.exists():
-        return ""
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
 
 
 # --------------------------------------------------------------------------- #
@@ -289,7 +273,7 @@ _HERO_TEXT = """
 def render_landing() -> None:
     """Landing page (?page=welcome)."""
     _css()
-    logo = _logo_uri("panoscope_logo.png")
+    logo = nav.logo_data_uri("panoscope_logo.png")
     mark = f'<img src="{logo}" alt=""/>' if logo else ""
     with st.container(key="pano_ob_landing"):
         st.markdown('<div class="pano-ob-atmos"></div>', unsafe_allow_html=True)

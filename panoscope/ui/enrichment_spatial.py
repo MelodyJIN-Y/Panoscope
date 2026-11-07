@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.ui import conditionality as cnd
 from panoscope.ui import data_access as da
 from panoscope.ui import state
@@ -47,10 +48,6 @@ from panoscope.ui.spatial_stage import (
     _unavailable,
     _unavailable_panel,
 )
-
-
-def _short(gene_set: str) -> str:
-    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
 def _n_with_density(genes: tuple[str, ...], bin_um: int) -> int:
@@ -189,7 +186,7 @@ def render_pathways_spatial(cluster: str, pathways: list) -> None:
     all_genes: list[str] = []
     for p in pathways:
         genes = tuple(p.leading_edge)
-        short = _short(p.gene_set)
+        short = pretty_gene_set(p.gene_set)
         r_left, r_right = st.columns(2, gap="medium")
         with r_left:
             _panel_title(f"<b>{short}</b> leading-edge transcript density")

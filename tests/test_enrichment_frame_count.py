@@ -38,7 +38,9 @@ import pytest
 
 from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as E
+from panoscope.core.export import PROFILES
 from panoscope.methods.jazzpanda_cgst import _in_frame, _split
+from panoscope.types.outputs import TaskKind
 
 # Same gate as tests/test_enrichment.py: the jazzPanda enrichment result is
 # unpublished and gitignored, so it may be absent on a fresh clone / CI.
@@ -200,7 +202,7 @@ def test_the_committed_enrichment_csv_has_counts_where_the_band_was():
         reader = csv.DictReader(fh)
         header = tuple(reader.fieldnames or ())
         rows = list(reader)
-    assert header == E.ENRICHMENT_CSV_COLUMNS
+    assert header == PROFILES[TaskKind.CHARACTERISATION].names
     assert "cluster_confidence" not in header
     assert rows, "the committed enrichment CSV has no rows"
     for row in rows:

@@ -528,14 +528,14 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         not_units=frozenset(str(v) for v in table[spec.unit_column]) - set(spec.units),
         # ``read_tidy`` re-reads the FILE, so filtering ``table`` above is not
         # enough on its own: without this the control rows come back in, enter the
-        # absence-enumeration universe, and are counted and named in
+        # entity universe, and are counted and named in
         # ``entities_outside_frame`` as genes the capability frames refused.
         not_subjects=controls,
         unit_detection_because=spec.because,
         # Store-relative: an absolute path in a hashed record makes byte-stability a
         # property of whose laptop produced it.
         record_path=str(path.relative_to(study.dir)),
-    ).value.record
+    ).value
 
     loaded = method.load(str(path), adapter, study)
     conc, conc_because, conc_uncomparable = _concordance(

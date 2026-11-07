@@ -783,19 +783,7 @@ class _Ledger:
             if not pmid:
                 continue
             self.pmids.append(pmid)
-            self.citations.append(
-                Citation(
-                    pmid=pmid,
-                    title=str(r.get("title", "")),
-                    authors=str(r.get("authors", "")),
-                    year=int(r["year"]) if str(r.get("year", "")).isdigit() else 0,
-                    journal=str(r.get("journal", "")),
-                    abstract=str(r.get("abstract", "")),
-                    url=str(r.get("url", ""))
-                    or (f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else ""),
-                    is_real=True,
-                )
-            )
+            self.citations.append(agent_tools._citation_from_mcp(r))
 
     def _record_notes(self, data: Any) -> None:
         if isinstance(data, dict) and isinstance(data.get("notes"), list):
@@ -829,26 +817,17 @@ class _Ledger:
         )
 
     def source_chips(self) -> tuple[Source, ...]:
-        # De-dup on the (kind, ref, value) identity, preserving order.
-        seen: set[tuple[str, str, Optional[str]]] = set()
-        out: list[Source] = []
+        # De-dup on the (kind, ref, value) identity, preserving order (first wins).
+        d: dict[tuple[str, str, Optional[str]], Source] = {}
         for s in self.sources:
-            key = (s.kind, s.ref, s.value)
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(s)
-        return tuple(out)
+            d.setdefault((s.kind, s.ref, s.value), s)
+        return tuple(d.values())
 
     def citation_tuple(self) -> tuple[Citation, ...]:
-        seen: set[str] = set()
-        out: list[Citation] = []
+        d: dict[str, Citation] = {}
         for c in self.citations:
-            if c.pmid in seen:
-                continue
-            seen.add(c.pmid)
-            out.append(c)
-        return tuple(out)
+            d.setdefault(c.pmid, c)
+        return tuple(d.values())
 
 
 # --------------------------------------------------------------------------- #
@@ -947,8 +926,8 @@ class PanoscopeAgent:
             return None
         cell_type = cfg.CLUSTER_KEY[cluster]["cell_type"].replace("_", " ")
         query = f"{pin} {cell_type} marker"
-        env = self._safe_tool(
-            "literature_search", {"query": query, "max_results": _OPENING_LIT_MAX}
+        env = self._safe_dispatch(
+            "literature_search", {"query": query, "max_results": _OPENING_LIT_MAX}, cluster
         )
         if not env.get("ok"):
             return None
@@ -962,42 +941,12 @@ class PanoscopeAgent:
         if not self._verifier(pmid):
             return None
 
-        cite = Citation(
-            pmid=pmid,
-            title=str(top.get("title", "")),
-            authors=str(top.get("authors", "")),
-            year=int(top["year"]) if str(top.get("year", "")).isdigit() else 0,
-            journal=str(top.get("journal", "")),
-            url=str(top.get("url", "")) or f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-            is_real=True,
-        )
+        cite = agent_tools._citation_from_mcp({**top, "pmid": pmid})
         lit_line = (
             f" Literature: {pin} as a {cell_type} marker — PMID:{pmid}"
             f"{' (' + cite.title + ')' if cite.title else ''}."
         )
-        new_sidecar = GroundingSidecar(
-            numbers=op.grounding.numbers,
-            markers=op.grounding.markers,
-            pmids=op.grounding.pmids + (pmid,),
-            notes_used=op.grounding.notes_used,
-        )
-        lit_source = Source(
-            kind="lit",
-            ref=pmid,
-            value=cite.title,
-            detail=f"{cite.authors} ({cite.year}) {cite.journal}".strip(),
-        )
-        return AgentResponse(
-            text=op.text + lit_line,
-            sources=op.sources + (lit_source,),
-            verify=op.verify,
-            grounding=new_sidecar,
-            pin_marker=op.pin_marker,
-            citations=op.citations + (cite,),
-            note_written=None,
-            used_fallback=False,
-            opening=True,
-        )
+        return _with_citation(op, cite, lit_line)
 
     @staticmethod
     def _load_celltype_note(cluster: str) -> Optional[dict]:
@@ -1029,42 +978,12 @@ class PanoscopeAgent:
         op = base
         cinfo = note.get("citation") or {}
         cell_type = cfg.CLUSTER_KEY[cluster]["cell_type"].replace("_", " ")
-        cite = Citation(
-            pmid=pmid,
-            title=str(cinfo.get("title", "")),
-            authors=str(cinfo.get("authors", "")),
-            year=int(cinfo["year"]) if str(cinfo.get("year", "")).isdigit() else 0,
-            journal=str(cinfo.get("journal", "")),
-            url=str(cinfo.get("url", "")) or f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-            is_real=True,
-        )
+        cite = agent_tools._citation_from_mcp({**cinfo, "pmid": pmid})
         lit_line = (
             f" Literature: {cell_type} biology — PMID:{pmid}"
             f"{' (' + cite.title + ')' if cite.title else ''}."
         )
-        new_sidecar = GroundingSidecar(
-            numbers=op.grounding.numbers,
-            markers=op.grounding.markers,
-            pmids=op.grounding.pmids + (pmid,),
-            notes_used=op.grounding.notes_used,
-        )
-        lit_source = Source(
-            kind="lit",
-            ref=pmid,
-            value=cite.title,
-            detail=f"{cite.authors} ({cite.year}) {cite.journal}".strip(),
-        )
-        return AgentResponse(
-            text=op.text + lit_line,
-            sources=op.sources + (lit_source,),
-            verify=op.verify,
-            grounding=new_sidecar,
-            pin_marker=op.pin_marker,
-            citations=op.citations + (cite,),
-            note_written=None,
-            used_fallback=False,
-            opening=True,
-        )
+        return _with_citation(op, cite, lit_line)
 
     # -- chat --------------------------------------------------------------- #
     def chat(
@@ -1368,12 +1287,33 @@ class PanoscopeAgent:
         except Exception as exc:  # noqa: BLE001 - dispatch guards too; belt+braces
             return {"ok": False, "data": None, "sources": [], "error": f"{name} failed: {exc!r}"}
 
-    def _safe_tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
-        """Direct guarded tool call used by opening enrichment (no cluster inject)."""
-        try:
-            return agent_tools.dispatch(name, args)
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "data": None, "sources": [], "error": f"{name} failed: {exc!r}"}
+
+def _with_citation(op: AgentResponse, cite: Citation, lit_line: str) -> AgentResponse:
+    """The opening ``op`` with one real literature citation appended (its PMID in
+    the sidecar, a lit Source chip, and ``lit_line`` on the text)."""
+    new_sidecar = GroundingSidecar(
+        numbers=op.grounding.numbers,
+        markers=op.grounding.markers,
+        pmids=op.grounding.pmids + (cite.pmid,),
+        notes_used=op.grounding.notes_used,
+    )
+    lit_source = Source(
+        kind="lit",
+        ref=cite.pmid,
+        value=cite.title,
+        detail=f"{cite.authors} ({cite.year}) {cite.journal}".strip(),
+    )
+    return AgentResponse(
+        text=op.text + lit_line,
+        sources=op.sources + (lit_source,),
+        verify=op.verify,
+        grounding=new_sidecar,
+        pin_marker=op.pin_marker,
+        citations=op.citations + (cite,),
+        note_written=None,
+        used_fallback=False,
+        opening=True,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1443,20 +1383,15 @@ def _enrichment_verify_default(cluster: str) -> bool:
     should have said "re-check this" said nothing, which is the direction that
     looks safe.
 
-    Reads the persisted record first and falls back to computing it, the way
-    ``ui.data_access.enrichment_for`` does, and fails CLOSED for
+    Reads the persisted record first and falls back to computing it
+    (``enrichment.load_or_compute``), and fails CLOSED for
     ``_cluster_verify_default``'s reason: a rubric nobody could evaluate degrades
     to "a human should look", never to "no re-check needed".
     """
     try:
-        from panoscope.pipeline import store
-
-        persisted = store.load_enrichment(cluster)
-        if persisted is not None:
-            return bool(persisted.verify)
         from panoscope.agent import enrichment as _enrichment
 
-        return bool(_enrichment.enrichment_for_cluster(cluster).verify)
+        return bool(_enrichment.load_or_compute(cluster).verify)
     except Exception as exc:  # pragma: no cover
         print(f"[loop] enrichment verify rubric UNAVAILABLE for {cluster} ({exc}) — "
               f"failing closed to verify=True")

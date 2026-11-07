@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from panoscope.core.measure import Reading, measure_unit
+from panoscope.methods import _table
 from panoscope.types.contracts import PlatformAdapter, UnitSpec, UnrecognisedResult
 from panoscope.types.evidence import Direction, NormalisedEvidence
 from panoscope.types.measured import (
@@ -81,41 +82,6 @@ BAND_EDGES: tuple[tuple[str, float], ...] = (
     ("Medium", 0.263),       # 1.2x
     ("Low", 0.0),
 )
-
-
-def _columns(table: Any) -> tuple[str, ...]:
-    """Column names off anything table-shaped, without importing a table library.
-
-    The same two shapes ``jazzpanda._columns`` reads, and the same refusal for the
-    rest: a method registered out of tree may hand up a polars frame or a list of
-    dicts, and duck-typing further is how a wrong answer gets produced confidently.
-    """
-    cols = getattr(table, "columns", None)
-    if cols is not None:
-        return tuple(str(c) for c in cols)
-    if isinstance(table, (list, tuple)) and table and isinstance(table[0], dict):
-        return tuple(str(k) for k in table[0])
-    raise UnrecognisedResult(
-        f"cannot read column names off a {type(table).__name__}; Seurat's "
-        f"FindAllMarkers output is a table with columns {list(REQUIRED_COLUMNS)}"
-    )
-
-
-def _rows(table: Any) -> tuple[dict[str, Any], ...]:
-    """Rows as plain dicts, in the table's own order. Never re-sorted.
-
-    Seurat orders within a cluster by adjusted p-value and effect size, and that
-    order is hashed into the record downstream. Row order in a CSV is not a fact
-    about the study, but re-sorting it here would be a second, invented one.
-    """
-    to_dict = getattr(table, "to_dict", None)
-    if to_dict is not None:
-        return tuple(to_dict(orient="records"))
-    return tuple(dict(r) for r in table)
-
-
-def _f(row: dict[str, Any], key: str) -> float:
-    return float(row.get(key, 0.0) or 0.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,7 +167,9 @@ class SeuratDE:
         cluster-vs-rest shape -- a ``cluster`` column -- and refuses anything else,
         rather than guessing that a ``condition`` column means the same thing.
         """
-        cols = _columns(table)
+        cols = _table.columns(
+            table, "Seurat's FindAllMarkers output is a table with columns "
+                   f"{list(REQUIRED_COLUMNS)}")
         missing = [c for c in REQUIRED_COLUMNS if c not in cols]
         if missing:
             raise UnrecognisedResult(
@@ -210,7 +178,7 @@ class SeuratDE:
                 "something other than a cluster asks a different question and must "
                 "register its own method rather than be read by this one."
             )
-        seen = {str(r["cluster"]) for r in _rows(table)}
+        seen = {str(r["cluster"]) for r in _table.rows(table)}
         return UnitSpec(
             unit_kind=UNIT_KIND,
             unit_column="cluster",
@@ -247,7 +215,7 @@ class SeuratDE:
         world = MeasuredWorld(adapter.frames(store))
         conditions = adapter.standing_conditions(store)
         samples = tuple(adapter.samples(store))
-        rows = _rows(table)
+        rows = _table.rows(table)
 
         replicates = Coverage(REPLICATE_COVERAGE, k=len(samples), n=len(samples),
                               floor=REPLICATE_FLOOR)
@@ -292,8 +260,8 @@ class SeuratDE:
             statistic=fc,
             statistic_name=self.statistic_name,
             direction=Direction.UP if fc >= 0 else Direction.DOWN,
-            corroborating=tuple((c, _f(row, c)) for c in CORROBORATING_COLUMNS
-                                if c in row),
+            corroborating=tuple((c, _table.as_float(row, c))
+                                for c in CORROBORATING_COLUMNS if c in row),
         )
 
     def absence_reads_as(self, subject: Subject, measured: Measured) -> str:

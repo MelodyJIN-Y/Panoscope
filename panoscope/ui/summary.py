@@ -32,6 +32,7 @@ import html
 import math
 
 from panoscope.agent import config as cfg
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent.types import ClusterVerdict
 
 from panoscope.ui import data_access as da
@@ -322,8 +323,6 @@ div[class*="st-key-sofcard_"] { border: 1px solid var(--hair); border-radius: 11
 # --------------------------------------------------------------------------- #
 # Small pure HTML cell builders (grounded projections — no value invented).
 # --------------------------------------------------------------------------- #
-def _short(gene_set: str) -> str:
-    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
 # --------------------------------------------------------------------------- #
@@ -730,7 +729,7 @@ def _enrichment_evidence_table_html(ce, notes: dict = None) -> str:
     head = "".join(f"<th>{html.escape(lbl)}</th>" for lbl, _ in cols)
     rows = []
     for p, tier in graded:
-        name = (f'<span class="pano-sum-ct">{html.escape(_short(p.gene_set))}</span>'
+        name = (f'<span class="pano-sum-ct">{html.escape(pretty_gene_set(p.gene_set))}</span>'
                 f'<span class="pano-tier {tier}">{tier}</span>')
         le = " · ".join(html.escape(g) for g in p.leading_edge[:8]) or "—"
         rows.append(

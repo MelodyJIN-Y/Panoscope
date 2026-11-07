@@ -23,6 +23,7 @@ from __future__ import annotations
 import html
 from typing import Any, Optional
 
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.ui import conversation as convo
 from panoscope.ui import data_access as da
 from panoscope.ui import state
@@ -33,10 +34,6 @@ _K_ASK = "pwconv_ask_input"
 
 def _thread_key(cluster: str) -> str:
     return f"pw::{cluster}"
-
-
-def _short(gene_set: str) -> str:
-    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
 def _ce(cluster: str) -> Optional[Any]:
@@ -64,7 +61,9 @@ def render_pathway_conversation(cluster: str) -> None:
         unsafe_allow_html=True,
     )
     with st.container(key="conv_thread"):
-        _render_thread(cluster)
+        convo._render_thread(
+            _thread_key(cluster), "Enrichment summary loads when a cluster is selected."
+        )
     _process_pending(cluster)
     # Same two-tap confirm card as the marker chat, on this cluster's pathway thread —
     # so a program_reinterpretation captured here never collides with the marker draft.
@@ -91,16 +90,10 @@ def _render_header(cluster: str) -> None:
                 "Clear",
                 key=f"pwconv_clear_{cluster}",
                 width="stretch",
-                on_click=_clear,
-                args=(cluster,),
+                on_click=convo._clear_conversation,
+                args=(_thread_key(cluster),),
                 help="Clear this cluster's pathway chat and re-post its opening summary",
             )
-
-
-def _clear(cluster: str) -> None:
-    key = _thread_key(cluster)
-    state.clear_chat_thread(key)
-    state.reset_opening_posted(key)
 
 
 # --------------------------------------------------------------------------- #
@@ -109,15 +102,8 @@ def _clear(cluster: str) -> None:
 def _ensure_opening(cluster: str) -> None:
     key = _thread_key(cluster)
     call = da.display_cell_type(cluster)
-    if state.opening_was_posted(key):
-        # The same rule as the marker pane: an override after the opening was
-        # posted left this bubble reading "c2 Stromal: 3 supported ..." beside a
-        # header saying CAF. The transcript is not rewritten -- a fresh opening
-        # is appended and the old one stays above it. A thread restored from
-        # disk reports no call (None) and is left alone, being history.
-        posted_for = state.opening_posted_call(key)
-        if posted_for is None or posted_for == call:
-            return
+    if not state.opening_needed(key, call):
+        return
     text, pmids, verify = _opening_text(cluster)
     state.append_message(key, {"role": "agent", "text": text, "resp": _opening_resp(pmids, verify)})
     state.mark_opening_posted(key, call)
@@ -159,9 +145,9 @@ def _opening_text(cluster: str) -> tuple[str, list[str], bool]:
         scope = (f" [{p.panel_hits}/{p.set_size_full} set genes on panel]"
                  if p.panel_hits and p.set_size_full else "")
         if summ:
-            progs.append(f"{_short(p.gene_set)}{scope}: {summ}{cite}")
+            progs.append(f"{pretty_gene_set(p.gene_set)}{scope}: {summ}{cite}")
         else:
-            progs.append(f"{_short(p.gene_set)}{scope} "
+            progs.append(f"{pretty_gene_set(p.gene_set)}{scope} "
                          f"(leading edge {', '.join(p.leading_edge[:4])})")
     if progs:
         parts.append("Top programs — " + "  ".join(progs))
@@ -188,27 +174,6 @@ def _opening_resp(pmids: list[str], verify: bool):
 # --------------------------------------------------------------------------- #
 # Thread + ask box (reuse the marker conversation's bubble chrome)
 # --------------------------------------------------------------------------- #
-def _render_thread(cluster: str) -> None:
-    import streamlit as st
-
-    thread = state.get_chat_thread(_thread_key(cluster))
-    if not thread:
-        st.markdown(
-            '<div class="turn a"><div class="bubble a">Enrichment summary loads when a '
-            "cluster is selected.</div></div>",
-            unsafe_allow_html=True,
-        )
-        return
-    for msg in thread:
-        role = msg.get("role", "agent")
-        if role == "user":
-            convo._render_user_bubble(msg.get("text", ""))
-        elif role == "system":
-            convo._render_system_bubble(msg.get("text", ""))
-        else:
-            convo._render_agent_bubble(msg)
-
-
 def _render_ask_box(cluster: str) -> None:
     import streamlit as st
 
@@ -265,7 +230,7 @@ _FALLBACK_TEXT = (
 
 def _run_turn(cluster: str, query: str) -> None:
     key = _thread_key(cluster)
-    resp = _safe_chat(cluster, query)
+    resp = convo._safe_chat(cluster, query, thread_key=key, skill=_SKILL)
     # The shared agent's fallback is marker-flavored (a cell-type verdict); for a
     # pathway question that is off-topic, so substitute an honest enrichment reply.
     text = _FALLBACK_TEXT if getattr(resp, "used_fallback", False) else resp.text
@@ -275,24 +240,3 @@ def _run_turn(cluster: str, query: str) -> None:
     # this pathway thread so the confirm card renders; nothing saves until confirmed.
     if keep is not None and getattr(resp, "note_draft", None) is not None:
         state.set_pending_draft(key, resp.note_draft)
-
-
-def _safe_chat(cluster: str, query: str):
-    history = _history(cluster)
-    try:
-        return da.get_agent().chat(query, cluster=cluster, history=history, skill=_SKILL)
-    except Exception:  # noqa: BLE001 - the agent has its own fallback; belt + braces
-        from panoscope.agent import loop as agent_loop
-
-        return agent_loop.chat(query, cluster=cluster, skill=_SKILL)
-
-
-def _history(cluster: str) -> list[dict]:
-    out: list[dict] = []
-    for msg in state.get_chat_thread(_thread_key(cluster)):
-        role = msg.get("role")
-        if role == "user":
-            out.append({"role": "user", "content": msg.get("text", "")})
-        elif role == "agent":
-            out.append({"role": "assistant", "content": msg.get("text", "")})
-    return out

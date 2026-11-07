@@ -29,13 +29,13 @@ loop — it degrades to a fallback instead.
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, get_args
 
 from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.agent import discriminate
 from panoscope.agent import memory
-from panoscope.agent.types import Citation, Source
+from panoscope.agent.types import Basis, Citation, NoteType, Scope, Source, Status
 
 # --------------------------------------------------------------------------- #
 # Envelope helpers
@@ -651,10 +651,7 @@ def _draft_payload(draft) -> dict[str, Any]:
     }
 
 
-_NOTE_TYPES = (
-    "celltype_override", "marker_reinterpretation", "program_reinterpretation",
-    "marker_convention", "validation", "confidence_adjustment", "exclude", "cross_cluster",
-)
+_NOTE_TYPES = get_args(NoteType)
 
 
 def memory_draft(
@@ -684,9 +681,9 @@ def memory_draft(
     dataset = dataset or cfg.DATASET_ID
     if not claim or not str(claim).strip():
         return _fail("memory_draft requires a non-empty claim")
-    if scope not in ("cluster", "dataset", "lab"):
+    if scope not in get_args(Scope):
         return _fail(f"invalid scope {scope!r}; must be cluster|dataset|lab")
-    if basis not in ("paper", "own_validation", "convention"):
+    if basis not in get_args(Basis):
         return _fail(f"invalid basis {basis!r}; must be paper|own_validation|convention")
     if note_type not in _NOTE_TYPES:
         return _fail(f"invalid note_type {note_type!r}; must be one of {_NOTE_TYPES}")
@@ -1005,17 +1002,17 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 },
                 "scope": {
                     "type": "string",
-                    "enum": ["cluster", "dataset", "lab"],
+                    "enum": list(get_args(Scope)),
                     "description": "How widely the note applies.",
                 },
                 "basis": {
                     "type": "string",
-                    "enum": ["paper", "own_validation", "convention"],
+                    "enum": list(get_args(Basis)),
                     "description": "What the claim rests on.",
                 },
                 "status": {
                     "type": "string",
-                    "enum": ["firm", "tentative"],
+                    "enum": list(get_args(Status)),
                     "default": "firm",
                 },
                 "cluster": {

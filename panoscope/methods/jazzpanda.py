@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from panoscope.core.measure import Reading, measure_unit
+from panoscope.methods import _table
 # ``is_no_signal`` from the adapter, not a fifth private copy of ``!= NOSIG``.
 # A method importing a concrete platform is the wrong direction and is debt:
 # the sentinel is jazzPanda's own (``NOSIG`` below) while the predicate lives
@@ -112,25 +113,6 @@ def _flags_for(pearson: float, max_gc_corr: float, max_gg_corr: float) -> tuple[
     return tuple(out)
 
 
-def _columns(table: Any) -> tuple[str, ...]:
-    """Column names off anything table-shaped, without importing a table library.
-
-    ``MethodModule.detect_unit`` takes ``Any`` on purpose -- a method registered out
-    of tree may hand up a polars frame, a list of dicts or an arrow table -- so this
-    reads the two shapes that actually occur and refuses the rest rather than
-    duck-typing its way into a wrong answer.
-    """
-    cols = getattr(table, "columns", None)
-    if cols is not None:
-        return tuple(str(c) for c in cols)
-    if isinstance(table, (list, tuple)) and table and isinstance(table[0], dict):
-        return tuple(str(k) for k in table[0])
-    raise UnrecognisedResult(
-        f"cannot read column names off a {type(table).__name__}; jazzPanda's "
-        f"top_result is a table with columns {list(REQUIRED_COLUMNS)}"
-    )
-
-
 #: Columns that carry a measurement, and so must be finite when present.
 _STAT_COLUMNS = ("glm_coef", "pearson", "max_gg_corr", "max_gc_corr")
 
@@ -145,10 +127,7 @@ def _rows(table: Any) -> tuple[dict[str, Any], ...]:
     the first eligible canonical marker in caller order, so trusting the file's
     order gave the wrong driver, and therefore the wrong band, on 5 of 9 units.
     """
-    to_dict = getattr(table, "to_dict", None)
-    raw = (tuple(to_dict(orient="records")) if to_dict is not None
-           else tuple(dict(r) for r in table))
-    return _normalised(raw)
+    return _normalised(_table.rows(table))
 
 
 class MalformedMethodOutput(ValueError):
@@ -320,7 +299,9 @@ class JazzPandaSpatialGLM:
         release. The predicate is the adapter's, so there is one answer to "is this
         value the no-signal sentinel" in the whole codebase.
         """
-        cols = _columns(table)
+        cols = _table.columns(
+            table, "jazzPanda's top_result is a table with columns "
+                   f"{list(REQUIRED_COLUMNS)}")
         missing = [c for c in REQUIRED_COLUMNS if c not in cols]
         if missing:
             raise UnrecognisedResult(

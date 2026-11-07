@@ -279,15 +279,18 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
 
     # Hash every derived artifact for the manifest.
     artifacts: dict[str, dict[str, Any]] = {}
-    for v in verdicts:
-        p = paths.cluster_json(dataset_id, v.cluster, root)
+
+    def _hash(p: Path) -> None:
         artifacts[str(p.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(p)}
+
+    for v in verdicts:
+        _hash(paths.cluster_json(dataset_id, v.cluster, root))
     # The v2 records (§10) are hashed like everything else: they are the artifact
     # the reproducibility claim is about, and an unhashed one is a file nobody can
     # say arrived unchanged.
     recdir = paths.interp_dir(dataset_id, root) / "records"
     for p in sorted(recdir.rglob("*.json")):
-        artifacts[str(p.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(p)}
+        _hash(p)
     csvp = paths.verdicts_csv(dataset_id, root)
     artifacts[str(csvp.relative_to(ddir))] = {
         "sha256": manifest_mod.sha256_file(csvp),
@@ -317,17 +320,17 @@ def _run_scoped(dataset_id: str, ddir: Path, root: Optional[Path], notes: bool) 
     ):
         f = paths.interp_dir(dataset_id, root) / name
         if f.exists():
-            artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
+            _hash(f)
     # Per-cluster enrichment verdicts (second workflow), when built.
     for c in cfg.CLUSTER_ORDER:
         f = paths.enrichment_cluster_json(dataset_id, c, root)
         if f.exists():
-            artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
+            _hash(f)
     # Small viz frames are hashed; the 840 hexbin frames are recorded by count.
     for name in ("cells.parquet", "cells.csv", "umap.parquet", "umap.csv", "expr.parquet"):
         f = vdir / name
         if f.exists():
-            artifacts[str(f.relative_to(ddir))] = {"sha256": manifest_mod.sha256_file(f)}
+            _hash(f)
     hexdir = vdir / "hexbin"
     if hexdir.exists():
         artifacts["viz/hexbin/"] = {"n_frames": len(list(hexdir.glob("*.parquet")))}

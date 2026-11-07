@@ -45,6 +45,7 @@ second parser of the marker files. The only numeric source of truth is what
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Optional, Union
@@ -61,10 +62,9 @@ from panoscope.types.record import GENERATED_FIELDS
 # A number in prose is usually rounded (e.g. "17.998" or "18.0" for 17.9978...).
 # We accept a match within an absolute OR relative tolerance. The relative band
 # covers claims like "glm 18" for a true 17.998; the absolute band covers small
-# stats near zero (e.g. pearson 0.42). Values come from config if present so the
-# whole app shares one tolerance; otherwise sensible defaults.
-_NUMBER_ABS_TOL: float = getattr(cfg, "NUMBER_ABS_TOL", 1e-2)
-_NUMBER_REL_TOL: float = getattr(cfg, "NUMBER_REL_TOL", 5e-3)
+# stats near zero (e.g. pearson 0.42).
+_NUMBER_ABS_TOL: float = 1e-2
+_NUMBER_REL_TOL: float = 5e-3
 
 # The four per-gene statistics that live in markers_top.csv and are therefore
 # groundable against agent.data. A numeric claim whose stat is one of these is
@@ -458,11 +458,7 @@ class SourceIndex:
 
 def _close(a: float, b: float) -> bool:
     """Absolute-or-relative tolerance match (handles rounded prose numbers)."""
-    diff = abs(a - b)
-    if diff <= _NUMBER_ABS_TOL:
-        return True
-    scale = max(abs(a), abs(b), 1e-9)
-    return diff / scale <= _NUMBER_REL_TOL
+    return math.isclose(a, b, rel_tol=_NUMBER_REL_TOL, abs_tol=_NUMBER_ABS_TOL)
 
 
 # --------------------------------------------------------------------------- #

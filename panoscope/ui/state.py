@@ -390,6 +390,18 @@ def opening_posted_call(cluster: str):
     return v if isinstance(v, str) else None
 
 
+def opening_needed(key: str, call: str) -> bool:
+    """True unless an opening was already posted for this ``call``.
+
+    An override after the opening was posted gets a fresh opening APPENDED (the
+    transcript is not rewritten); a thread restored from disk reports no call
+    (None) and is left alone, being history.
+    """
+    if not opening_was_posted(key):
+        return True
+    return opening_posted_call(key) not in (None, call)
+
+
 def reset_opening_posted(cluster: str) -> None:
     """Forget that ``cluster``'s opening was posted, so it re-posts on next render
     (used by the conversation's 'clear' control to restart a fresh thread)."""

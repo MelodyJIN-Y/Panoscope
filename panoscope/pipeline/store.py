@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from panoscope.agent import config as cfg
 from panoscope.agent.enrichment_themes import PathwayThemes
@@ -26,6 +26,21 @@ from panoscope.pipeline.serialize import (
 )
 
 
+def _read(p: Path, parse: Callable[[Any], Any], default: Any) -> Any:
+    """``parse(json)`` of the file at ``p``, or ``default`` when it is absent or
+    anything (read, JSON, or ``parse``) fails -- fail soft; the caller recomputes."""
+    if not p.exists():
+        return default
+    try:
+        return parse(json.loads(p.read_text(encoding="utf-8")))
+    except Exception:  # noqa: BLE001 - fail soft; caller recomputes live
+        return default
+
+
+def _dict(data: Any) -> dict:
+    return data if isinstance(data, dict) else {}
+
+
 def load_verdict(
     cluster: str,
     dataset_id: str | None = None,
@@ -34,12 +49,7 @@ def load_verdict(
     """Return the persisted verdict for ``cluster``, or None if absent/unreadable."""
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.cluster_json(dataset_id, cluster, root)
-    if not p.exists():
-        return None
-    try:
-        return verdict_from_dict(json.loads(p.read_text(encoding="utf-8")))
-    except Exception:  # noqa: BLE001 - fail soft; caller recomputes live
-        return None
+    return _read(p, verdict_from_dict, None)
 
 
 def load_all_verdicts(
@@ -73,12 +83,7 @@ def load_holistic(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.holistic_json(dataset_id, root)
-    if not p.exists():
-        return None
-    try:
-        return holistic_from_dict(json.loads(p.read_text(encoding="utf-8")))
-    except Exception:  # noqa: BLE001 - fail soft; caller recomputes live
-        return None
+    return _read(p, holistic_from_dict, None)
 
 
 def load_enrichment(
@@ -89,12 +94,7 @@ def load_enrichment(
     """Return the persisted enrichment verdict for ``cluster``, or None if absent."""
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.enrichment_cluster_json(dataset_id, cluster, root)
-    if not p.exists():
-        return None
-    try:
-        return enrichment_from_dict(json.loads(p.read_text(encoding="utf-8")))
-    except Exception:  # noqa: BLE001 - fail soft; caller recomputes live
-        return None
+    return _read(p, enrichment_from_dict, None)
 
 
 def load_all_enrichments(
@@ -120,12 +120,7 @@ def load_pathway_themes(
     """Return the persisted cross-cluster pathway themes, or None if absent."""
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.pathway_themes_json(dataset_id, root)
-    if not p.exists():
-        return None
-    try:
-        return pathway_themes_from_dict(json.loads(p.read_text(encoding="utf-8")))
-    except Exception:  # noqa: BLE001 - fail soft
-        return None
+    return _read(p, pathway_themes_from_dict, None)
 
 
 def load_celltype_notes(
@@ -140,13 +135,7 @@ def load_celltype_notes(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.interp_dir(dataset_id, root) / "celltype_notes.json"
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except Exception:  # noqa: BLE001 - fail soft
-        return {}
+    return _read(p, _dict, {})
 
 
 def load_gene_notes(
@@ -161,13 +150,7 @@ def load_gene_notes(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.interp_dir(dataset_id, root) / "gene_notes.json"
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except Exception:  # noqa: BLE001 - fail soft
-        return {}
+    return _read(p, _dict, {})
 
 
 def load_summary_edits(
@@ -182,14 +165,7 @@ def load_summary_edits(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.summary_edits_json(dataset_id, root)
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        edits = data.get("edits") if isinstance(data, dict) else None
-        return edits if isinstance(edits, dict) else {}
-    except Exception:  # noqa: BLE001 - fail soft
-        return {}
+    return _read(p, lambda d: _dict(_dict(d).get("edits")), {})
 
 
 def save_summary_edits(
@@ -229,14 +205,7 @@ def load_review_state(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.review_state_json(dataset_id, root)
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        reviewed = data.get("reviewed") if isinstance(data, dict) else None
-        return reviewed if isinstance(reviewed, dict) else {}
-    except Exception:  # noqa: BLE001 - fail soft
-        return {}
+    return _read(p, lambda d: _dict(_dict(d).get("reviewed")), {})
 
 
 def save_review_state(
@@ -274,10 +243,4 @@ def load_pathway_notes(
     """
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.pathway_notes_json(dataset_id, root)
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except Exception:  # noqa: BLE001 - fail soft
-        return {}
+    return _read(p, _dict, {})

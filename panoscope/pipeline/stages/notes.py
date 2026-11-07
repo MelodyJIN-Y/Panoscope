@@ -22,6 +22,7 @@ from typing import Any, Optional
 
 from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as agent_enrichment
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent import loop as agent_loop
 
 from panoscope.pipeline import paths, v1_verdicts
@@ -342,14 +343,12 @@ def run_gene_notes(
 # Per-pathway biology notes (enrichment Output 1) — the enrichment-interpretation skill
 # reading each enriched program's evidence. LIVE, one real PMID or none.
 # --------------------------------------------------------------------------- #
-def _short_set(gene_set: str) -> str:
-    return gene_set.replace("HALLMARK_", "").replace("_", " ").title()
 
 
 def _pathway_fallback(gene_set: str, cell_type: str, leading_edge: list[str]) -> str:
     """Clean deterministic note when the model's text is unusable (grounded only)."""
     drv = ", ".join(leading_edge[:3])
-    base = f"{_short_set(gene_set)} program in {cell_type.replace('_', ' ')}"
+    base = f"{pretty_gene_set(gene_set)} program in {cell_type.replace('_', ' ')}"
     return f"{base}; driving genes {drv}." if drv else f"{base}."
 
 
@@ -360,7 +359,7 @@ def _pathway_query(gene_set: str, cell_type: str, leading_edge: list[str]) -> st
     ct = cell_type.replace("_", " ")
     le = ", ".join(leading_edge[:6])
     return (
-        f"For the {_short_set(gene_set)} program enriched in this {ct} cluster "
+        f"For the {pretty_gene_set(gene_set)} program enriched in this {ct} cluster "
         f"(driving genes: {le}), in two short sentences (35 words or fewer total) state "
         f"what this program is and its relevance to {ct} identity. If this is not a {ct} "
         f"program, say briefly it likely reflects infiltration or shared genes, not a "
@@ -423,7 +422,7 @@ def run_pathway_notes(
                 "verify": p.tier == "suggestive",
             }
             _save(out_path, notes)
-            print(f"  {cluster}/{_short_set(p.gene_set)}: PMID {pmid or 'no-cite'}", flush=True)
+            print(f"  {cluster}/{pretty_gene_set(p.gene_set)}: PMID {pmid or 'no-cite'}", flush=True)
 
     _save(out_path, notes)
     return notes

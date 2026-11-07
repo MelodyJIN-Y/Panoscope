@@ -41,7 +41,7 @@ from panoscope.agent import annotation
 from panoscope.agent import config as cfg
 from panoscope.agent import data
 from panoscope.agent.types import ClusterEnrichment, PathwayEvidence
-from panoscope.methods.jazzpanda_cgst import _in_frame, _split
+from panoscope.methods.jazzpanda_cgst import _in_frame, _split, _to_float
 from panoscope.types.subject import EntityKind
 
 # The dataset's jazzPanda enrichment result: prefer the per-dataset tree
@@ -217,14 +217,6 @@ def _load_jazzpanda_rows() -> tuple[dict, ...]:
     return tuple(rows)
 
 
-def _to_float(v) -> float | None:
-    try:
-        f = float(v)
-        return f if f == f else None  # drop NaN
-    except (TypeError, ValueError):
-        return None
-
-
 def _pathway_from_jz_row(row: dict) -> PathwayEvidence:
     """Build a grounded PathwayEvidence from one jazzPanda result row.
 
@@ -387,79 +379,15 @@ def enrichment_for_cluster(cluster: str) -> ClusterEnrichment:
     return _cluster_enrichment(cluster, pathways, _JZ_SCORE_KIND)
 
 
+def load_or_compute(cluster: str) -> ClusterEnrichment:
+    """The persisted enrichment record for ``cluster`` if the tree has one, else
+    computed live by :func:`enrichment_for_cluster`."""
+    from panoscope.pipeline import store  # lazy: pipeline imports agent
+
+    persisted = store.load_enrichment(cluster)
+    return persisted if persisted is not None else enrichment_for_cluster(cluster)
+
+
 def all_enrichments() -> list[ClusterEnrichment]:
     """Enrichment verdicts for all nine clusters (c1..c9), in order."""
     return [enrichment_for_cluster(c) for c in cfg.CLUSTER_ORDER]
-
-
-# --------------------------------------------------------------------------- #
-# CSV export — one row per surfaced pathway (enriched + suggestive), the
-# portable analog of verdicts.csv. `leading_edge` is ";"-joined so the cell is
-# atomic; untestable sets are not exported (they are never a surfaced call).
-#
-# **``cluster_confidence`` is gone.** It carried the unit-level band this workflow
-# has no label space for, and downstream R was reading it as though it meant "how
-# sure are we this program is running". Three count columns replace it, which is
-# strictly more informative and says the thing the band could not: how many of this
-# cluster's scored programs the panel could not test at all. ``cluster_verify``
-# stays — it is well-defined without a label space.
-#
-# ``cluster_n_untestable`` counts the sets this cluster scored that fell below a
-# floor; those rows are NOT in the file, so without this column a reader cannot tell
-# "nothing else was running" from "nothing else could be asked".
-# --------------------------------------------------------------------------- #
-ENRICHMENT_CSV_COLUMNS: tuple[str, ...] = (
-    "cluster",
-    "cell_type",
-    "gene_set",
-    "tier",
-    "score",
-    "score_kind",
-    "q_value",
-    "panel_hits",
-    "set_size_full",
-    "panel_coverage",
-    "n_leading_edge",
-    "leading_edge",
-    "cluster_n_supported",
-    "cluster_n_suggestive",
-    "cluster_n_untestable",
-    "cluster_verify",
-)
-
-
-def _csv_row(ce: ClusterEnrichment, p: PathwayEvidence) -> tuple[str, ...]:
-    supported, suggestive, untestable = ce.census
-    return (
-        ce.cluster,
-        ce.cell_type,
-        p.gene_set,
-        p.tier,
-        f"{p.score:.4f}",
-        p.score_kind,
-        "" if p.q_value is None else f"{p.q_value:.3e}",
-        str(p.panel_hits),
-        str(p.set_size_full),
-        f"{p.panel_coverage:.4f}",
-        str(p.n_leading_edge),
-        ";".join(p.leading_edge),
-        str(supported),
-        str(suggestive),
-        str(untestable),
-        "TRUE" if ce.verify else "FALSE",
-    )
-
-
-def to_csv(enrichments: list[ClusterEnrichment], header: bool = True) -> str:
-    """Render enrichment verdicts to CSV (enriched then suggestive per cluster)."""
-    import csv
-    import io
-
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    if header:
-        w.writerow(ENRICHMENT_CSV_COLUMNS)
-    for ce in enrichments:
-        for p in (*ce.enriched, *ce.suggestive):
-            w.writerow(_csv_row(ce, p))
-    return buf.getvalue()

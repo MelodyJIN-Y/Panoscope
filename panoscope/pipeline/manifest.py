@@ -20,20 +20,15 @@ forward untouched.
 
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
 from typing import Any
+
+from panoscope.platforms.base import digest
 
 PIPELINE_VERSION = "0.1.0"
 
 
-def sha256_file(path: Path) -> str:
-    """Streaming sha256 of a file's bytes (hex)."""
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+#: Streaming sha256 of a file's bytes (hex); one implementation, the reader's.
+sha256_file = digest
 
 
 DERIVED_KEYS: frozenset[str] = frozenset({

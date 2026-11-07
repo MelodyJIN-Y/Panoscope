@@ -1,5 +1,4 @@
-"""The method-agnostic reader: a tidy table in, a ``ReadingRecord`` and rows for
-``core.measure`` out.
+"""The method-agnostic reader: a tidy table in, a ``ReadingRecord`` out.
 
 One row per unit x entity. That is the only shape this module knows, and knowing one
 shape is what makes it method-agnostic: the column *names* are parameters, so
@@ -16,29 +15,10 @@ not depend on anyone remembering): two runs that dropped the same rows for the s
 reasons must hash identically, and a dict would make the bytes depend on which
 malformed row a reader happened to meet first.
 
-**``enumerates_absence`` is the one judgement call, and it defaults to the cautious
-side.** ``TESTED_ABSENT`` -- the productive half of the lattice -- exists only if
-something can say "this entity was tested here and not reported". For a table that
-names every entity it tested, the entities a unit does *not* claim are exactly that,
-and enumerating them is what turns the table into evidence against a rival. For a
-table truncated to the top 100 rows it is a fabrication: the unnamed genes were not
-tested-absent, they were cut off. The reader cannot tell the two apart from the
-bytes, so the caller declares it, and the default is ``False`` -- under-reporting a
-measured absence is a weaker answer, while inventing one is an overclaim, and this
-project's floor is confidence.
-
 **The entity universe includes rows that were dropped.** A row dropped because its
 unit column held a sentinel (jazzPanda's ``NoSig``) still tells us the method *looked
-at* that entity, so it belongs to the universe absence is enumerated over. This is
-load-bearing for the demo: the 49 undetectable panel genes reach every cluster's
-evidence as readings with no number, where the detectability frame resolves them to
-``NEVER_MEASURED`` -- visible, rather than a blank row.
-
-**Statistics are carried in unadjudicated.** ``Reading`` takes whatever the file said,
-including a number for an entity the frame will refuse; ``core.measure`` is what
-withholds it and records the withholding. A reader that pre-filtered would delete the
-difference between "the method reported nothing" and "the method reported something
-the apparatus could not support", which is the whole thing being audited.
+at* that entity, so it belongs to the universe ``entities_outside_frame`` is computed
+over: the demo's 49 undetectable panel genes are named there rather than vanishing.
 
 **On the returned ``Traced``: its decision tuple is always empty, and that is a
 contract gap, not an oversight.** ``Trace.note`` refuses any rule id absent from
@@ -54,18 +34,16 @@ contract change.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
 import pandas as pd
 
-from panoscope.core.measure import Reading
 from panoscope.platforms.base import digest
 from panoscope.types.contracts import UnrecognisedResult
-from panoscope.types.measured import Frame, MeasuredWorld
+from panoscope.types.measured import MeasuredWorld
 from panoscope.types.record import ReadingRecord
-from panoscope.types.subject import Entity, EntityKind, subject
+from panoscope.types.subject import Entity, EntityKind
 from panoscope.types.trace import Traced
 
 _SINGLE_ROLE_SHAPE: Final[dict[EntityKind, tuple[str, str]]] = {
@@ -83,38 +61,6 @@ rather than building a ``Subject`` directly -- a hand-built Subject can fail to
 compare equal to the same thing built through ``subject()``, which breaks the one
 join key reconciliation depends on.
 """
-
-
-@dataclass(frozen=True, slots=True)
-class UnitRead:
-    """One unit's rows, in the two shapes ``core.measure.measure_unit`` wants.
-
-    ``reported`` is a tuple of ``Frame`` rather than a flat id set because that is
-    what ``NormalisedEvidence`` carries and what ``measure_unit`` takes; re-deriving
-    it from a flat set downstream would mean guessing which entity kind each id
-    belonged to.
-    """
-
-    unit: str
-    readings: tuple[Reading, ...]
-    reported: tuple[Frame, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class TidyRead:
-    """What one read of one file produced: the record, and the rows per unit.
-
-    ``units`` is a tuple sorted by unit id, not a dict, for the reason every other
-    frozen carrier in this system avoids one: a dict field is unhashable and its
-    insertion order leaks into ``dataclasses.asdict`` and from there into the
-    serialised bytes.
-    """
-
-    record: ReadingRecord
-    units: tuple[UnitRead, ...]
-
-    def for_unit(self, unit: str) -> UnitRead | None:
-        return next((u for u in self.units if u.unit == unit), None)
 
 
 def _text(value: object) -> str:
@@ -151,14 +97,12 @@ def read_tidy(
     unit_kind: str,
     world: MeasuredWorld,
     clustering_mode: str,
-    corroborating_columns: tuple[str, ...] = (),
     not_units: frozenset[str] = frozenset(),
     not_subjects: frozenset[str] = frozenset(),
     unit_detection_because: tuple[str, ...] = (),
-    enumerates_absence: bool = False,
     record_path: str | None = None,
-) -> Traced[TidyRead]:
-    """Read one tidy result file into a record plus per-unit readings.
+) -> Traced[ReadingRecord]:
+    """Read one tidy result file into its ``ReadingRecord`` (counts, drops, frames).
 
     ``record_path`` is what lands in ``ReadingRecord.path``, defaulting to ``path``.
     A caller passes a store-relative name here so the record does not embed an
@@ -191,10 +135,9 @@ def read_tidy(
             f"no one-entity subject shape is registered for {entity_kind.value!r}; "
             f"known: {sorted(k.value for k in _SINGLE_ROLE_SHAPE)}"
         )
-    shape, role = _SINGLE_ROLE_SHAPE[entity_kind]
 
     df = _read_table(p)
-    wanted = (unit_column, entity_column, statistic_column, *corroborating_columns)
+    wanted = (unit_column, entity_column, statistic_column)
     missing = [c for c in wanted if c not in df.columns]
     if missing:
         raise UnrecognisedResult(
@@ -206,15 +149,11 @@ def read_tidy(
     units_raw = [_text(v) for v in df[unit_column]]
     ents_raw = [_text(v) for v in df[entity_column]]
     stats = pd.to_numeric(df[statistic_column], errors="coerce").tolist()
-    corr = {c: pd.to_numeric(df[c], errors="coerce").tolist()
-            for c in corroborating_columns}
 
     drops: Counter[str] = Counter()
-    universe: list[str] = []           # file order; the absence-enumeration domain
+    universe: list[str] = []           # file order; every entity the method looked at
     in_universe: set[str] = set()
     seen: set[tuple[str, str]] = set()
-    kept: dict[tuple[str, str], Reading] = {}
-    units_present: set[str] = set()
 
     for i in range(rows_in):
         ent = ents_raw[i]
@@ -228,7 +167,7 @@ def read_tidy(
             continue
         # Before the unit checks, deliberately: a row dropped for its unit column
         # still proves the method looked at this entity, and that is what makes it
-        # eligible for a tested/never-measured verdict under every other unit.
+        # eligible for ``entities_outside_frame`` under every unit.
         if ent not in in_universe:
             in_universe.add(ent)
             universe.append(ent)
@@ -248,36 +187,6 @@ def read_tidy(
             drops[f"duplicate {unit_column} x {entity_column} row"] += 1
             continue
         seen.add((unit, ent))
-        units_present.add(unit)
-        kept[(unit, ent)] = Reading(
-            subject=subject(shape, **{role: Entity(entity_kind, ent)}),
-            statistic=float(stat),
-            statistic_name=statistic_column,
-            corroborating=tuple(
-                (c, float(corr[c][i])) for c in corroborating_columns
-                if corr[c][i] is not None and not pd.isna(corr[c][i])
-            ),
-        )
-
-    unit_reads: list[UnitRead] = []
-    for unit in sorted(units_present):
-        reported_ids = frozenset(e for (u, e) in kept if u == unit)
-        readings: list[Reading] = []
-        for ent in universe:                       # file order, for every unit alike
-            hit = kept.get((unit, ent))
-            if hit is not None:
-                readings.append(hit)
-            elif enumerates_absence:
-                readings.append(Reading(
-                    subject=subject(shape, **{role: Entity(entity_kind, ent)}),
-                    statistic=None,
-                    statistic_name=statistic_column,
-                ))
-        unit_reads.append(UnitRead(
-            unit=unit,
-            readings=tuple(readings),
-            reported=(Frame(entity_kind, f"reported:{unit_kind}:{unit}", reported_ids),),
-        ))
 
     kind_frames = world.for_kind(entity_kind)
     outside = tuple(sorted(
@@ -302,4 +211,4 @@ def read_tidy(
     )
     # Empty decisions by construction -- see the module docstring. The record is the
     # read's audit trail; RULES has no read step to note one under.
-    return Traced(TidyRead(record=record, units=tuple(unit_reads)))
+    return Traced(record)

@@ -33,6 +33,7 @@ import html
 import re
 from typing import Any, Optional
 
+from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent.types import AgentResponse, Source
 
 from panoscope.ui import data_access as dax
@@ -329,10 +330,11 @@ def _render_header(cluster: str) -> None:
             )
 
 
-def _clear_conversation(cluster: str) -> None:
-    """on_click: wipe THIS cluster's thread and let the opening re-post next run."""
-    state.clear_chat_thread(cluster)
-    state.reset_opening_posted(cluster)
+def _clear_conversation(key: str) -> None:
+    """on_click: wipe THIS thread (a cluster, or a namespaced pane thread) and let the
+    opening re-post next run."""
+    state.clear_chat_thread(key)
+    state.reset_opening_posted(key)
 
 
 # --------------------------------------------------------------------------- #
@@ -346,15 +348,8 @@ def _ensure_opening(cluster: str) -> None:
     driven by the evidence table).
     """
     call = dax.display_cell_type(cluster)
-    if state.opening_was_posted(cluster):
-        posted_for = state.opening_posted_call(cluster)
-        # An override after the opening was posted left the pane reading "c2 reads
-        # as Stromal" beside a header saying CAF, for the rest of the session. The
-        # transcript is not rewritten -- that would be editing what was said -- so
-        # a fresh opening is APPENDED and the old one stays above it, carrying its
-        # own "(your call, replacing the computed ...)".
-        if posted_for is None or posted_for == call:
-            return
+    if not state.opening_needed(cluster, call):
+        return
     resp = _safe_opening(cluster)
     state.append_message(cluster, {"role": _ROLE_AGENT, "text": resp.text, "resp": resp})
     state.mark_opening_posted(cluster, call)
@@ -397,15 +392,17 @@ def _safe_opening(cluster: str) -> AgentResponse:
 # --------------------------------------------------------------------------- #
 # Thread rendering
 # --------------------------------------------------------------------------- #
-def _render_thread(cluster: str) -> None:
-    """Render each message in ``cluster``'s thread as a speaker-aligned bubble."""
+def _render_thread(
+    key: str,
+    empty_text: str = "Opening interpretation loads when a cluster is selected.",
+) -> None:
+    """Render each message in thread ``key`` as a speaker-aligned bubble."""
     import streamlit as st
 
-    thread = state.get_chat_thread(cluster)
+    thread = state.get_chat_thread(key)
     if not thread:
         st.markdown(
-            '<div class="turn a"><div class="bubble a">Opening interpretation loads '
-            "when a cluster is selected.</div></div>",
+            f'<div class="turn a"><div class="bubble a">{empty_text}</div></div>',
             unsafe_allow_html=True,
         )
         return
@@ -786,7 +783,7 @@ def _draft_type_line(draft: Any) -> str:
         anchors.append(" · ".join(draft.subject_markers))
     if getattr(draft, "subject_gene_sets", ()):
         anchors.append(" · ".join(
-            gs.replace("HALLMARK_", "").replace("_", " ").title() for gs in draft.subject_gene_sets
+            pretty_gene_set(gs) for gs in draft.subject_gene_sets
         ))
     if getattr(draft, "subject_clusters", ()):
         anchors.append(" + ".join(draft.subject_clusters))
@@ -890,22 +887,11 @@ def _dataset_label() -> str:
 
     Reads the dataset manifest (``tissue`` · ``platform``); falls back to the id."""
     try:
-        import json
-
         from panoscope.agent import config as cfg
-        from panoscope.pipeline import paths
 
-        m = json.loads((paths.dataset_dir(cfg.DATASET_ID) / "manifest.json").read_text(encoding="utf-8"))
-        parts = [str(m.get(k, "")).strip() for k in ("tissue", "platform")]
-        parts = [p for p in parts if p]
-        return " · ".join(parts) if parts else cfg.DATASET_ID
-    except Exception:  # noqa: BLE001 - a missing manifest just means a plainer label
-        try:
-            from panoscope.agent import config as cfg
-
-            return cfg.DATASET_ID
-        except Exception:  # noqa: BLE001
-            return ""
+        return " · ".join(p for p in dax.tissue_platform() if p) or cfg.DATASET_ID
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _saved_line(note: Any, *, mem_saved: bool = False) -> str:
@@ -927,26 +913,33 @@ def _saved_line(note: Any, *, mem_saved: bool = False) -> str:
     )
 
 
-def _safe_chat(cluster: str, query: str) -> AgentResponse:
-    """Run one chat turn with THIS cluster's history; never raise into render."""
+def _safe_chat(
+    cluster: str, query: str, *, thread_key: Optional[str] = None,
+    skill: Optional[str] = None,
+) -> AgentResponse:
+    """Run one chat turn with THIS thread's history; never raise into render.
+
+    ``thread_key`` defaults to the cluster (the marker thread); ``skill`` is passed
+    to the agent only when a pane names one (else the agent's default)."""
+    kw = {"skill": skill} if skill else {}
     try:
-        history = _history_for_agent(cluster)
-        return dax.get_agent().chat(query, cluster=cluster, history=history)
+        history = _history_for_agent(thread_key or cluster)
+        return dax.get_agent().chat(query, cluster=cluster, history=history, **kw)
     except Exception:  # noqa: BLE001 - agent has its own fallback; belt + braces
         from panoscope.agent import loop as agent_loop
 
-        return agent_loop.chat(query, cluster=cluster)
+        return agent_loop.chat(query, cluster=cluster, **kw)
 
 
-def _history_for_agent(cluster: str) -> list[dict]:
-    """Flatten ONLY ``cluster``'s thread into role/text history for the agent.
+def _history_for_agent(key: str) -> list[dict]:
+    """Flatten ONLY thread ``key`` into role/text history for the agent.
 
     Cross-cluster history is deliberately excluded: the agent's awareness of the
     other clusters comes from the grounded global-interpretation context in the
     system prompt, not from another cluster's chat log.
     """
     out: list[dict] = []
-    for msg in state.get_chat_thread(cluster):
+    for msg in state.get_chat_thread(key):
         role = msg.get("role")
         if role == _ROLE_USER:
             out.append({"role": "user", "content": msg.get("text", "")})

@@ -40,7 +40,7 @@ import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, get_args
 
 from panoscope.agent import config as cfg
 from panoscope.agent.types import (
@@ -293,11 +293,11 @@ def _validate_note_fields(claim: str, scope: str, basis: str, status: str) -> No
     """Validate the closed-vocab fields shared by draft + create (raises ValueError)."""
     if not claim or not claim.strip():
         raise ValueError("[memory] note claim must be non-empty")
-    if scope not in ("cluster", "dataset", "lab"):
+    if scope not in get_args(Scope):
         raise ValueError(f"[memory] invalid scope {scope!r}")
-    if basis not in ("paper", "own_validation", "convention"):
+    if basis not in get_args(Basis):
         raise ValueError(f"[memory] invalid basis {basis!r}")
-    if status not in ("firm", "tentative"):
+    if status not in get_args(Status):
         raise ValueError(f"[memory] invalid status {status!r}")
 
 
@@ -474,14 +474,7 @@ def create_note(
     where the lab's knowledge diverges from the default.
     """
     dataset = dataset or cfg.DATASET_ID
-    if not claim or not claim.strip():
-        raise ValueError("[memory] note claim must be non-empty")
-    if scope not in ("cluster", "dataset", "lab"):
-        raise ValueError(f"[memory] invalid scope {scope!r}")
-    if basis not in ("paper", "own_validation", "convention"):
-        raise ValueError(f"[memory] invalid basis {basis!r}")
-    if status not in ("firm", "tentative"):
-        raise ValueError(f"[memory] invalid status {status!r}")
+    _validate_note_fields(claim, scope, basis, status)
 
     if scope == "cluster":
         if cluster is None:

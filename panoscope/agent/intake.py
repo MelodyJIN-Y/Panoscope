@@ -66,10 +66,10 @@ from typing import Any, Final
 from panoscope.platforms.base import CLUSTERING_MODES
 from panoscope.types.conditions import (
     BLOCKS_THE_STUDY, DECLARED_UNKNOWN_OK, UNKNOWN, Blocked, Condition, Conditions,
-    Provenance,
+    Provenance, gene_frames_admit,
 )
 from panoscope.types.contracts import PlatformAdapter, UndeclaredClustering
-from panoscope.types.measured import EntityKind, FrameRef
+from panoscope.types.measured import FrameRef
 
 FIELDS: Final[tuple[str, ...]] = BLOCKS_THE_STUDY + DECLARED_UNKNOWN_OK
 """The six ``Condition`` fields, from §6.3's two columns. No third list to drift."""
@@ -280,20 +280,9 @@ class Draft:
 
     def status(self, field: str) -> Status:
         if field == MEASURED_SET:
-            # The GENE frames, not the tuple. ``frames`` mixes GENE, CELL_TYPE and
-            # UNIT refs, so any store whose manifest declares ``clusters`` kept it
-            # truthy -- and §6.3's structural blocker could not fire on any
-            # readable store. A panel.parquet that is absent, unreadable, or holds
-            # only control probes ticked "measured_set ... (read from the store)"
-            # under "nothing to ask", directly above a problem line saying the
-            # store declares no capability for any gene.
-            #
-            # EVERY gene frame must admit something: a gene is in frame only when
-            # all of them do (``measured._state_for``), so one empty gene frame
-            # empties the measured set. The same test ``Conditions.__post_init__``
-            # applies, which is what ``resolve()`` has to clear.
-            genes = [f for f in self.frames if f.kind is EntityKind.GENE]
-            if not genes or not all(f.size for f in genes):
+            # The same test ``Conditions.__post_init__`` applies, which is what
+            # ``resolve()`` has to clear.
+            if not gene_frames_admit(self.frames):
                 return Status.BLOCKING
             # ...and the adapter's own verdict, because a frame that is ABSENT
             # leaves nothing here to measure. With panel.parquet gone there is no

@@ -12,6 +12,7 @@ import html
 
 import pytest
 
+from panoscope.agent import compose
 from panoscope.agent import verdict as agent_verdict
 from panoscope.ui import data_access as da
 from panoscope.ui import summary
@@ -82,7 +83,7 @@ def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
         author="", created_at="2026-07-10T00:00:00+00:00", trigger="override", supersedes=None,
         type="celltype_override", subject_lineage="Fibroblast", subject_category="Stromal",
     )
-    monkeypatch.setattr(da, "_override_notes", lambda: {"c2": ov})
+    monkeypatch.setattr(compose, "override_notes", lambda: {"c2": ov})
 
     comp = {v.cluster: v for v in da.composed_verdicts()}
     assert comp["c2"].cell_type == "CAF"
@@ -148,7 +149,7 @@ def test_sign_off_wins_over_override_dissent_flag(monkeypatch) -> None:
         author="", created_at="2026-07-10T00:00:00+00:00", trigger="override", supersedes=None,
         type="celltype_override", subject_lineage="Fibroblast", subject_category="Stromal",
     )
-    monkeypatch.setattr(da, "_override_notes", lambda: {"c2": ov})
+    monkeypatch.setattr(compose, "override_notes", lambda: {"c2": ov})
     # override alone -> dissent flags verify
     monkeypatch.setattr(da, "_signed_off_clusters", lambda: set())
     assert {v.cluster: v for v in da.composed_verdicts()}["c2"].verify is True

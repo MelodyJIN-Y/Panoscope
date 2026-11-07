@@ -52,9 +52,11 @@ from typing import Optional
 from panoscope.agent import config as cfg
 from panoscope.agent import enrichment as agent_enrichment
 from panoscope.agent.types import ClusterEnrichment
+from panoscope.core import export
 
 from panoscope.pipeline import paths
 from panoscope.pipeline.serialize import enrichment_to_dict
+from panoscope.types.outputs import TaskKind
 
 #: The entity column of a gene-set result, and the column its statistic is IN.
 #: ``UnitSpec`` declares the unit column; these are the two schema facts the caller
@@ -88,7 +90,13 @@ def run_enrichment(
 
     csv_path = paths.enrichment_csv(dataset_id, root)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
-    csv_path.write_text(agent_enrichment.to_csv(enrichments), encoding="utf-8")
+    csv_path.write_text(
+        export.to_csv(
+            TaskKind.CHARACTERISATION,
+            [(ce, p) for ce in enrichments for p in (*ce.enriched, *ce.suggestive)],
+        ).value,
+        encoding="utf-8",
+    )
 
     write_records(enrichments, dataset_id, root)
 
@@ -179,7 +187,7 @@ def write_records(
         # in a hashed record makes byte-stability a property of whose laptop produced
         # it.
         record_path=os.path.relpath(path, study.dir),
-    ).value.record
+    ).value
 
     loaded = method.load(str(path), adapter, study)
     cell_types = {ce.cluster: ce.cell_type for ce in enrichments}

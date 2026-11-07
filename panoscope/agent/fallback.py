@@ -260,21 +260,12 @@ def fallback_opening(cluster: str) -> AgentResponse:
 # --------------------------------------------------------------------------- #
 # Canned demo-beat Q&A (answered from verdict/data only)
 # --------------------------------------------------------------------------- #
-def _defines_answer(v: ClusterVerdict) -> AgentResponse:
-    """'What defines this cluster', the driving markers and their numbers."""
+def _call_answer(v: ClusterVerdict, lead: str) -> AgentResponse:
+    """``lead`` about the call, plus its off-panel context and verify suffix, grounded
+    in the driving markers' numbers."""
     drivers = v.opening.driving_markers
     notes = v.offpanel_notes
-    if drivers:
-        body = (
-            f"{v.cluster} is called {v.cell_type} ({v.confidence} confidence). "
-            f"The call is defined by {_driver_phrase(drivers)}."
-        )
-    else:
-        body = (
-            f"{v.cluster} is called {v.cell_type} ({v.confidence} confidence), but "
-            f"no canonical marker defines it here, re-check this."
-        )
-    body += _offpanel_line(notes, v.cell_type)
+    body = lead + _offpanel_line(notes, v.cell_type)
     if v.verify:
         body += " verify=TRUE, re-check this call."
     return AgentResponse(
@@ -285,6 +276,20 @@ def _defines_answer(v: ClusterVerdict) -> AgentResponse:
         pin_marker=drivers[0].gene if drivers else None,
         used_fallback=True,
     )
+
+
+def _defines_answer(v: ClusterVerdict) -> AgentResponse:
+    """'What defines this cluster', the driving markers and their numbers."""
+    drivers = v.opening.driving_markers
+    if drivers:
+        return _call_answer(v, (
+            f"{v.cluster} is called {v.cell_type} ({v.confidence} confidence). "
+            f"The call is defined by {_driver_phrase(drivers)}."
+        ))
+    return _call_answer(v, (
+        f"{v.cluster} is called {v.cell_type} ({v.confidence} confidence), but "
+        f"no canonical marker defines it here, re-check this."
+    ))
 
 
 def _doublet_answer(v: ClusterVerdict) -> AgentResponse:
@@ -693,33 +698,15 @@ def generic_fallback(cluster: str) -> AgentResponse:
     """
     v = composed_verdict_for(cluster)
     drivers = v.opening.driving_markers
-    notes = v.offpanel_notes
-
     if drivers:
-        body = (
+        return _call_answer(v, (
             f"{v.cluster} is called {v.cell_type} at {v.confidence} confidence, "
             f"driven by {_driver_phrase(drivers)}."
-        )
-    else:
-        body = (
-            f"{v.cluster} is called {v.cell_type} at {v.confidence} confidence; no "
-            f"canonical marker drives the call."
-        )
-    body += _offpanel_line(notes, v.cell_type)
-    if v.verify:
-        body += " verify=TRUE, re-check this call."
-
-    return AgentResponse(
-        text=body,
-        sources=_marker_sources(drivers) + _offpanel_sources(notes),
-        verify=v.verify,
-        grounding=_sidecar(drivers, notes),
-        pin_marker=drivers[0].gene if drivers else None,
-        citations=(),
-        note_written=None,
-        used_fallback=True,
-        opening=False,
-    )
+        ))
+    return _call_answer(v, (
+        f"{v.cluster} is called {v.cell_type} at {v.confidence} confidence; no "
+        f"canonical marker drives the call."
+    ))
 
 
 # --------------------------------------------------------------------------- #

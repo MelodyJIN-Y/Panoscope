@@ -411,6 +411,14 @@ def _label(cell_type: str) -> str:
     return cell_type.replace("_", " ")
 
 
+def _by_cluster(markers) -> dict[str, list[str]]:
+    """Genes grouped by the cluster they localize to (``NoSig`` when none), in order."""
+    out: dict[str, list[str]] = {}
+    for m in markers:
+        out.setdefault(m.top_cluster or _NOSIG, []).append(m.gene)
+    return out
+
+
 def _undecidable_bits(d: Discrimination) -> list[tuple[list[str], str, str]]:
     """``(genes, sentence phrase, compact phrase)`` per refusing frame.
 
@@ -464,11 +472,8 @@ def settle_summary(d: Discrimination) -> str:
         )
 
     if d.b_elsewhere:
-        by_cluster: dict[str, list[str]] = {}
-        for m in d.b_elsewhere:
-            by_cluster.setdefault(m.top_cluster or _NOSIG, []).append(m.gene)
         bits = []
-        for cl, genes in by_cluster.items():
+        for cl, genes in _by_cluster(d.b_elsewhere).items():
             where = "not significant in any cluster" if cl == _NOSIG else f"localize to {cl}, not {d.cluster}"
             bits.append(f"{', '.join(genes)} ({where})")
         parts.append(f"{B} markers are on the panel but {'; '.join(bits)} — that argues against {B}.")
@@ -493,11 +498,8 @@ def settle_summary(d: Discrimination) -> str:
 
 def _elsewhere_bits(d: Discrimination) -> str:
     """'GENE, GENE localize to cX' phrases grouped by target cluster."""
-    by_cluster: dict[str, list[str]] = {}
-    for m in d.b_elsewhere:
-        by_cluster.setdefault(m.top_cluster or _NOSIG, []).append(m.gene)
     out = []
-    for cl, genes in by_cluster.items():
+    for cl, genes in _by_cluster(d.b_elsewhere).items():
         where = "not significant anywhere" if cl == _NOSIG else f"localize to {cl}"
         out.append(f"{', '.join(genes)} {where}")
     return "; ".join(out)

@@ -16,10 +16,7 @@ selected cluster / markers / chat / notes carry over between tabs.
 """
 from __future__ import annotations
 
-import base64
 import html
-from functools import lru_cache
-from pathlib import Path
 
 import streamlit as st
 
@@ -37,36 +34,18 @@ from panoscope.ui import (
     theme,
 )
 
-# Brand assets (the Panoscope logo mark + the with-text logo live in assets/).
-_ASSETS = Path(__file__).resolve().parent / "assets"
-_LOGO_MARK = _ASSETS / "panoscope_logo.png"
-
-
-@lru_cache(maxsize=2)
-def _logo_data_uri(name: str) -> str:
-    """Base64 data URI for a brand PNG so it embeds inline in the header HTML
-    (Streamlit's strict CSP blocks external asset requests). '' if missing."""
-    path = _ASSETS / name
-    if not path.exists():
-        return ""
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+_LOGO_MARK = nav.ASSETS / "panoscope_logo.png"
 
 
 # Active top-tab page. Held in session state for snappy in-session switching AND
 # mirrored to the URL query param (?page=) so a full browser refresh restores the
 # tab instead of dropping back to the default — the tab is also shareable now.
-_K_PAGE = "active_page"
+_K_PAGE = nav.PAGE_KEY
 # The onboarding front door. These two are NOT workflows (no study is open yet), so
 # they are named here; every other ?page= name is a registered workflow's own
 # ``UISpec.workflow_id``, read off the registry by ui/nav.py.
 _PAGE_WELCOME = nav.ONBOARDING_PAGES[0]   # landing
 _PAGE_UPLOAD = nav.ONBOARDING_PAGES[1]    # load-your-data
-
-
-def _set_page(page: str) -> None:
-    """on_click handler for a top tab — fires before the rerun renders."""
-    st.session_state[_K_PAGE] = page
-    st.query_params["page"] = page  # keep the URL in sync so a refresh persists the tab
 
 
 def _resolve_page(strip: tuple[nav.Tab, ...]) -> str:
@@ -199,7 +178,7 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
             [0.27, 0.46, 0.27], vertical_alignment="center"
         )
         with brand_col:
-            logo = _logo_data_uri("panoscope_logo.png")
+            logo = nav.logo_data_uri("panoscope_logo.png")
             mark = (
                 f'<img class="pano-logo" src="{logo}" alt="Panoscope logo"/>'
                 if logo
@@ -225,7 +204,7 @@ def _top_bar(page: str, strip: tuple[nav.Tab, ...]) -> None:
                             else f"No {tab.title.lower()} result for this study",
                             type="primary" if page == tab.page else "secondary",
                             width="stretch",
-                            on_click=_set_page,
+                            on_click=nav.set_page,
                             args=(tab.page,),
                         )
         with ctx_col:
