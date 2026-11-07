@@ -89,7 +89,7 @@ def _search(query: str, *, pubmed: bool, cap: int, probe: bool) -> tuple[int, li
     out: list[dict] = []
     cursor = "*"
     while True:
-        d = _get(EPMC + "search", {"query": query, "format": "json", "resultType": "core",
+        d = _get(EPMC + "searchPOST", {"query": query, "format": "json", "resultType": "core",
                                    "pageSize": "100", "sort": "P_PDATE_D desc",
                                    "cursorMark": cursor})
         total = int(d.get("hitCount", 0))

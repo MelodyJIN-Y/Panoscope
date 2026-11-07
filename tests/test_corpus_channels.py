@@ -242,6 +242,27 @@ def test_an_unresolved_release_paper_degrades_c0(monkeypatch, tmp_path):
     assert not any("CITES:" in q.query for q in c.queries if q.status is QueryStatus.OK)
 
 
+def test_a_europe_pmc_search_is_posted_so_a_long_vocabulary_is_not_refused(monkeypatch):
+    import urllib.request
+
+    sent = []
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b'{"hitCount": 0, "resultList": {"result": []}}'
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout: sent.append(req) or Resp())
+    long = "(" + " OR ".join(f'RESULTS:"alias {i}"' for i in range(300)) + ")"
+    assert C._search(long, pubmed=False, cap=1, probe=True) == (0, [])
+    assert "?" not in sent[0].full_url and b"alias+299" in sent[0].data
+
+
 @pytest.mark.live
 def test_live_epmc_cites_query_smoke():
     total, hits = C._search('CITES:38114474_MED AND ("POSTN")', pubmed=False, cap=2, probe=True)

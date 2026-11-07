@@ -38,7 +38,9 @@ def _get(url: str, params: dict[str, str], *, retries: int = 3, raw: bool = Fals
             if os.getenv(env):
                 params[key] = os.environ[env]
     gap = 0.1 if os.getenv("NCBI_API_KEY") else 0.34
-    full = url + ("?" + urllib.parse.urlencode(params) if params else "")
+    post = url.endswith("searchPOST")   # Europe PMC's form endpoint: no URL length limit
+    full = url if post else url + ("?" + urllib.parse.urlencode(params) if params else "")
+    data = urllib.parse.urlencode(params).encode() if post else None
     err: Exception | None = None
     for attempt in range(retries):
         with _lock:
@@ -46,7 +48,7 @@ def _get(url: str, params: dict[str, str], *, retries: int = 3, raw: bool = Fals
             _last[0] = time.monotonic()
         try:
             # Europe PMC answers 406 to an XML endpoint asked for JSON.
-            req = urllib.request.Request(full, headers={**_HEADERS, "Accept": "*/*"}
+            req = urllib.request.Request(full, data=data, headers={**_HEADERS, "Accept": "*/*"}
                                          if raw else _HEADERS)
             with urllib.request.urlopen(req, timeout=60 if raw else 30) as resp:  # noqa: S310
                 body = resp.read().decode("utf-8")
