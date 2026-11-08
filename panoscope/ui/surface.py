@@ -587,7 +587,7 @@ div[class*="st-key-sfrow_"] div[data-testid="stButton"] > button:hover {
 def render_surface(
     spec: UISpec,
     *,
-    header: Mapping[str, Any],
+    header: Mapping[str, Any] | None,
     rows: Sequence[SurfaceRow],
     on_select: Callable[[SurfaceRow], None] | None = None,
     selected: Callable[[SurfaceRow], bool] | None = None,
@@ -595,13 +595,15 @@ def render_surface(
     """Draw the declared surface into the current Streamlit container.
 
     ``on_select`` makes the first column a pin button, only where ``spec.pin_kinds``
-    declares it and only on rows that carry a measurement.
+    declares it and only on rows that carry a measurement. ``header=None``: the caller
+    places the header (the marker proposal sits one tap behind the evidence).
     """
     import streamlit as st
 
     _no_code(spec)
     st.markdown(_CSS, unsafe_allow_html=True)
-    st.markdown(header_html(spec, header), unsafe_allow_html=True)
+    if header is not None:
+        st.markdown(header_html(spec, header), unsafe_allow_html=True)
 
     pinnable = on_select is not None and bool(spec.pin_kinds)
     st.markdown(ribbon_html(spec, rows), unsafe_allow_html=True)

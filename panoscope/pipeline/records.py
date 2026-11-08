@@ -49,6 +49,10 @@ class UnitBuild(NamedTuple):
     #: ``tests/test_workflow_routed.py``; ``Verdict`` keeps the basis, demotion ids
     #: and driver that ``Assignment`` has no field for.
     assignment: Any = None   # types.outputs.Assignment
+    #: The frames and this unit's reported set, so a reader resolves a gene the
+    #: record never named (another type's canonical marker) through the same lattice.
+    world: Any = None
+    reported: frozenset[str] = frozenset()
 
 
 def _concordance(study: Study, adapter: Any, method: Any, clustering_mode: str,
@@ -513,7 +517,7 @@ def build_all(study: Study) -> dict[str, UnitBuild]:
         )).value
         out[unit] = UnitBuild(
             record=record, evidence=ev, verdict=verdict.value, canonical=canonical,
-            assignment=assignment,
+            assignment=assignment, world=world, reported=reported,
             label=compat.UnitLabel(
                 cell_type=str(meta.get("cell_type", NOT_YET_CALLED)),
                 cell_type_short=str(meta.get("cell_type_short", NOT_YET_CALLED)),

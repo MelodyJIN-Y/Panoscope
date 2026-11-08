@@ -988,20 +988,30 @@ def render_summary_page() -> None:
             "jazzPanda's, every biology claim live-cited.</div>",
             unsafe_allow_html=True,
         )
-    with act_col:
-        b_doc, b_pdf = st.columns(2)
-        _dl_help = ("The interpretation report: a confirmed-call overview table, per-cluster "
-                    "detail with programs, the cross-cluster review, and caveats.")
-        with b_doc:
-            st.download_button(
-                _DOCX_LABEL, report.working_docx(export_sections, report_model=rep, **exp_kw),
-                _DOCX_NAME, _DOCX_MIME, key="dl_docx", width="stretch",
-                help=_dl_help + " Editable Word.")
-        with b_pdf:
-            st.download_button(
-                _PDF_LABEL, report.working_pdf(export_sections, report_model=rep, **exp_kw),
-                _PDF_NAME, _PDF_MIME, key="dl_pdf", width="stretch",
-                help=_dl_help + " Locked PDF.")
+    # Export needs a terminal decision on every cluster (interface §5.2); a Summary
+    # sign-off counts as accepting the call shown.
+    from panoscope.pipeline import decisions as dec
+    from panoscope.pipeline import store as pstore
+
+    refusal = dec.export_refusal(cfg.CLUSTER_ORDER, {
+        **{c: {"state": dec.ACCEPTED} for c in signed}, **pstore.load_decisions()})
+    if refusal:
+        act_col.caption(refusal)
+    else:
+        with act_col:
+            b_doc, b_pdf = st.columns(2)
+            _dl_help = ("The interpretation report: a confirmed-call overview table, per-cluster "
+                        "detail with programs, the cross-cluster review, and caveats.")
+            with b_doc:
+                st.download_button(
+                    _DOCX_LABEL, report.working_docx(export_sections, report_model=rep, **exp_kw),
+                    _DOCX_NAME, _DOCX_MIME, key="dl_docx", width="stretch",
+                    help=_dl_help + " Editable Word.")
+            with b_pdf:
+                st.download_button(
+                    _PDF_LABEL, report.working_pdf(export_sections, report_model=rep, **exp_kw),
+                    _PDF_NAME, _PDF_MIME, key="dl_pdf", width="stretch",
+                    help=_dl_help + " Locked PDF.")
 
     st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 

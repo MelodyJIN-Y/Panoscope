@@ -190,7 +190,11 @@ def test_sign_off_persists_reverses_and_survives_a_reload(app_tree) -> None:
 def test_the_summary_offers_both_exports(app_tree) -> None:
     """The handover. ``download_button`` exposes no payload to AppTest, so the
     document BYTES are checked in ``tests/test_report.py``; what is pinned here is
-    that the biologist is offered them at all."""
+    that the biologist is offered them at all -- once every cluster is decided."""
+    from panoscope.agent import config as cfg
+    from panoscope.pipeline import store
+
+    store.save_decisions({c: {"state": "DEFERRED"} for c in cfg.CLUSTER_ORDER})
     at = _at("summary")
     dl = _keys(at, "download_button")
     assert len(dl) >= 2, f"expected docx + pdf, found {sorted(dl)}"

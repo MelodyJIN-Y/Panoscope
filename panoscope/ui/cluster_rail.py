@@ -1,5 +1,5 @@
 """Left pane — the cluster rail: one chromeless button per cluster, read off the
-composed verdicts. Selecting a row sets ``state.selected_cluster`` and nothing else."""
+composed verdicts and marked with its annotation decision. Selecting a row sets ``state.selected_cluster`` and nothing else."""
 
 
 from __future__ import annotations
@@ -7,7 +7,9 @@ from __future__ import annotations
 from panoscope.agent import config as cfg
 from typing import Optional
 
+from panoscope.pipeline import decisions, store
 from panoscope.ui import data_access, state
+from panoscope.ui.review import MARK
 
 # The rail dot is the button's CSS ``::before``, coloured per cluster in ui/theme.py.
 
@@ -21,6 +23,7 @@ def render_rail() -> Optional[str]:
 
     # Composed, not raw: a sign-off clears ⚑ here as on the board.
     verdicts = {v.cluster: v for v in data_access.composed_verdicts()}
+    decs = store.load_decisions()
     selected = state.get_selected_cluster()
 
     with st.container(key="pano_rail"):
@@ -30,6 +33,7 @@ def render_rail() -> Optional[str]:
             # "c1 Tumor": id plus the override-aware cell type.
             name = f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
             label = f"{name}  ⚑" if verdicts[cluster].verify else name
+            label = f"{MARK[decisions.state(decs, cluster)]} {label}"
 
             # Key ``rail_<cluster>`` drives the theme's dot colour rule.
             st.button(
@@ -37,6 +41,7 @@ def render_rail() -> Optional[str]:
                 key=f"rail_{cluster}",
                 type="primary" if is_sel else "secondary",
                 width="stretch",
+                help=f"decision: {decisions.state(decs, cluster).lower()}",
                 on_click=state.set_selected_cluster,
                 args=(cluster,),
             )

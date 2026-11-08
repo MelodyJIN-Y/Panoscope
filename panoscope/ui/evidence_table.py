@@ -362,9 +362,13 @@ def render_evidence_table(cluster: str) -> None:
     rows = rows_for(cluster, built)
     by_key = {r.key: r.values["gene"] for r in rows}
 
+    # Evidence first (interface §5.3): the proposal's header is one tap away, in
+    # ``ui/review.py``; only the unit's provenance line leads.
+    st.markdown(f'<div class="pano-idline">{html.escape(_unit_scope(cluster))}</div>',
+                unsafe_allow_html=True)
     surface.render_surface(
         spec,
-        header=_header_values(cluster),
+        header=None,
         rows=rows,
         on_select=lambda r: state.toggle_marker(cluster, by_key[r.key]),
         selected=lambda r: state.is_marker_selected(cluster, by_key[r.key]),

@@ -19,6 +19,7 @@ from panoscope.ui import (
     evidence_table,
     nav,
     onboarding,
+    review,
     spatial_stage,
     state,
     summary,
@@ -246,8 +247,9 @@ def _examine_body() -> None:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
     with center_col:
-        # The declared header is drawn by the evidence table itself.
+        # Evidence first; the proposal's header is one tap away (ui/review.py).
         evidence_table.render_evidence_table(cluster)
+        review.render_review(cluster)
         spatial_stage.render_spatial_stage(cluster)
     with chat_col:
         _chat_pane_fragment(cluster)
