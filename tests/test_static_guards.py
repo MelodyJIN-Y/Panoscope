@@ -82,7 +82,7 @@ def _store_writes(tree: ast.AST) -> list[str]:
         f = n.func
         if isinstance(f, ast.Attribute) and f.attr.startswith("save_") and (
                 (isinstance(f.value, ast.Name) and f.value.id in aliases)
-                or ast.unparse(f.value) == "panoscope.pipeline.store"):
+                or ast.unparse(f.value).endswith("pipeline.store")):
             hits.append(f"line {n.lineno}: {ast.unparse(f)}")
         elif isinstance(f, ast.Name) and f.id in direct:
             hits.append(f"line {n.lineno}: {f.id}")
@@ -93,7 +93,8 @@ def test_the_store_write_detector_sees_each_import_form():
     for src in ("from panoscope.pipeline import store\nstore.save_x(1)",
                 "from panoscope.pipeline import store as s\ns.save_x(1)",
                 "from panoscope.pipeline.store import save_x\nsave_x(1)",
-                "import panoscope.pipeline.store\npanoscope.pipeline.store.save_x(1)"):
+                "import panoscope.pipeline.store\npanoscope.pipeline.store.save_x(1)",
+                "from panoscope import pipeline\npipeline.store.save_x(1)"):
         assert _store_writes(ast.parse(src)), src
     assert not _store_writes(ast.parse("from panoscope.pipeline import store\nstore.load_x()"))
 
