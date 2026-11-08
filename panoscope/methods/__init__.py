@@ -126,7 +126,9 @@ def recognise_inputs(folder: Path) -> dict[Path, MethodModule | None]:
 
     return {p: recognise(pd.read_csv(p)) if p.suffix == ".csv" else None
             for p in sorted(Path(folder).iterdir())
-            if p.is_file() and p.suffix.lower() in _RESULT_SUFFIXES}
+            # A dotfile (macOS ``._x.csv`` from a USB drive) is metadata, not a result.
+            if p.is_file() and not p.name.startswith(".")
+            and p.suffix.lower() in _RESULT_SUFFIXES}
 
 
 # --------------------------------------------------------------------------- #

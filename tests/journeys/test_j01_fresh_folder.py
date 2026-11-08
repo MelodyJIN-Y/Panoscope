@@ -72,12 +72,14 @@ def test_a_fresh_labelless_folder_is_listed_built_called_and_never_reads_thin(
 @pytest.mark.req("PLAN-P1.1-01")
 def test_every_result_like_file_is_listed_and_only_a_csv_is_read(tmp_path):
     """recognise_inputs lists .csv/.tsv/.txt/.xlsx at the top level; a non-CSV is None
-    (no method reads it), and the panel or a subfolder is not a result file."""
+    (no method reads it), and the panel, a subfolder or a dotfile is not a result file."""
     from panoscope import methods
 
     for name in ("a.tsv", "b.txt", "c.xlsx", "panel.parquet"):
         (tmp_path / name).write_text("gene\tx\n")
     (tmp_path / "markers_top.csv").write_bytes((DEMO_INPUTS / "markers_top.csv").read_bytes())
     (tmp_path / "samples").mkdir()
+    # macOS writes a binary ._ twin beside each file copied off a USB / exFAT drive.
+    (tmp_path / "._markers_top.csv").write_bytes(b"\x00\x05\x16\x07Mac OS X\xff\xfe")
     got = {p.name: (m.name if m else None) for p, m in methods.recognise_inputs(tmp_path).items()}
     assert got == {"a.tsv": None, "b.txt": None, "c.xlsx": None, "markers_top.csv": "jazzpanda_spatial_glm"}
