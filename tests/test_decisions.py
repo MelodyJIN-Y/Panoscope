@@ -121,12 +121,11 @@ def test_a_summary_sign_off_is_a_reviewed_mark_never_a_call(monkeypatch) -> None
     assert decs["c3"] == {"state": D.OVERRIDDEN, "label": "Fooblast", "note_id": "n3"}
 
 
-def test_the_bundled_demo_opens_with_every_cluster_open(app_tree, tmp_path, monkeypatch) -> None:
+def test_the_bundled_demo_opens_with_every_cluster_open(app_tree) -> None:
     """The demo is a real study: its shipped labels are proposals, never decisions."""
     from panoscope.agent import config as cfg
     from panoscope.ui import data_access as da
 
-    monkeypatch.setenv("HOME", str(tmp_path))  # no lab notes from the machine running this
     assert cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and len(cfg.CLUSTER_ORDER) == 9
     assert da.decisions() == {}
     assert all(da.effective_call(c) is None for c in cfg.CLUSTER_ORDER)
