@@ -20,8 +20,8 @@ exact quotation, not judgment.
 - `genes`: each gene in scope with its `aliases` (from HGNC and MeSH). An alias marked
   `restricted` (3 characters or fewer, an English word, a common acronym, a bare CD number)
   is used ONLY in proximity to a cell-type term, never on its own. If a gene's
-  `aliases_status` is not `ok`, search its symbol only and log one `FAILED` query line for
-  its vocabulary (source `vocab`).
+  `aliases_status` is not `ok`, search with the aliases it does list and log one `FAILED`
+  query line for its vocabulary (source `vocab`).
 - `tissue.terms` and `organ_disease_terms.terms`: together they are the tissue block T.
   Organ-disease terms matter: many in-window papers say "lupus nephritis" or "renal cell
   carcinoma" and never "kidney". `tissue.blocks` is T already split into chunks.
@@ -67,9 +67,10 @@ type, human. Read those papers first and most deeply. Widen one step at a time, 
 a cell type where the narrow window gave fewer than 2 papers with a statement: same tissue
 in another disease state; then the same cell type in another tissue; then other species;
 then in vitro. Never let wider papers crowd out narrow ones. Papers that re-analyse this
-study's own dataset (they cite or name the release paper's data) are this dataset's own
-papers: read them, record their statements, and give them the disposition
-`SAME_DATASET_READ`. Panoscope shows them apart and never counts them.
+study's own dataset (their methods or data availability name the release paper's data;
+citing the release paper alone is not enough) are this dataset's own papers: read them,
+record their statements, and give them the disposition `SAME_DATASET_READ`. Panoscope
+decides from the paper itself which statements it shows apart and does not count.
 
 ## Searching, channel by channel (in this order, for each gene)
 
@@ -83,9 +84,6 @@ C_x is cell type x's terms ORed. T is the tissue block.
   the release paper is unresolved.
 - **C3 body sections**, for each cell type x: Europe PMC
   `(RESULTS:"a1" OR FIG:"a1" OR TABLE:"a1" ...) AND (RESULTS:"s1" OR FIG:"s1" ...) AND (T)`.
-  If Europe PMC refuses or errors (HTTP 400, 414, 500 or 503), split instead of giving up:
-  run one alias at a time, and if T is still too long, run one `tissue.blocks` chunk at a
-  time. Log every part.
 - **C1 title/abstract facet**, for each cell type x: PubMed
   `(G in [tiab]) AND (T in [tiab]) AND (C_x in [tiab])`. Do NOT add the disease terms: many
   in-window papers never write the disease phrase in the title or abstract; the disease
@@ -96,6 +94,10 @@ C_x is cell type x's terms ORed. T is the tissue block.
   `"<alias> <term>"[tiab:~6] AND (T)`, including restricted aliases.
 - **C5 papers of interest**: look each one up and screen it like any other hit. Never
   accept one automatically.
+
+Refused queries, in every channel: if a source refuses or errors (HTTP 400, 414, 500 or
+503), split instead of giving up: run one alias at a time, and if T is still too long, run
+one `tissue.blocks` chunk at a time. Log every part.
 
 Paging: page every query to the end or to 200 results. Over 200: narrow once by adding
 `AND (M)`, then by putting C_x in the title only, then to the last 36 months, logging each

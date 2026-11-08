@@ -88,6 +88,8 @@ def context(study: Any, genes: tuple[str, ...] = ()) -> dict[str, Any]:
             ([], "no tissue label at intake")
     except (SourceUnavailable, KeyError) as exc:
         organ, status = [], f"FAILED: {exc}"
+    if label and not organ and status == "ok":         # e.g. "pancreas": MeSH says "Pancreatic"
+        status = f'none: no MeSH heading "{label} Diseases"'
     seen = {x.casefold() for x in tissue}
     t = tissue + [o for o in organ if o.casefold() not in seen]
     bg = study.manifest.get("background") or {}

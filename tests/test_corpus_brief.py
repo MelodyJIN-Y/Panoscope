@@ -69,6 +69,9 @@ def test_a_failed_lookup_is_named_never_an_empty_vocabulary(stub):
     assert [a["text"] for a in c["genes"][0]["aliases"]] == ["CXCL13", "CXCL13 Chemokine"]
     assert c["organ_disease_terms"] == {"status": "FAILED: hgnc: 503", "source": "MeSH",
                                         "terms": []}
+    stub.setattr(BR, "organ_disease_terms", lambda label: ())
+    assert BR.context(STUDY)["organ_disease_terms"]["status"] == \
+        'none: no MeSH heading "kidney Diseases"'
 
 
 def test_organ_disease_terms_keep_two_levels_of_natural_order_entry_terms(monkeypatch):
