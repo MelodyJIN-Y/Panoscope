@@ -45,8 +45,18 @@ from panoscope.types.subject import EntityKind
 def _jz_enrichment_csv():
     """The active study's jazzPanda enrichment result, resolved at CALL time.
 
-    The bundled demo file is a fallback ONLY for the demo.
+    The bundled demo file is a fallback ONLY for the demo. Recognition is by columns,
+    so a CGST table under any other name is the one the build reads (plan Ph1.1).
     """
+    named = cfg.current_study().inputs / "enrichment.csv"
+    if cfg.DATASET_ID != cfg.BUNDLED_DEMO_ID and not named.exists():
+        from panoscope import methods
+        from panoscope.workflows.enrichment import WORKFLOW_ID
+
+        found = [p for p, m in methods.recognise_inputs(named.parent).items()
+                 if m is not None and m.workflow == WORKFLOW_ID] if named.parent.is_dir() else []
+        if len(found) == 1:
+            return found[0]
     legacy = (
         cfg.DATA_DIR_PATH / "jazzpanda" / "hbc_sp1_top10_hallmark_test_statistic.csv"
         if cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID

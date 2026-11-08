@@ -490,7 +490,10 @@ def _biology_cell(v: ClusterVerdict, ct_notes: dict, needs_note: str) -> str:
     pmid = note.get("pmid")
     body: list[str] = []
     if summary:
-        body.append(f'<span class="bio">{html.escape(summary)}</span>')
+        from panoscope.ui import conversation as convo
+
+        # A pmcid paper named in the note is a link, like the PMID below (UI-2.9-05).
+        body.append(f'<span class="bio">{convo._linkify_citations(summary)}</span>')
         # Key-markers sentence only when the stored note is a single sentence.
         if summary.count(".") <= 1 and v.key_markers:
             km = ", ".join(str(g) for g in v.key_markers[:4])

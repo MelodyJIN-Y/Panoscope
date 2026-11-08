@@ -115,11 +115,18 @@ def recognise(table: Any) -> MethodModule | None:
     return hits[0] if hits else None
 
 
+#: Result-like files a collaborator may hand over. Only CSVs are read by a method; the
+#: rest are listed as ``None`` so the biologist sees them, never silently skipped.
+_RESULT_SUFFIXES = (".csv", ".tsv", ".txt", ".xlsx")
+
+
 def recognise_inputs(folder: Path) -> dict[Path, MethodModule | None]:
-    """Every top-level CSV in ``folder`` -> the method that reads it, or ``None``."""
+    """Every top-level result file in ``folder`` -> the method that reads it, or ``None``."""
     import pandas as pd  # local: keeps `import panoscope.methods` free of pandas
 
-    return {p: recognise(pd.read_csv(p)) for p in sorted(Path(folder).glob("*.csv"))}
+    return {p: recognise(pd.read_csv(p)) if p.suffix == ".csv" else None
+            for p in sorted(Path(folder).iterdir())
+            if p.is_file() and p.suffix.lower() in _RESULT_SUFFIXES}
 
 
 # --------------------------------------------------------------------------- #

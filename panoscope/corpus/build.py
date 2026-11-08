@@ -170,8 +170,12 @@ def refresh_notes(study: Any) -> None:
     from panoscope.agent import config as cfg
     from panoscope.pipeline.stages import notes
 
+    import contextlib
+    import io
+
     if not (study.inputs / "markers_top.csv").is_file():
         return                                    # no marker workflow, no marker notes
-    with cfg.use_study(study):
+    # Quiet: one progress line per note (~230 on the demo) buried the import receipt.
+    with cfg.use_study(study), contextlib.redirect_stdout(io.StringIO()):
         notes.run_celltype_notes(study.id, study.dir.parent)
         notes.run_gene_notes(study.id, study.dir.parent)

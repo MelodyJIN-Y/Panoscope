@@ -20,6 +20,7 @@ carries a statistic; uncertain clusters keep ``verify = True`` and say so.
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
 from typing import Optional
 
@@ -683,7 +684,24 @@ def match(query: str, cluster: str) -> AgentResponse:
     return generic_fallback(cluster)
 
 
+WITHHELD = ("The model's answer was withheld: it stated something that traces to no "
+            "source in this study, so it is not shown.")
+
+
+def withheld(query: str, cluster: str) -> AgentResponse:
+    """The fallback for an answer the grounding gate refused: say it was withheld, then
+    answer only what the study can (a canned intent), never an off-topic summary."""
+    canned = fallback_answer(query, cluster)
+    if canned is not None:
+        return replace(canned, text=f"{WITHHELD} {canned.text}")
+    base = generic_fallback(cluster)              # for the rubric's verify flag only
+    return replace(base, text=f"{WITHHELD} Nothing in this study's results answers that "
+                              "question.", sources=(), grounding=_sidecar((), ()),
+                   pin_marker=None)
+
+
 __all__ = [
+    "withheld",
     "fallback_opening",
     "fallback_answer",
     "generic_fallback",

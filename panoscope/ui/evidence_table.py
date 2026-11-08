@@ -66,7 +66,9 @@ def unit_build(cluster: str) -> Any | None:
     cannot produce one."""
     try:
         return _builds(str(cfg.current_study().dir)).get(cluster)
-    except Exception:  # noqa: BLE001 - a missing/broken input is a message, not a crash
+    # SystemExit too: the build refuses a study with no marker output that way (a CLI
+    # idiom), and uncaught in a page it kills the script thread (enrichment/DE-only).
+    except (Exception, SystemExit):  # noqa: BLE001 - a missing input is a message, not a crash
         return None
 
 

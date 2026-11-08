@@ -1152,8 +1152,9 @@ class PanoscopeAgent:
         if repaired is not None:
             return repaired
 
-        # Repair failed the floor too -> deterministic grounded fallback.
-        return fb.match(query, cluster)
+        # Repair failed the floor too -> say the answer was withheld, then the
+        # deterministic grounded fallback for what the study CAN answer.
+        return fb.withheld(query, cluster)
 
     def _repair(
         self,

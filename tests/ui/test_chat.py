@@ -246,7 +246,7 @@ def test_the_pathway_chat_fallback_is_labelled_and_keeps_the_enrichment_rubric(
     run(_open_chat("c2").button(key="rv_accept_c2").click())    # Pathways open after a call
     at = open_app("pathways", cluster="c2")
     before, n_notes = _decisions(), len(_notes())
-    at = _ask(at, "c2", "what does EMT mean here?", form="pwask_form", box="pwconv_ask_input")
+    at = _ask(at, "c2", "what does EMT mean here?", form="pwask_form", box="pwconv_ask_input_c2")
     turn = plain(_last_agent_turn(at))
     assert _FALLBACK in turn and _VERIFY_FLAG in turn, turn
     assert _decisions() == before and len(_notes()) == n_notes

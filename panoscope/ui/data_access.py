@@ -282,7 +282,10 @@ def verdict_for(cluster: str) -> ClusterVerdict:
 
 @_cache_data(show_spinner=False)
 def all_verdicts() -> list[ClusterVerdict]:
-    """Verdicts for all nine clusters (c1..c9), computed once and cached."""
+    """Verdicts for every cluster, computed once and cached; none for a study with no
+    marker result (enrichment- or DE-only), which has no label space to call."""
+    if not cfg._active_markers_csv().exists():
+        return []
     return [verdict_for(c) for c in cfg.CLUSTER_ORDER]
 
 
@@ -352,8 +355,10 @@ def effective_call(cluster: str) -> Optional[str]:
 def display_cell_type(cluster: str) -> str:
     """The cell type to SHOW for a cluster: the biologist's call if there is one, else
     the computed call. Reflects a call across the marker rail + Pathways tabs."""
+    from panoscope.data.study import NOT_YET_CALLED
+
     return (effective_call(cluster) or compose.override_call(cluster)
-            or verdict_for(cluster).cell_type)
+            or (verdict_for(cluster).cell_type if all_verdicts() else NOT_YET_CALLED))
 
 
 def display_verdict_for(cluster: str) -> ClusterVerdict:

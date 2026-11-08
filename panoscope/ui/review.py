@@ -111,13 +111,18 @@ def _assess_html(title: str, label: str, v: Any, claim: str, reads_as: str = "")
 def _tension_line(note_id: str) -> str:
     """The override note's literature check, derived at its draft: a display flag only."""
     from panoscope.agent import memory, tools
+    from panoscope.claims.notes import lookup_state
+    from panoscope.corpus.store import Resolution
 
     n = memory.get_note(note_id, tools.memory_base_dir())
     if n is None:
         return ""
     t = n.tension
+    state = lookup_state(t)
     body = (f"{len(t.agree)} agree / {len(t.dissent)} dissent (dissent is a flag, "
-            "never sets verify)" if (t.agree or t.dissent) else "literature thin")
+            "never sets verify)" if state is Resolution.RESOLVED
+            else "literature thin" if state is Resolution.NOT_FOUND
+            else "not looked up, so it cannot settle this")
     return f"literature check on your call: {body} [note:{note_id}]"
 
 
@@ -130,7 +135,7 @@ def _override(cluster: str, label: str, basis: str, built: Any, view: Any) -> No
     draft = memory.draft_note(
         claim=f"{cluster} is {label} (the biologist's call)", scope="cluster", basis=basis,
         cluster=cluster, subject_cell_type=label, subject_markers=observed,
-        dataset=cfg.DATASET_ID)
+        dataset=cfg.DATASET_ID, lookup_markers=view.canonical(label))
     D.override(cluster, draft, by=_ACTOR, at=_now(), base_dir=tools.memory_base_dir())
 
 

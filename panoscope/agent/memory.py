@@ -36,7 +36,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Optional, get_args
@@ -323,8 +323,13 @@ def draft_note(
     subject_category: str = "",
     dataset: str | None = None,
     literature_search: Optional[LiteratureSearch] = None,
+    lookup_markers: Iterable[str] = (),
 ) -> NoteDraft:
     """Reconcile a proposed note against the literature WITHOUT persisting it.
+
+    ``lookup_markers`` are the genes the corpus is read for when ``subject_markers``
+    is empty (a call on a cluster where none of the label's markers is observed): the
+    literature is still consulted, while the note stays anchored to what was observed.
 
     This is the first half of capture-at-override: the agent proposes a note (of one
     of the eight :data:`~agent.types.NoteType`\\ s, anchored to a gene / gene set /
@@ -367,7 +372,8 @@ def draft_note(
         subject_lineage=subject_lineage,
         subject_category=subject_category,
     )
-    tension = reconcile(stub, literature_search)
+    tension = reconcile(stub if markers else replace(stub, subject_markers=tuple(lookup_markers)),
+                        literature_search)
     return NoteDraft(
         claim=claim.strip(),
         scope=scope,

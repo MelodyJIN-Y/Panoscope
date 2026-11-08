@@ -34,7 +34,8 @@ def render_rail() -> Optional[str]:
             # The label is the proposal: shown only once revealed or decided.
             name = (f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
                     if revealed(cluster) else cluster)
-            label = f"{name}  ⚑" if verdicts[cluster].verify else name
+            v = verdicts.get(cluster)          # none in a study with no marker result
+            label = f"{name}  ⚑" if v is not None and v.verify else name
             label = f"{MARK[decisions.state(decs, cluster)]} {label}"
 
             # Key ``rail_<cluster>`` drives the theme's dot colour rule.

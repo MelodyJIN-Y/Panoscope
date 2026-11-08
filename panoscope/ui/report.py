@@ -449,6 +449,8 @@ def _decision_lines() -> tuple[str, ...]:
     from panoscope.ui import data_access as da
     from panoscope.ui import evidence_table as et
 
+    if not da.all_verdicts():          # no marker workflow: no calls to report
+        return ()
     decs, view = da.decisions(), ref_view.for_study(cfg.current_study())
     out = []
     for c in cfg.CLUSTER_ORDER:

@@ -312,6 +312,8 @@ class XeniumAdapter:
         p = self._markers_path(store)
         if not p.is_file():
             return None
+        if not {"gene", "top_cluster"} <= set(pd.read_csv(p, nrows=0).columns):
+            return None      # a table nothing recognises declares no detectability
         df = pd.read_csv(p, usecols=["gene", "top_cluster"])
         by_note = self._annotated_controls(store)
         return frozenset(

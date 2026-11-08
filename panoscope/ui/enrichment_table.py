@@ -189,7 +189,9 @@ def render_pathways_page() -> None:
     with rail_col:
         cluster_rail.render_rail()
     cluster = state.get_selected_cluster()
-    if da.effective_call(cluster) is None:
+    # Locked until called only where there is a call to make: an enrichment-only
+    # study has no marker workflow, so its Pathways open (decision §6.2).
+    if da.all_verdicts() and da.effective_call(cluster) is None:
         with center_col:
             _render_locked(cluster)
         return

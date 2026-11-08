@@ -174,7 +174,7 @@ def _render_ask_box(cluster: str) -> None:
             with c_in:
                 query = st.text_input(
                     "Ask",
-                    key=_K_ASK,
+                    key=f"{_K_ASK}_{cluster}",   # a half-typed question stays on its cluster
                     placeholder="Ask about these pathways…",
                     label_visibility="collapsed",
                 )

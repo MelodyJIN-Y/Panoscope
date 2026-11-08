@@ -34,6 +34,8 @@ def _msg_to_dict(msg: dict) -> dict:
         "text": msg.get("text", ""),
         "src_kinds": [s.kind for s in (getattr(resp, "sources", ()) or ())],
         "verify": bool(getattr(resp, "verify", False)),
+        "used_fallback": bool(getattr(resp, "used_fallback", False)),
+        "opening": bool(getattr(resp, "opening", False)),
     }
 
 
@@ -45,13 +47,17 @@ def _msg_from_dict(d: dict) -> dict:
 
     kinds = d.get("src_kinds") or []
     verify = bool(d.get("verify", False))
+    fallback = bool(d.get("used_fallback", False))
     resp = None
-    if kinds or verify:
+    if kinds or verify or fallback:
+        # Every attribute the bubble reads: a reloaded thread re-renders, never crashes.
         resp = SimpleNamespace(
             sources=tuple(Source(kind=k, ref="", value=None) for k in kinds),
             verify=verify,
             note_draft=None,
             pin_marker=None,
+            used_fallback=fallback,
+            opening=bool(d.get("opening", False)),
         )
     return {"role": d.get("role", "agent"), "text": d.get("text", ""), "resp": resp}
 
