@@ -13,6 +13,7 @@ import html
 import pytest
 
 from panoscope.agent import compose
+from panoscope.core.compat import SCORE_MAP
 from panoscope.core.export import PROFILES
 from panoscope.types.outputs import TaskKind
 from panoscope.ui import data_access as da
@@ -92,6 +93,8 @@ def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     # Band + verify: the rubric on the biologist's label; dissent is a display flag only.
     b = da._biologist_assessment("c2", "CAF")
     assert (comp["c2"].confidence, comp["c2"].verify) == (b.band, b.verify)
+    # The CSV's score anchor follows the band beside it, not the proposal's.
+    assert comp["c2"].confidence_score == SCORE_MAP[b.band] != da.verdict_for("c2").confidence_score
     assert comp["c1"].cell_type != "CAF"       # other clusters untouched
     assert da.verdict_for("c2").cell_type == "Stromal"  # deterministic verdict never mutated
 

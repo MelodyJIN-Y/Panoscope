@@ -334,6 +334,8 @@ def composed_verdicts() -> list[ClusterVerdict]:
         return all_verdicts()
     import dataclasses
 
+    from panoscope.core.compat import SCORE_MAP
+
     out: list[ClusterVerdict] = []
     for v in all_verdicts():
         ov = overrides.get(v.cluster)
@@ -342,7 +344,8 @@ def composed_verdicts() -> list[ClusterVerdict]:
             v = compose.compose_verdict(v, ov)
             # The biologist's label carries its own band: the same rubric on that label.
             if (b := _biologist_assessment(v.cluster, v.cell_type)) is not None:
-                changes.update(confidence=b.band, verify=b.verify)
+                changes.update(confidence=b.band, confidence_score=SCORE_MAP.get(b.band),
+                               verify=b.verify)
         if v.cluster in excluded:
             changes["exclude"] = True
         # Sign-off clears verify.
