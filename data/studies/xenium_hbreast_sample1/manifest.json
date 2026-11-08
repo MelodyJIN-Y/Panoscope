@@ -1,10 +1,8 @@
 {
   "dataset_id": "xenium_hbreast_sample1",
-  "generated_at": "2026-11-03T21:41:50Z",
+  "generated_at": "2026-11-08T12:00:08Z",
   "pipeline_version": "0.1.0",
   "tissue": "human breast cancer",
-  "tissue_id": "UBERON:0000310",
-  "tissue_label": "breast",
   "platform": "Xenium",
   "panel_gene_count": 280,
   "n_cells": 158379,
@@ -189,9 +187,16 @@
       "n_frames": 840
     }
   },
+  "workflows": [
+    "enrichment-interpretation",
+    "marker-interpretation"
+  ],
   "reference": {
-    "lab:human breast cancer": "2058dab2bcd5"
+    "lab:human breast cancer": "2058dab2bcd5",
+    "lab-synonyms": "8ee3e438ec96"
   },
+  "tissue_id": "UBERON:0000310",
+  "tissue_label": "breast",
   "stated": [
     "tissue_id",
     "tissue_label"
