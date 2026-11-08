@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-LIVE = re.compile(r"(?i)live[- ]cit|cited live|live citation")
+LIVE = re.compile(r"(?i)live[- ]cit|cite[sd]? live|live citation")
 
 DOCS = [REPO / "README.md", *sorted((REPO / "docs").glob("*.md")),
         *sorted((REPO / "panoscope" / "skills").rglob("SKILL.md"))]

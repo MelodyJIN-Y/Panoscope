@@ -178,6 +178,15 @@ def test_with_no_model_key_an_override_is_not_promised_a_save(no_key, offline_li
     assert "Call it yourself" in text                         # where the call CAN be made
 
 
+@pytest.mark.req("CLAUDE-MEM-01", "CORP-A25")
+def test_with_no_model_key_the_pathway_chat_promises_no_draft_and_no_live_literature(
+        no_key, offline_lit):
+    run(_open_chat("c2").button(key="rv_accept_c2").click())    # Pathways open after a call
+    text = screen_text(open_app("pathways", cluster="c2"))
+    assert "No model key is set" in text, text[-800:]
+    assert "draft a note to save" not in text and "live literature" not in text
+
+
 # --------------------------------------------------------------------------- #
 # 5.16  Enforcement split: a falsified number rejects the turn; a fabricated PMID
 #       drops only its sentence, with a visible stub

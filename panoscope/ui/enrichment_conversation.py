@@ -53,11 +53,17 @@ def render_pathway_conversation(cluster: str) -> None:
     st.markdown(convo._CONVO_CSS, unsafe_allow_html=True)
     _ensure_opening(cluster)
     _render_header(cluster)
+    from panoscope.agent import loop as agent_loop
+
+    # As on the marker chat: promise a drafted note only where a model can draft one.
+    tail = ("Reinterpret a program (e.g. co-infiltration, not the cluster's own) and I "
+            "draft a note to save. Citations are looked up from a real source, never from "
+            "memory." if agent_loop.has_model_key() else
+            "No model key is set: answers come from the computed reading and nothing is "
+            "drafted or saved.")
     st.markdown(
         '<div class="conv-hint">Ask about this cluster\'s enriched programs — what they '
-        "mean, whether they fit the cell type, or which look cross-lineage. Reinterpret a "
-        "program (e.g. co-infiltration, not the cluster's own) and I draft a note to save. "
-        "Answers cite live literature.</div>",
+        f"mean, whether they fit the cell type, or which look cross-lineage. {tail}</div>",
         unsafe_allow_html=True,
     )
     with st.container(key="conv_thread"):
