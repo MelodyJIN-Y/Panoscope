@@ -991,10 +991,8 @@ def render_summary_page() -> None:
     # Export needs a terminal decision on every cluster (interface §5.2); a Summary
     # sign-off counts as accepting the call shown.
     from panoscope.pipeline import decisions as dec
-    from panoscope.pipeline import store as pstore
 
-    refusal = dec.export_refusal(cfg.CLUSTER_ORDER, {
-        **{c: {"state": dec.ACCEPTED} for c in signed}, **pstore.load_decisions()})
+    refusal = dec.export_refusal(cfg.CLUSTER_ORDER, da.decisions())
     if refusal:
         act_col.caption(refusal)
     else:

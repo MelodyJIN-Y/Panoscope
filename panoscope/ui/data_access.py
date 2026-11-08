@@ -602,6 +602,15 @@ def signed_off() -> dict:
         return {}
 
 
+def decisions() -> dict:
+    """Per-cluster decisions; a Summary sign-off counts as accepting the call shown."""
+    from panoscope.pipeline import decisions as D
+    from panoscope.pipeline import store
+
+    signed = {c: {"state": D.ACCEPTED, "label": display_cell_type(c)} for c in signed_off()}
+    return {**signed, **store.load_decisions()}
+
+
 def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
     """Record that the biologist reviewed and accepted ``cluster``'s call (idempotent).
 

@@ -9,7 +9,7 @@ and ``ui.data_access`` are imported lazily.
 from __future__ import annotations
 
 import re as _re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Optional
 
 from panoscope.agent import config as cfg
@@ -93,6 +93,9 @@ class ReportModel:
 
     #: How many panel genes produced no usable spatial signal (detectability frame).
     panel_no_signal: int = 0
+    #: One line per cluster: decision state, the biologist's label, the band on the
+    #: proposal and on that label, and the override claim.
+    decisions: tuple[str, ...] = ()
 
 
 # --------------------------------------------------------------------------- #
@@ -434,6 +437,35 @@ def _provenance(dataset: str) -> dict:
             "corpus_status": corpus, "generator": generator, "spec_version": spec}
 
 
+def _band(v: Any) -> str:
+    return (v.band or "no band") + (", verify" if v.verify else "")
+
+
+def _decision_lines() -> tuple[str, ...]:
+    """Each cluster's decision with both assessments (``decisions.assessments``), read at export."""
+    from panoscope.agent import memory, tools
+    from panoscope.pipeline import decisions as D
+    from panoscope.reference import view as ref_view
+    from panoscope.ui import data_access as da
+    from panoscope.ui import evidence_table as et
+
+    decs, view = da.decisions(), ref_view.for_study(cfg.current_study())
+    out = []
+    for c in cfg.CLUSTER_ORDER:
+        label, built = D.call(decs, c), et.unit_build(c)
+        line = f"{c}: {D.state(decs, c).lower()} · proposal {da.verdict_for(c).cell_type}"
+        if built is not None:
+            got = D.assessments(built, label, view)
+            line += f" ({_band(got.proposal)})"
+            if label:
+                line += f" · your call {label} ({_band(got.biologist)})"
+        note_id = (decs.get(c) or {}).get("note_id")
+        if note_id and (n := memory.get_note(note_id, tools.memory_base_dir())):
+            line += f" · override claim note:{note_id} {_note_text(_note_line(n))}"
+        out.append(line)
+    return tuple(out)
+
+
 def build_report_from_sources(generated_at: str = "") -> ReportModel:
     """Pull the durable artifacts from ``ui.data_access`` and assemble the report."""
     from panoscope.ui import data_access as da
@@ -446,7 +478,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
 
     tissue, platform = da.tissue_platform()
     prov = _provenance(cfg.DATASET_ID)
-    return build_report(
+    rep = build_report(
         verdicts=da.composed_verdicts(),  # reflect confirmed overrides/excludes in the report
         celltype_notes=da.celltype_notes(),
         notes=da.read_notes(),
@@ -462,6 +494,7 @@ def build_report_from_sources(generated_at: str = "") -> ReportModel:
         undecidable=_dataset_undecidables(cfg.DATASET_ID),
         **prov,
     )
+    return replace(rep, decisions=_decision_lines())
 
 
 # --------------------------------------------------------------------------- #
@@ -844,6 +877,7 @@ def _working_lines(
     global_check: str = "",
     caveats: str = "",
     lab_notes: tuple[NoteLine, ...] = (),
+    decisions: tuple[str, ...] = (),
 ) -> list[tuple[str, str]]:
     """(style, text) lines for the EDITED working-space export: an overview table, the
     per-cluster summaries, the cross-cluster global check, then the caveats (the
@@ -864,6 +898,9 @@ def _working_lines(
                 + ("  [re-check]" if verify else ""))
         lines.append(("h2", head))
         lines.extend(_blocks(text))
+    if decisions:
+        lines.append(("h2", "Annotation decisions"))
+        lines.extend(("body", d) for d in decisions)
     if global_check.strip():
         lines.append(("h2", "Cross-cluster global check"))
         lines.extend(_blocks(global_check))
@@ -940,7 +977,8 @@ def working_docx(sections, *, report_model: ReportModel | None = None, **kw) -> 
     confirmed-call overview table at the top."""
     header = _header_meta(report_model) if report_model else None
     overview = overview_rows(report_model) if report_model else None
-    lines = _working_lines(sections, header=header, has_overview=overview is not None, **kw)
+    lines = _working_lines(sections, header=header, has_overview=overview is not None,
+                           decisions=report_model.decisions if report_model else (), **kw)
     return _lines_to_docx(lines, overview=overview)
 
 
@@ -948,5 +986,6 @@ def working_pdf(sections, *, report_model: ReportModel | None = None, **kw) -> b
     """Export the (edited) working space as a PDF (with the header + overview table)."""
     header = _header_meta(report_model) if report_model else None
     overview = overview_rows(report_model) if report_model else None
-    lines = _working_lines(sections, header=header, has_overview=overview is not None, **kw)
+    lines = _working_lines(sections, header=header, has_overview=overview is not None,
+                           decisions=report_model.decisions if report_model else (), **kw)
     return _lines_to_pdf(lines, overview=overview)
