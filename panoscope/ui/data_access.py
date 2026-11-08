@@ -603,11 +603,15 @@ def signed_off() -> dict:
 
 
 def decisions() -> dict:
-    """Per-cluster decisions; a Summary sign-off counts as accepting the call shown."""
+    """Per-cluster decisions; a Summary sign-off counts as accepting the call shown,
+    never on a cluster with no call to accept (it stays OPEN)."""
+    from panoscope.data.study import NOT_YET_CALLED
     from panoscope.pipeline import decisions as D
     from panoscope.pipeline import store
 
-    signed = {c: {"state": D.ACCEPTED, "label": display_cell_type(c)} for c in signed_off()}
+    shown = {c: display_cell_type(c) for c in signed_off()}
+    signed = {c: {"state": D.ACCEPTED, "label": label}
+              for c, label in shown.items() if label != NOT_YET_CALLED}
     return {**signed, **store.load_decisions()}
 
 

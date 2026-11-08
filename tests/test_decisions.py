@@ -97,3 +97,15 @@ def test_expected_types_sit_beside_candidates_never_alone() -> None:
     assert D.label_space(_view(), ("Zeta cell", "tumor")) == (("Tumor", "Stromal"),
                                                               ("Zeta cell",))
     assert D.label_space(View(graph=Graph()), ("Zeta cell",)) == ((), ())
+
+
+def test_a_summary_sign_off_never_accepts_a_cluster_with_no_call(monkeypatch) -> None:
+    from panoscope.ui import data_access as da
+
+    monkeypatch.setattr(da, "signed_off", lambda: {"c1": {}, "c2": {}})
+    monkeypatch.setattr(da, "display_cell_type",
+                        lambda c: "Tumor" if c == "c1" else NOT_YET_CALLED)
+    monkeypatch.setattr(store, "load_decisions", lambda *a, **k: {})
+    decs = da.decisions()
+    assert D.call(decs, "c1") == "Tumor"
+    assert D.export_refusal(["c1", "c2"], decs).endswith("still OPEN: c2")
