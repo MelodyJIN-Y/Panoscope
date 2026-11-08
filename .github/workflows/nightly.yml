@@ -27,3 +27,5 @@ jobs:
         run: HYPOTHESIS_PROFILE=deep pytest tests/test_properties.py -q -p no:cacheprovider
       - name: Curated mutants (on a temp copy; fails on any non-equivalent survivor)
         run: python scripts/mutants/run.py
+      - name: Performance budgets (IMPLEMENTATION §9; timing is not a commit gate)
+        run: pytest -m budget -q -p no:cacheprovider

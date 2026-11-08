@@ -207,6 +207,8 @@ id      = "ARCH-5.1-02"
 source  = "ARCH 5.1"
 text    = "SpatialData .zarr reader behind panoscope[spatial], validated against tidy adapter"
 aliases = ["A34"]
+status  = "deferred"
+reason  = "ARCH §5.1 puts the SpatialData reader off the critical path; the tidy adapter is the reader of record until it lands (test plan Stage 8)"
 
 [[req]]
 id      = "ARCH-5.2-01"
@@ -333,6 +335,8 @@ id      = "ARCH-7.5-04"
 source  = "ARCH 7.5; 20.5"
 text    = "Demotion floor: show band stability as claim store grows (10/100/1000) or adopt one-demotion-per-condition-class"
 aliases = ["A55"]
+status  = "decision"
+reason  = "open decision ARCH §20.5: show band stability as the claim store grows, or adopt one demotion per condition class (test plan Stage 8)"
 
 [[req]]
 id      = "ARCH-10.3-01"
@@ -525,6 +529,8 @@ id      = "ARCH-11-02"
 source  = "ARCH 11"
 text    = "Answer policy (strict/balanced/permissive) travels separately so same context can be replayed"
 aliases = ["A87"]
+status  = "decision"
+reason  = "no answer-policy object is built; whether policy travels apart from context for replay is open (test plan 6b, A87)"
 
 [[req]]
 id      = "ARCH-11.1-01"
@@ -579,6 +585,8 @@ id      = "LLM-3-01"
 source  = "llm-access §3"
 text    = "Skill install/run standalone, independent of app"
 aliases = ["A96"]
+status  = "deferred"
+reason  = "a standalone skill run happens in the biologist's own agent client, outside this suite (test plan 6b, A96)"
 
 [[req]]
 id      = "ARCH-12-01"
@@ -1401,6 +1409,8 @@ id      = "SKM-3c-01"
 source  = "skills/marker-interpretation/SKILL.md 3c row 2 / A28"
 text    = "Multiple genes from one pathway, no single canonical marker -> Medium (needs gene-to-pathway Membership)"
 aliases = ["SKM-07"]
+status  = "deferred"
+reason  = "pathway-membership Medium needs a gene-to-pathway Membership source that is not built; when built it is an explicit rubric rule (test plan 6b, SKM-07)"
 
 [[req]]
 id      = "SKM-3e-01"
@@ -1455,6 +1465,8 @@ id      = "SKM-3c-02"
 source  = "skills/marker-interpretation/SKILL.md 3c rows 4-5"
 text    = "Stress/proliferation overlays still sit on an underlying lineage: label 'Stressed/Proliferating [Lineage]'"
 aliases = ["SKM-16"]
+status  = "deferred"
+reason  = "overlay naming is model behaviour, checked by evals, not by a deterministic test (test plan 6b, SKM-16)"
 
 [[req]]
 id      = "SKE-S1-01"
@@ -1677,6 +1689,8 @@ id      = "PLAN-P3.6-01"
 source  = "implementation_plan.md P3.6"
 text    = "Re-pilot POSTN/breast, ERBB2/breast, CXCL13/kidney vs v1 judge: recall >=7/10 each, grounding >=8"
 aliases = ["PLAN-20"]
+status  = "deferred"
+reason  = "live, model-judged re-pilot: eval work, never in the default suite (test plan §2.10)"
 
 [[req]]
 id      = "PLAN-P3C-01"
@@ -1791,6 +1805,8 @@ id      = "CORP-A23"
 source  = "corpus_requirements_final.md A23 / C#41"
 text    = "Planned modules corpus/fetch.py, spans.py, version.py and test_corpus_* (floor, alias, staleness)"
 aliases = ["CORP-A23"]
+status  = "decision"
+reason  = "the corpus landed as store/read/retrieve/window/channels rather than fetch/spans/version; floor and staleness are tested under the built names. Confirm the planned split is superseded"
 
 [[req]]
 id      = "CORP-A24"

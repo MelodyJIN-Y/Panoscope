@@ -52,16 +52,20 @@ jobs:
       - name: Run offline test suite
         # Coverage floor = the first pytest-cov measurement (89%, line+branch,
         # 2026-11-09); only ever raise it. Coverage is a floor, not strength.
+        # -n auto (pytest-xdist): the serial suite passed ~7 min at Stage 6b. The
+        # reverse-order run below stays serial, since its point is one fixed order.
         run: >-
-          pytest -m "not live and not browser" -q
+          pytest -m "not live and not browser" -q -n auto
           --cov=panoscope --cov-branch --cov-report=term:skip-covered
           --cov-fail-under=89 --durations=20
 
       - name: Run it again in reverse order (catches state leaking between tests)
         run: PANOSCOPE_TEST_ORDER=reverse pytest -m "not live and not browser" -q -p no:cacheprovider
 
-      - name: Requirements traceability report (warn-only until test plan Stage 6b)
-        run: pytest --collect-only -q --trace-report traceability.md
+      - name: Requirements traceability (blocking since test plan Stage 6b)
+        # Every requirement has a test (passing or strict-xfail gap) or a registry
+        # status of deferred/decision with its reason.
+        run: pytest --collect-only -q --trace-report traceability.md --trace-strict
 
       - name: The committed golden output and study tree are untouched
         run: git diff --exit-code tests/golden data/studies

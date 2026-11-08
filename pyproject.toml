@@ -27,7 +27,7 @@ export  = ["python-docx>=1.1,<2", "fpdf2>=2.7,<3"]
 # BUILD-side only: writing a SpatialData store and scverse interop (ARCHITECTURE
 # §5.1). Reading Points needs only pyarrow (panoscope/data/spatial.py).
 spatial = ["spatialdata>=0.8,<1", "zarr>=3,<4"]
-dev     = ["pytest>=8,<10", "pytest-cov>=5,<8", "hypothesis>=6,<7", "ruff>=0.5,<1", "mypy>=1.10,<2"]
+dev     = ["pytest>=8,<10", "pytest-cov>=5,<8", "pytest-xdist>=3.5,<4", "hypothesis>=6,<7", "ruff>=0.5,<1", "mypy>=1.10,<2"]
 
 [project.scripts]
 panoscope = "panoscope.cli:main"

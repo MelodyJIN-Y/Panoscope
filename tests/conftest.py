@@ -326,7 +326,10 @@ def pytest_addoption(parser):
                      help="fail when a requirement has no test and no deferred/decision status")
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
+    # Before any -m deselection: a live, budget or browser test still covers its rows.
+    config._req_items = list(items)
     reqs = load_requirements()
     bad = []
     for item in items:
@@ -355,7 +358,7 @@ def pytest_collection_finish(session):
         return
     reqs = load_requirements()
     tests, built = defaultdict(set), set()
-    for item in session.items:
+    for item in getattr(session.config, "_req_items", session.items):
         for m in item.iter_markers("req"):
             for i in m.args:
                 tests[i].add(item.nodeid.split("[")[0])

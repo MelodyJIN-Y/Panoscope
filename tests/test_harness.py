@@ -104,6 +104,16 @@ def test_trace_strict_fails_on_an_untested_requirement(tmp_path) -> None:
 
 
 @pytest.mark.req(HARNESS)
+def test_a_deselected_live_or_budget_test_still_covers_its_row(tmp_path) -> None:
+    """R-3's only test runs in the nightly budget job; -m "not live" must not report it untested."""
+    suite = _SUITE + '\n@pytest.mark.budget\n@pytest.mark.req("R-3")\ndef test_fast():\n    pass\n'
+    r = _child(tmp_path, suite, "--collect-only", "-m", "not live", "--trace-strict",
+               "--trace-report", str(tmp_path / "t.md"))
+    assert r.returncode == 0, r.stdout + r.stderr     # strict: R-3 is covered
+    assert "| R-3 | built |" in (tmp_path / "t.md").read_text()
+
+
+@pytest.mark.req(HARNESS)
 def test_reverse_order_reverses_the_run(tmp_path) -> None:
     def order(env):
         out = _child(tmp_path, _SUITE, "--collect-only", "-q", "-q", env=env).stdout
