@@ -33,6 +33,7 @@ reason, which is the quietest way for a registration test to stop testing anythi
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
 import pytest
@@ -517,3 +518,96 @@ def test_registry_demonstration(isolated_registries, capsys):
     print("\n".join(lines))
     out = capsys.readouterr().out
     assert "jazzpanda_spatial_glm" in out and "stub_mean_expression_de" in out
+
+
+# --------------------------------------------------------------------------- #
+# Every adapter and every reference source meets its contract (§4, §4.2)
+# --------------------------------------------------------------------------- #
+from panoscope import platforms  # noqa: E402
+from panoscope.data import layout  # noqa: E402
+from panoscope.data.study import Study  # noqa: E402
+from panoscope.reference import sources as S  # noqa: E402
+from panoscope.reference.graph import NotClaimable  # noqa: E402
+from panoscope.types.contracts import PlatformAdapter, ReferenceSource  # noqa: E402
+
+#: One instance per source class, none of them fetched or present.
+_SOURCES = {
+    "PanglaoDB": lambda d: S.PanglaoDB("Mammary gland"),
+    "CellOntology": lambda d: S.CellOntology(),
+    "CellMarker": lambda d: S.CellMarker("Breast"),
+    "LabCurated": lambda d: S.LabCurated(d / "lab_markers.csv", "Breast"),
+    "LabSynonyms": lambda d: S.LabSynonyms(d / "lab_synonyms.csv"),
+}
+
+
+def test_every_source_class_is_under_contract():
+    """A new source class in ``reference/sources.py`` must join the table above."""
+    declared = {n for n, c in vars(S).items()
+                if isinstance(c, type) and hasattr(c, "licence") and hasattr(c, "redistributable")}
+    assert declared == set(_SOURCES)
+
+
+@pytest.mark.req("ARCH-4-01", "ARCH-4.2-01", "PLAN-P2.1-01")
+@pytest.mark.parametrize("cls", sorted(_SOURCES))
+def test_every_source_declares_licence_and_conditions_and_unfetched_reads_unavailable(
+        cls, tmp_path, monkeypatch):
+    monkeypatch.setenv("PANOSCOPE_REFERENCE_DIR", str(tmp_path / "cache"))
+    src = _SOURCES[cls](tmp_path)
+    assert isinstance(src, ReferenceSource)
+    assert src.name.strip() and src.licence.strip() and src.release.strip()
+    assert isinstance(src.redistributable, bool)
+    try:
+        assert isinstance(src.conditions(), Conditions)
+    except NotClaimable:                     # structure only: says so, never a blank
+        assert cls in ("CellOntology", "LabSynonyms")
+    except S.SourceUnavailable:              # stamped from the file it has not got
+        pass
+    # Unavailable, never an empty answer. A synonym list holds no nodes even when
+    # present, so only its edges have a file to be missing.
+    for read in ("edges",) if cls == "LabSynonyms" else ("nodes", "edges"):
+        with pytest.raises(S.SourceUnavailable):
+            list(getattr(src, read)())
+
+
+_ADAPTED = [(sid, Study.open(sid).platform) for sid in sorted(layout.available_studies())]
+
+
+@pytest.mark.req("ARCH-4-01")
+def test_every_registered_platform_is_exercised_by_a_committed_study():
+    assert set(platforms.names()) <= {p.strip().lower() for _s, p in _ADAPTED if p}
+
+
+@pytest.mark.req("ARCH-4-01", "ARCH-5.1-01", "IMPL-3-02")
+@pytest.mark.parametrize("sid", [s for s, _p in _ADAPTED])
+def test_every_adapter_reads_never_infers_and_derives_the_panel_from_the_file(sid):
+    import pandas as pd
+
+    study = Study.open(sid)
+    adapter = platforms.for_study(study)
+    assert isinstance(adapter, PlatformAdapter)
+    assert {c.provenance for c in adapter.reads(study).values()} <= {
+        Provenance.READ, Provenance.UNKNOWN}, "an adapter reads; inferring is intake's job"
+    panel = next(f for f in adapter.frames(study) if f.name.startswith("panel:"))
+    genes = [str(g) for g in pd.read_parquet(study.inputs / "panel.parquet")["gene"]]
+    assert set(panel.members) == {g for g in genes if not adapter.is_control(study, g)}
+
+
+# --------------------------------------------------------------------------- #
+# Every workflow names its skill, and the skill exists (CLAUDE.md Structure)
+# --------------------------------------------------------------------------- #
+_REPO = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.req("CLAUDE-ST-02")
+@pytest.mark.parametrize("wid", [w for w in sorted(workflows.WORKFLOWS) if w != "de-interpretation"])
+def test_every_workflow_has_its_skill_file(wid):
+    path = _REPO / workflows.get(wid).skill_path
+    assert path.name == "SKILL.md" and path.parent.name == wid
+    assert path.is_file() and path.read_text().strip()
+
+
+@pytest.mark.req("CLAUDE-ST-02", gap=True)
+def test_the_de_workflow_has_its_skill_file():
+    """``skills/de-interpretation/SKILL.md`` is the DE question's review contract; the
+    workflow points at it and it is not written yet."""
+    assert (_REPO / workflows.get("de-interpretation").skill_path).is_file()

@@ -111,6 +111,7 @@ def test_explain_on_an_unknown_unit_lists_the_units_that_exist(demo_id):
 # --------------------------------------------------------------------------- #
 # doctor
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-CMP-01")
 def test_doctor_reports_presence_but_never_the_secret(tmp_path, capsys, monkeypatch):
     secret = "sk-ant-NOTAREALKEY-0123456789"
     monkeypatch.setenv("ANTHROPIC_API_KEY", secret)

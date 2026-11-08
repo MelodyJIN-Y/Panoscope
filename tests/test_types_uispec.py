@@ -307,3 +307,22 @@ def test_specs_are_frozen_and_hashable():
     assert {s, _spec()} == {s}
     with pytest.raises(dataclasses.FrozenInstanceError):
         s.task_kind = TaskKind.CHARACTERISATION  # type: ignore[misc]
+
+
+@pytest.mark.req("IMPL-4-01", "ARCH-13.3-01", gap=True)
+def test_the_marker_surface_declares_the_plots_it_draws():
+    """interface-design §3.2: the marker surface declares its cell map (primary) and
+    density / feature UMAP / dot plot (detail) as ``PlotSpec``s, each with a
+    conditionality builder that resolves. Today the app draws all four from
+    ``ui/spatial_stage.py`` while the workflow declares none, so no plot passes
+    through the R4 refusal the spec puts on it."""
+    import importlib
+
+    from panoscope import workflows
+
+    spec = workflows.get("marker-interpretation").uispec()
+    plots = ((spec.primary_plot,) if spec.primary_plot else ()) + spec.detail_plots
+    assert {p.key for p in plots} >= {"cell_map", "density", "feature_umap", "dotplot"}
+    for p in plots:
+        mod, _, fn = p.conditionality_builder.rpartition(".")
+        assert callable(getattr(importlib.import_module(mod), fn, None)), p.key

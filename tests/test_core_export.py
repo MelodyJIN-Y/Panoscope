@@ -187,3 +187,20 @@ def test_export_records_no_decisions():
     out = to_csv(TaskKind.ASSIGNMENT, list(v1_verdicts.verdicts().values()))
     assert isinstance(out, Traced)
     assert out.decisions == ()
+
+
+#: SKILL.md Output 2, copied from the skill, not from the code.
+_SKILL_OUTPUT_2 = ("cluster,cell_type,cell_type_short,confidence,confidence_score,"
+                   "key_markers,notes,category,lineage,exclude,verify")
+
+
+@pytest.mark.req("IMPL-10-03", "UI-3.2-01", "SKM-O2-01")
+def test_the_verdict_csv_header_is_the_skills_eleven_columns_in_order():
+    """Equality on the header line, never membership: a reordered or extra column is
+    what breaks the downstream R reader, and ``in`` passes both."""
+    from panoscope.workflows import marker
+
+    out = to_csv(TaskKind.ASSIGNMENT, _VERDICT_STUBS).value
+    assert out.splitlines()[0] == _SKILL_OUTPUT_2
+    assert _committed_verdict_csv().splitlines()[0] == _SKILL_OUTPUT_2
+    assert ",".join(marker.WORKFLOW.uispec().csv_columns) == _SKILL_OUTPUT_2
