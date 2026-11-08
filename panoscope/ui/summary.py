@@ -17,6 +17,7 @@ import math
 from panoscope.agent import config as cfg
 from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent.types import ClusterVerdict
+from panoscope.data.study import NOT_YET_CALLED
 
 from panoscope.ui import data_access as da
 from panoscope.ui import format as fmt
@@ -353,12 +354,13 @@ def _lead_html(n_signed: int, n_total: int, n_needs: int) -> str:
     """One plain-language instruction + progress — tells the biologist what to do, in
     sentence case (no mono-uppercase noise). Grounded counts."""
     if n_signed >= n_total:
-        return ('<div class="pano-lead"><b>All calls signed off.</b> '
-                '<span class="prog">Export the report or the annotations table.</span></div>')
+        return ('<div class="pano-lead"><b>All clusters marked reviewed.</b> '
+                '<span class="prog">Calls are made in the marker review.</span></div>')
     need = (f'<span class="sep">·</span><span class="need">{n_needs} need a closer look first</span>'
             if n_needs else "")
-    return ('<div class="pano-lead"><b>Tick each call to sign it off.</b> '
-            f'<span class="prog">{n_signed} of {n_total} done</span>{need}</div>')
+    return ('<div class="pano-lead"><b>Tick each cluster once reviewed</b> '
+            '(a mark, not a call). '
+            f'<span class="prog">{n_signed} of {n_total} reviewed</span>{need}</div>')
 
 
 def _signoff_claim(v: ClusterVerdict, override) -> str:
@@ -435,7 +437,7 @@ def _render_signoff_card(st, cluster: str) -> None:
         basis = convo._seg(st, "basis", convo._BASIS_OPTS, draft.basis, f"sof_basis_{cluster}_{nonce}")
         st.markdown(convo._draft_tension_html(draft), unsafe_allow_html=True)
         c_ok, c_no = st.columns([0.6, 0.4])
-        ok = c_ok.button("Confirm sign-off", key=f"sof_ok_{cluster}", type="primary",
+        ok = c_ok.button("Confirm reviewed", key=f"sof_ok_{cluster}", type="primary",
                          width="stretch")
         no = c_no.button("Cancel", key=f"sof_no_{cluster}", width="stretch")
     if no:
@@ -527,12 +529,14 @@ def _table_html(verdicts: list[ClusterVerdict], overrides: dict, signed: dict,
         needs = (contested or refinement is not None) and not is_signed
         cls = "prow" + (" need" if needs else "") + (" done" if is_signed else "")
         if is_signed:
-            sign = f'<a class="tick done" href="?page=summary&undo={c}" target="_self" title="signed, reopen">&#10003;</a>'
+            sign = f'<a class="tick done" href="?page=summary&undo={c}" target="_self" title="reviewed, reopen">&#10003;</a>'
         elif needs:
             sign = ('<a class="warnflag" href="?page=summary&drill=' + c + '" target="_self" '
                     'title="needs a closer look, click for details">⚠</a>')
         else:
-            sign = f'<a class="tick" href="?page=summary&sign={c}" target="_self" title="sign off">○</a>'
+            tick_title = ("mark reviewed (not a call: no call yet)"
+                          if v.cell_type == NOT_YET_CALLED else "mark reviewed (not a call)")
+            sign = f'<a class="tick" href="?page=summary&sign={c}" target="_self" title="{tick_title}">○</a>'
         color = fmt.cluster_color(c)
         yours = ' <span class="yours">override</span>' if override else ""
         needs_note = _attention_note(v, override, refinement) if needs else ""
@@ -598,14 +602,14 @@ def _render_drilldown_actions(st, v: ClusterVerdict, override, signed_rec, refin
     cols = st.columns([0.24, 0.18, 0.24, 0.34])
     with cols[0]:
         if signed_rec is not None:
-            st.button("✓ Signed — reopen", key=f"ddsign_{v.cluster}", width="stretch",
+            st.button("✓ Reviewed — reopen", key=f"ddsign_{v.cluster}", width="stretch",
                       on_click=_undo_sign_off, args=(v.cluster,))
         elif contested:
-            st.button("Confirm & sign off", key=f"ddsign_{v.cluster}", type="primary",
+            st.button("Confirm & mark reviewed", key=f"ddsign_{v.cluster}", type="primary",
                       width="stretch", on_click=_begin_signoff,
                       args=(v.cluster, _signoff_claim(v, override)))
         else:
-            st.button("Sign off", key=f"ddsign_{v.cluster}", type="primary",
+            st.button("Mark reviewed", key=f"ddsign_{v.cluster}", type="primary",
                       width="stretch", on_click=_sign_off_clean, args=(v.cluster,))
     with cols[1]:
         st.button("Chat", key=f"ddchat_{v.cluster}", width="stretch",
@@ -988,8 +992,8 @@ def render_summary_page() -> None:
             "jazzPanda's, every biology claim live-cited.</div>",
             unsafe_allow_html=True,
         )
-    # Export needs a terminal decision on every cluster (interface §5.2); a Summary
-    # sign-off counts as accepting the call shown.
+    # Export needs a terminal decision on every cluster (interface §5.2), made in the
+    # review; a Summary tick is a 'reviewed' mark and never counts.
     from panoscope.pipeline import decisions as dec
 
     refusal = dec.export_refusal(cfg.CLUSTER_ORDER, da.decisions())

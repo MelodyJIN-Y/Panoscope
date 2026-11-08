@@ -601,9 +601,8 @@ def signed_off() -> dict:
 
 def decision(cluster: str) -> dict:
     """The one decision reader (rail, review, Pathways, export): the review's record, else
-    a confirmed override note (OVERRIDDEN), else a Summary sign-off on a called cluster
-    (ACCEPTED); {} reads OPEN."""
-    from panoscope.data.study import NOT_YET_CALLED
+    a confirmed override note (OVERRIDDEN); {} reads OPEN. A Summary sign-off is a
+    'reviewed' mark only and never accepts a label."""
     from panoscope.pipeline import decisions as D
     from panoscope.pipeline import store
 
@@ -611,8 +610,6 @@ def decision(cluster: str) -> dict:
         return rec
     if (n := compose.override_notes().get(cluster)) is not None:
         return {"state": D.OVERRIDDEN, "label": n.subject_cell_type.strip(), "note_id": n.id}
-    if cluster in signed_off() and (label := verdict_for(cluster).cell_type) != NOT_YET_CALLED:
-        return {"state": D.ACCEPTED, "label": label}
     return {}
 
 
@@ -622,7 +619,7 @@ def decisions() -> dict:
 
 
 def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
-    """Record that the biologist reviewed and accepted ``cluster``'s call (idempotent).
+    """Mark ``cluster`` reviewed on the Summary board (idempotent); never a call.
 
     ``note_id`` links a contested sign-off's validation note; ``at`` is the caller's
     ISO timestamp.

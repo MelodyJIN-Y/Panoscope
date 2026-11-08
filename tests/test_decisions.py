@@ -99,21 +99,23 @@ def test_expected_types_sit_beside_candidates_never_alone() -> None:
     assert D.label_space(View(graph=Graph()), ("Zeta cell",)) == ((), ())
 
 
-def test_a_summary_sign_off_never_accepts_a_cluster_with_no_call(monkeypatch) -> None:
+def test_a_summary_sign_off_is_a_reviewed_mark_never_a_call(monkeypatch) -> None:
     from types import SimpleNamespace
 
     from panoscope.agent import compose
     from panoscope.ui import data_access as da
 
     monkeypatch.setattr(da, "signed_off", lambda: {"c1": {}, "c2": {}})
+    monkeypatch.setattr(store, "load_review_state", lambda *a, **k: {"c1": {}, "c2": {}})
     monkeypatch.setattr(da, "verdict_for", lambda c: SimpleNamespace(
         cell_type="Tumor" if c == "c1" else NOT_YET_CALLED))
     monkeypatch.setattr(compose, "override_notes", lambda: {
         "c3": SimpleNamespace(subject_cell_type="Fooblast", id="n3")})
     monkeypatch.setattr(store, "load_decisions", lambda *a, **k: {})
     decs = da.decisions()
-    assert D.call(decs, "c1") == "Tumor"
-    assert D.export_refusal(["c1", "c2", "c3"], decs).endswith("still OPEN: c2")
-    # One reader: the sign-off and the chat override unlock what the export counts.
-    assert da.effective_call("c1") == "Tumor" and da.effective_call("c2") is None
+    # Signed off but undecided: OPEN for the rail/review (decision), Pathways
+    # (effective_call) and the export gate, called or not.
+    assert da.decision("c1") == {} and da.decision("c2") == {}
+    assert da.effective_call("c1") is None and da.effective_call("c2") is None
+    assert D.export_refusal(["c1", "c2", "c3"], decs).endswith("still OPEN: c1, c2")
     assert decs["c3"] == {"state": D.OVERRIDDEN, "label": "Fooblast", "note_id": "n3"}

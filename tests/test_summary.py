@@ -171,7 +171,7 @@ def test_board_renders_headless() -> None:
     assert not at.exception, [str(e.value) for e in at.exception]
     md = "\n".join(m.value for m in at.markdown)
     assert 'class="ptbl"' in md          # the aligned HTML table rendered
-    assert "sign it off" in md and "Biology" in md
+    assert "once reviewed" in md and "(a mark, not a call)" in md and "Biology" in md
     assert 'href="?page=summary&sign=' in md   # a sign-off tick link (preserves the page)
     for ct in ("Tumor", "Stromal", "Mast Cells"):
         assert ct in md
@@ -290,7 +290,7 @@ def test_pending_signoff_card_renders_on_drilldown() -> None:
 
         pytest.skip("Streamlit too old for st.container(key=...)")
     assert not at.exception, [str(e.value) for e in at.exception]
-    assert sum("Confirm sign-off" in b.label for b in at.button) == 1
+    assert sum("Confirm reviewed" in b.label for b in at.button) == 1
 
 
 def _summary_edits_path():
