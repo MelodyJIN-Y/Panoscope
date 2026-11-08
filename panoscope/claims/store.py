@@ -4,7 +4,7 @@ Supersedes ``agent/memory.py`` + ``agent/user_memory.py`` (IMPLEMENTATION §10).
 
 * ``Claim.status`` (firm | tentative), orthogonal to authority.
 * :func:`thin_literature`, DERIVED from the source URI: a knowledge claim with no
-  ``pmid:``/``doi:`` behind it is thin by construction.
+  ``pmid:``/``pmcid:``/``doi:`` behind it is thin by construction.
 
 No dedupe, no LLM merging, no recency resolution, no consolidation, no decay, no scoring
 (§10.5). :meth:`ClaimStore.about` ORDERS and never merges: contradicting claims both come
@@ -329,7 +329,7 @@ def assess(claim: Claim, world: MeasuredWorld, context: Conditions,
 # --------------------------------------------------------------------------- #
 # The thin-literature signal, kept from agent/memory.py (§10) -- derived, not stored
 # --------------------------------------------------------------------------- #
-_CITATION_SCHEMES: Final[frozenset[str]] = frozenset({"pmid", "doi"})
+_CITATION_SCHEMES: Final[frozenset[str]] = frozenset({"pmid", "pmcid", "doi"})
 
 
 def thin_literature(claim: Claim) -> bool:

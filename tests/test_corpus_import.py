@@ -217,6 +217,15 @@ def test_resolve_keeps_only_the_record_the_id_names(monkeypatch):
     assert X.resolve_id("pmid:2", "2026-11-08").title == "Another paper"
 
 
+def test_a_pmc_only_record_is_cited_as_pmcid_and_a_fabricated_pmcid_is_rejected(monkeypatch):
+    hits = [{"pmcid": "PMC123", "title": "OA only", "pubYear": "2024"},
+            {"pmcid": "PMC456", "pmid": "9", "title": "Indexed", "pubYear": "2024"}]
+    monkeypatch.setattr(X, "_search", lambda q, **k: (2, hits))
+    assert X.resolve_id("pmcid:PMC123", "2026-11-08").uri == "pmcid:PMC123"
+    assert X.resolve_id("pmcid:PMC456", "2026-11-08").uri == "pmid:9"    # a PMID wins
+    assert X.resolve_id("pmcid:PMC999", "2026-11-08") is None
+
+
 def test_the_cli_imports_and_prints_the_receipt(study, tmp_path, monkeypatch, capsys):
     from panoscope import cli
 

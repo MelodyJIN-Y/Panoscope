@@ -125,7 +125,7 @@ BACKGROUND: Final[tuple[str, ...]] = (
 )
 """§6.4's optional context. Not conditions: none of it feeds the call."""
 
-_PAPER_ID = re.compile(r"(pmid:\d+|doi:10\.\S+)", re.IGNORECASE)
+_PAPER_ID = re.compile(r"(pmid:\d+|pmcid:PMC\d+|doi:10\.\S+)", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,7 +150,7 @@ class Background:
                if not _PAPER_ID.fullmatch(c.value or "")]
         if bad:
             raise ValueError(
-                f"papers_of_interest takes identifiers (pmid:<n> or doi:10.<...>), "
+                f"papers_of_interest takes identifiers (pmid:<n>, pmcid:PMC<n> or doi:10.<...>), "
                 f"not {bad}. A title would have to be resolved, and that is a lookup."
             )
 

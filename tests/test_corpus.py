@@ -500,7 +500,7 @@ def test_citation_schemes_have_not_drifted_from_the_claim_contract():
     """A scheme citable by a Claim but unknown to the corpus renders as a citation
     and resolves to nothing -- which is what a fabrication looks like downstream."""
     assert CITATION_SCHEMES <= SOURCE_SCHEMES
-    assert CITATION_SCHEMES == frozenset({"pmid", "doi"})
+    assert CITATION_SCHEMES == frozenset({"pmid", "pmcid", "doi"})
 
 
 def test_a_corpus_never_merges_two_records_for_one_uri():

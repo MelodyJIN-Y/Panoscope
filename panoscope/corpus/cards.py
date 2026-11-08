@@ -120,6 +120,8 @@ def note(c: Card, corpus: Corpus) -> dict:
     rec = next(iter(corpus.find(first.uri)), None) if first else None
     pmid = first.uri[5:] if first and first.uri.startswith("pmid:") else None
     summary = c.headline + (f'. "{first.span}"' if first else "")
+    if first and not pmid:
+        summary += f" [{first.uri}]"        # a pmcid:/doi: paper is still named
     if c.dissent and first is not c.dissent[0]:
         summary += f' Dissent: "{c.dissent[0].span}" [{c.dissent[0].uri}]'
     return {

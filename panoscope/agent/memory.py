@@ -55,7 +55,7 @@ from panoscope.agent.types import (
     Tension,
 )
 from panoscope.claims.notes import lookup_state
-from panoscope.corpus.store import Resolution
+from panoscope.corpus.store import Resolution, cite_link
 
 # --------------------------------------------------------------------------- #
 # Types
@@ -233,11 +233,9 @@ def _corpus_tension(note: Note, query: str) -> Optional[Tension]:
         out = {}
         for st in rows:
             for rec in corpus.find(st.uri)[:1]:
-                pmid = st.uri.removeprefix("pmid:")
                 out.setdefault(st.uri, Citation(
-                    pmid=pmid, title=rec.title, authors=rec.authors, year=rec.year,
-                    journal=rec.journal, url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
-                    if st.uri.startswith("pmid:") else "", stance=stance,
+                    pmid=st.uri.removeprefix("pmid:"), title=rec.title, authors=rec.authors,
+                    year=rec.year, journal=rec.journal, url=cite_link(st.uri)[1], stance=stance,
                     is_real=rec.is_real, fetched_at=rec.retrieved))
         return tuple(out.values())
 

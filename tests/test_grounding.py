@@ -127,6 +127,13 @@ def test_fabricated_pmid_fails():
     assert citation_violations[0].ref == "99999999"
 
 
+def test_a_pmcid_resolves_through_the_gate_and_a_fabricated_one_fails(checker_real_lit):
+    answer = "LUM glm_coef 17.998 anchors the Stromal call (pmcid:PMC1234567)."
+    assert checker_real_lit.check(answer, None, "c2").ok is True
+    result = GroundingChecker(literature_verifier=_resolver_none_real).check(answer, None, "c2")
+    assert [v.ref for v in result.violations if v.kind == "citation"] == ["PMC1234567"]
+
+
 def test_real_pmid_passes(checker_real_lit):
     """A resolvable PMID (verifier True) does not trip the citation check."""
     answer = "LUM glm_coef 17.998 anchors the Stromal call (PMID:12345678)."

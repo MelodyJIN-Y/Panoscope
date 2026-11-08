@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from panoscope.agent.enrichment_themes import pretty_gene_set
 from panoscope.agent.types import AgentResponse, Source
+from panoscope.corpus.store import cite_link
 
 from panoscope.ui import data_access as dax
 from panoscope.ui import state
@@ -718,13 +719,10 @@ def _draft_tension_html(draft: Any) -> str:
 
 
 def _pmid_links(cites) -> str:
-    """Clickable external PubMed links for a tuple of citations (real PMIDs)."""
-    return " ".join(
-        f'<a href="https://pubmed.ncbi.nlm.nih.gov/{html.escape(str(c.pmid))}/" '
-        f'target="_blank">PMID:{html.escape(str(c.pmid))}</a>'
-        for c in cites
-        if c.pmid
-    )
+    """Clickable external links for a tuple of real citations (PMID, or a PMCID's page)."""
+    links = (cite_link(c.pmid if ":" in c.pmid else f"pmid:{c.pmid}") for c in cites if c.pmid)
+    return " ".join(f'<a href="{html.escape(u)}" target="_blank">{html.escape(t)}</a>'
+                    if u else html.escape(t) for t, u in links)
 
 
 def _save_pending_draft(thread_key: str, edited: Any, trigger: str = "override",

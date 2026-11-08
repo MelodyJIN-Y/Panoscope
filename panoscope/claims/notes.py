@@ -194,7 +194,7 @@ def _lit_claims(cites: Iterable[Citation], subj: Subject, scope: str,
             predicate="means_here",
             object=c.title.strip() or f"pmid {c.pmid}",
             authority=Authority.LITERATURE,
-            source=f"pmid:{c.pmid}",
+            source=c.pmid if ":" in c.pmid else f"pmid:{c.pmid}",   # pmcid:/doi: kept whole
             scope=scope,
             # A stance the reconciliation pass could not classify is not a firm
             # reading of the paper; saying so is cheaper than pretending.

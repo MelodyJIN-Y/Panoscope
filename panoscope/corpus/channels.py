@@ -107,6 +107,8 @@ def _uri(hit: dict) -> str:
         return f"pmid:{hit['pmid']}"
     if hit.get("doi"):
         return f"doi:{hit['doi']}"
+    if hit.get("pmcid"):
+        return f"pmcid:{hit['pmcid']}"
     return f"epmc:{hit.get('source', '')}/{hit.get('id', '')}"
 
 

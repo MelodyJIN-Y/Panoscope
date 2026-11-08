@@ -44,11 +44,23 @@ from panoscope.reference.sources import cache_dir
 from panoscope.types.claim import SOURCE_SCHEMES
 from panoscope.types.trace import Trace, Traced
 
-CITATION_SCHEMES: Final[frozenset[str]] = frozenset({"pmid", "doi"})
+CITATION_SCHEMES: Final[frozenset[str]] = frozenset({"pmid", "pmcid", "doi"})
 """The schemes that name a *paper*. A subset of ``claim.SOURCE_SCHEMES``, and the
-same two ``claims.store.thin_literature`` keys off -- ``test_corpus`` asserts they
+same ones ``claims.store.thin_literature`` keys off -- ``test_corpus`` asserts they
 have not drifted apart, because a scheme citable in one module and not the other is a
 claim that renders as a citation and resolves to nothing."""
+
+
+
+def cite_link(uri: str) -> tuple[str, str]:
+    """(label, url) for a paper URI; url is "" for a scheme with no page to open."""
+    scheme, _, v = uri.partition(":")
+    if scheme == "pmid":
+        return f"PMID:{v}", f"https://pubmed.ncbi.nlm.nih.gov/{v}/"
+    if scheme == "pmcid":
+        return v, f"https://europepmc.org/article/PMC/{v}"
+    return uri, ""
+
 
 STORE_FILENAME: Final = "corpus.sqlite"
 SPEC_VERSION: Final = "0.3"

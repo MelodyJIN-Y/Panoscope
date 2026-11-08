@@ -84,7 +84,7 @@ PREDICATES: dict[str, Predicate] = _predicates(
 # --------------------------------------------------------------------------- #
 # Source URIs. A claim points at a source record; it never inlines one.
 # --------------------------------------------------------------------------- #
-SOURCE_SCHEMES: frozenset[str] = frozenset({"pmid", "doi", "note", "panel", "file"})
+SOURCE_SCHEMES: frozenset[str] = frozenset({"pmid", "pmcid", "doi", "note", "panel", "file"})
 """The known schemes. ``file:`` is content-addressed in practice (``file:sha256:…``)
 but that shape is not re-checked here: the digest belongs to whoever minted the URI,
 and a second, weaker opinion about its spelling in this module would only drift."""

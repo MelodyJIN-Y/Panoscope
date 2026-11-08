@@ -580,6 +580,13 @@ def _default_literature_verifier(ident: str) -> bool:
     cite PMIDs, not DOIs.
     """
     pid = str(ident or "").strip()
+    if pid.upper().startswith("PMC"):          # a PMCID resolves through Europe PMC
+        try:
+            from panoscope.corpus.exchange import resolve_id
+
+            return resolve_id(f"pmcid:{pid.upper()}", "") is not None
+        except Exception:  # pragma: no cover - never raise into the gate
+            return False
     if not pid.isdigit():
         return False
     try:

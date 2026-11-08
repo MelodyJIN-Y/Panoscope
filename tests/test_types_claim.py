@@ -185,7 +185,7 @@ def test_unresolvable_source_is_refused(uri):
 def test_source_schemes_cover_every_writer():
     """pmid/doi for literature, panel+file for measurement, note for the lab. A
     writer with no scheme has nowhere to put its source but free text."""
-    assert SOURCE_SCHEMES == {"pmid", "doi", "note", "panel", "file"}
+    assert SOURCE_SCHEMES == {"pmid", "pmcid", "doi", "note", "panel", "file"}
 
 
 # --------------------------------------------------------------------------- #

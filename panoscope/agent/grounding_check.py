@@ -114,6 +114,9 @@ _STAT_BIND_WINDOW = 60
 # PMID: "PMID:12345678", "PMID 12345678", "PMID12345678".
 _PMID_RE = re.compile(r"\bPMID[:\s]*?(\d{4,9})\b", re.IGNORECASE)
 
+# PMCID: "PMC1234567", bare or as "pmcid:PMC1234567".
+_PMCID_RE = re.compile(r"\b(PMC\d{4,9})\b", re.IGNORECASE)
+
 # DOI: 10.xxxx/....  (stop at whitespace, closing bracket/paren, or trailing punct)
 _DOI_RE = re.compile(r"\b(10\.\d{4,9}/[^\s\)\]\}<>\"]+)", re.IGNORECASE)
 
@@ -408,6 +411,7 @@ class ExtractedClaims:
     note_refs: tuple[str, ...]
     claim_refs: tuple[str, ...] = ()
     edge_refs: tuple[str, ...] = ()
+    pmcids: tuple[str, ...] = ()
     absences: tuple[AbsenceClaim, ...] = ()
     frame_claims: tuple[str, ...] = ()
 
@@ -429,13 +433,14 @@ class Extractor:
         # Mask citation/note spans so their digits never become numeric claims
         # (a PMID's digits must never be read as a "gene stat").
         masked = _mask_spans(
-            text, (_PMID_RE, _DOI_RE, _NOTE_REF_RE, _CLAIM_REF_RE, _EDGE_REF_RE)
+            text, (_PMID_RE, _PMCID_RE, _DOI_RE, _NOTE_REF_RE, _CLAIM_REF_RE, _EDGE_REF_RE)
         )
 
         numbers = tuple(self._extract_stat_claims(masked))
         genes = tuple(dict.fromkeys(self._candidate_genes(masked)))
         pmids = tuple(dict.fromkeys(_PMID_RE.findall(text)))
         dois = tuple(dict.fromkeys(m.rstrip(".,;)") for m in _DOI_RE.findall(text)))
+        pmcids = tuple(dict.fromkeys(m.upper() for m in _PMCID_RE.findall(text)))
         note_refs = tuple(dict.fromkeys(_NOTE_REF_RE.findall(text)))
         claim_refs = tuple(dict.fromkeys(_CLAIM_REF_RE.findall(text)))
         edge_refs = tuple(dict.fromkeys(_EDGE_REF_RE.findall(text)))
@@ -445,6 +450,7 @@ class Extractor:
             numbers=numbers,
             pmids=pmids,
             dois=dois,
+            pmcids=pmcids,
             note_refs=note_refs,
             claim_refs=claim_refs,
             edge_refs=edge_refs,
@@ -796,6 +802,11 @@ class GroundingChecker:
                         claimed=f"PMID:{pmid}",
                     )
                 )
+        for pmcid in claims.pmcids:
+            if not self._resolves(pmcid):
+                out.append(Violation(kind="citation", severity="CRITICAL",
+                                     detail=f"{pmcid} does not resolve to a real record",
+                                     ref=pmcid, claimed=pmcid))
         for doi in claims.dois:
             if not self._resolves(doi):
                 out.append(
