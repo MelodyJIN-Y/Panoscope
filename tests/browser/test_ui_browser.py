@@ -347,3 +347,16 @@ def test_the_whole_page_agrees_about_an_overridden_call(
     )
     for stale in ("c2 Stromal:", "c2 is called Stromal"):
         assert stale not in text, f"a surface still calls c2 Stromal: {stale!r}"
+
+
+def test_a_no_key_server_really_has_no_model_key(tmp_path) -> None:
+    """The repo's .env must not hand a "no model key" server the real key."""
+    import subprocess
+    import sys
+
+    from tests.conftest import PROJECT_ROOT
+
+    out = subprocess.run(
+        [sys.executable, "-c", "from panoscope.agent import loop; print(loop.has_model_key())"],
+        env=app_env(tmp_path), cwd=PROJECT_ROOT, capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "False", out.stdout + out.stderr

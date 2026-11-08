@@ -44,7 +44,9 @@ def app_env(tmp: Path) -> dict[str, str]:
     env = {**os.environ, "PANOSCOPE_DATA_ROOT": str(tmp / "data"),
            "PANOSCOPE_DATASET": DEMO_ID, "PANOSCOPE_CONTEXT_DIR": str(tmp / "ctx"),
            "HOME": str(tmp)}
-    env.pop("ANTHROPIC_API_KEY", None)
+    # Empty, not unset: the app's bare load_dotenv() would refill an unset key from the
+    # repo's .env, and a "no model key" server would then call the real model.
+    env["ANTHROPIC_API_KEY"] = ""
     return env
 
 
