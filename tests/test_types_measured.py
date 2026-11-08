@@ -197,6 +197,37 @@ def test_missing_cell_type_blocks_a_pair():
     assert [e.id for e in m.blocked_by] == ["Podocyte"]
 
 
+@pytest.mark.req("ARCH-9.5-05")
+def test_one_partner_off_frame_makes_a_ligand_receptor_pair_never_measured_and_names_it():
+    """ARCH §9.5 table: ligand-receptor needs both genes on the panel and both cell
+    types in the annotation; one partner off-frame blocks the pair and is named."""
+    lr = subject("interaction", ligand=gene("POSTN"), receptor=gene("ITGB3"),
+                 source=cell_type("Stromal"), target=cell_type("Tumor"))
+    m = resolve(lr, WORLD, REPORTED)
+    assert m.state is MeasuredState.NEVER_MEASURED and not m.carries_number
+    assert [e.id for e in m.blocked_by] == ["ITGB3"]
+    both = subject("interaction", ligand=gene("POSTN"), receptor=gene("ITGB3"),
+                   source=cell_type("Podocyte"), target=cell_type("Tumor"))
+    assert sorted(e.id for e in resolve(both, WORLD, REPORTED).blocked_by) == \
+        ["ITGB3", "Podocyte"]
+    on = subject("interaction", ligand=gene("POSTN"), receptor=gene("LUM"),
+                 source=cell_type("Stromal"), target=cell_type("Tumor"))
+    assert resolve(on, WORLD, REPORTED).state is not MeasuredState.NEVER_MEASURED
+
+
+@pytest.mark.req("ARCH-9.5-05")
+def test_a_niche_with_an_unannotated_component_names_it():
+    """A niche composition over a cell type the annotation never called: the component
+    is a gate, so the niche reads NEVER_MEASURED with that component named."""
+    frames = MeasuredWorld((PANEL, ANNOT, Frame(EntityKind.UNIT, "clusters:test",
+                                                 frozenset({"n1"}))))
+    niche = subject("niche", niche=unit("n1"),
+                    component=[cell_type("Tumor"), cell_type("Podocyte")])
+    m = resolve(niche, frames, frozenset({"n1", "Tumor"}))
+    assert m.state is MeasuredState.NEVER_MEASURED
+    assert [e.id for e in m.blocked_by] == ["Podocyte"]
+
+
 @pytest.mark.req("ARCH-9.5-02")
 def test_coverage_demotes_but_never_promotes():
     gs = subject("gene_set", set=gene_set("HALLMARK_EMT"), member=[gene("ERBB2")])

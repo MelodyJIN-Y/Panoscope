@@ -327,6 +327,7 @@ def test_a_statistic_on_a_never_measured_row_is_refused_outright(rows):
 # --------------------------------------------------------------------------- #
 # What the adapter is allowed to put on screen
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("UI-2.3-05")
 def test_the_rows_are_the_records_items_and_none_are_filtered_out():
     built = et.unit_build(UNIT_WITH_ABSENCES)
     got = et.rows_for(UNIT_WITH_ABSENCES, built)

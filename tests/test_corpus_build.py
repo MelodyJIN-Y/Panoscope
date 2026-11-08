@@ -183,7 +183,7 @@ def test_a_summary_cell_with_no_note_says_cannot_settle_until_a_corpus_is_built(
     assert summary._biology_cell(v, {}, "") == '<span class="bio-dim">—</span>'
 
 
-@pytest.mark.req("ARCH-8.3-01")
+@pytest.mark.req("ARCH-8.3-01", "CORP-B6")
 def test_the_export_header_carries_the_corpus_staleness():
     from panoscope.ui import report
 

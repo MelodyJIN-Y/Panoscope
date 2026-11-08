@@ -51,7 +51,7 @@ def report(isolated, monkeypatch, tmp_path):
     return study, _text(got["docx"])
 
 
-@pytest.mark.req("UI-5.5-02", "ARCH-7.5-03", "CLAUDE-HR-03", "UI-5.2-01", "CLAUDE-MEM-01")
+@pytest.mark.req("UI-5.5-02", "ARCH-7.5-03", "CLAUDE-HR-03", "UI-5.2-01", "CLAUDE-MEM-01", "ARCH-13.8-01")
 def test_the_report_carries_every_decision_and_only_real_citations(report):
     """Given the demo decided (c3 overridden to T_Cells against the literature, c5
     deferred, the rest accepted), When the PI reads the exported report,

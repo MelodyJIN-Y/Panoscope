@@ -64,6 +64,7 @@ def multi_sample(tmp_path: Path) -> Study:
 # --------------------------------------------------------------------------- #
 # §6.4 step 1: zero questions for anything on disk
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-6.4-01")
 def test_the_demo_study_asks_nothing_and_resolves(demo: Study) -> None:
     """The real store, end to end. Every blocker is on disk, so intake stops early.
 
@@ -142,6 +143,7 @@ def test_everything_derived_is_read_never_inferred(demo: Study) -> None:
         assert cond.provenance in (Provenance.READ, Provenance.UNKNOWN), field
 
 
+@pytest.mark.req("ARCH-6.4-01")
 def test_the_checklist_shows_three_columns_and_nothing_else(demo: Study) -> None:
     """What is known, what is missing and blocking, what is optional (§6.4 step 2)."""
     checklist = derive(ADAPTER, demo).checklist()

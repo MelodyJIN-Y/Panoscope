@@ -19,7 +19,7 @@ def _labels(at) -> list[str]:
 # --------------------------------------------------------------------------- #
 # 5.21  A claims drawer lists the claims used, with authority
 # --------------------------------------------------------------------------- #
-@pytest.mark.req("ARCH-13.1-01", gap=True)
+@pytest.mark.req("ARCH-13.1-01", "ARCH-10.2-02", gap=True)
 def test_the_shell_has_a_claims_drawer_listing_claims_with_their_authority(app_tree):
     at = open_app("markers", cluster="c1")
     assert any("claims" in lb.lower() for lb in _labels(at)), _labels(at)[:20]
@@ -28,7 +28,7 @@ def test_the_shell_has_a_claims_drawer_listing_claims_with_their_authority(app_t
 # --------------------------------------------------------------------------- #
 # 5.23  Two samples: one primary view plus a context strip that is the switcher
 # --------------------------------------------------------------------------- #
-@pytest.mark.req("ARCH-13.7-01", "UI-4.1-01", gap=True)
+@pytest.mark.req("ARCH-13.7-01", "UI-4.1-01", "UI-4.6-01", gap=True)
 def test_a_two_sample_study_shows_a_context_strip_that_switches_sample(app_tree):
     """The fixture's manifest lists sampleA and sampleB; each must be a tappable
     thumbnail in the strip, not equal small multiples and not absent."""
@@ -57,7 +57,7 @@ def test_no_page_reports_a_percent_conditional(app_tree):
         assert "% conditional" not in text and "percent conditional" not in text, page
 
 
-@pytest.mark.req("ARCH-7.5-03", gap=True)
+@pytest.mark.req("ARCH-7.5-03", "CORP-A8", gap=True)
 def test_the_class_level_constant_renders_once_as_a_banner(app_tree):
     """Curated and literature claims get a provenance stamp, not a verdict (§7.5);
     that class-level fact is said once, not per row."""

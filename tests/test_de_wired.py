@@ -154,6 +154,7 @@ def test_a_study_with_no_de_result_builds_no_comparison_slice() -> None:
         assert de_stage.run_de({}, DEMO) == {}
 
 
+@pytest.mark.req("ARCH-9.7.4-01")
 def test_the_cross_method_join_actually_joins(built) -> None:
     """§9.7 check 4, on real composed evidence rather than a hand-built ``Side``.
 

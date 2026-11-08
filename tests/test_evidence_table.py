@@ -124,6 +124,7 @@ def test_every_divergence_in_the_record_reaches_the_surface(fixture_builds):
                 assert ln.text in html and ln.claim in html
 
 
+@pytest.mark.req("ARCH-9.11-02")
 def test_not_comparable_does_not_render_as_a_disagreement(fixture_builds):
     """The hard half. "the samples could not be compared" and "they genuinely
     disagree" are different facts, and the renderer is the last place the four

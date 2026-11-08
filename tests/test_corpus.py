@@ -382,6 +382,7 @@ def test_a_title_term_outweighs_a_body_term():
     assert in_title.score == R.TITLE_WEIGHT
 
 
+@pytest.mark.req("ARCH-10.4-02")
 def test_searched_and_found_nothing_is_not_the_same_as_never_built():
     """The retrieval-layer form of the same split. Two empty answers, two sentences."""
     nothing = search(REAL_CORPUS, ["ZZZQQX9"]).value
