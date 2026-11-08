@@ -220,10 +220,18 @@ def _run_turn(cluster: str, query: str) -> None:
     resp = convo._safe_chat(cluster, query, thread_key=key, skill=_SKILL)
     # The shared agent's fallback is marker-flavored (a cell-type verdict); for a
     # pathway question that is off-topic, so substitute an honest enrichment reply.
-    text = _FALLBACK_TEXT if getattr(resp, "used_fallback", False) else resp.text
-    keep = None if getattr(resp, "used_fallback", False) else resp
-    state.append_message(key, {"role": "agent", "text": text, "resp": keep})
+    # It keeps the fallback mark and takes verify from the ENRICHMENT rubric, never the
+    # marker fallback's.
+    fell_back = getattr(resp, "used_fallback", False)
+    if fell_back:
+        import dataclasses
+
+        from panoscope.agent import loop as agent_loop
+
+        resp = dataclasses.replace(resp, text=_FALLBACK_TEXT, sources=(), note_draft=None,
+                                   verify=agent_loop._enrichment_verify_default(cluster))
+    state.append_message(key, {"role": "agent", "text": resp.text, "resp": resp})
     # If the agent proposed a note (e.g. a program_reinterpretation), stash it under
     # this pathway thread so the confirm card renders; nothing saves until confirmed.
-    if keep is not None and getattr(resp, "note_draft", None) is not None:
+    if not fell_back and getattr(resp, "note_draft", None) is not None:
         state.set_pending_draft(key, resp.note_draft)

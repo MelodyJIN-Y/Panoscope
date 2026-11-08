@@ -798,6 +798,14 @@ def _eyebrow(st, text: str) -> None:
     st.markdown(f'<div class="pano-ed-eyebrow">{html.escape(text)}</div>', unsafe_allow_html=True)
 
 
+def _author(note) -> str:
+    """Who wrote the note; the save path's placeholder address reads as "you"."""
+    from panoscope.agent import memory
+
+    placeholder = memory.save_draft.__kwdefaults__["attributed_to"]
+    return "you" if note.author in ("", placeholder) else note.author
+
+
 def _render_lab_note_cards(st, notes: list) -> None:
     if not notes:
         st.markdown('<div class="pano-lk-empty">No notes yet. Override or confirm a call in the '
@@ -810,8 +818,8 @@ def _render_lab_note_cards(st, notes: list) -> None:
         st.markdown(
             f'<div class="pano-lk-card"><div class="pano-lk-claim">{html.escape(n.claim)}</div>'
             f'<div class="pano-lk-meta"><span class="sco">{html.escape(scope)}</span> · '
-            f'basis: {html.escape(n.basis)} · {html.escape(n.status)} · '
-            f'{html.escape(n.author or "you")} · {html.escape(date)}</div></div>',
+            f'basis: {html.escape(report._BASIS_LABEL.get(n.basis, n.basis))} · '
+            f'{html.escape(n.status)} · {html.escape(_author(n))} · {html.escape(date)}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -833,7 +841,7 @@ def _render_withheld_notes(st, notes: list) -> None:
         st.markdown(
             f'<div class="pano-lk-card"><div class="pano-lk-claim">{html.escape(n.claim)}</div>'
             f'<div class="pano-lk-meta"><span class="sco">no study named</span> · '
-            f'note:{html.escape(n.id)} · {html.escape(n.author or "you")} · '
+            f'note:{html.escape(n.id)} · {html.escape(_author(n))} · '
             f"{html.escape(date)}</div></div>",
             unsafe_allow_html=True,
         )

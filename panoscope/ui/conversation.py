@@ -48,6 +48,7 @@ def _ask_key(cluster: str) -> str:
 _BASIS_OPTS: tuple[tuple[str, str], ...] = (
     ("our own data", "own_validation"),
     ("a paper", "paper"),
+    ("convention", "convention"),
 )
 _SCOPE_SAVED_LABEL: dict[str, str] = {
     "dataset": "this dataset",
@@ -59,9 +60,10 @@ _BASIS_SAVED_LABEL: dict[str, str] = {
     "convention": "convention",
 }
 
-# Matches PMID:12345678 (case-insensitive, optional space) so citations in the
-# agent's prose become clickable. Group 1 is the numeric id.
-_PMID_RE = re.compile(r"PMID:\s*(\d+)", re.IGNORECASE)
+# Matches PMID:12345678 (case-insensitive, optional space) or a PMCID (PMC1234567) so
+# every real id in the agent's prose becomes clickable. Group 1 is a PMID's digits,
+# group 2 a PMCID.
+_CITE_RE = re.compile(r"PMID:\s*(\d+)|\b(PMC\d+)\b", re.IGNORECASE)
 
 
 # --------------------------------------------------------------------------- #
@@ -193,12 +195,15 @@ def render_conversation(cluster: str) -> None:
         return
     _ensure_opening(cluster)
     _render_header(cluster)
-    st.markdown(
-        '<div class="conv-hint">Agree, question, or override this call by telling '
-        "the agent below &rarr; it keeps your call, cross-checks the literature, "
-        "and saves it to My notes.</div>",
-        unsafe_allow_html=True,
-    )
+    from panoscope.agent import loop as agent_loop
+
+    # The save promise only where a model can draft the note; offline nothing drafts one.
+    hint = ("Agree, question, or override this call by telling the agent below &rarr; it "
+            "keeps your call, cross-checks the literature, and saves it to My notes."
+            if agent_loop.has_model_key() else
+            "No model key is set: the agent answers from the computed reading and saves "
+            "nothing. To record your own call, use &ldquo;Call it yourself&rdquo; above.")
+    st.markdown(f'<div class="conv-hint">{hint}</div>', unsafe_allow_html=True)
     _render_second_opinion(cluster)
 
     with st.container(key="conv_thread"):
@@ -404,9 +409,12 @@ def _render_agent_bubble(msg: dict) -> None:
     sources_html = _sources_line_html(resp.sources if resp else ())
     verify_html = _verify_line_html(resp)
     tool_html = _tool_badge_html(resp)
+    # A chat turn the model did not answer (no key, failed call, failed floor) says so.
+    fb_html = ('<div class="pano-fallback">fallback: the computed reading, not a model '
+               "answer</div>" if resp and resp.used_fallback and not resp.opening else "")
     st.markdown(
         f'<div class="turn a"><div class="who">agent</div>'
-        f'<div class="bubble a">{tool_html}{prose_html}{verify_html}{sources_html}</div></div>',
+        f'<div class="bubble a">{tool_html}{fb_html}{prose_html}{verify_html}{sources_html}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -451,16 +459,16 @@ def _sources_line_html(sources: tuple[Source, ...]) -> str:
 # Inline citation linkification
 # --------------------------------------------------------------------------- #
 def _linkify_citations(text: str) -> str:
-    """Escape prose and turn ``PMID:xxx`` mentions into PubMed links (new tab)."""
+    """Escape prose and turn ``PMID:xxx`` / ``PMCxxx`` mentions into links (new tab)."""
     text = _plain_prose(text)
     parts: list[str] = []
     last = 0
-    for m in _PMID_RE.finditer(text):
+    for m in _CITE_RE.finditer(text):
         parts.append(html.escape(text[last : m.start()]))
-        pmid = html.escape(m.group(1))
+        label, url = cite_link(f"pmid:{m.group(1)}" if m.group(1) else f"pmcid:{m.group(2).upper()}")
         parts.append(
-            f'<a class="pcite" href="https://pubmed.ncbi.nlm.nih.gov/{pmid}/" '
-            f'target="_blank">\U0001f4c4 PMID:{pmid}</a>'
+            f'<a class="pcite" href="{html.escape(url)}" '
+            f'target="_blank">\U0001f4c4 {html.escape(label)}</a>'
         )
         last = m.end()
     parts.append(html.escape(text[last:]))
