@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from panoscope.core import export as _export
 from panoscope.core.rival import rival_test as _core_rival_test
 from panoscope.core.verdict import REPLICATE_COVERAGE_WHAT, assess as _assess
 from panoscope.types.contracts import Check, RivalResult
@@ -219,8 +220,8 @@ class MarkerInterpretation:
             ),
             coverage_ribbon=CoverageRibbonSpec(),
             pin_kinds=("gene", "cell_type"),
-            csv_columns=("unit", "label", "band", "verify", "gene", "statistic",
-                         "pearson", "status"),
+            # The locked verdict CSV (SKILL Output 2), from its one home.
+            csv_columns=_export.PROFILES[TaskKind.ASSIGNMENT].names,
         )
 
 

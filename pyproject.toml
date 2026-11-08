@@ -13,7 +13,7 @@ dependencies = [
     "pandas>=2,<4",                 # dev runs 3.0.x
     "pyarrow>=14,<26",
     "numpy>=1.26,<3",
-    "pyyaml>=6",
+    "pyyaml>=6,<7",
     "jsonschema>=4,<5",             # corpus import validates against its shipped schema
 ]
 

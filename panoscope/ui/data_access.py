@@ -618,6 +618,20 @@ def decisions() -> dict:
     return {c: d for c in cfg.CLUSTER_ORDER if (d := decision(c))}
 
 
+def summary_edits(dataset_id: str) -> dict:
+    """The biologist's saved Summary-page edits ``{region: text}`` ({} if none)."""
+    from panoscope.pipeline import store
+
+    return store.load_summary_edits(dataset_id)
+
+
+def save_summary_edits(edits: dict, dataset_id: str, saved_at: str = "") -> None:
+    """Persist the Summary-page edits. The UI's one route to that file."""
+    from panoscope.pipeline import store
+
+    store.save_summary_edits(edits, dataset_id, saved_at=saved_at)
+
+
 def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
     """Mark ``cluster`` reviewed on the Summary board (idempotent); never a call.
 

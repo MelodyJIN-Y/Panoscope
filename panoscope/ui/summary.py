@@ -908,11 +908,9 @@ def render_summary_page() -> None:
     # Restore the biologist's saved edits (edits win over the fresh auto-draft), so a
     # browser refresh brings the edited text back. Seed session state once per session.
     try:
-        from panoscope.pipeline import store
-
-        saved = store.load_summary_edits(rep.dataset)
+        saved, can_save = da.summary_edits(rep.dataset), True
     except Exception:  # noqa: BLE001 - no tree / import issue -> just use auto-drafts
-        store, saved = None, {}
+        saved, can_save = {}, False
 
     def _seed(name: str) -> str:
         return saved.get(name) or ws_defaults[name]
@@ -951,12 +949,12 @@ def render_summary_page() -> None:
     # changed. ``edits or saved``: viewing never writes; reverting all writes ``{}``.
     edits = {n: _val(n) for n in ws_defaults if _val(n) != ws_defaults[n]}
     save_error = ""
-    if (store is not None and (edits or saved)
+    if (can_save and (edits or saved)
             and edits != st.session_state.get(_skey("_sum_saved_snapshot"))):
         try:
             now = datetime.datetime.now()
-            store.save_summary_edits(edits, rep.dataset,
-                                     saved_at=now.isoformat(timespec="seconds"))
+            da.save_summary_edits(edits, rep.dataset,
+                                  saved_at=now.isoformat(timespec="seconds"))
             st.session_state[_skey("_sum_saved_snapshot")] = dict(edits)
             st.session_state[_skey("_sum_saved_at")] = now.strftime("%H:%M")
         except Exception as exc:  # noqa: BLE001 - surface, never crash the page
@@ -991,7 +989,7 @@ def render_summary_page() -> None:
         st.markdown(
             f'<div class="pano-sum-title">{html.escape(_TITLE)}</div>'
             f'<div class="pano-sum-sub">{html.escape(ctx)} · every number is '
-            "jazzPanda's, every biology claim live-cited.</div>",
+            "jazzPanda's, every citation looked up from a real source, never from memory.</div>",
             unsafe_allow_html=True,
         )
     # Export needs a terminal decision on every cluster (interface §5.2), made in the

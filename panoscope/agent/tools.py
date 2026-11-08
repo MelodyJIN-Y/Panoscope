@@ -1044,7 +1044,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "number for this cluster, never quote one), and alt_markers_offpanel (alternative-type markers "
             "that are OFF-PANEL — never measured). Rules: quote numbers ONLY from supports_call / "
             "alt_markers_here; for off-panel markers say 'never measured' and DO NOT suggest experiments or "
-            "bench assays — only flag them; then add ONE live citation via literature_search for the claim "
+            "bench assays — only flag them; then add ONE citation looked up via literature_search (never from memory) for the claim "
             "that these markers distinguish the two cell types."
         ),
         "input_schema": {

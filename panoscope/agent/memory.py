@@ -699,17 +699,17 @@ def cite_note(note: Note) -> Source:
     return Source(kind="mem", ref=note.id, value=note.claim, detail=detail)
 
 
-def render_citation(note: Note, *, refresh: Optional[LiteratureSearch] = None) -> str:
+def render_citation(note: Note) -> str:
     """Render a cite-on-use markdown line for a note, tension made visible.
 
     Shows the claim, its ``[note:<id>]`` handle, scope/basis/status, and — when
     the note carries tension — the count of agreeing vs dissenting citations
-    with their PMIDs. When ``refresh`` is given, the tension is re-reconciled
-    live before rendering (real PMIDs only). Never smooths disagreement over.
+    with their PMIDs, as stored when the note was written -- rendering never looks
+    anything up. Never smooths disagreement over.
     "Found nothing" and "no lookup completed" render differently
     (:func:`claims.notes.lookup_state`).
     """
-    tension = reconcile(note, refresh) if refresh is not None else note.tension
+    tension = note.tension
     src = cite_note(note)
     line = f'"{note.claim}" [note:{note.id}] ({src.detail})'
 
