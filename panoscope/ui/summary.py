@@ -365,13 +365,15 @@ def _lead_html(n_signed: int, n_total: int, n_needs: int) -> str:
 
 def _signoff_claim(v: ClusterVerdict, override) -> str:
     """The grounded validation claim a contested sign-off records in My notes."""
+    subject = (f"{v.cluster} (no call yet)" if v.cell_type == NOT_YET_CALLED
+               else f"the {v.cell_type} call for {v.cluster}")
     if override is not None and override.get("dissent"):
-        return (f"Accepted the {v.cell_type} call for {v.cluster} despite "
-                f"{override['dissent']} literature dissent. Reviewed and confirmed.")
+        return (f"Reviewed {subject} despite {override['dissent']} literature "
+                "dissent. A reviewed mark, not a call.")
     ev = sorted(v.evidence, key=lambda e: e.glm_coef, reverse=True)
     top = f"top marker {ev[0].gene}" if ev else "its top marker"
-    return (f"Confirmed {v.cell_type} for {v.cluster} despite being flagged "
-            f"({_flag_reason(v)}; {top}). Reviewed and accepted.")
+    return (f"Reviewed {subject} despite being flagged "
+            f"({_flag_reason(v)}; {top}). A reviewed mark, not a call.")
 
 
 # --- Sign-off actions (on_click handlers) ---------------------------------- #
@@ -430,7 +432,7 @@ def _render_signoff_card(st, cluster: str) -> None:
     nonce = convo._draft_nonce(draft)
     with st.container(key=f"sofcard_{cluster}"):
         st.markdown(
-            '<div class="sof-eyebrow">Sign off &amp; clear flag · confirm basis</div>'
+            '<div class="sof-eyebrow">Mark reviewed &amp; clear flag · confirm basis</div>'
             f'<div class="sof-claim">{html.escape(draft.claim)}</div>',
             unsafe_allow_html=True,
         )

@@ -258,6 +258,22 @@ def test_flag_reason_is_grounded_not_blanket_thin() -> None:
     assert "top marker CPA3" in summary._signoff_claim(da.verdict_for("c9"), None)
 
 
+def test_a_reviewed_mark_never_reads_as_a_call() -> None:
+    """The saved claim and the tick say 'reviewed', never 'accepted'; on an uncalled
+    cluster neither pretends there is a call."""
+    import dataclasses
+
+    from panoscope.data.study import NOT_YET_CALLED
+
+    v = da.verdict_for("c9")
+    assert "accept" not in summary._signoff_claim(v, None).lower()
+    assert "accept" not in summary._signoff_claim(v, {"dissent": 2}).lower()
+    u = dataclasses.replace(v, cell_type=NOT_YET_CALLED, verify=False)
+    claim = summary._signoff_claim(u, None)
+    assert "c9 (no call yet)" in claim and "not yet called" not in claim
+    assert "not a call: no call yet" in summary._table_html([u], {}, {}, {})
+
+
 def test_pending_signoff_card_renders_on_drilldown() -> None:
     """A contested sign-off started from a cluster's drill-down renders its confirm card
     there (per-cluster container key, no crash). The Overall table shows only a ⚠, so the
