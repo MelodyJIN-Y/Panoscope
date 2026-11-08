@@ -31,7 +31,6 @@ reads a data file directly and never writes.
 
 from __future__ import annotations
 
-import math
 import re
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Optional, Union
@@ -45,12 +44,12 @@ from panoscope.types.record import GENERATED_FIELDS
 # --------------------------------------------------------------------------- #
 # Tolerances
 # --------------------------------------------------------------------------- #
-# A number in prose is usually rounded (e.g. "17.998" or "18.0" for 17.9978...).
-# We accept a match within an absolute OR relative tolerance. The relative band
-# covers claims like "glm 18" for a true 17.998; the absolute band covers small
-# stats near zero (e.g. pearson 0.42).
-_NUMBER_ABS_TOL: float = 1e-2
-_NUMBER_REL_TOL: float = 5e-3
+# A number in prose is usually rounded ("18.0", "18" or "17.998" for 17.9978...).
+# It matches iff it IS the source value rounded to the places it shows: within half
+# a unit of its last digit. "21.4" and "21" pass for 21.4378; "21.5" and "21.45" are
+# different values at their own precision and fail. A relative band could not say
+# that: it refused "21" and passed "21.5".
+_FLOAT_SLACK: float = 1e-9
 
 # The four per-gene statistics that live in markers_top.csv and are therefore
 # groundable against agent.data. A numeric claim whose stat is one of these is
@@ -375,12 +374,17 @@ class SourceIndex:
         truth = self.stat_value(gene, stat)
         if truth is None:
             return False
-        return _close(value, truth)
+        return _close(value, truth, _places(repr(value)))
 
 
-def _close(a: float, b: float) -> bool:
-    """Absolute-or-relative tolerance match (handles rounded prose numbers)."""
-    return math.isclose(a, b, rel_tol=_NUMBER_REL_TOL, abs_tol=_NUMBER_ABS_TOL)
+def _places(shown: str) -> int:
+    """Decimal places a number was written with ("21.40" -> 2, "21" -> 0)."""
+    return len(shown.partition(".")[2])
+
+
+def _close(stated: float, truth: float, places: int) -> bool:
+    """True iff ``stated`` is ``truth`` rounded to ``places`` decimals."""
+    return abs(stated - truth) <= 0.5 * 10.0 ** -places + _FLOAT_SLACK
 
 
 # --------------------------------------------------------------------------- #
@@ -392,6 +396,7 @@ class NumberClaim:
     stat: Optional[str]   # canonical stat name, or None if no stat keyword bound
     value: float
     text: str             # the raw prose fragment, for diagnostics
+    places: int = 0       # decimal places as written; the precision it is held to
 
 
 @dataclass(frozen=True)
@@ -596,6 +601,7 @@ class Extractor:
                     stat=stat,
                     value=value,
                     text=m["text"],
+                    places=_places(m["value"]),
                 )
             )
         return claims
@@ -736,7 +742,7 @@ class GroundingChecker:
                     )
                 )
                 continue
-            if not _close(c.value, truth):
+            if not _close(c.value, truth, c.places):
                 out.append(
                     Violation(
                         kind="number",

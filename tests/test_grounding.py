@@ -1002,3 +1002,96 @@ def test_the_panel_absence_rule_survives_a_full_stop(checker_real_lit):
     assert checker_real_lit.check(
         "COL1A1 was never measured here, so its absence argues nothing.", None, "c2"
     ).ok
+
+
+# --------------------------------------------------------------------------- #
+# (h) Stage 1: the gate's fail-closed edges, its precision rule, its violation
+#     kinds, and the other direction -- it does not refuse a grounded answer.
+#     ERBB2 glm_coef is 21.4378453933592 in the demo's markers_top.csv.
+# --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-HR-03", "CLAUDE-CP-01")
+@pytest.mark.parametrize("ident", ["PMID:12345678", "pmcid:PMC1234567", "doi:10.1000/xyz123"])
+def test_a_citation_lookup_that_raises_fails_the_answer(ident):
+    """The lookup erroring is not the lookup succeeding. A verifier that raises (the
+    network down, the connector broken) must leave the citation unresolved."""
+    def broken(_ident):
+        raise ConnectionError("lookup failed")
+
+    result = GroundingChecker(literature_verifier=broken).check(
+        f"LUM glm_coef 17.998 anchors the Stromal call ({ident}).", None, "c2")
+    assert result.ok is False, result.summary()
+    assert [v.kind for v in result.violations] == ["citation"]
+
+
+@pytest.mark.req("CLAUDE-CP-01")
+@pytest.mark.parametrize("shown,ok", [
+    ("21.438", True), ("21.44", True), ("21.4", True), ("21", True),   # rounded displays
+    ("21.45", False), ("21.43", False),     # the neighbours at two places
+    ("21.5", False), ("21.3", False),       # the neighbours at one place
+    ("22", False), ("21.65", False),        # 1% off
+    ("22.3", False), ("20.6", False),       # 4% off
+])
+def test_a_number_passes_only_as_the_source_value_rounded_to_its_shown_places(
+        checker_real_lit, shown, ok):
+    """Traces to source = it is the source value at the precision it is written with."""
+    result = checker_real_lit.check(f"ERBB2 glm {shown} drives the c1 call.", None, "c1")
+    assert result.ok is ok, result.summary()
+    if not ok:
+        assert [(v.kind, v.ref) for v in result.violations] == [("number", "ERBB2")]
+
+
+@pytest.mark.req("CLAUDE-CP-01")
+@pytest.mark.parametrize("answer,kinds", [
+    ("COL1A1 glm 12.0 confirms Stromal.", {"marker", "unverifiable"}),
+    ("LUM glm 99.9 confirms Stromal.", {"number"}),
+    ("Fibroblasts are well known (PMID:99999999).", {"citation"}),
+    ("As recorded [claim:no_such_claim].", {"claim"}),
+    ("As recorded [edge:marks|LUM|Stromal|nowhere].", {"edge"}),
+    ("Per [note:ghost_note], c2 is CAF.", {"note"}),
+])
+def test_each_violation_names_its_kind(answer, kinds):
+    """The audit trail is the root cause, not just the refusal: an answer refused
+    for a stat on a gene with no marker row says ``marker``."""
+    checker = GroundingChecker(literature_verifier=_resolver_none_real, known_notes=set())
+    result = checker.check(answer, None, "c2")
+    assert {v.kind for v in result.violations} == kinds, result.summary()
+
+
+@pytest.mark.req("CLAUDE-CP-01", "ARCH-16.1-01")
+def test_the_gate_does_not_refuse_a_fully_grounded_answer():
+    """CLAUDE.md: a gate that fails closed can look safe while refusing. Every
+    grounding device at once -- rounded numbers, an alias in prose, a resolvable
+    PMID and PMCID, an in-scope lab note -- and nothing is refused."""
+    real = {"12345678", "PMC1234567"}
+    checker = GroundingChecker(literature_verifier=lambda i: i in real,
+                               known_notes={"note_c1_her2"})
+    answer = (
+        "c1 reads as HER2-amplified tumour epithelium. HER2 (ERBB2) leads at glm 21.4 "
+        "with pearson 0.91, and KRT7 follows at glm_coef 13.48. ERBB2 amplification "
+        "defines this subtype (PMID:12345678; PMC1234567). The lab's convention "
+        "[note:note_c1_her2] applies here."
+    )
+    result = checker.check(answer, None, "c1", allowed_notes={"note_c1_her2"})
+    assert result.ok is True, result.summary()
+
+
+@pytest.mark.req("UI-4.5-03", gap=True)
+@pytest.mark.parametrize("phrase", [
+    "The call is consistent across samples.",
+    "ERBB2 is confirmed in all four sections.",
+    "The c1 call is reproducible across replicates.",
+])
+def test_replicate_agreement_is_never_claimed_as_corroboration(checker_real_lit, phrase):
+    """Agreement under joint clustering is not independent evidence (ARCH §9.10)."""
+    result = checker_real_lit.check(f"ERBB2 glm 21.44 drives c1. {phrase}", None, "c1")
+    assert result.ok is False, "replicate agreement passed as corroboration"
+
+
+@pytest.mark.req("ARCH-11-01", gap=True)
+def test_a_claim_not_packed_into_this_turn_fails_even_when_it_exists_in_scope():
+    """The claim exists and is in scope, but nothing packed it into this turn's
+    context; the sidecar carries no claims. Citing it must still fail."""
+    sidecar = GroundingSidecar(numbers=(), markers=("LUM",), pmids=(), notes_used=())
+    result = _claim_checker().check(
+        "LUM is a canonical Stromal marker [claim:curated:marks:LUM:Stromal].", sidecar, "c2")
+    assert result.ok is False, "a claim never packed into the turn was accepted"
