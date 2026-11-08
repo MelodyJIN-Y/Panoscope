@@ -23,8 +23,15 @@ for the live annotate stage) and never touches the network.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+import tempfile
 from pathlib import Path
+
+# The same isolation tests/conftest.py gives the golden test: a reference source or
+# a context note cached on this machine must not move the fixture.
+for _var in ("PANOSCOPE_REFERENCE_DIR", "PANOSCOPE_CONTEXT_DIR"):
+    os.environ[_var] = tempfile.mkdtemp(prefix="panoscope-golden-")
 
 # Allow running the script directly (python scripts/regenerate_golden.py) by
 # putting the project root on the path before importing the project packages.
