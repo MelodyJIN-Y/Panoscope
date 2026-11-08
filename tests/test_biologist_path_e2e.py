@@ -148,4 +148,12 @@ def test_a_labelless_folder_is_built_reviewed_called_and_exported(tmp_path, monk
             f'override claim note:') in lines
     assert f'"c2 is {CAF} (the biologist\'s call)" — cluster c2, basis: a paper' in lines
     assert "c3: deferred · proposal not yet called (no band)" in lines
+    # Heading and overview row: the biologist's label with ITS band; accepted unchanged.
+    import docx
+
+    doc = docx.Document(BytesIO(exported["docx"]))
+    heads = [p.text for p in doc.paragraphs]
+    assert f"c2 · {CAF} (Very High)" in heads and f"c1 · {HER2} (Very High)" in heads
+    rows = {r.cells[0].text: (r.cells[1].text, r.cells[3].text) for r in doc.tables[0].rows}
+    assert rows["c2"] == (CAF, "Very High") and rows["c1"] == (HER2, "Very High")
     assert all(f"{c}: accepted · proposal {HER2}" in lines for c in ("c4", "c5", "c6", "c7", "c8", "c9"))

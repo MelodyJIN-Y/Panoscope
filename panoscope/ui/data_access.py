@@ -312,9 +312,21 @@ def _signed_off_clusters() -> set:
         return set()
 
 
+def _biologist_assessment(cluster: str, label: str):
+    """``decisions.assessments`` on ``label`` (a core Verdict), or None with no build."""
+    from panoscope.pipeline import decisions as D
+    from panoscope.reference import view as ref_view
+    from panoscope.ui import evidence_table as et
+
+    built = et.unit_build(cluster)
+    if built is None:
+        return None
+    return D.assessments(built, label, ref_view.for_study(cfg.current_study())).biologist
+
+
 def composed_verdicts() -> list[ClusterVerdict]:
-    """``all_verdicts()`` with exclude notes, cell-type overrides and sign-offs
-    applied. Returns new objects (the cached verdicts are never mutated); not cached."""
+    """``all_verdicts()`` with exclude notes, cell-type overrides (with the band and
+    verify of the biologist's label) and sign-offs applied. Returns new objects (the cached verdicts are never mutated); not cached."""
     excluded = _excluded_clusters()
     overrides = compose.override_notes()
     signed_off = _signed_off_clusters()
@@ -325,9 +337,12 @@ def composed_verdicts() -> list[ClusterVerdict]:
     out: list[ClusterVerdict] = []
     for v in all_verdicts():
         ov = overrides.get(v.cluster)
+        changes: dict = {}
         if ov is not None:
             v = compose.compose_verdict(v, ov)
-        changes: dict = {}
+            # The biologist's label carries its own band: the same rubric on that label.
+            if (b := _biologist_assessment(v.cluster, v.cell_type)) is not None:
+                changes.update(confidence=b.band, verify=b.verify)
         if v.cluster in excluded:
             changes["exclude"] = True
         # Sign-off clears verify.

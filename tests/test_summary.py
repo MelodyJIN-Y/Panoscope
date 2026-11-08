@@ -89,7 +89,9 @@ def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     comp = {v.cluster: v for v in da.composed_verdicts()}
     assert comp["c2"].cell_type == "CAF"
     assert comp["c2"].lineage == "Fibroblast" and comp["c2"].category == "Stromal"
-    assert comp["c2"].verify is False         # dissent is a display flag, not verify
+    # Band + verify: the rubric on the biologist's label; dissent is a display flag only.
+    b = da._biologist_assessment("c2", "CAF")
+    assert (comp["c2"].confidence, comp["c2"].verify) == (b.band, b.verify)
     assert comp["c1"].cell_type != "CAF"       # other clusters untouched
     assert da.verdict_for("c2").cell_type == "Stromal"  # deterministic verdict never mutated
 
