@@ -105,11 +105,12 @@ def _no_code(spec: UISpec) -> None:
                 )
 
 
-def _anchor(inner: str, key: str, cls: str) -> str:
+def _anchor(inner: str, key: str, cls: str, tag: str = "span") -> str:
     """Wrap a rendered claim in its click-back anchor (``uispec.anchored``), or
-    refuse to render it."""
-    return (f'<span class="{cls}" data-claim="{_esc(anchored(key, what=cls))}">'
-            f'{inner}</span>')
+    refuse to render it. A block (a table row) needs a ``div``: markdown closes an
+    inline ``span`` before the block, leaving the anchor empty beside its row."""
+    return (f'<{tag} class="{cls}" data-claim="{_esc(anchored(key, what=cls))}">'
+            f'{inner}</{tag}>')
 
 
 # --------------------------------------------------------------------------- #
@@ -195,7 +196,7 @@ def row_html(spec: UISpec, row: SurfaceRow, *, skip_first: bool = False) -> str:
     )
     grid = _grid_style(spec.columns, skip_first=skip_first)
     return _anchor(f'<div class="pano-sf-row" style="{grid}">{cells}</div>',
-                   row.key, "pano-sf-anchor")
+                   row.key, "pano-sf-anchor", tag="div")
 
 
 # --------------------------------------------------------------------------- #

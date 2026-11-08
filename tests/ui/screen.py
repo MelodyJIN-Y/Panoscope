@@ -22,8 +22,9 @@ _TEXT_KINDS = ("markdown", "caption", "header", "subheader", "title", "info", "w
 _WIDGET_KINDS = ("button", "toggle", "checkbox", "selectbox", "radio", "multiselect",
                  "text_input", "text_area", "button_group", "download_button")
 #: One evidence-table row: its anchor and the cells inside it.
-_ROW = re.compile(r'<span class="pano-sf-anchor" data-claim="([^"]*)">'
-                  r'<div class="pano-sf-row"[^>]*>(.*?)</div></div></span>', re.S)
+_ROW = re.compile(r'<div class="pano-sf-anchor" data-claim="([^"]*)">'
+                  r'<div class="pano-sf-row"[^>]*>(.*?)</div></div></div>'
+                  r'(?!<div class="pano-sf-cell)', re.DOTALL)   # the row's end, not a cell's
 _CELL = re.compile(r'<div class="pano-sf-cell[^"]*">(.*?)</div>', re.S)
 
 

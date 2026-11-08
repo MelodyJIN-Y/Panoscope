@@ -129,7 +129,8 @@ def _header_values() -> dict:
 # Neither renderer is asked what it meant -- that would be grading itself.
 # --------------------------------------------------------------------------- #
 _HTML_ROW = re.compile(
-    r'data-claim="([^"]+)"><div class="pano-sf-row"[^>]*>(.*?)</div></span>',
+    r'data-claim="([^"]+)"><div class="pano-sf-row"[^>]*>(.*?</div>)</div></div>'
+    r'(?!<div class="pano-sf-cell)',
     re.DOTALL)
 _HTML_CELL = re.compile(r'<div class="pano-sf-cell[^"]*">(.*?)</div>', re.DOTALL)
 
