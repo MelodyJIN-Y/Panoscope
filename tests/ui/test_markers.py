@@ -112,8 +112,17 @@ def test_the_bin_control_opens_on_50_um(demo):
     assert "ERBB2 transcript detections, pre-segmentation - 50 um" in screen_text(at)
 
 
-def _filled(trace) -> int:
-    return sum(v is not None and v == v for row in trace["z"] for v in row)
+def _counts(trace) -> list:
+    """The hover counts the density figure drew, absent bins dropped."""
+    return sorted(c[0] for row in trace["customdata"] for c in row if c[0] == c[0])
+
+
+def _frame_counts(demo, um: int) -> list:
+    """The study's precomputed frame at ``um`` (viz/hexbin), read straight off the file."""
+    import pandas as pd
+
+    return sorted(pd.read_parquet(demo.dir / "viz" / "hexbin" / f"ERBB2_{um}um.parquet")
+                  ["count"].astype(float))
 
 
 @pytest.mark.req("UI-2.8-01", "CLAUDE-IF-01", "ARCH-13.2-02")
@@ -127,7 +136,10 @@ def test_changing_the_bin_changes_the_density_picture_and_no_value(demo):
 
     assert "pano_density_gene_ERBB2_50" in figs0 and "pano_density_gene_ERBB2_100" in figs1
     d0, d1 = figs0.pop("pano_density_gene_ERBB2_50"), figs1.pop("pano_density_gene_ERBB2_100")
-    assert _filled(d1[0]) < _filled(d0[0])            # 4x the area: fewer, coarser bins
+    # The figure draws the precomputed frame AT that bin: a loader stuck on 50 um and
+    # merely regridded at 100 would still fill fewer cells, so compare the counts.
+    assert _counts(d0[0]) == _frame_counts(demo, 50)
+    assert _counts(d1[0]) == _frame_counts(demo, 100)
     assert figs1 == figs0                             # cell map, UMAPs, dot plot
     assert evidence_rows(at) == rows0
     # Only the density caption moved, and it names the new bin.
