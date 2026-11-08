@@ -275,7 +275,8 @@ def test_the_inputs_are_the_hashed_ones():
     """§10's "the same hashed inputs". Records the digests the rebuild ran on; if an
     input is replaced, this is where it surfaces instead of as a mystery diff."""
     digests = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in _input_paths()}
-    assert len(digests) == 3 and all(len(d) == 64 for d in digests.values()), digests
+    man = json.loads(paths.manifest_json(cfg.DATASET_ID).read_text(encoding="utf-8"))
+    assert digests == {k: v["sha256"] for k, v in man["inputs"].items()}, digests
 
 
 def test_the_committed_records_are_not_touched():

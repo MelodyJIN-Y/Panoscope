@@ -107,8 +107,9 @@ def test_annotation_is_not_cached_across_studies():
 def test_cluster_key_does_not_require_nine_entries():
     """The hard blocker. It also hid a second bug: validate.py caught the resulting
     ValueError as a bare Exception, so a 3-unit study silently skipped validation."""
+    man = json.loads((Study.open(MINI).dir / "manifest.json").read_text(encoding="utf-8"))
     with cfg.use_study(MINI):
-        assert len(cfg.CLUSTER_KEY) == 3
+        assert sorted(cfg.CLUSTER_KEY) == sorted(man["clusters"]) and len(man["clusters"]) == 3
 
 
 def test_palette_covers_any_unit_count():

@@ -107,6 +107,32 @@ def test_interpretation_projection_is_unchanged(projection, tmp_path) -> None:
     )
 
 
+@pytest.mark.req("PLAN-P2.5-01")
+def test_a_new_reference_release_moves_the_hash_and_a_corpus_does_not(
+        projection, monkeypatch) -> None:
+    """P2.5: the reference release enters the factual-layer hash; the literature
+    corpus never does. Hashes are compared in memory; nothing is regenerated."""
+    import dataclasses
+
+    from panoscope.corpus.store import Corpus, SourceRecord, corpus_path, save
+
+    base = G.projection_hash(projection)
+    assert projection["reference"], "no release recorded: the check would be vacuous"
+
+    # A corpus on disk for this study changes nothing in the hash.
+    save(Corpus(records=(SourceRecord(uri="pmid:10000001", title="Synthetic, not a paper"),),
+                built="2026-11-09"), corpus_path(cfg.DATASET_ID))
+    assert G.projection_hash(G.build_projection()) == base
+
+    # A different release of the same reference sources moves it, by name.
+    real = G.reference_view.for_study
+    monkeypatch.setattr(G.reference_view, "for_study", lambda study: dataclasses.replace(
+        real(study), releases=tuple((n, r + "-next") for n, r in real(study).releases)))
+    moved = G.build_projection()
+    assert G.projection_hash(moved) != base
+    assert {k for k in moved if moved[k] != projection[k]} == {"reference"}
+
+
 def test_committed_hash_matches_committed_fixture() -> None:
     """The ``.sha256`` file agrees with the ``.json`` beside it.
 

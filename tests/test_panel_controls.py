@@ -81,11 +81,16 @@ def test_no_coverage_denominator_counts_a_control_probe(store: Study) -> None:
         assert int(len(data.load_panel())) == store.manifest["panel_gene_count"] == 12
 
 
+@pytest.mark.req("ARCH-5.1-01", "IMPL-3-02")
 def test_the_demo_panel_is_unchanged(demo_id: str) -> None:
     """The demo panel carries no control rows, so a correct filter is a no-op there.
-    If this moves, the filter is dropping a real gene and the golden would move too."""
-    with cfg.use_study(Study.open(demo_id)):
-        assert len(data.load_panel()) == 280
+    If this moves, the filter is dropping a real gene and the golden would move too.
+    The size is read off the file, never asserted as a constant (CLAUDE.md)."""
+    store = Study.open(demo_id)
+    raw = pd.read_parquet(store.dir / "inputs" / "panel.parquet")["gene"]
+    with cfg.use_study(store):
+        assert sorted(data.load_panel()["gene"]) == sorted(raw)
+        assert len(raw) == store.manifest["panel_gene_count"]
 
 
 # --------------------------------------------------------------------------- #

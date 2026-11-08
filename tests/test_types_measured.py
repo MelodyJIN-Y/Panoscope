@@ -37,7 +37,7 @@ def test_every_registered_shape_is_constructible():
             e = Entity(role.kind, f"X{len(kw)}")
             kw[role.name] = [e] if role.many else e
         made.append(subject(name, **kw))
-    assert len(made) == len(SHAPES)
+    assert [s.shape for s in made] == list(SHAPES)
 
 
 @pytest.mark.req("IMPL-2.1-01")

@@ -161,3 +161,28 @@ def test_a_deferred_cluster_stays_locked_when_a_chat_override_note_exists(
         assert da.effective_call("c1") == "Fooblast"
     finally:
         p.write_bytes(saved) if saved is not None else p.unlink()
+
+
+@pytest.mark.req("UI-5.2-03", gap=True)
+def test_a_deferral_carries_the_reason_code_discriminate_filled_in(
+        tmp_path, monkeypatch) -> None:
+    """interface-design §5.2/§5.7: Defer is 1 tap + a reason code auto-filled from
+    discriminate -- 'panel can settle it, gene X' when settleable on panel, else
+    'needs another assay'. A deferral must say what would resolve it."""
+    from streamlit.testing.v1 import AppTest
+
+    from panoscope.data import layout
+    from panoscope.ui import state
+
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    layout.clear_cache()
+    root = _fresh(tmp_path)
+    at = AppTest.from_file(APP, default_timeout=300)
+    at.session_state[state.K_STUDY] = (str(root), "fresh")
+    at.session_state["active_page"] = "markers"
+    at.run()
+    at.button(key="rv_defer_c1").click().run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    md = _md(at)
+    assert "decision &middot; deferred" in md
+    assert "panel can settle it" in md or "needs another assay" in md

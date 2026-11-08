@@ -305,7 +305,12 @@ def test_stage_zero_validates_the_study_it_was_given(tmp_path: Path, demo_id) ->
 
 def test_stage_zero_passes_on_the_real_demo(demo_id: str) -> None:
     """The gate must not fail closed on the study it ships with."""
-    validate(demo_id)
+    from panoscope import platforms
+    from panoscope.data.study import Study
+
+    store = Study.open(demo_id)
+    assert platforms.for_study(store).validate(store) == []   # no blocking problem
+    assert validate(demo_id) is None
 
 
 # --------------------------------------------------------------------------- #

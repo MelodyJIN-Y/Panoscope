@@ -509,7 +509,7 @@ def test_a_corpus_never_merges_two_records_for_one_uri():
     records, and whoever reads them sees the pair."""
     twice = Corpus(records=(REAL_RECORDS[0],
                             dataclasses.replace(REAL_RECORDS[0], via="Other")))
-    assert len(twice.find("pmid:38631570")) == 2
+    assert [r.via for r in twice.find("pmid:38631570")] == ["PubMedMCP", "Other"]
 
 
 @pytest.mark.req("CORP-A3")
@@ -548,8 +548,11 @@ def test_no_socket_is_opened_across_the_whole_offline_surface(monkeypatch, tmp_p
     built = fetch(["pmid:10000001"], connector=FakeConnector([FAKE_ARTICLE])).value
     p = save(built, tmp_path / "sources.json")
     reloaded = load(p)
-    resolve(reloaded, "pmid:10000001")
-    resolve(reloaded, "pmid:10000002")
-    search(reloaded, ["synthesised"])
-    search(REAL_CORPUS, ["POSTN"])
-    corpus_path("xenium_hbreast_sample1")
+    assert resolve(reloaded, "pmid:10000001").value.state is Resolution.RESOLVED
+    # Never fetched, never missed: fail-closed, and no lookup is attempted to find out.
+    assert resolve(reloaded, "pmid:10000002").value.state is Resolution.NOT_LOOKED_UP
+    assert [h.record.uri for h in search(reloaded, ["synthesised"]).value.hits] == [
+        "pmid:10000001"]
+    assert {h.record.uri for h in search(REAL_CORPUS, ["POSTN"]).value.hits} == {
+        r.uri for r in REAL_RECORDS}           # all three titles name POSTN
+    assert corpus_path("xenium_hbreast_sample1").name == S.STORE_FILENAME

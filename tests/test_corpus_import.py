@@ -82,6 +82,55 @@ def test_a_fabricated_pmid_is_rejected_and_never_kept(study, tmp_path):
     assert "  rejected pmid:999 POSTN: paper unresolved" in receipt
 
 
+@pytest.mark.req("IMPL-6.1-11")
+def test_the_receipt_states_every_section_for_a_mixed_import(study, tmp_path):
+    """IMPL §6.1: the receipt lists accepted and rejected statements with reasons,
+    unresolved ids and the rung distribution. One file with one good statement, one
+    on a fabricated id and one altered span must show all of it."""
+    good = {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "Fibroblasts",
+            "predicate": "MARKS", "span": SPAN, "section": "abstract"}
+    corpus, receipt = _import(study, _file(
+        tmp_path, study,
+        {"kind": "paper", "id": "pmid:1", "channel": "C1", "disposition": "READ:1:0"},
+        {"kind": "paper", "id": "pmid:999", "channel": "C1", "disposition": "READ:1:0"},
+        good,
+        {**good, "paper": "pmid:999"},
+        {**good, "span": SPAN.replace("marks", "defines")}))
+    assert receipt[0] == "accepted 1 statement(s), rejected 2"
+    rejected = [ln for ln in receipt if ln.startswith("  rejected pmid:")]
+    assert rejected[0] == "  rejected pmid:999 POSTN: paper unresolved"
+    assert rejected[1].startswith("  rejected pmid:1 POSTN: ") and "not verbatim" in rejected[1]
+    i = receipt.index("unresolved id(s): 1")
+    assert receipt[i + 1] == "  pmid:999: no record has this id"
+    # The distribution counts what was accepted, one rung per accepted statement.
+    [s] = corpus.statements
+    assert receipt[i + 2] == f"rungs: {s.rung or 'beyond the ladder'} 1"
+
+
+@pytest.mark.req("IMPL-9-03")
+def test_a_statement_naming_the_gene_only_by_its_hgnc_alias_is_retrieved(
+        study, tmp_path, monkeypatch):
+    """IMPL §9 alias retrieval. The paper says OSF2, never POSTN; the HGNC table (a
+    fixture at the network boundary) lists OSF2 as POSTN's alias. The span is bound
+    to POSTN and the POSTN x Fibroblasts card finds it."""
+    span = "OSF2 marks fibroblasts in human breast cancer tissue."
+    assert "postn" not in span.casefold()
+    rec = replace(REC, abstract=span, full_text="")
+    monkeypatch.setattr(X.vocab, "hgnc", lambda g: {"symbol": "POSTN",
+                                                    "alias_symbol": ["OSF2"]})
+    corpus, receipt = X.import_file(study, _file(
+        tmp_path, study,
+        {"kind": "paper", "id": "pmid:1", "channel": "C1", "disposition": "READ:1:0"},
+        {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "Fibroblasts",
+         "predicate": "MARKS", "span": span, "section": "abstract"},
+        {"kind": "query", "query": '"POSTN" AND breast', "source": "PubMed", "gene": "POSTN",
+         "cell_type": "Fibroblasts", "total": 1, "retrieved": 1, "status": "OK"}),
+        today=TODAY, resolver=lambda pid, r: rec if pid == "pmid:1" else None)
+    assert receipt[0] == "accepted 1 statement(s), rejected 0", receipt
+    got = key_state(corpus, "POSTN", "Fibroblasts")
+    assert [(s.gene, s.span) for s in got.statements] == [("POSTN", span)]
+
+
 @pytest.mark.req("IMPL-6.1-03")
 def test_a_retracted_paper_is_closed_whatever_the_client_said(study, tmp_path, monkeypatch):
     gone = replace(REC, publication_type=("Retracted Publication",))

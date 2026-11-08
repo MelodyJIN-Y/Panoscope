@@ -6,9 +6,14 @@ import pytest
 from panoscope.pipeline.stages import prep
 
 
-def test_noop_when_tidy_inputs_present():
+def test_noop_when_tidy_inputs_present(monkeypatch):
     # the bundled demo's tidy inputs exist -> no-op, no R invoked, no error
-    prep.run_prep()
+    def tripwire(*a, **k):
+        raise AssertionError("R prep invoked although the tidy inputs are present")
+
+    monkeypatch.setattr(prep.subprocess, "run", tripwire)
+    monkeypatch.setattr(prep.shutil, "which", tripwire)
+    assert prep.run_prep() is None
 
 
 def test_contract_error_when_inputs_absent_and_no_r(monkeypatch):

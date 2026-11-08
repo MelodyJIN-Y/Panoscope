@@ -54,7 +54,11 @@ def test_verdict_roundtrip_through_json():
 
 
 def test_validate_passes_on_real_inputs():
-    validate()  # must not raise on the committed demo inputs
+    # The committed demo inputs carry what the gate reads (a non-empty panel), and
+    # the gate must not raise on them.
+    idir = paths.inputs_dir(cfg.DATASET_ID, None)
+    assert not pd.read_parquet(idir / "panel.parquet").empty
+    assert validate() is None
 
 
 def test_run_writes_tree_and_store_reads_faithfully(tmp_path):

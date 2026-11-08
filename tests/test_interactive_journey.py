@@ -198,4 +198,4 @@ def test_the_summary_offers_both_exports(app_tree) -> None:
     store.save_decisions({c: {"state": "DEFERRED"} for c in cfg.CLUSTER_ORDER})
     at = _at("summary")
     dl = _keys(at, "download_button")
-    assert len(dl) >= 2, f"expected docx + pdf, found {sorted(dl)}"
+    assert {"dl_docx", "dl_pdf"} <= set(dl), f"expected docx + pdf, found {sorted(dl)}"

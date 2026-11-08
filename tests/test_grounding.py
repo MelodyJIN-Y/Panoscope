@@ -495,7 +495,10 @@ def test_panel_absence_pass_declines_without_a_frame(monkeypatch, checker_real_l
     safe failure CLAUDE.md warns about. It declines instead."""
     from panoscope.agent import grounding_check as gc
 
-    monkeypatch.setattr(gc.SourceIndex, "panel_known", lambda self: False)
+    def unreadable(*a, **k):                   # the file boundary, not the gate
+        raise FileNotFoundError("panel.parquet")
+
+    monkeypatch.setattr(gc.data, "load_panel", unreadable)
     answer = "COL1A1 is absent here, which argues against a fibroblast identity."
     assert checker_real_lit.check(answer, None, "c2").ok is True
 
@@ -633,7 +636,10 @@ def test_fabricated_absence_pass_declines_without_a_frame(monkeypatch,
     """Same fail-open-on-a-missing-frame contract as the forward pass."""
     from panoscope.agent import grounding_check as gc
 
-    monkeypatch.setattr(gc.SourceIndex, "panel_known", lambda self: False)
+    def unreadable(*a, **k):                   # the file boundary, not the gate
+        raise FileNotFoundError("panel.parquet")
+
+    monkeypatch.setattr(gc.data, "load_panel", unreadable)
     answer = "CPA3 was never measured on this panel."
     assert checker_real_lit.check(answer, None, "c9").ok is True
 

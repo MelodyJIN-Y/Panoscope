@@ -30,7 +30,9 @@ def review() -> HolisticReview:
 # Shape + immutability
 # --------------------------------------------------------------------------- #
 def test_returns_holistic_review(review: HolisticReview) -> None:
+    # Deterministic: the same committed inputs give the same review, field by field.
     assert isinstance(review, HolisticReview)
+    assert holistic_review() == review
 
 
 def test_dataclasses_are_frozen(review: HolisticReview) -> None:
@@ -103,8 +105,7 @@ def test_no_fabricated_numbers_in_coherence_notes(review: HolisticReview) -> Non
 # Refinement: exactly one, c8 Dendritic -> pDC, grounded evidence markers
 # --------------------------------------------------------------------------- #
 def test_exactly_one_refinement(review: HolisticReview) -> None:
-    assert len(review.refinements) == 1
-    assert isinstance(review.refinements[0], Refinement)
+    assert [(type(r), r.cluster) for r in review.refinements] == [(Refinement, "c8")]
 
 
 def test_refinement_is_c8_dendritic_to_pdc(review: HolisticReview) -> None:

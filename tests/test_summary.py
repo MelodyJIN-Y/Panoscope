@@ -44,47 +44,54 @@ def test_verdict_csv_has_full_header_and_nine_rows() -> None:
     assert len(lines) == 1 + len(cfg.CLUSTER_ORDER)
 
 
-def test_exclude_note_flips_the_export_at_composition(monkeypatch) -> None:
+@pytest.mark.req("ARCH-18-03", gap=True)
+def test_the_exported_csv_names_its_spec_version() -> None:
+    """ARCH §18: spec_version on every artifact. The CSV export is an artifact and
+    carries none today; where it goes (a column or a header line) is a product
+    decision, since the 11-column contract is pinned by the golden output."""
+    assert "spec_version" in da.verdict_csv()
+
+
+def test_exclude_note_flips_the_export_at_composition() -> None:
     """An exclude note flips the exported exclude flag at composition, WITHOUT mutating
-    the deterministic verdict on disk (docs/note-capture-design.md)."""
+    the deterministic verdict on disk (docs/note-capture-design.md). Driven through a
+    real note written to the (per-test) context store, not a patched helper."""
+    from panoscope.agent import memory
+
     # baseline: no exclude notes -> composed == deterministic
-    monkeypatch.setattr(da, "_excluded_clusters", lambda: set())
     assert [v.exclude for v in da.composed_verdicts()] == [v.exclude for v in da.all_verdicts()]
+    base_c9 = [ln for ln in da.verdict_csv().splitlines() if ln.startswith("c9,")][0]
 
     # an exclude note on c9 flips only c9, only in the composed view
-    monkeypatch.setattr(da, "_excluded_clusters", lambda: {"c9"})
+    memory.create_note(claim="c9 is a doublet-rich cluster; exclude it", scope="cluster",
+                       basis="own_validation", cluster="c9", note_type="exclude",
+                       dataset=cfg.DATASET_ID, literature_search=lambda _q: ())
     composed = {v.cluster: v.exclude for v in da.composed_verdicts()}
     assert composed["c9"] is True
     assert composed["c1"] is False
     # the cached deterministic verdict for c9 is untouched (never mutated)
     assert da.all_verdicts()[8].exclude is False
     # and the CSV row for c9 differs from the un-excluded baseline
-    monkeypatch.setattr(da, "_excluded_clusters", lambda: set())
-    base_c9 = [ln for ln in da.verdict_csv().splitlines() if ln.startswith("c9,")][0]
-    monkeypatch.setattr(da, "_excluded_clusters", lambda: {"c9"})
     excl_c9 = [ln for ln in da.verdict_csv().splitlines() if ln.startswith("c9,")][0]
     assert base_c9 != excl_c9 and "TRUE" in excl_c9.upper()
 
 
 @pytest.mark.req("ARCH-8.2-01", "CLAUDE-MEM-01", "UI-5.1-01")
-def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
+def test_celltype_override_reflects_at_composition() -> None:
     """A confirmed celltype_override overlays the new call + lineage/category at
     composition (literature dissent never flips verify: rubric only), never mutating the
     deterministic verdict (docs/note-capture-design.md; user decision 2026-07-10)."""
     from panoscope.agent import config as cfg
-    from panoscope.agent.types import Citation, Note, ScopeRef, Tension
+    from panoscope.agent import memory
+    from panoscope.agent.types import Citation
 
     dissent = Citation(pmid="30000009", title="", authors="", year=2020, journal="",
                        stance="dissent", is_real=True)
-    ov = Note(
-        id="ov1", claim="c2 is CAF, not generic stroma", scope="cluster",
-        scope_ref=ScopeRef(dataset=cfg.DATASET_ID, cluster="c2"), basis="own_validation",
-        status="firm", subject_cell_type="CAF", subject_markers=(),
-        tension=Tension(agree=(), dissent=(dissent,), thin=False, query="", looked_up_at=""),
-        author="", created_at="2026-07-10T00:00:00+00:00", trigger="override", supersedes=None,
-        type="celltype_override", subject_lineage="Fibroblast", subject_category="Stromal",
-    )
-    monkeypatch.setattr(compose, "override_notes", lambda: {"c2": ov})
+    memory.create_note(
+        claim="c2 is CAF, not generic stroma", scope="cluster", basis="own_validation",
+        cluster="c2", subject_cell_type="CAF", note_type="celltype_override",
+        subject_lineage="Fibroblast", subject_category="Stromal",
+        dataset=cfg.DATASET_ID, literature_search=lambda _q: (dissent,))
 
     comp = {v.cluster: v for v in da.composed_verdicts()}
     assert comp["c2"].cell_type == "CAF"
@@ -441,3 +448,41 @@ def test_opening_the_summary_page_does_not_write_the_study_tree() -> None:
     finally:
         if p.exists():
             p.unlink()
+
+
+@pytest.mark.req("UI-5.6-01")
+def test_accepting_every_unflagged_call_moves_no_score_and_shows_no_tally() -> None:
+    """interface-design §5.6: N accepts leave confidence_score byte-identical, agreement
+    is never aggregated as "8/9 confirmed", and an unflagged accept writes no note."""
+    import re
+    from pathlib import Path
+
+    from streamlit.testing.v1 import AppTest
+
+    from panoscope.agent import memory
+    from panoscope.pipeline import decisions as D
+
+    def scores():
+        return [(v.cluster, v.confidence, v.confidence_score, v.verify)
+                for v in da.composed_verdicts()]
+
+    before, csv_before, notes_before = scores(), da.verdict_csv(), memory.read_notes()
+    unflagged = [v for v in da.all_verdicts() if not v.verify]
+    assert len(unflagged) >= 2, "the demo must carry several unflagged calls"
+    for v in unflagged:
+        D.accept(v.cluster, v.cell_type, by="you", at="2026-11-09T00:00:00")
+    assert {c for c, d in da.decisions().items() if d["state"] == D.ACCEPTED} == {
+        v.cluster for v in unflagged}
+
+    assert scores() == before and da.verdict_csv() == csv_before
+    assert memory.read_notes() == notes_before
+
+    at = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "panoscope" / "app.py"),
+                           default_timeout=300)
+    at.session_state["active_page"] = "summary"
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    text = " ".join([m.value for m in at.markdown] + [c.value for c in at.caption])
+    tally = re.compile(r"\b\d+\s*(?:/|of)\s*\d+\s+(?:confirmed|accepted|agree\w*|validated)",
+                       re.IGNORECASE)
+    assert not tally.search(text), tally.search(text)

@@ -170,8 +170,11 @@ def test_the_panel_size_in_the_caveat_follows_the_open_study():
     panel size is derived from the file, never asserted -- and the kidney study's
     panel is a different size from the demo's.
     """
+    import pandas as pd
+    from panoscope.data.study import Study
+
     demo = E._panel_size()
-    assert demo == 280
+    assert demo == len(pd.read_parquet(Study.open(cfg.DATASET_ID).dir / "inputs" / "panel.parquet"))
     with cfg.use_study("demo_mini"):
         assert E._panel_size() != demo
     assert E._panel_size() == demo, "switching back must restore the demo's panel"

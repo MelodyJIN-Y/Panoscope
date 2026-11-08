@@ -81,7 +81,10 @@ def test_cluster_key_is_the_studys_own_on_every_unit():
 
 
 def test_cluster_key_entry_count_follows_the_study():
-    with cfg.use_study(DEMO):
-        assert len(data.load_cluster_key()) == 9
-    with cfg.use_study(MINI):
-        assert len(data.load_cluster_key()) == 3
+    import json
+
+    for sid, n in ((DEMO, 9), (MINI, 3)):
+        man = json.loads((Study.open(sid).dir / "manifest.json").read_text(encoding="utf-8"))
+        assert len(man["clusters"]) == n
+        with cfg.use_study(sid):
+            assert sorted(data.load_cluster_key()) == sorted(man["clusters"])
