@@ -294,6 +294,26 @@ def _statement(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str, 
                      species=sp.value, flags=tuple(flags), written_by=generator)
 
 
+def verified(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str,
+             gene_rx: re.Pattern[str], span: str, cell_type: str, said: str, comparator: str,
+             sec: str, a: int, b: int | None, tissue_terms: tuple[str, ...], generator: str
+             ) -> Statement | str:
+    """A claimed statement checked by code (verbatim in ``sec[a:b]``, gene, relation, cell
+    named) and its facets computed; a str is why it was rejected."""
+    at = _find(rec.text(sec), span, a, b) if sec and span else -1
+    if at < 0:
+        return f"span not verbatim in {sec or 'its passage'}: {span[:120]!r}"
+    span = rec.text(sec)[at:at + len(span)]
+    entry = {e.label.casefold(): e for e in ctx.cell_types}.get(cell_type.casefold())
+    rel = relation(span, said, comparator, gene_rx)
+    if rel is None or not gene_rx.search(span):
+        return f"span does not name {gene} with relation {said}: {span[:120]!r}"
+    if entry is not None and not _words(cell_terms(entry), span):
+        return f"span does not name {entry.label}: {span[:120]!r}"
+    return _statement(ctx, corpus, rec, gene, entry.label if entry else "", rel, span, sec,
+                      at, tissue_terms, generator)
+
+
 Passage = tuple[str, str, int, int]          # (id, section, start, end)
 
 
@@ -302,7 +322,6 @@ def _p2(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str,
         reader: Reader, receipt: Receipt, tissue_terms: tuple[str, ...], generator: str
         ) -> tuple[list[Statement], set[str]]:
     """One P2 call; the verified statements and the sentence ids it accounted for."""
-    frame = {e.label.casefold(): e for e in ctx.cell_types}
     body = "\n\n".join(f"[{pid}] {rec.text(sec)[a:b]}" for pid, sec, a, b in passages)
     user = (f"GENE {gene}; aliases: {', '.join(a.text for a in aliases)}\n"
             "FRAME: " + "; ".join(f"{e.label} ({', '.join(cell_terms(e))})"
@@ -313,20 +332,15 @@ def _p2(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str,
     gene_rx = matcher(aliases)
     kept: dict[int, Statement] = {}
     for i, st in enumerate(got.get("statements") or []):
-        span = str(st.get("span") or "")
         sec, a, b = where.get(str(st.get("passage")), ("", 0, 0))
-        at = _find(rec.text(sec), span, a, b) if sec and span else -1
-        span = rec.text(sec)[at:at + len(span)] if at >= 0 else span
-        entry = frame.get(str(st.get("cell_type") or "").casefold())
-        rel = relation(span, str(st.get("relation") or ""), str(st.get("comparator") or ""),
-                       gene_rx) if at >= 0 else None
-        if (rel is None or not gene_rx.search(span)
-                or (entry is not None and not _words(cell_terms(entry), span))):
+        got_ = verified(ctx, corpus, rec, gene, gene_rx, str(st.get("span") or ""),
+                        str(st.get("cell_type") or ""), str(st.get("relation") or ""),
+                        str(st.get("comparator") or ""), sec, a, b, tissue_terms, generator)
+        if isinstance(got_, str):
             receipt.rejected += 1
-            log.warning("P2 statement rejected for %s/%s: %r", rec.uri, gene, span[:120])
+            log.warning("P2 statement rejected for %s/%s: %s", rec.uri, gene, got_)
             continue
-        kept[i] = _statement(ctx, corpus, rec, gene, entry.label if entry else "", rel,
-                             span, sec, at, tissue_terms, generator)
+        kept[i] = got_
     done = {str(a.get("sentence_id")) for a in got.get("accounted") or []
             if a.get("statements") == "no_claim"
             or any(isinstance(j, int) and j in kept for j in a.get("statements") or [])}

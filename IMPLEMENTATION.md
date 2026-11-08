@@ -619,6 +619,35 @@ single-method band, always); `test_different_question_never_agrees`; `test_deriv
 `test_concordance_never_raises`; `test_concordance_requires_joint`;
 `test_reconcile_joins_on_subject_key` — the test that proves the `Subject` abstraction paid for itself.
 
+### 6.1 Corpus interchange: the build in the biologist's own client (ARCHITECTURE §6.5)
+
+The primary corpus path. Panoscope exports a brief, the biologist runs it in any LLM client with
+whatever literature tools it has, and the client writes one JSONL file in the format
+`panoscope/corpus/format.schema.json` defines. Each line is one `kind`:
+
+| kind | fields |
+| --- | --- |
+| `header` (first line, once) | `format_version`, `study_id`, `brief_hash` (from the brief), `client`, `provider`, `model`, `run_date`, `operator_note` |
+| `paper` | `id` (`pmid:` / `pmcid:` / `doi:`), `title`, `channel` (why screened), `disposition` (the ledger vocabulary) |
+| `statement` | `paper`, `gene`, `cell_type_as_written`, `cell_type` (frame label or `""`), `tissue_as_written`, `disease_as_written`, `predicate` (the P2 relations), `comparator`, `span` (verbatim), `section` |
+| `query` | `query` (exact string), `source`, `gene`, `cell_type`, `total`, `retrieved`, `status` (`OK` / `TRUNCATED` / `FAILED`) |
+
+`panoscope corpus import --study <id> <file>` (`corpus/exchange.py`) **trusts nothing the client
+computed**. A schema error anywhere refuses the file with line-numbered errors, and nothing is
+written. Every id is resolved by code against Europe PMC, and an id that does not resolve is
+rejected, never kept. Text is fetched by code. Each span is checked verbatim with the in-app
+build's verifier (`read.verified`), and a mismatch is rejected and listed. Rung, modality,
+species and stance are recomputed, so any client `rung`, `stance`, `species` or `grade` is
+ignored. A client `OK` with `retrieved < total` reads `TRUNCATED`, and a key with an incomplete
+log reads "incomplete search".
+
+A `brief_hash` that is not the study's current one is warned and recorded in the query log. The
+new `CorpusVersion` is stamped `<model> (<provider>) in <client>, built in user client, run
+<date>` as the user stated it. Every version is also copied to `versions/<hash>.sqlite` beside
+the store, so earlier versions are kept and never overwritten (A12). The import prints a receipt
+listing accepted and rejected statements with reasons, unresolved ids and the rung distribution.
+The in-app API build (`panoscope corpus build`) remains the secondary path.
+
 ---
 
 ## 7. Migration

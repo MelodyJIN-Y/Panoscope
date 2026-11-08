@@ -403,6 +403,25 @@ def _cmd_corpus_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_corpus_import(args: argparse.Namespace) -> int:
+    """Import a corpus file built in the biologist's own LLM client, verified by code."""
+    from datetime import date
+
+    from panoscope.corpus import build as corpus_build
+    from panoscope.corpus.exchange import import_file
+    from panoscope.corpus.store import CorpusUnavailable
+
+    study = Study.open(_resolve_study_id(args.study)).require()
+    try:
+        _, receipt = import_file(study, args.file, today=date.today())
+    except CorpusUnavailable as exc:
+        raise SystemExit(str(exc)) from exc
+    print("\n".join(f"[panoscope] {line}" for line in receipt))
+    corpus_build.refresh_notes(study)
+    print(f"[panoscope] {corpus_build.header(study.id)}")
+    return 0
+
+
 def _dist_version(name: str) -> str:
     import importlib.metadata as md
 
@@ -465,6 +484,11 @@ def build_parser() -> argparse.ArgumentParser:
     how.add_argument("--top-up", nargs="+", metavar="GENE",
                      help="add these genes to the built corpus as a new version")
     p_cb.set_defaults(func=_cmd_corpus_build)
+    p_ci = p_corpus_sub.add_parser("import", help="import a corpus file built in your own LLM "
+                                   "client (format: panoscope/corpus/format.schema.json)")
+    p_ci.add_argument("--study", help="study id")
+    p_ci.add_argument("file", help="the JSONL file the client wrote")
+    p_ci.set_defaults(func=_cmd_corpus_import)
 
     return ap
 

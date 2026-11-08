@@ -18,7 +18,7 @@ from panoscope.corpus.read import Reader, Receipt, model_reader, read
 from panoscope.corpus.store import (
     Corpus, CorpusUnavailable, CorpusVersion, corpus_path, load, log_hash, read_version,
 )
-from panoscope.corpus.window import context_for
+from panoscope.corpus.window import StudyContext, context_for
 
 STALE_DAYS: Final = 180     # ponytail: one policy for every study; per-tissue when asked
 TOP_N: Final = 10           # each cluster's top method markers (D2)
@@ -48,6 +48,39 @@ def scope(study: Any, cell_types: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(genes))
 
 
+def tissue_terms(study: Any, ctx: StudyContext) -> tuple[str, ...]:
+    """T block (§3): the intake's UBERON label too, since the stated prose ("human breast
+    cancer") as one quoted phrase matches almost no title or abstract."""
+    return tuple(dict.fromkeys(t for t in (study.manifest.get("tissue_label"), ctx.tissue) if t))
+
+
+def brief_hash(study: Any) -> str:
+    """What a brief for this study asks: conditions, frame and D2 genes. An import checks it."""
+    ctx = context_for(study)
+    labels = tuple(e.label for e in ctx.cell_types)
+    asked = [study.id, ctx.tissue, ctx.disease_state, ctx.platform, labels, scope(study, labels)]
+    return hashlib.sha256(json.dumps(asked).encode()).hexdigest()[:16]
+
+
+def version_for(study: Any, ctx: StudyContext, corpus: Corpus, generator: str, cost: str,
+                day: date) -> CorpusVersion:
+    """The version a build or an import writes: conditions, reference releases, log hash."""
+    from panoscope.reference import view as ref_view
+
+    bg = study.manifest.get("background") or {}
+    return CorpusVersion(
+        study=study.id,
+        conditions=(("tissue", ctx.tissue), ("tissue_id", ctx.tissue_id),
+                    ("platform", ctx.platform), ("modality_class", ctx.modality_class),
+                    ("disease_state", ctx.disease_state), *ctx.disease_qualifiers),
+        reference=ref_view.for_study(study).releases,
+        generator=generator,
+        query_log_hash=log_hash(corpus.queries),
+        background_hash=hashlib.sha256(json.dumps(bg, sort_keys=True).encode()).hexdigest()[:16],
+        cost=cost, built_at=day.isoformat(),
+        stale_after=(day + timedelta(days=STALE_DAYS)).isoformat())
+
+
 def build(study: Any, *, today: date, receipt: Receipt, reader: Reader | None = None,
           genes: tuple[str, ...] = (), resume: bool = False,
           progress: Progress = lambda i, n, line: None) -> Corpus:
@@ -63,9 +96,7 @@ def build(study: Any, *, today: date, receipt: Receipt, reader: Reader | None = 
     if not (genes or resume):
         p.unlink(missing_ok=True)                 # rebuilt wholesale (§8.3)
     todo = genes or scope(study, tuple(e.label for e in ctx.cell_types))
-    # T block (§3): the intake's UBERON label, since the stated prose ("human breast
-    # cancer") as one quoted phrase matches almost no title or abstract
-    tissue = tuple(dict.fromkeys(t for t in (study.manifest.get("tissue_label"), ctx.tissue) if t))
+    tissue = tissue_terms(study, ctx)
     bg = study.manifest.get("background") or {}
     papers = tuple(str(c.get("value", ""))[5:] for c in bg.get("papers_of_interest", ())
                    if str(c.get("value", "")).startswith("pmid:"))   # ponytail: DOIs unread
@@ -85,20 +116,9 @@ def build(study: Any, *, today: date, receipt: Receipt, reader: Reader | None = 
         progress(i - 1, len(todo), f"{gene}: reading")
         read(ctx, gene, terms, reader=reader, receipt=receipt, tissue_terms=tissue, path=p,
              retrieved=stamp)
-    from panoscope.reference import view as ref_view
-
     corpus = load(p)
-    version = CorpusVersion(
-        study=study.id,
-        conditions=(("tissue", ctx.tissue), ("tissue_id", ctx.tissue_id),
-                    ("platform", ctx.platform), ("modality_class", ctx.modality_class),
-                    ("disease_state", ctx.disease_state), *ctx.disease_qualifiers),
-        reference=ref_view.for_study(study).releases,
-        generator=f"{receipt.model} via the Anthropic API (user key)",
-        query_log_hash=log_hash(corpus.queries),
-        background_hash=hashlib.sha256(json.dumps(bg, sort_keys=True).encode()).hexdigest()[:16],
-        cost=receipt.text, built_at=stamp,
-        stale_after=(today + timedelta(days=STALE_DAYS)).isoformat())
+    version = version_for(study, ctx, corpus, f"{receipt.model} via the Anthropic API (user key)",
+                          receipt.text, today)
     run = _Run(corpus, p, 0, stamp)
     run.commit(version=version, built=stamp)
     left = len(run.corpus.unclosed)

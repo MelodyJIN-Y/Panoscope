@@ -14,6 +14,7 @@ dependencies = [
     "pyarrow>=14,<26",
     "numpy>=1.26,<3",
     "pyyaml>=6",
+    "jsonschema>=4,<5",             # corpus import validates against its shipped schema
 ]
 
 # Upper bounds on every dependency and extra (IMPLEMENTATION §8): each is the next

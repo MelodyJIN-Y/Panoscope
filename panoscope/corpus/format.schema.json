@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "panoscope/corpus/format.schema.json",
+  "title": "Panoscope corpus interchange format 1",
+  "description": "JSONL: one object per line, each validated against the $defs entry named by its 'kind'. The first line is the header. Panoscope trusts nothing computed by the client: identifiers are resolved, text is fetched and spans are checked verbatim by code; rung, modality, species, stance and grade are recomputed and any client value is ignored.",
+  "$defs": {
+    "header": {
+      "type": "object",
+      "required": ["kind", "format_version", "study_id", "brief_hash", "client", "provider", "model", "run_date"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "header"},
+        "format_version": {"const": 1},
+        "study_id": {"type": "string", "minLength": 1},
+        "brief_hash": {"type": "string", "description": "copied from the exported brief"},
+        "client": {"type": "string", "minLength": 1, "description": "the app the biologist ran it in"},
+        "provider": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "run_date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "operator_note": {"type": "string"}
+      }
+    },
+    "paper": {
+      "type": "object",
+      "required": ["kind", "id", "channel", "disposition"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "paper"},
+        "id": {"type": "string", "pattern": "^(pmid:[0-9]+|pmcid:PMC[0-9]+|doi:10\\..+)$"},
+        "title": {"type": "string"},
+        "channel": {"type": "string", "minLength": 1, "description": "why it was screened: the query or route that returned it"},
+        "disposition": {
+          "type": "string",
+          "pattern": "^(PREFILTER_NO_ALIAS|RETRACTED|REVIEW_CHASE_ONLY|NON_TISSUE|OUT_OF_LADDER|NOT_SCREENED_TRUNCATED|NOT_READ_BUDGET|SAME_DATASET_READ|(DEDUP_OF|P1_EXCLUDED|READ):.+)$"
+        }
+      }
+    },
+    "statement": {
+      "type": "object",
+      "required": ["kind", "paper", "gene", "cell_type", "predicate", "span", "section"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "statement"},
+        "paper": {"type": "string", "description": "a paper line's id"},
+        "gene": {"type": "string", "minLength": 1},
+        "cell_type_as_written": {"type": "string"},
+        "cell_type": {"type": "string", "description": "the brief's frame label it maps to, or \"\""},
+        "tissue_as_written": {"type": "string"},
+        "disease_as_written": {"type": "string"},
+        "predicate": {"enum": ["MARKS", "ENRICHED_VS", "SUBSET_MARKER", "EXPRESSED_IN", "NOT_EXPRESSED_IN", "COLOCALISED", "STATE_ASSOCIATED", "FUNCTIONAL"]},
+        "comparator": {"type": "string"},
+        "stance": {"description": "ignored: recomputed from the predicate"},
+        "span": {"type": "string", "minLength": 1, "description": "verbatim from the paper's text"},
+        "section": {"enum": ["title", "abstract", "full_text"]},
+        "rung": {"description": "ignored: recomputed by code"},
+        "modality": {"description": "ignored: recomputed by code"},
+        "species": {"description": "ignored: recomputed by code"},
+        "grade": {"description": "ignored: recomputed by code"}
+      }
+    },
+    "query": {
+      "type": "object",
+      "required": ["kind", "query", "source", "gene", "total", "retrieved", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "query"},
+        "query": {"type": "string", "pattern": "^[^{]*[^{\\s][^{]*$", "description": "the exact string sent, no placeholders"},
+        "source": {"type": "string", "minLength": 1, "description": "PubMed, Europe PMC ..."},
+        "gene": {"type": "string", "minLength": 1},
+        "cell_type": {"type": "string", "description": "the frame label the query covers; \"\" for gene-level"},
+        "total": {"type": "integer", "minimum": 0},
+        "retrieved": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["OK", "TRUNCATED", "FAILED"]}
+      }
+    }
+  }
+}

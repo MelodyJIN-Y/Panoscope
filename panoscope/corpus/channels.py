@@ -350,13 +350,18 @@ def _screen(run: _Run, gene: str, aliases: tuple[Term, ...]) -> list[SourceRecor
     return gated
 
 
+def full_text(rec: SourceRecord) -> str:
+    """The record's Europe PMC full text as plain text; "" when the fetch fails."""
+    try:
+        return _jats(_get(f"{EPMC}{rec.pmcid}/fullTextXML", {}, raw=True))
+    except (SourceUnavailable, ET.ParseError):
+        return ""
+
+
 def _full_text(run: _Run, rec: SourceRecord) -> None:
     """Fetch an OA candidate's full text once; a failure is logged, the abstract stays."""
     url = f"{EPMC}{rec.pmcid}/fullTextXML"
-    try:
-        text = _jats(_get(url, {}, raw=True))
-    except (SourceUnavailable, ET.ParseError):
-        text = ""
+    text = full_text(rec)
     if not text:
         run.log(QueryRun(url, "fulltext", "", total=1, status=QueryStatus.FAILED))
         return
