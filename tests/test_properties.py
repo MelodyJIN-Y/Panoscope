@@ -178,14 +178,17 @@ def test_measuring_any_reading_keeps_a_number_only_where_observed():
         world = MeasuredWorld((Frame(EntityKind.GENE, "panel:prop", frozenset(panel)),)
                               if panel else ())
         cov = (Coverage("cells", 1, 10, 5),) if thin else ()
+        pearson = ((PEARSON, 0.5),)
         item = core_measure.measure(core_measure.Reading(
-            subject("gene", g=gene(g)), stat, "glm_coef", coverage=cov), world,
-            frozenset(reported)).value
+            subject("gene", g=gene(g)), stat, "glm_coef", coverage=cov,
+            corroborating=pearson), world, frozenset(reported)).value
         state = item.measured.state
         hits[state.value] += 1
         event(state.value)
         assert (item.statistic is not None) == (state is MeasuredState.OBSERVED
                                                 and stat is not None)
+        # A corroborator is a number too: withheld together with the statistic.
+        assert item.corroborating == (pearson if item.statistic is not None else ())
         if item.statistic is not None:
             assert item.statistic == stat
         assert item.measured.absence_is_evidence == (state is MeasuredState.TESTED_ABSENT)
@@ -550,10 +553,13 @@ def test_any_builder_study_builds_to_the_same_bytes_and_a_changed_coefficient_sh
     from panoscope.pipeline import records
     from tests.conftest import clear_all_caches
 
-    def dump(sid):
+    def build(sid):
         clear_all_caches()
+        return records.build_all(Study.open(sid))
+
+    def dump(built):
         return {u: json.dumps(core_record.to_dict(b.record).value, sort_keys=True)
-                for u, b in records.build_all(Study.open(sid)).items()}
+                for u, b in built.items()}
 
     made = Counter()
 
@@ -566,16 +572,24 @@ def test_any_builder_study_builds_to_the_same_bytes_and_a_changed_coefficient_sh
         made["k"] += 1
         sid = f"s{made['k']}"
         d = study_builder(sid, clusters=sorted(clusters))
-        first = dump(sid)
-        assert dump(sid) == first
+        first = dump(build(sid))
+        assert dump(build(sid)) == first
         csv = d / "inputs" / "markers_top.csv"
         df = pd.read_csv(csv)
         rows = df.index[df["top_cluster"].isin(clusters)].tolist()
         r = rows[pick % len(rows)]
         df.loc[r, "glm_coef"] += delta
         df.to_csv(csv, index=False)
-        u = df.loc[r, "top_cluster"]
-        assert dump(sid)[u] != first[u]
+        u, g, new = df.loc[r, "top_cluster"], df.loc[r, "gene"], float(df.loc[r, "glm_coef"])
+        after = build(sid)
+        assert dump(after)[u] != first[u]
+        # The record also carries the input file's sha256, which changes on any edit;
+        # so check the VALUE arrived: the unit's item for that gene holds the new number.
+        got = [i.statistic for i in after[u].evidence.items if i.subject.one("g").id == g]
+        assert len(got) == 1
+        if got[0] is not None:
+            assert got[0] == pytest.approx(new, rel=1e-12)
+            hits["observed"] += 1
         hits["reached"] += 1
 
-    _run(prop, {"reached": 1.0})
+    _run(prop, {"reached": 1.0, "observed": 0.5})
