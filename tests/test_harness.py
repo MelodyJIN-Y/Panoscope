@@ -114,6 +114,21 @@ def test_reverse_order_reverses_the_run(tmp_path) -> None:
 
 
 @pytest.mark.req(HARNESS)
+def test_browser_and_budget_run_only_when_the_marker_expression_names_them(tmp_path) -> None:
+    suite = ("import pytest\n\ndef test_plain():\n    pass\n\n"
+             "@pytest.mark.browser\ndef test_click():\n    pass\n\n"
+             "@pytest.mark.budget\ndef test_fast():\n    pass\n")
+
+    def ran(*args):
+        out = _child(tmp_path, suite, "--collect-only", "-q", "-q", *args).stdout
+        return sorted(ln.split("::")[1] for ln in out.splitlines() if "::" in ln)
+
+    assert ran("-m", "not live") == ["test_plain"]
+    assert ran("-m", "browser") == ["test_click"]
+    assert ran("-m", "budget") == ["test_fast"]
+
+
+@pytest.mark.req(HARNESS)
 def test_every_registry_id_is_unique_and_has_a_source() -> None:
     rows = tomllib.loads((Path(__file__).parent / "requirements.toml").read_text())["req"]
     ids = [r["id"] for r in rows]
@@ -126,9 +141,10 @@ def test_every_registry_id_is_unique_and_has_a_source() -> None:
 # Network block
 # --------------------------------------------------------------------------- #
 @pytest.mark.req(HARNESS)
-def test_an_internet_connect_is_refused_and_recorded(no_network) -> None:
+@pytest.mark.parametrize("host", ["192.0.2.1", "2001:db8::1"])  # IPv4 and IPv6 test-nets
+def test_an_internet_connect_is_refused_and_recorded(host, no_network) -> None:
     with pytest.raises(OSError, match="network blocked"):
-        socket.create_connection(("192.0.2.1", 443), timeout=1)
+        socket.create_connection((host, 443), timeout=1)
     assert no_network and no_network[-1][1] == 443
 
 
@@ -173,6 +189,16 @@ def test_every_builder_shape_builds(shape, study_builder, monkeypatch) -> None:
         assert len([g for _, g in KIDNEY_LAB_MARKERS if g in panel]) <= 2
     if shape == "two_sample_joint":
         assert man["samples"] == ["s1", "s2"] and man["clustering_mode"] == "joint"
+    if "clusters" in _SHAPES.get(shape, {}):
+        assert want == sorted(_SHAPES[shape]["clusters"])
+    if table.name == "markers_top.csv":  # the builder honoured ``labels``
+        labels = _SHAPES.get(shape, {}).get("labels", shape != "kidney_standin")
+        labelled = set(df.dropna(subset=["cell_type"])["top_cluster"]) if "cell_type" in df else set()
+        assert (inputs / "cluster_key.json").exists() is (labels is True)
+        if labels is False:
+            assert labelled == set()
+        elif isinstance(labels, dict):
+            assert labelled == set(labels)
 
 
 # --------------------------------------------------------------------------- #
@@ -194,4 +220,15 @@ def test_an_exhausted_script_degrades_to_the_fallback_without_raising(app_tree, 
     from panoscope.agent import loop
 
     r = loop.chat("what is c1?", cluster="c1")
-    assert fake_model.calls and r.text
+    assert fake_model.calls and r.text and r.used_fallback
+    with pytest.raises(RuntimeError, match="exhausted"):
+        fake_model.create()
+
+
+@pytest.mark.req(HARNESS)
+def test_a_citation_resolves_only_when_listed_as_real(fake_model) -> None:
+    from panoscope.agent import loop
+
+    assert not loop._default_literature_verifier("PMID:12345")
+    fake_model.real_ids.add("PMID:12345")
+    assert loop._default_literature_verifier("PMID:12345")
