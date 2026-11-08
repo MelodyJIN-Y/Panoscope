@@ -28,7 +28,7 @@ K_STUDY = "_study"  # (data root, study id) this session opened; None = the defa
 # Closed vocabularies for the viewing/interaction controls
 # --------------------------------------------------------------------------- #
 BIN_SIZES_UM: tuple[int, ...] = (25, 50, 100)  # µm presets from the wireframe
-DEFAULT_BIN_UM = 25
+DEFAULT_BIN_UM = 50  # interface-design §1.3: 25 µm is ~1 px/hex in a 310 px panel
 
 def default_unit() -> str:
     """First unit of the current study, or ``""`` when it has none (no data is
