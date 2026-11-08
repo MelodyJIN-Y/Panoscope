@@ -67,6 +67,8 @@ def override(cluster: str, draft: Any, *, by: str, at: str,
     label = (draft.subject_cell_type or "").strip()
     if draft.type != "celltype_override" or not label:
         raise ValueError("an override needs a celltype_override draft naming the new label")
+    if draft.scope == "cluster" and draft.cluster != cluster:
+        raise ValueError(f"the draft is scoped to {draft.cluster!r}, not {cluster!r}")
     note = memory.save_draft(draft, attributed_to=by, base_dir=base_dir)
     return _record(cluster, {"state": OVERRIDDEN, "label": label, "by": by, "at": at,
                              "note_id": note.id, "scope": draft.scope, "basis": draft.basis},

@@ -15,7 +15,7 @@ from panoscope.pipeline import decisions as D
 from panoscope.pipeline import store
 from panoscope.reference.graph import Edge, Graph
 from panoscope.reference.view import View
-from panoscope.types.measured import Frame, MeasuredWorld
+from panoscope.types.measured import Coverage, Frame, MeasuredWorld
 from panoscope.types.subject import EntityKind, cell_type, gene, subject
 
 AT = "2026-11-08T10:00:00+00:00"
@@ -38,7 +38,8 @@ def _build():
                           world, reported).value
                   for g, s in (("ERBB2", 21.4), ("LUM", 0.4), ("ACTA2", None)))
     return SimpleNamespace(evidence=SimpleNamespace(items=items),
-                           verdict=assess(items, frozenset({"ERBB2"})).value)
+                           verdict=assess(items, frozenset({"ERBB2"}),
+                                          Coverage("replicates", 1, 4, 3)).value)
 
 
 def test_every_cluster_starts_open_and_export_names_the_open_ones(tmp_path) -> None:
@@ -63,6 +64,8 @@ def test_override_commits_a_lab_note_and_keeps_the_sign_offs(tmp_path) -> None:
                       status="firm", cluster="c2", subject_cell_type="CAF",
                       subject_markers=(), dataset="fresh",
                       tension=Tension((), (), True, "", ""))
+    with pytest.raises(ValueError, match="scoped to 'c2'"):     # the note would fire on c2
+        D.override("c3", draft, root=tmp_path, **KW)
     rec = D.override("c2", draft, root=tmp_path, **KW)
     note = memory.get_note(rec["note_id"])
     assert (note.author, note.subject_cell_type, note.basis) == ("tester", "CAF",
@@ -80,6 +83,7 @@ def test_the_biologist_label_gets_the_same_band_function_beside_the_proposal() -
     assert a.proposal is b.verdict
     assert a.biologist.driver.subject.one("g").id == "LUM"      # its own canonical driver
     assert a.biologist.band != a.proposal.band
+    assert a.biologist.replicate_coverage is b.verdict.replicate_coverage  # same measurement
     assert D.assessments(b, None, _view()).biologist is None
 
 
