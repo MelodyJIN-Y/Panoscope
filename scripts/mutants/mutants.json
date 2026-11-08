@@ -1,0 +1,1534 @@
+[
+ {
+  "id": "V1",
+  "file": "panoscope/core/verdict.py",
+  "old": "if c >= CONFIDENCE_BANDS[label]:",
+  "new": "if c > CONFIDENCE_BANDS[label]:",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "band edge >= -> > (boundary)"
+ },
+ {
+  "id": "V2",
+  "file": "panoscope/core/verdict.py",
+  "old": "    c = abs(float(coef))",
+  "new": "    c = float(coef)",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "drop abs(): negative coef reads Low"
+ },
+ {
+  "id": "V3",
+  "file": "panoscope/core/verdict.py",
+  "old": "if pearson is not None and pearson >= PROMOTE_PEARSON:",
+  "new": "if pearson is not None and pearson > PROMOTE_PEARSON:",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "promote boundary"
+ },
+ {
+  "id": "V4",
+  "file": "panoscope/core/verdict.py",
+  "old": "fragile = len(assigned) <= FRAGILE_MARKER_COUNT",
+  "new": "fragile = len(assigned) < FRAGILE_MARKER_COUNT",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "fragile count off-by-one"
+ },
+ {
+  "id": "V5",
+  "file": "panoscope/core/verdict.py",
+  "old": "            or (replicate is not None and bool(replicate.n) and not replicate.ok))",
+  "new": "            )",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "verify ignores thin replicate coverage"
+ },
+ {
+  "id": "V6",
+  "file": "panoscope/core/verdict.py",
+  "old": "            or (bool(coverage.n) and not coverage.ok)\n",
+  "new": "\n",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "verify ignores thin canonical coverage"
+ },
+ {
+  "id": "V8",
+  "file": "panoscope/core/verdict.py",
+  "old": "        and FLAG_LOW_PEARSON not in i.flags\n",
+  "new": "\n",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "low-pearson driver becomes eligible"
+ },
+ {
+  "id": "V9",
+  "file": "panoscope/core/verdict.py",
+  "old": "    if replicate is not None and replicate.n and not replicate.ok:\n        band = _demote(band)",
+  "new": "    if replicate is not None and replicate.n and not replicate.ok:\n        band = band",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "replicate demote does not move band"
+ },
+ {
+  "id": "V10",
+  "file": "panoscope/core/verdict.py",
+  "old": "        if BANDS.index(band) > BANDS.index(FRAGILE_FLOOR_BAND):",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "fragile floor removed"
+ },
+ {
+  "id": "V11",
+  "file": "panoscope/core/verdict.py",
+  "old": "    return -(-n * num // den)",
+  "new": "    return n * num // den",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "coverage floor ceil->floor"
+ },
+ {
+  "id": "V12",
+  "file": "panoscope/core/verdict.py",
+  "old": "        for i in items if i.measured.testable",
+  "new": "        for i in items if i.measured.carries_number",
+  "tests": [
+   "tests/test_core_verdict.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_core_compat.py",
+   "tests/test_decisions.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_record.py",
+   "tests/test_verdict_retire.py",
+   "tests/test_concordance_wired.py"
+  ],
+  "what": "canonical K counts only OBSERVED"
+ },
+ {
+  "id": "M1",
+  "file": "panoscope/types/measured.py",
+  "old": "        return self.state is MeasuredState.OBSERVED\n",
+  "new": "        return self.state in (MeasuredState.OBSERVED, MeasuredState.UNDERPOWERED)\n",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "carries_number admits UNDERPOWERED"
+ },
+ {
+  "id": "M2",
+  "file": "panoscope/types/measured.py",
+  "old": "        return self.state is MeasuredState.TESTED_ABSENT",
+  "new": "        return self.state in (MeasuredState.TESTED_ABSENT, MeasuredState.UNDERPOWERED)",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "absence_is_evidence admits UNDERPOWERED"
+ },
+ {
+  "id": "M3",
+  "file": "panoscope/types/measured.py",
+  "old": "    worst = min(_RANK[s] for _e, s, _f in per)",
+  "new": "    worst = max(_RANK[s] for _e, s, _f in per)",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "meet -> join"
+ },
+ {
+  "id": "M4",
+  "file": "panoscope/types/measured.py",
+  "old": "    if failing and _RANK[state] > _RANK[MeasuredState.UNDERPOWERED]:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "coverage never demotes"
+ },
+ {
+  "id": "M5",
+  "file": "panoscope/types/measured.py",
+  "old": "    if str(entity.id).strip().upper() in _normalised(reported):",
+  "new": "    if str(entity.id) in reported:",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "reported matching not normalised"
+ },
+ {
+  "id": "M6",
+  "file": "panoscope/types/measured.py",
+  "old": "        return self.k >= self.floor",
+  "new": "        return self.k > self.floor",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "Coverage.ok boundary"
+ },
+ {
+  "id": "M7",
+  "file": "panoscope/core/measure.py",
+  "old": "        corroborating=reading.corroborating if grounded else (),",
+  "new": "        corroborating=reading.corroborating,",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "corroborators not withheld with statistic"
+ },
+ {
+  "id": "M8",
+  "file": "panoscope/core/measure.py",
+  "old": "    unit_ids = ids | {str(e.id) for e in unit_subject.entities()}",
+  "new": "    unit_ids = ids",
+  "tests": [
+   "tests/test_types_measured.py",
+   "tests/test_core_measure.py",
+   "tests/test_types_evidence.py",
+   "tests/test_core_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_interpret.py",
+   "tests/test_core_rival.py",
+   "tests/test_core_reconcile.py",
+   "tests/test_claims.py"
+  ],
+  "what": "unit not self-reported"
+ },
+ {
+  "id": "G1",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "    return abs(stated - truth) <= 0.5 * 10.0 ** -places + _FLOAT_SLACK",
+  "new": "    return abs(stated - truth) <= 5 * 10.0 ** -places + _FLOAT_SLACK",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py",
+   "tests/test_types_contracts_protocols.py"
+  ],
+  "what": "a number one unit off in its last shown digit passes"
+ },
+ {
+  "id": "G2",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "        for pmcid in claims.pmcids:\n            if not self._resolves(pmcid):",
+  "new": "        for pmcid in claims.pmcids:\n            if False:",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py",
+   "tests/test_types_contracts_protocols.py"
+  ],
+  "what": "PMCIDs never checked"
+ },
+ {
+  "id": "G3",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "        except Exception:\n            return False\n\n    def _check_citations",
+  "new": "        except Exception:\n            return True\n\n    def _check_citations",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py",
+   "tests/test_types_contracts_protocols.py"
+  ],
+  "what": "resolver error fails OPEN"
+ },
+ {
+  "id": "G4",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "            if self._src.is_detectable(a.entity):",
+  "new": "            if self._src.is_on_panel(a.entity):",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py",
+   "tests/test_types_contracts_protocols.py"
+  ],
+  "what": "panel-absence uses panel not detectability frame"
+ },
+ {
+  "id": "G5",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "            if allowed is not None and note_id not in allowed:",
+  "new": "            if False:",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py",
+   "tests/test_types_contracts_protocols.py"
+  ],
+  "what": "out-of-scope note allowed"
+ },
+ {
+  "id": "G6",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "        if is_no_signal(row.get(\"top_cluster\", \"\")):\n            return None\n        if stat not in row.index:",
+  "new": "        if stat not in row.index:",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py",
+   "tests/test_types_contracts_protocols.py"
+  ],
+  "what": "NoSig row yields a number"
+ },
+ {
+  "id": "D1",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "    if draft.scope == \"cluster\" and draft.cluster != cluster:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_summary.py",
+   "tests/test_biologist_path_e2e.py"
+  ],
+  "what": "override scope mismatch not refused"
+ },
+ {
+  "id": "D2",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "    if not proposal or proposal == NOT_YET_CALLED:",
+  "new": "    if not proposal:",
+  "tests": [
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_summary.py",
+   "tests/test_biologist_path_e2e.py"
+  ],
+  "what": "accept 'not yet called' as a label"
+ },
+ {
+  "id": "D3",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "TERMINAL = frozenset({ACCEPTED, OVERRIDDEN, DEFERRED})",
+  "new": "TERMINAL = frozenset({ACCEPTED, OVERRIDDEN})",
+  "tests": [
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_summary.py",
+   "tests/test_biologist_path_e2e.py"
+  ],
+  "what": "deferred no longer terminal for export"
+ },
+ {
+  "id": "D4",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "    return cands, tuple(e for e in expected if view.key(e) not in keys)",
+  "new": "    return cands, tuple(expected)",
+  "tests": [
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_summary.py",
+   "tests/test_biologist_path_e2e.py"
+  ],
+  "what": "expected types duplicated beside candidates"
+ },
+ {
+  "id": "D6",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "    v = core_verdict.assess(build.evidence.items, canon,\n                            build.verdict.replicate_coverage).value",
+  "new": "    v = core_verdict.assess(build.evidence.items, canon).value",
+  "tests": [
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_summary.py",
+   "tests/test_biologist_path_e2e.py"
+  ],
+  "what": "biologist band drops replicate coverage"
+ },
+ {
+  "id": "A1",
+  "file": "panoscope/ui/data_access.py",
+  "old": "                changes.update(confidence=b.band, confidence_score=SCORE_MAP.get(b.band),\n                               verify=b.verify)",
+  "new": "                changes.update(confidence=b.band, confidence_score=SCORE_MAP.get(b.band))",
+  "tests": [
+   "tests/test_data_access.py",
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_report.py"
+  ],
+  "what": "override keeps proposal's verify"
+ },
+ {
+  "id": "A2",
+  "file": "panoscope/ui/data_access.py",
+  "old": "        if v.cluster in excluded:\n            changes[\"exclude\"] = True",
+  "new": "        if v.cluster in excluded:\n            pass",
+  "tests": [
+   "tests/test_data_access.py",
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_report.py"
+  ],
+  "what": "exclude note not applied"
+ },
+ {
+  "id": "A3",
+  "file": "panoscope/ui/data_access.py",
+  "old": "    if rec := store.load_decisions().get(cluster):\n        return rec\n    if (n := compose.override_notes().get(cluster)) is not None:",
+  "new": "    if (n := compose.override_notes().get(cluster)) is not None:\n        return {\"state\": D.OVERRIDDEN, \"label\": n.subject_cell_type.strip(), \"note_id\": n.id}\n    if rec := store.load_decisions().get(cluster):\n        return rec\n    if False:",
+  "tests": [
+   "tests/test_data_access.py",
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_report.py"
+  ],
+  "what": "override note shadows recorded decision"
+ },
+ {
+  "id": "A4",
+  "file": "panoscope/ui/data_access.py",
+  "old": "        reviewed[cluster] = {\"at\": at, \"note_id\": note_id}",
+  "new": "        reviewed[cluster] = {\"at\": at, \"note_id\": None}",
+  "tests": [
+   "tests/test_data_access.py",
+   "tests/test_decisions.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_review_surface.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_report.py",
+   "tests/ui/test_summary.py"
+  ],
+  "what": "sign-off loses note link"
+ },
+ {
+  "id": "W1",
+  "file": "panoscope/corpus/window.py",
+  "old": "            return Rung.W0 if disease_declared else Rung.W0_STAR",
+  "new": "            return Rung.W0",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "W0* collapsed into W0"
+ },
+ {
+  "id": "W2",
+  "file": "panoscope/corpus/window.py",
+  "old": "    ct = f.cell_type is True and f.resolution != \"BULK\"",
+  "new": "    ct = f.cell_type is True",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "bulk no longer capped"
+ },
+ {
+  "id": "W3",
+  "file": "panoscope/corpus/window.py",
+  "old": "        return Rung.W4 if (f.tissue is True or ct) else None",
+  "new": "        return Rung.W4",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "non-human with nothing matching gets W4"
+ },
+ {
+  "id": "W4",
+  "file": "panoscope/corpus/window.py",
+  "old": "        return Rung.W2\n",
+  "new": "        return Rung.W1\n",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "other-disease reads as same setting"
+ },
+ {
+  "id": "W5",
+  "file": "panoscope/corpus/window.py",
+  "old": "    if f.biofluid:\n        return None",
+  "new": "    if False:\n        return None",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "biofluid not excluded"
+ },
+ {
+  "id": "R1",
+  "file": "panoscope/corpus/read.py",
+  "old": "    if entry is not None and bound is None:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "span need not name cell"
+ },
+ {
+  "id": "R2",
+  "file": "panoscope/corpus/read.py",
+  "old": "    return replace(st, flags=(*st.flags, \"AMBIGUOUS_CELL\")) if bound is False else st",
+  "new": "    return st",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "ambiguous-cell flag dropped"
+ },
+ {
+  "id": "R3",
+  "file": "panoscope/corpus/read.py",
+  "old": "    if said == \"NOT_EXPRESSED_IN\" and not _NEG.search(span):\n        return None",
+  "new": "    if False:\n        return None",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "negative relation w/o negation accepted"
+ },
+ {
+  "id": "R4",
+  "file": "panoscope/corpus/read.py",
+  "old": "    if rel is None or not gene_rx.search(span):",
+  "new": "    if rel is None:",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "span need not name gene"
+ },
+ {
+  "id": "X1",
+  "file": "panoscope/corpus/exchange.py",
+  "old": "    if head[\"study_id\"] != study.id:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "import for another study accepted"
+ },
+ {
+  "id": "X2",
+  "file": "panoscope/corpus/exchange.py",
+  "old": "        if status is QueryStatus.OK and q[\"retrieved\"] < q[\"total\"]:",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "narrowed client search keeps OK"
+ },
+ {
+  "id": "X3",
+  "file": "panoscope/corpus/exchange.py",
+  "old": "        if rec is None or rec.retracted:                 # code's check, as in-app",
+  "new": "        if rec is None:",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "retracted paper's statements accepted"
+ },
+ {
+  "id": "X4",
+  "file": "panoscope/corpus/exchange.py",
+  "old": "    brief_ok = head[\"brief_hash\"] == current",
+  "new": "    brief_ok = True",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "stale brief not flagged"
+ },
+ {
+  "id": "X5",
+  "file": "panoscope/corpus/exchange.py",
+  "old": "            \"doi\": lambda r: r.doi.casefold() == v.casefold()}[scheme]",
+  "new": "            \"doi\": lambda r: True}[scheme]",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_build.py"
+  ],
+  "what": "DOI id check accepts any hit"
+ },
+ {
+  "id": "F1",
+  "file": "panoscope/reference/view.py",
+  "old": "    if src == \"panglaodb\":\n        return e.qualifier(\"canonical\") == \"yes\"",
+  "new": "    if src == \"panglaodb\":\n        return True",
+  "tests": [
+   "tests/test_reference_view.py",
+   "tests/test_reference_sources.py",
+   "tests/test_reference.py",
+   "tests/test_decisions.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "non-canonical PanglaoDB rows listed"
+ },
+ {
+  "id": "F2",
+  "file": "panoscope/reference/view.py",
+  "old": "    if n.endswith(\"s\") and not n.endswith((\"ss\", \"us\", \"is\")):",
+  "new": "    if n.endswith(\"s\"):",
+  "tests": [
+   "tests/test_reference_view.py",
+   "tests/test_reference_sources.py",
+   "tests/test_reference.py",
+   "tests/test_decisions.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "plural normaliser over-strips",
+  "equivalent": "the over-stripped plural is applied to both sides of every comparison, so no lookup can tell the two normalisers apart"
+ },
+ {
+  "id": "F3",
+  "file": "panoscope/reference/view.py",
+  "old": "    return {**{s: next(iter(k)) for s, k in seen.items() if len(k) == 1}, **ids,",
+  "new": "    return {**{s: next(iter(k)) for s, k in seen.items()}, **ids,",
+  "tests": [
+   "tests/test_reference_view.py",
+   "tests/test_reference_sources.py",
+   "tests/test_reference.py",
+   "tests/test_decisions.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "ambiguous synonym resolves"
+ },
+ {
+  "id": "F4",
+  "file": "panoscope/reference/view.py",
+  "old": "    species = _SPECIES.get(sp or \"human\")",
+  "new": "    species = _SPECIES.get(\"human\")",
+  "tests": [
+   "tests/test_reference_view.py",
+   "tests/test_reference_sources.py",
+   "tests/test_reference.py",
+   "tests/test_decisions.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "undeclared/unknown species read as human (cross-species fallback)"
+ },
+ {
+  "id": "F5",
+  "file": "panoscope/reference/view.py",
+  "old": "                                   if _listed(e) and e.qualifier(\"canonical\") != \"no\"))",
+  "new": "                                   if _listed(e)))",
+  "tests": [
+   "tests/test_reference_view.py",
+   "tests/test_reference_sources.py",
+   "tests/test_reference.py",
+   "tests/test_decisions.py",
+   "tests/test_verdict.py",
+   "tests/test_golden.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "canonical=no markers count"
+ },
+ {
+  "id": "E1",
+  "file": "panoscope/core/export.py",
+  "old": "    return \"TRUE\" if b else \"FALSE\"",
+  "new": "    return \"True\" if b else \"False\"",
+  "tests": [
+   "tests/test_core_export.py",
+   "tests/test_golden.py",
+   "tests/test_summary.py",
+   "tests/test_decisions.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_report.py"
+  ],
+  "what": "R logical spelling"
+ },
+ {
+  "id": "E2",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "    open_ = [c for c in clusters if state(decisions, c) not in TERMINAL]",
+  "new": "    open_ = [c for c in clusters if state(decisions, c) not in TERMINAL][:1]",
+  "tests": [
+   "tests/test_core_export.py",
+   "tests/test_golden.py",
+   "tests/test_summary.py",
+   "tests/test_decisions.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_report.py"
+  ],
+  "what": "refusal names only first open cluster"
+ },
+ {
+  "id": "E3",
+  "file": "panoscope/pipeline/decisions.py",
+  "old": "    if not open_:\n        return None",
+  "new": "    if len(open_) < 2:\n        return None",
+  "tests": [
+   "tests/test_core_export.py",
+   "tests/test_golden.py",
+   "tests/test_summary.py",
+   "tests/test_decisions.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_report.py"
+  ],
+  "what": "export allowed with one OPEN cluster"
+ },
+ {
+  "id": "C1",
+  "file": "panoscope/types/claim.py",
+  "old": "        return _SCOPE_RANK[kind] >= _SCOPE_RANK[here[0]]",
+  "new": "        return True",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_claims_wired.py",
+   "tests/test_grounding.py",
+   "tests/test_claims_notes.py"
+  ],
+  "what": "unkeyed scope applies upward"
+ },
+ {
+  "id": "C2",
+  "file": "panoscope/types/claim.py",
+  "old": "        if here is None:\n            return False",
+  "new": "        if here is None:\n            return True",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_claims_wired.py",
+   "tests/test_grounding.py",
+   "tests/test_claims_notes.py"
+  ],
+  "what": "malformed context widens"
+ },
+ {
+  "id": "U1",
+  "file": "panoscope/ui/review.py",
+  "old": "    right.markdown(_assess_html(\"Your call\", label, got.biologist,",
+  "new": "    right.markdown(_assess_html(\"Your call\", label, got.proposal,",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "review shows the proposal's band as the biologist's"
+ },
+ {
+  "id": "U2",
+  "file": "panoscope/ui/review.py",
+  "old": "    flag = \" &#9873; verify\" if v.verify else \"\"",
+  "new": "    flag = \"\"",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "review hides the verify flag"
+ },
+ {
+  "id": "U3",
+  "file": "panoscope/ui/summary.py",
+  "old": "    refusal = dec.export_refusal(cfg.CLUSTER_ORDER, da.decisions())",
+  "new": "    refusal = None",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "summary export gate removed"
+ },
+ {
+  "id": "U4",
+  "file": "panoscope/ui/review.py",
+  "old": "                    disabled=proposal == NOT_YET_CALLED or not shown):",
+  "new": "                    disabled=proposal == NOT_YET_CALLED):",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "accept enabled before evidence is revealed"
+ },
+ {
+  "id": "U5",
+  "file": "panoscope/ui/data_access.py",
+  "old": "    return (effective_call(cluster) or compose.override_call(cluster)\n            or verdict_for(cluster).cell_type)",
+  "new": "    return (verdict_for(cluster).cell_type or effective_call(cluster) or compose.override_call(cluster))",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "display shows proposal over the biologist's call"
+ },
+ {
+  "id": "U6",
+  "file": "panoscope/ui/cluster_rail.py",
+  "old": "            label = f\"{name}  ⚑\" if verdicts[cluster].verify else name",
+  "new": "            label = name",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py",
+   "tests/ui/test_rail.py"
+  ],
+  "what": "rail drops the verify flag"
+ },
+ {
+  "id": "U7",
+  "file": "panoscope/ui/report.py",
+  "old": "    return (v.band or \"no band\") + (\", verify\" if v.verify else \"\")",
+  "new": "    return (v.band or \"no band\")",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "report decision lines drop verify"
+ },
+ {
+  "id": "U8",
+  "file": "panoscope/ui/evidence_table.py",
+  "old": "        \"verify\": v.verify,",
+  "new": "        \"verify\": False,",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "evidence header verify forced False"
+ },
+ {
+  "id": "U9",
+  "file": "panoscope/agent/compose.py",
+  "old": "    if getattr(ov, \"subject_lineage\", \"\").strip():\n        changes[\"lineage\"] = ov.subject_lineage.strip()\n    if getattr(ov, \"subject_category\", \"\").strip():\n        changes[\"category\"] = ov.subject_category.strip()\n    changes[\"offpanel_notes\"]",
+  "new": "    changes[\"offpanel_notes\"]",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_interactive_journey.py",
+   "tests/test_override_consistency.py",
+   "tests/test_summary.py",
+   "tests/test_report.py",
+   "tests/test_surface_markers.py",
+   "tests/test_decisions.py",
+   "tests/test_ui_crawl.py"
+  ],
+  "what": "override drops lineage/category"
+ },
+ {
+  "id": "L1",
+  "file": "panoscope/agent/loop.py",
+  "old": "        return bool(v1_verdicts.verdict_for(cluster).verify)",
+  "new": "        return False",
+  "tests": [
+   "tests/test_loop.py",
+   "tests/test_fallback.py",
+   "tests/test_conversation.py",
+   "tests/test_grounding.py",
+   "tests/test_override_consistency.py",
+   "tests/test_enrichment.py",
+   "tests/test_holistic.py"
+  ],
+  "what": "chat verify never set from rubric"
+ },
+ {
+  "id": "L2",
+  "file": "panoscope/agent/loop.py",
+  "old": "              f\"failing closed to verify=True\")\n        return True\n\n\ndef _enrichment_verify_default",
+  "new": "              f\"failing closed to verify=True\")\n        return False\n\n\ndef _enrichment_verify_default",
+  "tests": [
+   "tests/test_loop.py",
+   "tests/test_fallback.py",
+   "tests/test_conversation.py",
+   "tests/test_grounding.py",
+   "tests/test_override_consistency.py",
+   "tests/test_enrichment.py",
+   "tests/test_holistic.py"
+  ],
+  "what": "marker rubric failure fails OPEN"
+ },
+ {
+  "id": "G7",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "            if not self._src.is_modeled(gene):",
+  "new": "            if False:",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "stat on unmodelled gene not flagged as marker"
+ },
+ {
+  "id": "G8",
+  "file": "panoscope/agent/grounding_check.py",
+  "old": "            if self._claims is None:",
+  "new": "            if False:",
+  "tests": [
+   "tests/test_grounding.py",
+   "tests/test_fallback.py",
+   "tests/test_loop.py",
+   "tests/test_skeptic.py",
+   "tests/test_discriminate.py"
+  ],
+  "what": "claim ref with no store: crash/passes?"
+ },
+ {
+  "id": "C3",
+  "file": "panoscope/claims/store.py",
+  "old": "        if c.valid != \"active\":",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_claims_wired.py",
+   "tests/test_grounding.py",
+   "tests/test_claims_notes.py"
+  ],
+  "what": "retracted claim citable"
+ },
+ {
+  "id": "X6",
+  "file": "panoscope/corpus/exchange.py",
+  "old": "            sum(r[\"kind\"] == \"header\" for _, r in rows) != 1:",
+  "new": "            sum(r[\"kind\"] == \"header\" for _, r in rows) < 1:",
+  "tests": [
+   "tests/test_corpus_import.py",
+   "tests/test_corpus_brief.py",
+   "tests/test_onboarding.py"
+  ],
+  "what": "two headers accepted"
+ },
+ {
+  "id": "T1",
+  "file": "panoscope/claims/transfer.py",
+  "old": "    if not mine.known or not here.known:",
+  "new": "    if not mine.known and not here.known:",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_claims_wired.py",
+   "tests/test_claims_notes.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_core_record.py"
+  ],
+  "what": "an unknown condition on one side silently applies"
+ },
+ {
+  "id": "T2",
+  "file": "panoscope/claims/transfer.py",
+  "old": "    action = BLOCKED if blocking else WITH_CONDITIONS",
+  "new": "    action = WITH_CONDITIONS",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_claims_wired.py",
+   "tests/test_claims_notes.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_core_record.py"
+  ],
+  "what": "a blocking mismatch (assay, tissue) is not blocked"
+ },
+ {
+  "id": "T3",
+  "file": "panoscope/claims/transfer.py",
+  "old": "        return claim.scope.startswith((\"dataset:\", \"sample:\"))",
+  "new": "        return True",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_claims_wired.py",
+   "tests/test_claims_notes.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_core_record.py"
+  ],
+  "what": "a database-curated edge gets a transfer verdict instead of a provenance stamp"
+ },
+ {
+  "id": "T4",
+  "file": "panoscope/claims/store.py",
+  "old": "    if not claim.applies_in(where):\n        raise OutOfScope(",
+  "new": "    if False:\n        raise OutOfScope(",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_claims_wired.py",
+   "tests/test_claims_notes.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_core_record.py"
+  ],
+  "what": "assess skips the scope gate"
+ },
+ {
+  "id": "T5",
+  "file": "panoscope/claims/evaluability.py",
+  "old": "        if not f.contains(entity):",
+  "new": "        if False:",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_claims_wired.py",
+   "tests/test_claims_notes.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_core_record.py"
+  ],
+  "what": "an entity outside the frame reads evaluable"
+ },
+ {
+  "id": "T6",
+  "file": "panoscope/claims/evaluability.py",
+  "old": "    worst = min(_RANK[s] for _e, s, _f in per)",
+  "new": "    worst = max(_RANK[s] for _e, s, _f in per)",
+  "tests": [
+   "tests/test_claims.py",
+   "tests/test_claims_wired.py",
+   "tests/test_claims_notes.py",
+   "tests/test_types_claim.py",
+   "tests/test_claim_scope_cross_study.py",
+   "tests/test_core_record.py"
+  ],
+  "what": "evaluability takes the join, not the meet"
+ },
+ {
+  "id": "Q1",
+  "file": "panoscope/core/reconcile.py",
+  "old": "                        and relationship is not Relationship.DERIVED\n",
+  "new": "",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "a derived pair counts as a second witness"
+ },
+ {
+  "id": "Q2",
+  "file": "panoscope/core/reconcile.py",
+  "old": "        if reference:\n            outcome = Agreement.NOT_COMPARABLE",
+  "new": "        if False:\n            outcome = Agreement.NOT_COMPARABLE",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "reference data is compared as if it were a measurement"
+ },
+ {
+  "id": "Q3",
+  "file": "panoscope/core/reconcile.py",
+  "old": "    table = _SAME if same_question else _DIFFERENT",
+  "new": "    table = _SAME",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "a different-question pair can read as agree"
+ },
+ {
+  "id": "Q4",
+  "file": "panoscope/core/reconcile.py",
+  "old": "    if left.unit != right.unit:",
+  "new": "    if False:",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "two units are joined"
+ },
+ {
+  "id": "K1",
+  "file": "panoscope/core/concordance.py",
+  "old": "    if not joint:\n        raise IndependentClustering(",
+  "new": "    if False:\n        raise IndependentClustering(",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "independent clustering is compared on a meaningless key"
+ },
+ {
+  "id": "K2",
+  "file": "panoscope/core/concordance.py",
+  "old": "        if conflict:\n            outcome = Comparison.CONFLICT",
+  "new": "        if conflict and not compared:\n            outcome = Comparison.CONFLICT",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "a conflict in one replicate reads consistent"
+ },
+ {
+  "id": "K3",
+  "file": "panoscope/core/concordance.py",
+  "old": "        if outcome is not Comparison.NOT_COMPARABLE:\n            comparable += 1",
+  "new": "        if True:\n            comparable += 1",
+  "tests": [
+   "tests/test_core_reconcile.py",
+   "tests/test_concordance_wired.py",
+   "tests/test_de_wired.py",
+   "tests/test_workflow_de.py",
+   "tests/test_pipeline_records.py",
+   "tests/test_core_unwired.py",
+   "tests/test_core_compat.py",
+   "tests/test_second_study.py",
+   "tests/test_workflow_routed.py",
+   "tests/test_evidence_table.py",
+   "tests/test_report.py",
+   "tests/test_golden.py"
+  ],
+  "what": "not-comparable subjects count toward replicate coverage (agreement inflates)"
+ },
+ {
+  "id": "RT1",
+  "file": "panoscope/corpus/retrieve.py",
+  "old": "    if not any(q.cell_type.casefold() == c for q in runs):",
+  "new": "    if not runs:",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus_store.py",
+   "tests/test_corpus_build.py",
+   "tests/test_corpus_brief.py"
+  ],
+  "what": "a key with only gene-level queries reads built"
+ },
+ {
+  "id": "RT2",
+  "file": "panoscope/corpus/retrieve.py",
+  "old": "                 if q.status not in (QueryStatus.OK, QueryStatus.NARROWED))",
+  "new": "                 if q.status not in (QueryStatus.OK, QueryStatus.NARROWED, QueryStatus.TRUNCATED))",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus_store.py",
+   "tests/test_corpus_build.py",
+   "tests/test_corpus_brief.py"
+  ],
+  "what": "a truncated query is not named as a gap"
+ },
+ {
+  "id": "RT3",
+  "file": "panoscope/corpus/retrieve.py",
+  "old": "        (\"vocab:hgnc\", \"census\")",
+  "new": "        ()",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus_store.py",
+   "tests/test_corpus_build.py",
+   "tests/test_corpus_brief.py"
+  ],
+  "what": "an unrun census is not named as a gap"
+ },
+ {
+  "id": "RT4",
+  "file": "panoscope/corpus/retrieve.py",
+  "old": "                  if s.gene.casefold() == g and s.cell_type.casefold() == c)",
+  "new": "                  if s.gene.casefold() == g)",
+  "tests": [
+   "tests/test_corpus_window.py",
+   "tests/test_corpus_read.py",
+   "tests/test_corpus_import.py",
+   "tests/test_corpus.py",
+   "tests/test_corpus_channels.py",
+   "tests/test_corpus_store.py",
+   "tests/test_corpus_build.py",
+   "tests/test_corpus_brief.py"
+  ],
+  "what": "another cell type's statements count as FOUND for this key"
+ },
+ {
+  "id": "UR1",
+  "file": "panoscope/ui/review.py",
+  "old": "            pick = st.selectbox(\"Cell type\", cands + expected,",
+  "new": "            pick = st.selectbox(\"Cell type\", cands[:1] + expected,",
+  "tests": [
+   "tests/test_review_surface.py",
+   "tests/test_biologist_path_e2e.py",
+   "tests/test_decisions.py",
+   "tests/test_surface_markers.py",
+   "tests/test_interactive_journey.py"
+  ],
+  "what": "the label picker offers only the first candidate"
+ }
+]
