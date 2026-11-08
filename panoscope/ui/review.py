@@ -45,6 +45,17 @@ def _view() -> Any:
     return view.for_study(cfg.current_study())
 
 
+def revealed(cluster: str) -> bool:
+    """May the proposal show: tapped open, decided, or already overridden by the biologist."""
+    import streamlit as st
+
+    from panoscope.agent import compose
+
+    return (bool(st.session_state.get(f"rv_reveal_{cluster}"))
+            or D.state(store.load_decisions(), cluster) != D.OPEN
+            or compose.override_call(cluster) is not None)
+
+
 def gene_states(built: Any, genes: tuple[str, ...]) -> list[tuple[str, MeasuredState]]:
     """Each gene's state for this unit: the record's own item, else the same lattice."""
     have = {i.subject.display().upper(): i.measured.state for i in built.evidence.items}
@@ -146,9 +157,13 @@ def render_review(cluster: str) -> None:
                 unsafe_allow_html=True)
 
     proposal = da.verdict_for(cluster).cell_type
-    if st.toggle("Show the proposal (call and band)", key=f"rv_reveal_{cluster}"):
-        st.markdown(surface.header_html(et.spec_for(built), et._header_values(cluster)),
-                    unsafe_allow_html=True)
+    shown = st.toggle("Show the proposal (call and band)", key=f"rv_reveal_{cluster}")
+    if shown:
+        # The proposal as built, never the override-aware display label.
+        hv = {**et._header_values(cluster), "label": proposal}
+        if proposal == NOT_YET_CALLED:
+            hv["confidence"] = ""
+        st.markdown(surface.header_html(et.spec_for(built), hv), unsafe_allow_html=True)
 
     decs = store.load_decisions()
     s = D.state(decs, cluster)
@@ -157,7 +172,7 @@ def render_review(cluster: str) -> None:
     if s == D.OPEN:
         a, b, c = st.columns(3)
         if a.button("Accept proposal", key=f"rv_accept_{cluster}", width="stretch",
-                    disabled=proposal == NOT_YET_CALLED):
+                    disabled=proposal == NOT_YET_CALLED or not shown):
             D.accept(cluster, proposal, by=_ACTOR, at=_now(), base_dir=tools.memory_base_dir())
             st.rerun()
         b.toggle("Call it yourself", key=f"rv_calling_{cluster}")

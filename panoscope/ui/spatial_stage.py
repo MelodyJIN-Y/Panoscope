@@ -244,9 +244,11 @@ def _cluster_celltype_map() -> dict:
     """Map each cluster id to its displayed cell-type label (override-aware) for
     hover; blank reads as ``unassigned``."""
     from panoscope.ui import data_access as _da
+    from panoscope.ui.review import revealed
 
+    # An unrevealed cluster's label is still only a proposal: hover shows its id.
     labels = {
-        c: _da.display_cell_type(c).replace("_", " ")
+        c: _da.display_cell_type(c).replace("_", " ") if revealed(c) else c
         for c in cfg.CLUSTER_ORDER
     }
     labels[""] = "unassigned"

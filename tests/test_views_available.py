@@ -379,7 +379,7 @@ def test_the_expression_matrix_fails_with_the_study_tree_and_its_producer(tmp_pa
     assert "scripts/prep_expr.py" in message
 
 
-def test_the_spatial_hover_says_what_the_rail_says() -> None:
+def test_the_spatial_hover_says_what_the_rail_says(monkeypatch) -> None:
     """The one label on the screen that did not follow an override.
 
     ``_cluster_celltype_map`` read ``cfg.CLUSTER_KEY`` directly while the rail,
@@ -388,8 +388,9 @@ def test_the_spatial_hover_says_what_the_rail_says() -> None:
     Stromal, in the same viewport, for the same cells.
     """
     from panoscope.agent import config as cfg, memory
-    from panoscope.ui import data_access as _da, spatial_stage as _ss
+    from panoscope.ui import data_access as _da, review, spatial_stage as _ss
 
+    monkeypatch.setattr(review, "revealed", lambda _c: True)   # gate: test_review_surface
     assert _ss._cluster_celltype_map()["c2"] == "Stromal", "c2 must start as Stromal"
 
     memory.create_note(

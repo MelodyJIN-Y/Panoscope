@@ -181,8 +181,16 @@ def render_conversation(cluster: str) -> None:
     Never raises into the caller."""
     import streamlit as st
 
+    from panoscope.ui import review
+
     st.markdown(_CONVO_CSS, unsafe_allow_html=True)
     st.markdown(_SKEPTIC_CSS, unsafe_allow_html=True)
+    # The opening states the proposal (call and band): it waits behind the evidence.
+    if not review.revealed(cluster):
+        st.markdown('<div class="conv-hint">The agent opens on the proposal, so the '
+                    "conversation waits until you tap &ldquo;Show the proposal&rdquo; "
+                    "or decide this cluster.</div>", unsafe_allow_html=True)
+        return
     _ensure_opening(cluster)
     _render_header(cluster)
     st.markdown(

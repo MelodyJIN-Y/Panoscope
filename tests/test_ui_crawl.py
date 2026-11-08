@@ -102,6 +102,8 @@ def _widgets(at) -> list[tuple[str, object]]:
 
 def _drive(kind: str, w) -> bool:
     """Interact the way a user would. False when the widget offers no change."""
+    if getattr(w, "disabled", False):   # a browser user cannot press it either
+        return False
     if kind == "button":
         w.click(); return True
     if kind in ("checkbox", "toggle"):

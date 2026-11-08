@@ -34,6 +34,14 @@ from panoscope.ui import report as R
 from panoscope.ui import spatial_stage as ss
 
 
+@pytest.fixture(autouse=True)
+def _proposal_revealed(monkeypatch) -> None:
+    """These pin composition; the reveal gate is pinned in tests/test_review_surface.py."""
+    from panoscope.ui import review
+
+    monkeypatch.setattr(review, "revealed", lambda _c: True)
+
+
 def _override(cluster: str, call: str, **kw) -> None:
     memory.create_note(
         claim=f"{cluster} is {call} here", scope="cluster", basis="own_validation",

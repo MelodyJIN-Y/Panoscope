@@ -9,7 +9,7 @@ from typing import Optional
 
 from panoscope.pipeline import decisions, store
 from panoscope.ui import data_access, state
-from panoscope.ui.review import MARK
+from panoscope.ui.review import MARK, revealed
 
 # The rail dot is the button's CSS ``::before``, coloured per cluster in ui/theme.py.
 
@@ -31,7 +31,9 @@ def render_rail() -> Optional[str]:
             is_sel = cluster == selected
 
             # "c1 Tumor": id plus the override-aware cell type.
-            name = f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
+            # The label is the proposal: shown only once revealed or decided.
+            name = (f"{cluster} {data_access.display_cell_type(cluster).replace('_', ' ')}"
+                    if revealed(cluster) else cluster)
             label = f"{name}  ⚑" if verdicts[cluster].verify else name
             label = f"{MARK[decisions.state(decs, cluster)]} {label}"
 

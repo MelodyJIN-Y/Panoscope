@@ -57,6 +57,8 @@ def test_a_fresh_study_is_reviewed_evidence_first_and_exports_once_decided(
     md = _md(at)
     assert md.count('class="pano-rv-assess"') == 2 and 'data-claim="note:' in md
     assert "decision &middot; overridden" in md
+    assert "High &#9873; verify</div><div class=\"pano-sf-dim\">glm_coef direct · driver ERBB2" in md
+    assert '<div class="pano-verdict"><h1>not yet called</h1>' in md   # still the proposal
 
     # Defer c2; c3 still OPEN, so the export is refused and names it.
     at.button(key="rail_c2").click().run()
@@ -73,3 +75,30 @@ def test_a_fresh_study_is_reviewed_evidence_first_and_exports_once_decided(
     at.run()
     assert not at.exception, [str(e.value) for e in at.exception]
     assert len(at.download_button) == 2
+
+
+def test_a_shipped_label_stays_one_tap_away_in_the_rail_and_the_chat(
+        tmp_path, monkeypatch) -> None:
+    """The rail, the chat opening and Accept all wait for the tap: a shipped label is a proposal."""
+    from streamlit.testing.v1 import AppTest
+
+    from panoscope.data import layout
+    from panoscope.ui import state
+
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    layout.clear_cache()
+    root = tmp_path / "data"
+    shutil.copytree(Study.open("demo_mini").dir, root / "studies" / "labelled")
+    at = AppTest.from_file(APP, default_timeout=300)
+    at.session_state[state.K_STUDY] = (str(root), "labelled")
+    at.session_state["active_page"] = "markers"
+    at.run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert "HER2+" not in at.button(key="rail_c1").label
+    assert 'class="conv-title"' not in _md(at) and at.button(key="rv_accept_c1").disabled
+
+    at.toggle(key="rv_reveal_c1").set_value(True).run()
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert "HER2+ Breast Tumor Epithelial" in at.button(key="rail_c1").label
+    assert 'class="conv-title"' in _md(at) and not at.button(key="rv_accept_c1").disabled
+    assert "HER2+" not in at.button(key="rail_c2").label
