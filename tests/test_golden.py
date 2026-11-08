@@ -148,6 +148,8 @@ def test_projection_covers_all_artifacts(projection) -> None:
     """Every artifact is actually present, so the hash cannot pass vacuously."""
     assert projection["dataset_id"] == G.DEMO_ID
     assert projection["cluster_order"] == list(cfg.CLUSTER_ORDER)
+    # The release the canonical lists came from (§17.2); empty would pin nothing.
+    assert projection["reference"], "no reference release in the projection"
 
     verdicts = projection["verdicts"]
     assert sorted(verdicts) == sorted(cfg.CLUSTER_ORDER)

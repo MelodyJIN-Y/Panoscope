@@ -20,6 +20,9 @@ What it covers (IMPLEMENTATION.md §7 Phase A.4):
   * the enrichment CSV              ``core.export.to_csv`` (CHARACTERISATION)
   * the cross-cluster themes        ``agent.enrichment_themes.pathway_themes()``
 
+...and, from SCHEMA_VERSION 3, the reference release each canonical list was read
+from (``reference.view.for_study().releases``).
+
 See :func:`pinned_enrichment` for why the enrichment half reads its raw rows from
 the committed ``interp/enrichment/`` records rather than the gitignored source CSV.
 
@@ -61,6 +64,7 @@ from panoscope.agent import holistic as agent_holistic
 from panoscope.core import export
 from panoscope.pipeline import calibration as calibration_mod
 from panoscope.pipeline import serialize, store, v1_verdicts
+from panoscope.reference import view as reference_view
 from panoscope.types.outputs import TaskKind
 
 # --------------------------------------------------------------------------- #
@@ -76,7 +80,7 @@ DEMO_ID: str = "xenium_hbreast_sample1"
 
 #: Bump when the SHAPE of the projection changes (a new artifact, a renamed key),
 #: so a reviewer can tell a projection-format change from a behaviour change.
-SCHEMA_VERSION: int = 2
+SCHEMA_VERSION: int = 3
 
 #: Fixed float precision. Same format string as the verdict ``source_trace``.
 FLOAT_FORMAT: str = "{:.6f}"
@@ -240,6 +244,9 @@ def build_projection() -> dict[str, Any]:
         "dataset_id": cfg.DATASET_ID,
         # Order is pinned here so the verdicts map can be keyed (and diffed) by cluster.
         "cluster_order": list(cfg.CLUSTER_ORDER),
+        # The reference release the canonical lists came from (ARCHITECTURE §17.2):
+        # a list change moves the hash by name. The literature corpus never enters.
+        "reference": dict(reference_view.for_study(cfg.current_study()).releases),
         # The 11-column CSV contract, in exact order.
         "csv_columns": list(export.PROFILES[TaskKind.ASSIGNMENT].names),
         "verdicts": normalise({v.cluster: serialize.verdict_to_dict(v) for v in verdicts}),

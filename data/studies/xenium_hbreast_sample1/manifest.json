@@ -3,6 +3,8 @@
   "generated_at": "2026-11-03T21:41:50Z",
   "pipeline_version": "0.1.0",
   "tissue": "human breast cancer",
+  "tissue_id": "UBERON:0000310",
+  "tissue_label": "breast",
   "platform": "Xenium",
   "panel_gene_count": 280,
   "n_cells": 158379,
@@ -189,5 +191,9 @@
   },
   "reference": {
     "lab:human breast cancer": "2058dab2bcd5"
-  }
+  },
+  "stated": [
+    "tissue_id",
+    "tissue_label"
+  ]
 }

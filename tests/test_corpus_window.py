@@ -58,12 +58,13 @@ def test_the_frame_is_labels_plus_candidates_joined_by_key_with_synonyms():
 
 def test_the_demo_context_reads_its_frame_and_refuses_without_a_tissue_id():
     demo = Study.open(DEMO)
-    with pytest.raises(CorpusUnavailable, match="tissue_id"):
-        W.context_for(demo)
+    assert demo.manifest["tissue_id"] == "UBERON:0000310"   # stated: breast, OLS4-checked
     fake = NS(id=demo.id, dir=demo.dir, unit_labels=demo.unit_labels,
               platform=demo.platform,
-              manifest={**demo.manifest, "tissue_id": "UBERON:0000310"})
-    ctx = W.context_for(fake)
+              manifest={k: v for k, v in demo.manifest.items() if k != "tissue_id"})
+    with pytest.raises(CorpusUnavailable, match="tissue_id"):
+        W.context_for(fake)
+    ctx = W.context_for(demo)
     labels = {v["cell_type"] for v in demo.unit_labels.values()}
     assert labels <= {c.label for c in ctx.cell_types}
     assert ctx.platform == "Xenium" and ctx.w0_star

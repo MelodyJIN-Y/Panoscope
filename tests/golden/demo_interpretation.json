@@ -3829,7 +3829,11 @@
       }
     ]
   },
-  "schema_version": 2,
+  "reference": {
+    "lab-synonyms": "8ee3e438ec96",
+    "lab:human breast cancer": "2058dab2bcd5"
+  },
+  "schema_version": 3,
   "verdicts": {
     "c1": {
       "band_basis": "glm_coef direct",
