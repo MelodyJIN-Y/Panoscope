@@ -133,3 +133,23 @@ def test_pathways_unlock_per_cluster_on_a_call_and_read_the_biologists_label(app
                 assert "Call this cluster first" not in md and "Fooblast" in md
     finally:
         p.write_bytes(saved) if saved is not None else p.unlink()
+
+
+def test_a_deferred_cluster_stays_locked_when_a_chat_override_note_exists(
+        app_tree, monkeypatch) -> None:
+    """DEFERRED never unlocks Pathways; the note still names what the cluster shows."""
+    from panoscope.agent import compose
+    from panoscope.agent import config as cfg
+    from panoscope.pipeline import paths, store
+    from panoscope.ui import data_access as da
+
+    monkeypatch.setattr(compose, "override_call", lambda c: "Fooblast")
+    p = paths.review_state_json(cfg.BUNDLED_DEMO_ID)
+    saved = p.read_bytes() if p.exists() else None
+    store.save_decisions({"c2": {"state": "DEFERRED", "by": "t", "at": "t"}},
+                         cfg.BUNDLED_DEMO_ID)
+    try:
+        assert da.effective_call("c2") is None and da.display_cell_type("c2") == "Fooblast"
+        assert da.effective_call("c1") == "Fooblast"
+    finally:
+        p.write_bytes(saved) if saved is not None else p.unlink()

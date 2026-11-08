@@ -342,13 +342,17 @@ def effective_call(cluster: str) -> Optional[str]:
     while OPEN or DEFERRED. It unlocks the downstream workflows for this cluster."""
     from panoscope.pipeline import decisions, store
 
-    return decisions.call(store.load_decisions(), cluster) or compose.override_call(cluster)
+    decs = store.load_decisions()
+    if decisions.state(decs, cluster) == decisions.DEFERRED:  # a chat note does not undo it
+        return None
+    return decisions.call(decs, cluster) or compose.override_call(cluster)
 
 
 def display_cell_type(cluster: str) -> str:
     """The cell type to SHOW for a cluster: the biologist's call if there is one, else
     the computed call. Reflects a call across the marker rail + Pathways tabs."""
-    return effective_call(cluster) or verdict_for(cluster).cell_type
+    return (effective_call(cluster) or compose.override_call(cluster)
+            or verdict_for(cluster).cell_type)
 
 
 def display_verdict_for(cluster: str) -> ClusterVerdict:
