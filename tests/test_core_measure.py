@@ -215,3 +215,15 @@ def test_the_same_input_produces_byte_identical_decisions() -> None:
     first, second = measure(*args), measure(*args)
     assert first.decisions == second.decisions
     assert isinstance(first, Traced)
+
+
+def test_the_unit_is_observed_even_when_no_reported_frame_names_it() -> None:
+    """A unit the method emitted rows for is reported by construction; reading it
+    as TESTED_ABSENT would call the cluster's own measurement absence evidence."""
+    stromal = subject("cell_type", ct=cell_type("Stromal"))  # in frame, never reported
+    out = measure_unit(
+        unit="c2", unit_kind="cluster", unit_subject=stromal, module="jazzpanda",
+        readings=(_read(ERBB2, 1.0),), world=WORLD, reported=(REPORTED_GENES,),
+        conditions=CONDITIONS,
+    )
+    assert out.value.unit_measured.state is MeasuredState.OBSERVED

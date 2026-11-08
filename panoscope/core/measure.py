@@ -141,7 +141,10 @@ def measure_unit(unit: str, unit_kind: str, unit_subject: Subject, module: str,
     ids: frozenset[str] = frozenset().union(*(f.members for f in reported)) if reported \
         else frozenset()
 
-    unit_measured = t.absorb(resolve(unit_subject, world, ids, unit_coverage))
+    # The method emitted rows for this unit, so the unit itself is reported: its own
+    # frame can make it NEVER_MEASURED or coverage UNDERPOWERED, never TESTED_ABSENT.
+    unit_ids = ids | {str(e.id) for e in unit_subject.entities()}
+    unit_measured = t.absorb(resolve(unit_subject, world, unit_ids, unit_coverage))
     items = tuple(t.absorb(measure(r, world, ids)) for r in readings)
 
     return t.done(NormalisedEvidence(

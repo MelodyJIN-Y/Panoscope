@@ -100,10 +100,10 @@
   },
   "decisions": [
     {
-      "rule": "measure:tested_absent",
-      "outcome": "tested_absent",
+      "rule": "measure:observed",
+      "outcome": "observed",
       "because": [
-        "unit:c9 tested_absent in clusters:xenium_hbreast_sample1"
+        "in frame clusters:xenium_hbreast_sample1 and reported"
       ],
       "refs": [
         "unit|u=unit:c9"
