@@ -199,6 +199,20 @@ def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path
     captions = "\n".join(c.value for c in at.caption)
     assert "corpus build refused: no model key" in captions
     assert not [b for b in at.button if b.key == "ob_corpus_build"]
+    # The primary path needs no key: export a brief for your own LLM, import its file.
+    from panoscope.corpus import brief as corpus_brief
+    from panoscope.corpus import build as corpus_build
+    from panoscope.corpus import exchange as corpus_exchange
+
+    monkeypatch.setattr(corpus_brief, "write", lambda s: tmp_path / "brief")
+    monkeypatch.setattr(corpus_exchange, "import_file",
+                        lambda s, p, today: (None, [f"accepted 2 statement(s) from {p.name}"]))
+    monkeypatch.setattr(corpus_build, "refresh_notes", lambda s: None)
+    at.button(key="ob_corpus_brief").click().run()
+    assert f"Brief written to {tmp_path / 'brief'}" in at.success[0].value
+    at.text_input(key="ob_corpus_file").input(str(tmp_path / "c.jsonl")).run()
+    at.button(key="ob_corpus_import").click().run()
+    assert "accepted 2 statement(s) from c.jsonl" in at.code[-1].value
     at.button(key="ob_corpus_skip").click().run()
     chip = next(m.value for m in at.markdown if "pano-ctx-chip\"" in m.value)
     assert "corpus not built — cannot settle" in chip

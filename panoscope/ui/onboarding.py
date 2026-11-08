@@ -499,18 +499,52 @@ def _corpus_refusal(store: Study) -> str:
     return ""
 
 
+def _render_corpus_exchange() -> None:
+    """The primary path: export a brief for the biologist's own LLM, then import its file."""
+    from panoscope.corpus import build as corpus_build
+    from panoscope.corpus.brief import write
+    from panoscope.corpus.exchange import import_file
+    from panoscope.corpus.store import CorpusUnavailable
+
+    store = cfg.current_study()
+    st.caption("Build it in your own LLM: export the brief, run it in any client with "
+               "literature tools, then import the file it writes. Panoscope re-fetches every "
+               "paper and checks every quote itself.")
+    if st.button("Export brief for your own LLM", key="ob_corpus_brief", type="primary"):
+        try:
+            with st.spinner("Looking up the vocabulary (HGNC, MeSH)"):
+                st.session_state["ob_brief_dir"] = str(write(store))
+        except CorpusUnavailable as exc:
+            st.error(str(exc))
+    if out := st.session_state.get("ob_brief_dir"):
+        st.success(f"Brief written to {out}. Paste BRIEF.md into your LLM client.")
+    path = st.text_input("Corpus file from your LLM", key="ob_corpus_file",
+                         placeholder="/path/to/corpus.jsonl")
+    if st.button("Import corpus file", key="ob_corpus_import", disabled=not path.strip()):
+        try:
+            _, receipt = import_file(store, Path(path.strip()).expanduser(), today=date.today())
+            corpus_build.refresh_notes(store)
+            st.session_state["ob_corpus_receipt"] = receipt
+        except (CorpusUnavailable, OSError) as exc:     # refused, or no such file
+            st.error(str(exc))
+    if receipt := st.session_state.get("ob_corpus_receipt"):
+        st.code("\n".join(receipt), language=None)
+
+
 def _render_corpus_step(sid: str) -> None:
     """After Build: offer the literature corpus. Skipped, notes read "cannot settle"."""
     from panoscope.corpus import build as corpus_build
 
     st.markdown(f"**Literature corpus** · {corpus_build.header(sid)}")
+    _render_corpus_exchange()
+    st.caption("Or build it here through the Anthropic API with your own key:")
     job = _JOBS.get(sid)
     if job is not None:
         _corpus_progress(sid)
     if job is None or job["error"]:            # not started, or failed: offer it (again)
         if refused := _corpus_refusal(cfg.current_study()):
             st.caption(f"{refused}. Notes read \"{corpus_build.NOT_BUILT}\".")
-        elif st.button("Build literature corpus", key="ob_corpus_build", type="primary"):
+        elif st.button("Build literature corpus", key="ob_corpus_build"):
             _start_corpus(cfg.current_study())
             st.rerun()
     if job is None or not job["done"]:

@@ -147,6 +147,31 @@ The interpretation logic ships as two installable, standalone skills. The marker
 
 Citations are looked up through a PubMed MCP server declared in [`.mcp.json`](.mcp.json) (`@cyanheads/pubmed-mcp-server`). To enable it, copy `.env.example` to `.env` and set `NCBI_API_KEY` and `NCBI_ADMIN_EMAIL` (the email registered to that key). Get a key at <https://www.ncbi.nlm.nih.gov/account/settings/>. The `pytest -m "not live"` suite needs none of this; one optional live test (`-m live`) exercises a real lookup when credentials are present.
 
+## Build the literature corpus in your own LLM
+
+The literature corpus can be built in whichever LLM client you prefer, as long as it has literature
+tools (a PubMed or Europe PMC MCP server, or web access to them).
+
+```bash
+panoscope corpus brief --study <id> [--genes G ...] [--out DIR]   # writes BRIEF.md, study_context.json, format.schema.json
+# paste BRIEF.md into your client (or load panoscope/skills/corpus-building/SKILL.md as a skill
+# and hand it the folder); it writes one JSONL file in Panoscope's format
+panoscope corpus import --study <id> corpus.jsonl                 # verified by code, then a new corpus version
+```
+
+All of the vocabulary comes precomputed in the brief: gene aliases from HGNC and MeSH, the tissue block
+with its MeSH organ-disease terms, and the cell-type synonyms with their marker-plus spellings.
+
+The import trusts nothing the client computed:
+
+- every identifier is resolved and its text re-fetched from Europe PMC;
+- every quote is checked verbatim;
+- rung, modality, species and stance are recomputed;
+- the version is stamped with the client, provider, model and date you state.
+
+The app's intake offers the same pair ("Export brief for your own LLM", "Import corpus file"). Building
+in-app through the Anthropic API with your own key (`panoscope corpus build`) remains as a second option.
+
 ## How we built it: a team of Claude Code agents
 
 Panoscope was built the way it reasons: decomposed, contract-first, and verified. We used Claude Code as an orchestrated **team of agents**, not a single chat.

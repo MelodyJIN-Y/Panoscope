@@ -403,6 +403,20 @@ def _cmd_corpus_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_corpus_brief(args: argparse.Namespace) -> int:
+    """Write the brief folder a biologist runs in their own LLM client."""
+    from panoscope.corpus.brief import write
+    from panoscope.corpus.store import CorpusUnavailable
+
+    study = Study.open(_resolve_study_id(args.study)).require()
+    try:
+        out = write(study, Path(args.out) if args.out else None, tuple(args.genes or ()))
+    except CorpusUnavailable as exc:
+        raise SystemExit(str(exc)) from exc
+    print(f"[panoscope] brief written to {out} (paste BRIEF.md into your LLM client)")
+    return 0
+
+
 def _cmd_corpus_import(args: argparse.Namespace) -> int:
     """Import a corpus file built in the biologist's own LLM client, verified by code."""
     from datetime import date
@@ -484,6 +498,11 @@ def build_parser() -> argparse.ArgumentParser:
     how.add_argument("--top-up", nargs="+", metavar="GENE",
                      help="add these genes to the built corpus as a new version")
     p_cb.set_defaults(func=_cmd_corpus_build)
+    p_cbr = p_corpus_sub.add_parser("brief", help="export the brief for your own LLM client")
+    p_cbr.add_argument("--study", help="study id")
+    p_cbr.add_argument("--genes", nargs="+", metavar="GENE", help="only these genes (default: D2)")
+    p_cbr.add_argument("--out", help="folder to write (default: the study's corpus cache)")
+    p_cbr.set_defaults(func=_cmd_corpus_brief)
     p_ci = p_corpus_sub.add_parser("import", help="import a corpus file built in your own LLM "
                                    "client (format: panoscope/corpus/format.schema.json)")
     p_ci.add_argument("--study", help="study id")
