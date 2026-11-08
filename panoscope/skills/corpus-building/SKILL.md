@@ -19,9 +19,10 @@ exact quotation, not judgment.
 - `study_id`, `brief_hash`: copy both into your output header.
 - `genes`: each gene in scope with its `aliases` (from HGNC and MeSH). An alias marked
   `restricted` (3 characters or fewer, an English word, a common acronym, a bare CD number)
-  is used ONLY in proximity to a cell-type term, never on its own. If a gene's
-  `aliases_status` is not `ok`, search with the aliases it does list and log one `FAILED`
-  query line for its vocabulary (source `vocab`).
+  is used ONLY in proximity to a cell-type term, never on its own. Log one vocabulary
+  query line per gene (channel `vocab`, source `HGNC`, `cell_type` ""): the HGNC lookup
+  of the symbol, `OK` when you used its aliases as listed. If a gene's `aliases_status`
+  is not `ok`, search with the aliases it does list and make that line `FAILED`.
 - `tissue.terms` and `organ_disease_terms.terms`: together they are the tissue block T.
   Organ-disease terms matter: many in-window papers say "lupus nephritis" or "renal cell
   carcinoma" and never "kidney". `tissue.blocks` is T already split into chunks.
@@ -56,8 +57,12 @@ exact quotation, not judgment.
    stays inside its span.
 8. Every query has an anchor: a tissue term, a cell-type term, or `CITES:<release pmid>_MED`.
    Never a gene alone. Never a species or MeSH filter.
-9. Log every call with the EXACT query string sent. A call that errors is `FAILED`, which is
-   not "no results".
+9. Log every call with the EXACT query string sent: one `query` line per search, per gene,
+   cell type and channel, with its `channel`, `source`, `total`, `retrieved` and status.
+   A call that errors is `FAILED`, which is not "no results". Panoscope reads a gene and
+   cell type as completely searched only when its `vocab` line and every C1, C3 and C4
+   line (and C0 when the release paper is `confirmed`) is logged `OK`; a missing line keeps
+   that key "incomplete search".
 10. Every identifier any query returns ends with exactly one paper line and disposition.
     Nothing disappears silently.
 11. "Thin" is never yours to declare. If you found little, say what you ran.
@@ -82,8 +87,8 @@ C_x is cell type x's terms ORed. T is the tissue block.
 - **C0 dataset citers** (only when `release_paper.status` is `confirmed`). First fetch the
   release paper itself and read it in full for the gene: a paper line with channel
   `C0:release` and disposition `SAME_DATASET_READ`. Then Europe PMC: `CITES:<pmid>_MED AND (G)`, newest first, paged with the
-  cursor to the end. If the status is not `confirmed`, log one `FAILED` query line saying
-  the release paper is unresolved.
+  cursor to the end. If the status is `unresolved`, log one `FAILED` C0 query line saying
+  the release paper is unresolved; if it is `unpublished`, there is no C0.
 - **C3 body sections**, for each cell type x: Europe PMC
   `(RESULTS:"a1" OR FIG:"a1" OR TABLE:"a1" ...) AND (RESULTS:"s1" OR FIG:"s1" ...) AND (T)`.
 - **C1 title/abstract facet**, for each cell type x: PubMed
@@ -91,7 +96,7 @@ C_x is cell type x's terms ORed. T is the tissue block.
   in-window papers never write the disease phrase in the title or abstract; the disease
   state is read from the paper, and Panoscope sets the rung from it.
 - **C4 recency**: C0, C3 and C1 again restricted to the last 24 months, newest first; plus
-  Europe PMC preprints (`SRC:PPR`) with the C1 terms.
+  Europe PMC preprints (`SRC:PPR`) with the C1 terms. Channel `C4` on each, per cell type.
 - **C2 proximity**, only for a cell type whose C1 was truncated:
   `"<alias> <term>"[tiab:~6] AND (T)`, including restricted aliases.
 - **C5 papers of interest**: look each one up and screen it like any other hit. Never
@@ -150,13 +155,14 @@ amplification, copy number or mutation) | `FUNCTIONAL`.
 
 One JSON object per line, valid against `format.schema.json`. The first line is the only
 header. Then one `paper` line per screened id, one `statement` line per statement, one
-`setting` line per stated setting field, one `query` line per call. `client`, `provider` and `model` are what the biologist ran you in
+`setting` line per stated setting field, one `query` line per call (with its `channel`). `client`, `provider` and `model` are what the biologist ran you in
 (ask if you do not know; never guess), `run_date` is today. An illustrative file (the id is
 deliberately fake; never copy it):
 
 ```
 {"kind": "header", "format_version": 1, "study_id": "my_study", "brief_hash": "0123456789abcdef", "client": "Claude Desktop", "provider": "Anthropic", "model": "the model you are", "run_date": "2026-11-08"}
-{"kind": "query", "query": "(\"POSTN\"[tiab]) AND (\"breast\"[tiab]) AND (\"fibroblasts\"[tiab])", "source": "PubMed", "gene": "POSTN", "cell_type": "Fibroblasts", "total": 1, "retrieved": 1, "status": "OK"}
+{"kind": "query", "query": "https://rest.genenames.org/fetch/symbol/POSTN", "source": "HGNC", "channel": "vocab", "gene": "POSTN", "cell_type": "", "total": 1, "retrieved": 1, "status": "OK"}
+{"kind": "query", "query": "(\"POSTN\"[tiab]) AND (\"breast\"[tiab]) AND (\"fibroblasts\"[tiab])", "source": "PubMed", "channel": "C1", "gene": "POSTN", "cell_type": "Fibroblasts", "total": 1, "retrieved": 1, "status": "OK"}
 {"kind": "paper", "id": "pmid:00000000", "title": "As the tool returned it", "channel": "C1", "disposition": "READ:1"}
 {"kind": "statement", "paper": "pmid:00000000", "gene": "POSTN", "cell_type_as_written": "cancer-associated fibroblasts", "cell_type": "Fibroblasts", "predicate": "MARKS", "span": "Copied character for character from the abstract.", "section": "abstract"}
 {"kind": "setting", "paper": "pmid:00000000", "field": "tissue", "span": "Copied character for character from the Methods."}

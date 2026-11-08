@@ -119,6 +119,42 @@ def test_an_incomplete_client_search_reads_incomplete_never_thin(study, tmp_path
     assert "incomplete search" in key_state(corpus, "ACTA2", "Fibroblasts").reads_as
 
 
+def _logged(ch, cell="Fibroblasts", total=1, retrieved=1):
+    return {"kind": "query", "query": f"{ch} POSTN", "source": "Europe PMC", "channel": ch,
+            "gene": "POSTN", "cell_type": "" if ch in ("vocab", "C0") else cell,
+            "total": total, "retrieved": retrieved, "status": "OK"}
+
+
+FULL_LOG = ("vocab", "C1", "C3", "C4")
+
+
+@pytest.mark.parametrize("drop, short, gap", [
+    (None, None, None),
+    ("C3", None, "client:C3 not run"),
+    ("vocab", None, "vocab:hgnc not run"),
+    (None, "C1", "client:C1:Europe PMC truncated"),     # OK with retrieved < total
+])
+def test_a_key_reads_complete_only_when_every_brief_line_is_logged_ok(
+        study, tmp_path, drop, short, gap):
+    rows = [_logged(c, total=2 if c == short else 1) for c in FULL_LOG if c != drop]
+    corpus, _ = _import(study, _file(tmp_path, study, *rows))
+    k = key_state(corpus, "POSTN", "Fibroblasts")
+    assert k.gaps == ((gap,) if gap else ())
+    # complete with nothing found reads what the in-app path reads: never thin
+    assert "incomplete search" in k.reads_as and not re.search(r"\bthin\b", k.reads_as)
+    assert ("no saturated stop yet" in k.reads_as) is (gap is None)
+
+
+def test_a_confirmed_release_paper_requires_a_c0_line(study, tmp_path, monkeypatch):
+    monkeypatch.setattr(B, "context_for", lambda s: _ctx(
+        study=s.id, release_status="confirmed", release_pmid="123"))
+    rows = [_logged(c) for c in FULL_LOG]
+    corpus, _ = _import(study, _file(tmp_path, study, *rows))
+    assert key_state(corpus, "POSTN", "Fibroblasts").gaps == ("client:C0 degraded",)
+    corpus, _ = _import(study, _file(tmp_path, study, *rows, _logged("C0")))
+    assert key_state(corpus, "POSTN", "Fibroblasts").gaps == ()
+
+
 def test_earlier_versions_are_kept_never_overwritten(study, tmp_path):
     built = Corpus(version=CorpusVersion(DEMO_ID, (), (), "in-app", "h"))
     save(built, corpus_path(DEMO_ID))

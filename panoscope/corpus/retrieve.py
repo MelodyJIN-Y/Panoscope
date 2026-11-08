@@ -31,6 +31,10 @@ from typing import Final, Iterable
 from panoscope.corpus.store import Corpus, QueryStatus, SourceRecord, Statement
 from panoscope.types.trace import Trace, Traced
 
+CLIENT_NEEDS: Final = ("vocab:hgnc", "client:C1", "client:C3", "client:C4")
+"""What an imported (gene, cell type) key needs logged to read complete; C0 is required
+only for a confirmed release paper, which the import checks (``exchange.import_file``)."""
+
 TITLE_WEIGHT: Final = 2
 """A term in the title counts double. The one weight in the ranking, named rather
 than inlined so the record can quote it and a tuning change is one edit."""
@@ -211,9 +215,12 @@ def key_state(corpus: Corpus, gene: str, cell_type: str) -> KeyState:
         return KeyState(gene, cell_type, Support.NOT_BUILT)
     found = tuple(s for s in corpus.statements
                   if s.gene.casefold() == g and s.cell_type.casefold() == c)
+    # an imported key needs a logged line per brief channel instead of a census (§6.1)
+    need = CLIENT_NEEDS if any(q.channel.startswith("client:") for q in runs) else \
+        ("vocab:hgnc", "census")
     gaps = tuple(f"{q.channel} {q.status.value}" for q in runs
                  if q.status not in (QueryStatus.OK, QueryStatus.NARROWED)) + tuple(
-        f"{ch} not run" for ch in ("vocab:hgnc", "census")
-        if not any(q.channel == ch for q in runs))     # an unrun census is not thin (§3)
+        f"{ch} not run" for ch in need          # an unrun census is not thin (§3)
+        if not any(q.channel == ch or q.channel.startswith(ch + ":") for q in runs))
     return KeyState(gene, cell_type, Support.FOUND if found else Support.NONE_FOUND,
                     found, gaps)

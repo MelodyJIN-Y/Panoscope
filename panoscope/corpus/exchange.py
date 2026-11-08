@@ -170,11 +170,20 @@ def import_file(study: Any, path: Path | str, *, today: date,
     queries = [QueryRun(f"brief {head['brief_hash']} against current {current}", "import:brief",
                         "", status=QueryStatus.OK if brief_ok else QueryStatus.DEGRADED),
                *fetches]
-    for q in (q for q in rows if q["kind"] == "query"):
+    logged = [q for q in rows if q["kind"] == "query"]
+    if ctx.release_status == "confirmed":       # the brief's C0 is required per gene then
+        queries += [QueryRun(f"CITES:{ctx.release_pmid}_MED: no C0 line logged", "client:C0",
+                             g, status=QueryStatus.DEGRADED)
+                    for g in dict.fromkeys(q["gene"] for q in logged)
+                    if not any(x["gene"] == g and x.get("channel") == "C0" for x in logged)]
+    for q in logged:
         status = QueryStatus(q["status"].lower())
         if status is QueryStatus.OK and q["retrieved"] < q["total"]:
             status = QueryStatus.TRUNCATED          # the client's OK is recomputed too
-        queries.append(QueryRun(q["query"], f"client:{q['source']}", q["gene"],
+        ch = q.get("channel")
+        channel = ("vocab:hgnc" if ch == "vocab" else         # key_state reads these
+                   f"client:{ch}:{q['source']}" if ch else f"client:{q['source']}")
+        queries.append(QueryRun(q["query"], channel, q["gene"],
                                 q.get("cell_type", ""), q["total"], q["retrieved"], status))
     ledger = {held[r["id"]].uri: "RETRACTED" if held[r["id"]].retracted else r["disposition"]
               for r in rows if r["kind"] == "paper" and r["id"] in held}

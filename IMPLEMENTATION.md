@@ -631,7 +631,7 @@ whatever literature tools it has, and the client writes one JSONL file in the fo
 | `paper` | `id` (`pmid:` / `pmcid:` / `doi:`), `title`, `channel` (why screened), `disposition` (the ledger vocabulary) |
 | `statement` | `paper`, `gene`, `cell_type_as_written`, `cell_type` (frame label or `""`), `tissue_as_written`, `disease_as_written`, `predicate` (the P2 relations), `comparator`, `span` (verbatim), `section` |
 | `setting` | `paper`, `field` (the P1 setting fields), `span` (verbatim): where the paper states its tissue, disease, species, system ... |
-| `query` | `query` (exact string), `source`, `gene`, `cell_type`, `total`, `retrieved`, `status` (`OK` / `TRUNCATED` / `FAILED`) |
+| `query` | `query` (exact string), `source`, `channel` (`vocab` for the gene's HGNC alias step, or `C0`..`C5`), `gene`, `cell_type`, `total`, `retrieved`, `status` (`OK` / `TRUNCATED` / `FAILED`) |
 
 `panoscope corpus import --study <id> <file>` (`corpus/exchange.py`) **trusts nothing the client
 computed**. A schema error anywhere refuses the file with line-numbered errors, and nothing is
@@ -644,7 +644,10 @@ build's verifier (`read.verified`), and each setting quote with P1's (`read.veri
 a mismatch is rejected and listed. Settings feed the facets as P1's do, so an import can reach W0. Rung, modality,
 species and stance are recomputed, so any client `rung`, `stance`, `species` or `grade` is
 ignored. A client `OK` with `retrieved < total` reads `TRUNCATED`, and a key with an incomplete
-log reads "incomplete search".
+log reads "incomplete search". The brief requires one line per search: a (gene, cell type) is
+complete only with an `OK` `vocab` line and `OK` C1, C3 and C4 lines (and C0 when the release
+paper is confirmed); `retrieve.key_state` reads both paths, the import standing in these lines
+for the in-app census. Complete with no statements still reads "incomplete search", never thin.
 
 A `brief_hash` that is not the study's current one is warned and recorded in the query log. The
 new `CorpusVersion` is stamped `<model> (<provider>) in <client>, built in user client, run

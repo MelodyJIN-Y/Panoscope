@@ -78,6 +78,7 @@
         "kind": {"const": "query"},
         "query": {"type": "string", "pattern": "^[^{]*[^{\\s][^{]*$", "description": "the exact string sent, no placeholders"},
         "source": {"type": "string", "minLength": 1, "description": "PubMed, Europe PMC ..."},
+        "channel": {"enum": ["vocab", "C0", "C1", "C2", "C3", "C4", "C5"], "description": "the brief's channel; \"vocab\" is the gene's alias (HGNC) vocabulary step. A (gene, cell type) reads complete only with an OK vocab line and OK C1, C3 and C4 lines (and C0 for a confirmed release paper); a line without a channel counts toward none"},
         "gene": {"type": "string", "minLength": 1},
         "cell_type": {"type": "string", "description": "the frame label the query covers; \"\" for gene-level"},
         "total": {"type": "integer", "minimum": 0},
