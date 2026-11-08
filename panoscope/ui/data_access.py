@@ -337,10 +337,18 @@ def composed_verdicts() -> list[ClusterVerdict]:
     return out
 
 
+def effective_call(cluster: str) -> Optional[str]:
+    """The biologist's call (accepted, overridden, or a confirmed override note); None
+    while OPEN or DEFERRED. It unlocks the downstream workflows for this cluster."""
+    from panoscope.pipeline import decisions, store
+
+    return decisions.call(store.load_decisions(), cluster) or compose.override_call(cluster)
+
+
 def display_cell_type(cluster: str) -> str:
-    """The cell type to SHOW for a cluster: the confirmed override if there is one, else
-    the computed call. Reflects an override across the marker rail + Pathways tabs."""
-    return compose.override_call(cluster) or verdict_for(cluster).cell_type
+    """The cell type to SHOW for a cluster: the biologist's call if there is one, else
+    the computed call. Reflects a call across the marker rail + Pathways tabs."""
+    return effective_call(cluster) or verdict_for(cluster).cell_type
 
 
 def display_verdict_for(cluster: str) -> ClusterVerdict:

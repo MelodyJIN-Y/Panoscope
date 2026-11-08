@@ -102,3 +102,34 @@ def test_a_shipped_label_stays_one_tap_away_in_the_rail_and_the_chat(
     assert "HER2+ Breast Tumor Epithelial" in at.button(key="rail_c1").label
     assert 'class="conv-title"' in _md(at) and not at.button(key="rv_accept_c1").disabled
     assert "HER2+" not in at.button(key="rail_c2").label
+
+
+def test_pathways_unlock_per_cluster_on_a_call_and_read_the_biologists_label(app_tree) -> None:
+    """OPEN and DEFERRED say why and link back; ACCEPTED and OVERRIDDEN open on the call."""
+    from streamlit.testing.v1 import AppTest
+
+    from panoscope.agent import config as cfg
+    from panoscope.pipeline import paths, store
+
+    p = paths.review_state_json(cfg.BUNDLED_DEMO_ID)
+    saved = p.read_bytes() if p.exists() else None
+    store.save_decisions({"c2": {"state": "DEFERRED", "by": "t", "at": "t"},
+                          "c3": {"state": "OVERRIDDEN", "label": "Fooblast", "by": "t",
+                                 "at": "t"}}, cfg.BUNDLED_DEMO_ID)
+    try:
+        at = AppTest.from_file(APP, default_timeout=300)
+        at.session_state["active_page"] = "pathways"
+        for cluster, locked in (("c1", "open"), ("c2", "deferred"), ("c3", None)):
+            at.session_state["selected_cluster"] = cluster
+            at.run()
+            assert not at.exception, [str(e.value) for e in at.exception]
+            md = _md(at)
+            if locked:
+                assert f"Call this cluster first: {cluster} is {locked}" in md
+                at.button(key=f"unlock_{cluster}").click().run()
+                assert at.session_state["active_page"] == "markers"
+                at.session_state["active_page"] = "pathways"
+            else:
+                assert "Call this cluster first" not in md and "Fooblast" in md
+    finally:
+        p.write_bytes(saved) if saved is not None else p.unlink()
