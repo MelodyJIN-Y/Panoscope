@@ -7,7 +7,7 @@ from __future__ import annotations
 from panoscope.agent import config as cfg
 from typing import Optional
 
-from panoscope.pipeline import decisions, store
+from panoscope.pipeline import decisions
 from panoscope.ui import data_access, state
 from panoscope.ui.review import MARK, revealed
 
@@ -23,7 +23,7 @@ def render_rail() -> Optional[str]:
 
     # Composed, not raw: a sign-off clears ⚑ here as on the board.
     verdicts = {v.cluster: v for v in data_access.composed_verdicts()}
-    decs = store.load_decisions()
+    decs = data_access.decisions()
     selected = state.get_selected_cluster()
 
     with st.container(key="pano_rail"):

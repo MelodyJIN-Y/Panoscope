@@ -201,10 +201,10 @@ def render_pathways_page() -> None:
 
 def _render_locked(cluster: str) -> None:
     """A cluster with no call (OPEN or DEFERRED) says so and links back; never a blank."""
-    from panoscope.pipeline import decisions, store
+    from panoscope.pipeline import decisions
     from panoscope.ui import nav
 
-    why = decisions.state(store.load_decisions(), cluster).lower()
+    why = decisions.state(da.decisions(), cluster).lower()
     st.markdown(
         f'<div class="pano-enr-empty" style="margin-top:24px">Call this cluster first: '
         f"{cluster} is {why}. Pathways read against the biologist's call, so they open "

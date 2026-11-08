@@ -15,7 +15,6 @@ from panoscope.agent import config as cfg
 from panoscope.core import measure
 from panoscope.data.study import NOT_YET_CALLED
 from panoscope.pipeline import decisions as D
-from panoscope.pipeline import store
 from panoscope.types.measured import MeasuredState
 from panoscope.types.subject import gene, subject
 from panoscope.ui import data_access as da
@@ -49,11 +48,7 @@ def revealed(cluster: str) -> bool:
     """May the proposal show: tapped open, decided, or already overridden by the biologist."""
     import streamlit as st
 
-    from panoscope.agent import compose
-
-    return (bool(st.session_state.get(f"rv_reveal_{cluster}"))
-            or D.state(store.load_decisions(), cluster) != D.OPEN
-            or compose.override_call(cluster) is not None)
+    return bool(st.session_state.get(f"rv_reveal_{cluster}") or da.decision(cluster))
 
 
 def gene_states(built: Any, genes: tuple[str, ...]) -> list[tuple[str, MeasuredState]]:
@@ -165,7 +160,7 @@ def render_review(cluster: str) -> None:
             hv["confidence"] = ""
         st.markdown(surface.header_html(et.spec_for(built), hv), unsafe_allow_html=True)
 
-    decs = store.load_decisions()
+    decs = {cluster: da.decision(cluster)}
     s = D.state(decs, cluster)
     st.markdown(f'<div class="pano-sf-block">decision &middot; {_esc(s.lower())}</div>',
                 unsafe_allow_html=True)

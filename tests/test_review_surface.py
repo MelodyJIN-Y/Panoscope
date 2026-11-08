@@ -113,6 +113,7 @@ def test_pathways_unlock_per_cluster_on_a_call_and_read_the_biologists_label(app
 
     p = paths.review_state_json(cfg.BUNDLED_DEMO_ID)
     saved = p.read_bytes() if p.exists() else None
+    store.save_review_state({}, cfg.BUNDLED_DEMO_ID)   # a sign-off would accept c1
     store.save_decisions({"c2": {"state": "DEFERRED", "by": "t", "at": "t"},
                           "c3": {"state": "OVERRIDDEN", "label": "Fooblast", "by": "t",
                                  "at": "t"}}, cfg.BUNDLED_DEMO_ID)
@@ -143,7 +144,10 @@ def test_a_deferred_cluster_stays_locked_when_a_chat_override_note_exists(
     from panoscope.pipeline import paths, store
     from panoscope.ui import data_access as da
 
-    monkeypatch.setattr(compose, "override_call", lambda c: "Fooblast")
+    from types import SimpleNamespace
+
+    ov = SimpleNamespace(subject_cell_type="Fooblast", id="n1")
+    monkeypatch.setattr(compose, "override_notes", lambda: {"c1": ov, "c2": ov})
     p = paths.review_state_json(cfg.BUNDLED_DEMO_ID)
     saved = p.read_bytes() if p.exists() else None
     store.save_decisions({"c2": {"state": "DEFERRED", "by": "t", "at": "t"}},

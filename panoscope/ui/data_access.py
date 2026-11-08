@@ -338,14 +338,11 @@ def composed_verdicts() -> list[ClusterVerdict]:
 
 
 def effective_call(cluster: str) -> Optional[str]:
-    """The biologist's call (accepted, overridden, or a confirmed override note); None
-    while OPEN or DEFERRED. It unlocks the downstream workflows for this cluster."""
-    from panoscope.pipeline import decisions, store
+    """The biologist's call (:func:`decision`); None while OPEN or DEFERRED. It unlocks
+    the downstream workflows for this cluster."""
+    from panoscope.pipeline import decisions
 
-    decs = store.load_decisions()
-    if decisions.state(decs, cluster) == decisions.DEFERRED:  # a chat note does not undo it
-        return None
-    return decisions.call(decs, cluster) or compose.override_call(cluster)
+    return decisions.call({cluster: decision(cluster)}, cluster)
 
 
 def display_cell_type(cluster: str) -> str:
@@ -602,17 +599,26 @@ def signed_off() -> dict:
         return {}
 
 
-def decisions() -> dict:
-    """Per-cluster decisions; a Summary sign-off counts as accepting the call shown,
-    never on a cluster with no call to accept (it stays OPEN)."""
+def decision(cluster: str) -> dict:
+    """The one decision reader (rail, review, Pathways, export): the review's record, else
+    a confirmed override note (OVERRIDDEN), else a Summary sign-off on a called cluster
+    (ACCEPTED); {} reads OPEN."""
     from panoscope.data.study import NOT_YET_CALLED
     from panoscope.pipeline import decisions as D
     from panoscope.pipeline import store
 
-    shown = {c: display_cell_type(c) for c in signed_off()}
-    signed = {c: {"state": D.ACCEPTED, "label": label}
-              for c, label in shown.items() if label != NOT_YET_CALLED}
-    return {**signed, **store.load_decisions()}
+    if rec := store.load_decisions().get(cluster):
+        return rec
+    if (n := compose.override_notes().get(cluster)) is not None:
+        return {"state": D.OVERRIDDEN, "label": n.subject_cell_type.strip(), "note_id": n.id}
+    if cluster in signed_off() and (label := verdict_for(cluster).cell_type) != NOT_YET_CALLED:
+        return {"state": D.ACCEPTED, "label": label}
+    return {}
+
+
+def decisions() -> dict:
+    """Every cluster's :func:`decision`; a cluster left out reads OPEN."""
+    return {c: d for c in cfg.CLUSTER_ORDER if (d := decision(c))}
 
 
 def mark_signed_off(cluster: str, note_id: Optional[str] = None, at: str = "") -> None:
