@@ -12,11 +12,11 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Final
 
-from panoscope.corpus.channels import _Run, cell_terms, cooccurrence, matcher
+from panoscope.corpus.channels import _Run, cell_terms, cooccurrence, matcher, sentences
 from panoscope.corpus.store import (
     Corpus, CorpusUnavailable, Disposition, QueryRun, QueryStatus, Setting, SourceRecord,
     Statement, corpus_path, load,
@@ -135,15 +135,17 @@ def paragraphs(text: str) -> list[tuple[int, int]]:
 
 
 _METHODS = re.compile(r"^## .*(method|material|data availab|patients|samples)", re.I)
+_AVAILABILITY = re.compile(r"^## .*(data availab|accession)", re.I)
+_ACCESSION = re.compile(r"\b(?:GSE|E-MTAB-|PRJNA|EGAS|HTA)\d+\b")
 
 
-def methods(rec: SourceRecord) -> str:
+def methods(rec: SourceRecord, heading: re.Pattern[str] = _METHODS) -> str:
     """The full text's Methods-like sections (heading match), "" without full text."""
     out, on = [], False
     for s, e in paragraphs(rec.full_text):
         line = rec.full_text[s:e]
         if line.startswith("## "):
-            on = bool(_METHODS.match(line))
+            on = bool(heading.match(line))
         elif on:
             out.append(line)
     return "\n".join(out)
@@ -169,6 +171,35 @@ def _locate(rec: SourceRecord, quote: str) -> tuple[str, int] | None:
 
 def _setting(corpus: Corpus, uri: str, field: str) -> str:
     return "\n".join(s.quote for s in corpus.settings if s.uri == uri and s.field == field)
+
+
+def same_dataset(ctx: StudyContext, corpus: Corpus, rec: SourceRecord) -> bool:
+    """The release paper, or a paper whose Methods name this dataset: a declared key or an
+    accession from the release paper's data-availability section (§9 check 12)."""
+    release = f"pmid:{ctx.release_pmid}" if ctx.release_pmid else ""
+    if rec.uri == release:
+        return True
+    keys = {*ctx.dataset_keys, *(a for r in corpus.find(release)
+                                 for a in _ACCESSION.findall(methods(r, _AVAILABILITY)))}
+    return _words(tuple(keys), methods(rec))
+
+
+# A frame cell named only as a place near the expression ("areas of B-cell clusters",
+# "adjacent to T cells", "B cell-rich zones") is not the expressing cell.
+_NEAR = re.compile(r"\b(areas?|regions?|zones?|vicinity|proximity|near(?:by)?|adjacent|"
+                   r"surround\w*|around|neighbou?r\w*|border\w*|periphery|close|next)"
+                   r"(?:\s+(?:to|of|the|by))*\s+$", re.I)
+_AGGREGATE = re.compile(r"^[\s-]*(clusters?|aggregates?|follicles?|zones?|areas?|regions?|"
+                        r"niches?|rich|dense)\b", re.I)
+
+
+def binds_cell(span: str, terms: tuple[str, ...]) -> bool | None:
+    """None: the span never names the cell; False: only as a place near the expression."""
+    hits = list(matcher((), terms).finditer(span)) if terms else []
+    if not hits:
+        return None
+    return any(not _NEAR.search(span[:m.start()]) and not _AGGREGATE.match(span[m.end():])
+               for m in hits)
 
 
 # --------------------------------------------------------------------------- #
@@ -262,11 +293,12 @@ def _statement(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str, 
         return _setting(corpus, rec.uri, field)
 
     meth = "\n".join((s("assay"), s("species"), s("system"), methods(rec)))
-    sp = species_state(span, meth, f"{rec.abstract}\n{rec.full_text}")
-    disease_terms = tuple(t for t in (ctx.disease_state, *(v for _, v in ctx.disease_qualifiers))
-                          if t)
+    text = rec.text(sec)
+    around = tuple(text[a:b] for f in (sentences, paragraphs) for a, b in f(text)
+                   if a <= start < b)
+    sp = species_state(span, meth, f"{rec.abstract}\n{rec.full_text}", around)
     disease = (None if not ctx.disease_state
-               else True if _words(disease_terms, f"{span}\n{s('disease')}")
+               else True if _words(ctx.disease_terms, f"{span}\n{s('disease')}")
                else False if s("disease") else None)
     tissue = _words(tissue_terms, f"{span}\n{s('tissue')}") or None
     in_vivo = (False if _IN_VITRO.search(f"{span}\n{s('system')}") else
@@ -278,7 +310,7 @@ def _statement(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str, 
                     biofluid=bool(_BIOFLUID.search(span)) or _biofluid_only(corpus, rec.uri),
                     resolution=res), disease_declared=bool(ctx.disease_state))
     flags = [f for f, on in (
-        ("SAME_DATASET", bool(ctx.release_pmid) and rec.uri == f"pmid:{ctx.release_pmid}"),
+        ("SAME_DATASET", same_dataset(ctx, corpus, rec)),
         ("PREPRINT", rec.uri.startswith("epmc:PPR")
          or any("preprint" in t.casefold() for t in rec.publication_type)),
         ("ABSTRACT_ONLY", not rec.full_text),
@@ -308,10 +340,12 @@ def verified(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str,
     rel = relation(span, said, comparator, gene_rx)
     if rel is None or not gene_rx.search(span):
         return f"span does not name {gene} with relation {said}: {span[:120]!r}"
-    if entry is not None and not _words(cell_terms(entry), span):
+    bound = binds_cell(span, cell_terms(entry)) if entry is not None else None
+    if entry is not None and bound is None:
         return f"span does not name {entry.label}: {span[:120]!r}"
-    return _statement(ctx, corpus, rec, gene, entry.label if entry else "", rel, span, sec,
-                      at, tissue_terms, generator)
+    st = _statement(ctx, corpus, rec, gene, entry.label if bound else "", rel, span, sec,
+                    at, tissue_terms, generator)
+    return replace(st, flags=(*st.flags, "AMBIGUOUS_CELL")) if bound is False else st
 
 
 Passage = tuple[str, str, int, int]          # (id, section, start, end)
@@ -376,7 +410,8 @@ def read(ctx: StudyContext, gene: str, aliases: tuple[Term, ...], *, reader: Rea
     is counted as unextracted (the read row is DEGRADED, so the key cannot read thin).
     """
     p = path or corpus_path(ctx.study)
-    run = _Run(load(p), p, 0, retrieved)
+    held = load(p)
+    run = _Run(held, p, 0, retrieved, held)
     generator = f"{receipt.model} via the Anthropic API (user key)"
     tissue = tissue_terms or (ctx.tissue,)
     cells = tuple(t for e in ctx.cell_types for t in cell_terms(e))
@@ -421,7 +456,7 @@ def read(ctx: StudyContext, gene: str, aliases: tuple[Term, ...], *, reader: Rea
             continue
         statements = (*run.corpus.statements, *found)
         n = sum(1 for s in statements if s.uri == uri)
-        same = bool(ctx.release_pmid) and uri == f"pmid:{ctx.release_pmid}"
+        same = same_dataset(ctx, run.corpus, rec)
         run.commit(statements=statements, ledger=(
             *(d for d in run.corpus.ledger if d.id != uri),
             Disposition(uri, "SAME_DATASET_READ" if same else f"READ:{n}:{len(left)}")))

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import date, timedelta
 from typing import Any, Callable, Final
 
@@ -18,7 +19,9 @@ from panoscope.corpus.read import Reader, Receipt, model_reader, read
 from panoscope.corpus.store import (
     Corpus, CorpusUnavailable, CorpusVersion, corpus_path, load, log_hash, read_version,
 )
-from panoscope.corpus.window import StudyContext, context_for
+from panoscope.corpus.window import StudyContext
+from panoscope.corpus.window import context_for as _context
+from panoscope.reference.sources import SourceUnavailable
 
 STALE_DAYS: Final = 180     # ponytail: one policy for every study; per-tissue when asked
 TOP_N: Final = 10           # each cluster's top method markers (D2)
@@ -46,6 +49,19 @@ def scope(study: Any, cell_types: tuple[str, ...]) -> tuple[str, ...]:
         top = t.sort_values(method.statistic_name, ascending=False).groupby(unit).head(TOP_N)
         genes += top["gene"].astype(str).tolist()
     return tuple(dict.fromkeys(genes))
+
+
+def context_for(study: Any) -> StudyContext:
+    """The study's context plus the disease block's MeSH entry terms (§3), so a span saying
+    "breast carcinoma" matches a "breast cancer" study; a failed lookup keeps the literal terms."""
+    ctx = _context(study)
+    mesh: list[str] = []
+    for t in ctx.disease_terms:
+        try:
+            mesh += vocab.mesh_terms(t)
+        except SourceUnavailable:
+            pass        # ponytail: fewer disease matches (wider rung), never more; not logged
+    return replace(ctx, disease_mesh=tuple(dict.fromkeys(mesh)))
 
 
 def tissue_terms(study: Any, ctx: StudyContext) -> tuple[str, ...]:

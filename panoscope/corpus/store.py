@@ -24,7 +24,8 @@ Clock-free: ``retrieved`` is an ISO string the caller minted.
 
 **Storage** is one SQLite file per study (§8.3): source records, misses, statements
 bound to verbatim spans, the query log, the disposition ledger and the corpus
-version. Rebuilt wholesale, so rows are JSON and the file is replaced atomically.
+version. Rows are JSON; a first save replaces the file atomically, a checkpoint
+(``since``) rewrites only the changed tail of each table in one transaction.
 """
 
 from __future__ import annotations
@@ -570,24 +571,44 @@ def _rows(db: sqlite3.Connection, table: str) -> list[dict[str, Any]]:
             for (d,) in db.execute(f"SELECT data FROM {table} ORDER BY n")]
 
 
-def save(corpus: Corpus, path: Path | str) -> Path:
-    """Write the corpus as one SQLite file, replaced atomically. Misses are rows too."""
+def _row(r: Any) -> tuple[str]:
+    return (json.dumps(asdict(r), sort_keys=True),)
+
+
+def _meta(corpus: Corpus) -> list[tuple[str, str]]:
+    version = json.dumps(asdict(corpus.version), sort_keys=True) if corpus.version else ""
+    return [("spec_version", corpus.spec_version), ("built", corpus.built), ("version", version)]
+
+
+def save(corpus: Corpus, path: Path | str, since: Corpus | None = None) -> Path:
+    """Write the corpus as one SQLite file, replaced atomically. Misses are rows too.
+
+    With ``since`` (what the file holds now) only rows past each table's unchanged prefix
+    are rewritten, in one transaction: a checkpoint costs its change, not the corpus.
+    """
     p = Path(path)
+    if since is not None and p.is_file():
+        with closing(sqlite3.connect(p)) as db, db:
+            db.executemany("INSERT OR REPLACE INTO meta VALUES (?, ?)", _meta(corpus))
+            for t in _TABLES:
+                old, new = getattr(since, t), getattr(corpus, t)
+                k = next((i for i, (a, b) in enumerate(zip(old, new)) if a is not b),
+                         min(len(old), len(new)))
+                if k < len(old):
+                    db.execute(f"DELETE FROM {t} WHERE n NOT IN "
+                               f"(SELECT n FROM {t} ORDER BY n LIMIT ?)", (k,))
+                db.executemany(f"INSERT INTO {t} (data) VALUES (?)", map(_row, new[k:]))
+        return p
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(p.name + ".tmp")
     tmp.unlink(missing_ok=True)
     with closing(sqlite3.connect(tmp)) as db:
         db.execute("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)")
-        version = json.dumps(asdict(corpus.version), sort_keys=True) if corpus.version else ""
-        db.executemany("INSERT INTO meta VALUES (?, ?)", [
-            ("spec_version", corpus.spec_version), ("built", corpus.built),
-            ("version", version)])
+        db.executemany("INSERT INTO meta VALUES (?, ?)", _meta(corpus))
         for t in _TABLES:
             # ponytail: rows are JSON; add typed columns and indexes when a query needs them.
             db.execute(f"CREATE TABLE {t} (n INTEGER PRIMARY KEY, data TEXT NOT NULL)")
-            db.executemany(f"INSERT INTO {t} (data) VALUES (?)",
-                           [(json.dumps(asdict(r), sort_keys=True),)
-                            for r in getattr(corpus, t)])
+            db.executemany(f"INSERT INTO {t} (data) VALUES (?)", map(_row, getattr(corpus, t)))
         db.commit()
     os.replace(tmp, p)
     return p

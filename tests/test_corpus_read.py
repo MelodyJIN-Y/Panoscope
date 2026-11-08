@@ -232,11 +232,48 @@ def test_absence_reads_thin_only_when_complete_and_never_as_novelty(tmp_path):
     corpus = load(p)
     texts = [cards.card(corpus, "POSTN", "Fibroblasts").headline,      # complete, nothing held
              cards.card(corpus, "ACTA2", "Fibroblasts").headline]      # never queried
-    assert "thin" in texts[0] and "cannot settle" in texts[1]
+    assert "incomplete search" in texts[0] and "cannot settle" in texts[1]     # no SATURATED stop
+    assert not any(re.search(r"\bthin\b", t) for t in texts)
     failed, _ = _read(p, Stub(fail=True))
     texts.append(cards.card(failed, "POSTN", "Fibroblasts").headline)
     assert "incomplete search" in texts[2]
     assert not any(re.search(r"novel|not previously reported", t, re.I) for t in texts)
+
+
+def _verify(ctx, abstract, span, *, full="", more=()):
+    rec = SourceRecord(uri="pmid:1", title="t", abstract=abstract, full_text=full, via="X")
+    return R.verified(ctx, Corpus(records=(rec, *more)), rec, "POSTN", R.matcher(POSTN), span,
+                      "Fibroblasts", "MARKS", "", "abstract", 0, None, ("breast",), "stub")
+
+
+def test_disease_matches_the_disease_blocks_mesh_entry_terms(monkeypatch):
+    from panoscope.corpus import build as B
+
+    monkeypatch.setattr(B, "_context", lambda s: _ctx(disease_state="breast cancer"))
+    monkeypatch.setattr(B.vocab, "mesh_terms", lambda t: ("Breast Carcinoma",))
+    span = "POSTN marks fibroblasts in human breast carcinoma samples."
+    assert _verify(B.context_for(None), span, span).rung == "W0"
+    assert _verify(_ctx(disease_state="breast cancer"), span, span).rung == "W2"
+
+
+def test_a_paper_whose_methods_name_this_dataset_is_same_dataset():
+    span = "POSTN marks fibroblasts in human breast tissue samples."
+    full = "## Methods\nWe reanalysed the public Xenium data (GSE243280).\n## Results\nx"
+    release = SourceRecord(uri="pmid:9", title="release", via="X",
+                           full_text="## Data availability\nDeposited under GSE243280.")
+    assert "SAME_DATASET" in _verify(_ctx(release_pmid="9"), span, span, full=full,
+                                     more=(release,)).flags
+    assert "SAME_DATASET" in _verify(_ctx(dataset_keys=("GSE243280",)), span, span,
+                                     full=full).flags
+    assert "SAME_DATASET" not in _verify(_ctx(release_pmid="9"), span, span, full=full).flags
+
+
+def test_a_cell_named_only_as_a_place_near_the_expression_does_not_bind():
+    near = "POSTN was high in areas of fibroblast clusters in human breast tissue."
+    st = _verify(_ctx(), near, near)
+    assert st.cell_type == "" and "AMBIGUOUS_CELL" in st.flags and st.rung == "W1"
+    span = "POSTN marks fibroblasts in human breast tissue samples."
+    assert _verify(_ctx(), span, span).cell_type == "Fibroblasts"
 
 
 def test_no_model_key_refuses_the_build(monkeypatch):

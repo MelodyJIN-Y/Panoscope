@@ -134,7 +134,7 @@ def load_celltype_notes(
     fallback rather than crashing.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
-    p = paths.interp_dir(dataset_id, root) / "celltype_notes.json"
+    p = paths.notes_json(dataset_id, "celltype_notes.json", root)
     return _read(p, _dict, {})
 
 
@@ -149,7 +149,7 @@ def load_gene_notes(
     flat notes file during migration.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
-    p = paths.interp_dir(dataset_id, root) / "gene_notes.json"
+    p = paths.notes_json(dataset_id, "gene_notes.json", root)
     return _read(p, _dict, {})
 
 

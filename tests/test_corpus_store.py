@@ -86,7 +86,8 @@ def test_each_key_resolves_to_one_of_three_states_and_reads_without_novelty():
 
     rival = dataclasses.replace(RUN, cell_type="T cells", ids=())
     thin = key_state(Corpus(queries=(HGNC, CENSUS, rival)), "GENEX", "T cells")
-    assert thin.state is Support.NONE_FOUND and "thin" in thin.reads_as
+    assert thin.state is Support.NONE_FOUND and "incomplete search" in thin.reads_as
+    assert not re.search(r"\bthin\b", thin.reads_as)      # no SATURATED stop exists yet
 
     failed = dataclasses.replace(CENSUS, status=QueryStatus.FAILED)
     partial = key_state(Corpus(queries=(HGNC, failed, rival)), "GENEX", "T cells")
@@ -105,3 +106,41 @@ def test_each_key_resolves_to_one_of_three_states_and_reads_without_novelty():
 
     for s in (found, thin, partial, unbuilt):
         assert not re.search(r"novel|not previously reported", s.reads_as, re.I)
+
+
+def test_a_checkpoint_rewrites_only_what_changed_in_place(tmp_path):
+    from panoscope.corpus.channels import _Run
+
+    p = tmp_path / "corpus.sqlite"
+    save(Corpus(records=(REC,), queries=(HGNC, CENSUS)), p)
+    held = load(p)
+    inode, run = p.stat().st_ino, _Run(held, p, 0, "", held)
+    run.log(dataclasses.replace(RUN, status=QueryStatus.FAILED, retrieved=0))
+    run.log(RUN)                                  # replaces the FAILED row for the request
+    run.commit(statements=(STMT,))
+    assert p.stat().st_ino == inode               # the file was not rewritten wholesale
+    assert load(p) == run.corpus and load(p).queries == (HGNC, CENSUS, RUN)
+
+
+def test_notes_from_a_corpus_build_of_a_study_in_the_checkout_go_to_the_user_root(
+        tmp_path, monkeypatch):
+    from panoscope.agent import config as cfg
+    from panoscope.data import layout
+    from panoscope.pipeline import paths
+    from panoscope.pipeline.stages import notes
+
+    monkeypatch.setattr(layout, "user_data_root", lambda: tmp_path)
+    repo = layout._package_repo_root() / "data" / "studies"
+    written = []
+    monkeypatch.setattr(notes, "_save", lambda path, got: written.append(path))  # never data/
+    monkeypatch.setattr(notes, "_corpus", lambda ds: Corpus())
+    notes.run_celltype_notes(cfg.DATASET_ID, repo)
+    assert written and all(tmp_path in w.parents for w in written)
+    committed = paths.notes_json(cfg.DATASET_ID, "gene_notes.json", repo)
+    assert repo in committed.parents                         # no user copy yet: read the repo's
+    mine = paths.notes_json(cfg.DATASET_ID, "gene_notes.json", repo, write=True)
+    mine.parent.mkdir(parents=True)
+    mine.write_text("{}")
+    assert paths.notes_json(cfg.DATASET_ID, "gene_notes.json", repo) == mine
+    assert paths.notes_json("s", "gene_notes.json", tmp_path / "other").parent == \
+        tmp_path / "other" / "s" / "interp"                  # outside the checkout: unchanged

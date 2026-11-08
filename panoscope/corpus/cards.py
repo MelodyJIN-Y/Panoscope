@@ -3,7 +3,7 @@
 Headline first (the in-window count at the study's modality), then in-window
 statements with consensus and dissent both cited, then wider rungs, each labelled.
 The study's own dataset papers render apart and are never counted. Absence reads
-"thin" only after a complete search; never as novelty. A card supplies no value to the
+"incomplete search" (no SATURATED stop exists yet, so never "thin"); never as novelty. A card supplies no value to the
 measurement, and dissent is a display flag: it never reaches ``verify``.
 """
 

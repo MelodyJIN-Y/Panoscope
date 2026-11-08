@@ -176,7 +176,8 @@ class KeyState:
     """FOUND / NONE_FOUND / NOT_BUILT for one (gene, cell type) key of the study's tissue.
 
     ``gaps`` names every query of the key (or its gene's vocabulary and census) that
-    did not run to completion; NONE_FOUND reads "thin" only when there are none.
+    did not run to completion. NONE_FOUND never reads "thin": that needs a SATURATED stop,
+    which is not built, so every absence is an incomplete search.
     """
 
     gene: str
@@ -197,7 +198,8 @@ class KeyState:
         if self.gaps:
             return (f"incomplete search for {what} ({'; '.join(self.gaps)}): nothing "
                     "found so far, which says nothing either way")
-        return f"searched completely: the literature is thin on {what}"
+        return (f"incomplete search for {what} (no saturated stop yet): nothing found so "
+                "far, which says nothing either way")
 
 
 def key_state(corpus: Corpus, gene: str, cell_type: str) -> KeyState:

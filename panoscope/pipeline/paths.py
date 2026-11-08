@@ -44,6 +44,19 @@ def interp_dir(dataset_id: str, root: Optional[Path] = None) -> Path:
     return dataset_dir(dataset_id, root) / "interp"
 
 
+def notes_json(dataset_id: str, name: str, root: Optional[Path] = None, *,
+               write: bool = False) -> Path:
+    """A notes file. For a study inside the checkout (the demo) a ``write`` and any later
+    read use the user data root's copy, so a corpus build never rewrites committed files."""
+    from panoscope.data import layout
+
+    p = interp_dir(dataset_id, root) / name
+    if layout._package_repo_root() not in p.resolve().parents:
+        return p
+    mine = layout.interp_dir(dataset_id, layout.user_data_root()) / name
+    return mine if write or mine.is_file() else p
+
+
 def clusters_dir(dataset_id: str, root: Optional[Path] = None) -> Path:
     return interp_dir(dataset_id, root) / "clusters"
 

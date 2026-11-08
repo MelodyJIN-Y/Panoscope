@@ -140,6 +140,19 @@ def test_species_state(span, methods, read, want):
     assert W.species_state(span, methods, read) is want
 
 
+MIXED = ("The discovery cohort comprised tumours from 40 patients.\n"
+         "The validation arm used MMTV-PyMT mice.")
+
+
+@pytest.mark.parametrize("span,around,want", [
+    ("GENEX in fibroblasts of the discovery cohort", (), Species.HUMAN_STATED),
+    ("GENEX in fibroblasts", (), Species.UNSTATED),          # a mouse arm elsewhere: untold
+    ("GENEX in fibroblasts", ("In mice, GENEX in fibroblasts.",), Species.NON_HUMAN),
+])
+def test_a_mouse_arm_in_methods_marks_only_spans_about_it(span, around, want):
+    assert W.species_state(span, MIXED, "", around) is want
+
+
 @pytest.mark.parametrize("text,want", [
     ("profiled by Xenium", "SAME_PLATFORM"),
     ("MERFISH imaging", "SAME"),

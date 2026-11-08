@@ -143,10 +143,12 @@ class _Run:
     path: Path
     cap: int
     retrieved: str
+    disk: Corpus | None = None      # what the file holds; None: unknown, saved whole
 
     def commit(self, **changes: Any) -> None:
         self.corpus = replace(self.corpus, **changes)
-        save(self.corpus, self.path)
+        save(self.corpus, self.path, since=self.disk)
+        self.disk = self.corpus
 
     def done(self, query: str, channel: str, gene: str, cell: str) -> QueryRun | None:
         h = QueryRun(query, channel, gene).request_hash
@@ -384,10 +386,10 @@ def retrieve(ctx: StudyContext, gene: str, aliases: tuple[Term, ...], *, today: 
     """
     p = path or corpus_path(ctx.study)
     try:
-        corpus = load(p)
+        corpus = disk = load(p)
     except CorpusUnavailable:
-        corpus = Corpus()
-    run = _Run(corpus, p, cap, today.isoformat())
+        corpus, disk = Corpus(), None
+    run = _Run(corpus, p, cap, today.isoformat(), disk)
     open_ = tuple(a.text for a in aliases if not a.restricted)
     degraded = not open_                  # only restricted aliases: noisy in EPMC fields
     g_epmc = _or(open_ or (a.text for a in aliases))

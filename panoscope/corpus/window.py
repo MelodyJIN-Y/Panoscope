@@ -44,6 +44,8 @@ class StudyContext:
     disease_qualifiers: tuple[tuple[str, str], ...] = ()
     release_pmid: str = ""
     release_status: str = "unresolved"
+    dataset_keys: tuple[str, ...] = ()              # this dataset's names and accessions
+    disease_mesh: tuple[str, ...] = ()              # MeSH entry terms of the disease block
 
     def __post_init__(self) -> None:
         missing = [n for n in ("tissue", "tissue_id", "platform", "modality_class")
@@ -68,6 +70,12 @@ class StudyContext:
                  *(s for c in self.cell_types for s, _ in c.synonyms)]
         if left := [t for t in texts if _PLACEHOLDER.search(t)]:
             raise CorpusUnavailable(f"corpus build refused: unrendered placeholder in {left}")
+
+    @property
+    def disease_terms(self) -> tuple[str, ...]:
+        """The disease block D (§3): the value, its qualifiers and their MeSH entry terms."""
+        return tuple(t for t in (self.disease_state, *(v for _, v in self.disease_qualifiers),
+                                 *self.disease_mesh) if t) if self.disease_state else ()
 
     @property
     def w0_star(self) -> bool:
@@ -121,6 +129,7 @@ def context_for(study: Any) -> StudyContext:
                                            "disease_stage") if val(k)),
         release_pmid=str(rel.get("pmid") or ""),
         release_status=str(rel.get("status") or "unresolved"),
+        dataset_keys=tuple(str(k) for k in rel.get("dataset_keys") or ()),
     )
 
 
@@ -236,14 +245,25 @@ _CLINICAL = re.compile(r"\b(biops(?:y|ies)|resections?|nephrectom(?:y|ies)|maste
                        r"surgical specimens?|cohorts?|clinicopathological|TNM|pT[0-4])\b", re.I)
 
 
-def species_state(span: str, methods: str = "", read_text: str = "") -> Species:
-    """Tri-state species (plus NON_HUMAN) from text; "human HER2" is not a species claim."""
-    local = f"{span}\n{methods}"
-    if _NON_HUMAN.search(local):
-        return Species.NON_HUMAN
-    if _HUMAN.search(local):
-        return Species.HUMAN_STATED
-    whole = f"{local}\n{read_text}"
+_COHORT = re.compile(r"\b[\w-]+ (?:cohort|dataset|series)s?\b|\b(?:GSE|E-MTAB-|PRJNA|EGAS)\d+",
+                     re.I)
+
+
+def species_state(span: str, methods: str = "", read_text: str = "",
+                  around: tuple[str, ...] = ()) -> Species:
+    """Tri-state species (plus NON_HUMAN), nearest text first: the span, ``around`` (its
+    sentence, paragraph), the Methods paragraphs naming the span's cohort, then Methods.
+    The first level with a cue decides; human and non-human together cannot tell the arm.
+    "human HER2" is not a species claim."""
+    keys = [k.casefold() for k in _COHORT.findall(span)]
+    named = "\n".join(p for p in methods.split("\n") if any(k in p.casefold() for k in keys))
+    for text in (span, *around, named, methods):
+        nh, hu = bool(_NON_HUMAN.search(text)), bool(_HUMAN.search(text))
+        if nh != hu:
+            return Species.NON_HUMAN if nh else Species.HUMAN_STATED
+        if nh:
+            break
+    whole = f"{span}\n{methods}\n{read_text}"
     if not _NON_HUMAN.search(whole) and _CLINICAL.search(whole):
         return Species.HUMAN_INFERRED
     return Species.UNSTATED

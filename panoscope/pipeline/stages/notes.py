@@ -204,8 +204,9 @@ def run_celltype_notes(
 ) -> dict[str, Any]:
     """Generate (resumable) one cited cell-type note per cluster into the tree."""
     dataset_id = dataset_id or cfg.DATASET_ID
-    out_path = paths.interp_dir(dataset_id, root) / "celltype_notes.json"
     corpus = _corpus(dataset_id)
+    out_path = paths.notes_json(dataset_id, "celltype_notes.json", root,
+                                write=corpus is not None)
     if corpus is not None:
         from panoscope.corpus import cards
 
@@ -296,8 +297,8 @@ def run_gene_notes(
     PMID or none; deterministic role-only fallback when the model's text is unusable.
     """
     dataset_id = dataset_id or cfg.DATASET_ID
-    out_path = paths.interp_dir(dataset_id, root) / "gene_notes.json"
     corpus = _corpus(dataset_id)
+    out_path = paths.notes_json(dataset_id, "gene_notes.json", root, write=corpus is not None)
     notes = {} if corpus is not None else _load(out_path)
 
     for cluster in cfg.CLUSTER_ORDER:
