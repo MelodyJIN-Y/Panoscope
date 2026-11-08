@@ -178,6 +178,7 @@ def test_the_unit_verdict_precedes_every_item_and_items_keep_row_order() -> None
     assert out.value.unit_measured.state is MeasuredState.OBSERVED
 
 
+@pytest.mark.req("ARCH-9.5-02")
 def test_the_unit_can_be_underpowered_while_its_items_are_fine() -> None:
     """"Too few cells in this unit" is a property of the design, not of any marker
     in it. Pushed down onto the items it would be duplicated once per item, and two

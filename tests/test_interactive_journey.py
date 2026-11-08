@@ -85,6 +85,7 @@ def test_the_rail_selects_a_unit_and_the_evidence_follows(app_tree) -> None:
     assert target.split("_", 1)[1] in after
 
 
+@pytest.mark.req("UI-5.3-02")
 def test_pinning_a_marker_changes_the_view_and_no_value(app_tree) -> None:
     """A viewing control changes the picture, NEVER a number (CLAUDE.md).
 

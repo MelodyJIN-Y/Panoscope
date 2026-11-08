@@ -40,6 +40,7 @@ def test_every_registered_shape_is_constructible():
     assert len(made) == len(SHAPES)
 
 
+@pytest.mark.req("IMPL-2.1-01")
 def test_symmetric_roles_are_canonical():
     """An unordered pair must be ONE subject however the reader emitted it.
 
@@ -62,6 +63,7 @@ def test_ordered_roles_are_not_canonicalised():
     assert a != b and a.key != b.key
 
 
+@pytest.mark.req("IMPL-2.1-02")
 def test_subject_key_is_injective_over_a_shape():
     keys = {
         subject("gene", g=gene(s)).key
@@ -136,6 +138,7 @@ def test_unknown_role_raises():
 # --------------------------------------------------------------------------- #
 # Measured: the panel-absence rule generalised
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-MS-01")
 def test_the_four_states_are_distinguishable():
     obs = resolve(subject("gene", g=gene("ERBB2")), WORLD, REPORTED)
     absent = resolve(subject("gene", g=gene("ACTA2")), WORLD, REPORTED)
@@ -145,6 +148,7 @@ def test_the_four_states_are_distinguishable():
     assert never.state is MeasuredState.NEVER_MEASURED
 
 
+@pytest.mark.req("CLAUDE-MS-02")
 def test_measured_absence_IS_evidence():
     """The productive half, and the reason a boolean will not do.
 
@@ -156,6 +160,7 @@ def test_measured_absence_IS_evidence():
     assert m.absence_is_evidence is True
 
 
+@pytest.mark.req("CLAUDE-MS-02")
 def test_unmeasured_absence_is_NOT_evidence():
     """The project's headline claim, as a type-level property."""
     m = resolve(subject("gene", g=gene("COL1A1")), WORLD, REPORTED)
@@ -169,6 +174,7 @@ def test_only_observed_carries_a_number():
         assert resolve(subject("gene", g=gene(sym)), WORLD, REPORTED).carries_number is expect
 
 
+@pytest.mark.req("ARCH-9.5-01")
 def test_composite_state_is_the_meet_and_names_the_blocker():
     """A ligand-receptor pair with one off-panel partner is blocked, and says which.
 
@@ -182,6 +188,7 @@ def test_composite_state_is_the_meet_and_names_the_blocker():
     assert [e.id for e in m.blocked_by] == ["CXCR4"]
 
 
+@pytest.mark.req("ARCH-9.5-01")
 def test_missing_cell_type_blocks_a_pair():
     """The composition analogue of panel absence, for an analysis never built."""
     pair = subject("cell_type_pair", a=cell_type("Tumor"), b=cell_type("Podocyte"))
@@ -190,6 +197,7 @@ def test_missing_cell_type_blocks_a_pair():
     assert [e.id for e in m.blocked_by] == ["Podocyte"]
 
 
+@pytest.mark.req("ARCH-9.5-02")
 def test_coverage_demotes_but_never_promotes():
     gs = subject("gene_set", set=gene_set("HALLMARK_EMT"), member=[gene("ERBB2")])
     ok = resolve(gs, WORLD, REPORTED, coverage=(Coverage("panel_genes", 18, 200, 3),))
@@ -213,6 +221,7 @@ def test_member_roles_do_not_block_the_subject():
     assert resolve(gs, WORLD, REPORTED).state is MeasuredState.OBSERVED
 
 
+@pytest.mark.req("ARCH-9.5-03")
 def test_undeclared_frame_reads_as_never_measured():
     """Silence about capability is not permission to assert it.
 
@@ -224,6 +233,7 @@ def test_undeclared_frame_reads_as_never_measured():
     assert m.state is MeasuredState.NEVER_MEASURED
 
 
+@pytest.mark.req("IMPL-2.2-01")
 def test_frame_digest_is_derived_and_order_independent():
     a = Frame(EntityKind.GENE, "p", frozenset({"A", "B", "C"}))
     b = Frame(EntityKind.GENE, "p", frozenset({"C", "A", "B"}))

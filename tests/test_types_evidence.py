@@ -102,6 +102,7 @@ def test_an_observed_subject_without_its_number_is_unrepresentable():
         _item(ERBB2, None, OBSERVED)
 
 
+@pytest.mark.req("CLAUDE-MS-03")
 def test_the_iff_tracks_carries_number_for_every_state():
     """The drift guard: the rule has ONE source, ``Measured.carries_number``.
 

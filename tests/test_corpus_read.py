@@ -122,6 +122,7 @@ def test_a_superscript_plus_or_minus_matches_its_plain_form_one_for_one():
     assert R._find("CDK16+ cells and POSTN\u2212 CAFs", "POSTN\u207b CAFs") == 17
 
 
+@pytest.mark.req("PLAN-P3.3-01")
 def test_relation_gates_are_code_not_model():
     rx = R.matcher(POSTN)
     assert R.relation("POSTN signaling in fibroblasts", "MARKS", "", rx) == "STATE_ASSOCIATED"
@@ -207,6 +208,7 @@ def test_an_exclusion_with_an_invented_quote_does_not_close_the_paper(tmp_path):
     assert stub.calls == ["P1", "P2"] and _ledger(corpus)["pmid:1"].startswith("READ:")
 
 
+@pytest.mark.req("SKC-WIN-02")
 def test_release_paper_renders_apart_and_is_never_counted(tmp_path):
     corpus, _ = _read(_corpus(tmp_path), Stub([MARK]),
                       ctx=_ctx(release_pmid="1", release_status="confirmed"))
@@ -218,6 +220,7 @@ def test_release_paper_renders_apart_and_is_never_counted(tmp_path):
     assert cards.note(c, corpus)["pmid"] is None        # never the note's citation
 
 
+@pytest.mark.req("SKM-S5-01")
 def test_card_shows_consensus_and_dissent_and_labels_wider_rungs(tmp_path):
     corpus, _ = _read(_corpus(tmp_path), Stub([MARK, LACK]))
     wide = Statement(uri="pmid:1", gene="POSTN", cell_type="Myoepithelial", tissue="breast",
@@ -231,6 +234,7 @@ def test_card_shows_consensus_and_dissent_and_labels_wider_rungs(tmp_path):
     assert cards.card(corpus, "POSTN", "Fibroblasts").headline.startswith("1 in-window")
 
 
+@pytest.mark.req("SKC-R6-01")
 def test_absence_reads_thin_only_when_complete_and_never_as_novelty(tmp_path):
     p = _corpus(tmp_path)
     corpus = load(p)
@@ -284,6 +288,7 @@ def test_a_paper_whose_methods_name_this_dataset_is_same_dataset():
     assert "SAME_DATASET" not in _verify(_ctx(release_pmid="9"), span, span, full=full).flags
 
 
+@pytest.mark.req("SKC-READ-01")
 def test_a_cell_named_only_as_a_place_near_the_expression_does_not_bind():
     near = "POSTN was high in areas of fibroblast clusters in human breast tissue."
     st = _verify(_ctx(), near, near)
@@ -324,6 +329,7 @@ def _demo_corpus():
     return gene, ct
 
 
+@pytest.mark.req("PLAN-P3.5-01")
 def test_gene_notes_come_from_cards_when_a_corpus_exists(tmp_tree, monkeypatch):
     from panoscope.agent import config as cfg
     from panoscope.agent import loop as agent_loop
@@ -337,6 +343,7 @@ def test_gene_notes_come_from_cards_when_a_corpus_exists(tmp_tree, monkeypatch):
     assert "Dissent:" in note["summary"] and "glm_coef" in note
 
 
+@pytest.mark.req("CLAUDE-MEM-01", "CORP-A2")
 def test_reconcile_derives_agree_and_dissent_from_statements_at_read_time():
     from panoscope.agent import config as cfg
     from panoscope.agent import memory

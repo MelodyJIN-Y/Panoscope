@@ -25,6 +25,8 @@ import shutil
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
 from panoscope import methods
 from panoscope.core.reconcile import Comparison
 from panoscope.data.study import Study
@@ -238,6 +240,7 @@ def test_a_single_sample_study_says_concordance_does_not_apply() -> None:
         assert "band:demote_replicate_coverage" not in b.verdict.demotions, unit
 
 
+@pytest.mark.req("ARCH-5.3-01")
 def test_independent_clustering_is_refused_with_the_reason_in_the_record() -> None:
     """Joint clustering is what licenses the join; the mode is read, never assumed.
 
@@ -384,6 +387,7 @@ def test_thin_replicate_coverage_demotes_the_band_and_sets_verify(tmp_path: Path
     assert d.outcome == "High" and d.because == ("subjects_comparable 3/12 (floor 6)",)
 
 
+@pytest.mark.req("ARCH-9.10-01")
 def test_agreement_across_sections_never_raises_anything(tmp_path: Path) -> None:
     """§9.10's asymmetry, on the production path: the rich build gains NOTHING.
 

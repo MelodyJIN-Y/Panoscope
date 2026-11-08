@@ -7,6 +7,8 @@ import gzip
 import json
 from pathlib import Path
 
+import pytest
+
 from panoscope.agent import annotation
 from panoscope.data.study import Study
 from panoscope.reference import view
@@ -53,6 +55,7 @@ def _kidney_cache(ref: Path) -> None:
     cl.write_text(OBO)
 
 
+@pytest.mark.req("ARCH-4-03", "ARCH-7.3-01", "CORP-A24")
 def test_a_breast_only_label_has_no_canonical_set_in_a_kidney_view(tmp_path, monkeypatch):
     ref = tmp_path / "ref"
     monkeypatch.setenv("PANOSCOPE_REFERENCE_DIR", str(ref))
@@ -66,6 +69,7 @@ def test_a_breast_only_label_has_no_canonical_set_in_a_kidney_view(tmp_path, mon
     assert v.canonical("shared name") == ()
 
 
+@pytest.mark.req("PLAN-P2.4-01")
 def test_the_demo_view_reproduces_the_demo_canonical_lists(demo_id, datasets_root) -> None:
     """The lab list replaced the hardcoded breast dict without moving a set."""
     demo = Study.open(demo_id, data_root=datasets_root.parent)
@@ -75,6 +79,7 @@ def test_the_demo_view_reproduces_the_demo_canonical_lists(demo_id, datasets_roo
         assert set(got) == set(meta["canonical_markers"]), meta["cell_type"]
 
 
+@pytest.mark.req("CORP-B3")
 def test_an_expected_type_absent_from_the_view_is_not_a_candidate(tmp_path) -> None:
     lab = "cell_type,gene,tissue\nT cell,CD3E,t\n"
     s = _study(tmp_path, "s", "t", lab,

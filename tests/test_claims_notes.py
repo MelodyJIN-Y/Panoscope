@@ -181,6 +181,7 @@ def _store(note: Note) -> ClaimStore:
     return ClaimStore(note_to_claims(note, _conditions()))
 
 
+@pytest.mark.req("SKM-S6-02")
 def test_a_cluster_note_fires_for_its_cluster_and_no_other():
     store = _store(_note())
     assert [c.id for c in store.about("unit|u=unit:c2", HERE).value] == ["lab:n0000000001"]
@@ -240,6 +241,7 @@ def test_a_note_about_nothing_raises_rather_than_disappearing():
         note_to_claims(note, _conditions())
 
 
+@pytest.mark.req("IMPL-2.7-01")
 def test_a_lab_claim_without_its_conditions_is_refused():
     """The bridge cannot mint the frames a note was formed under, and does not try."""
     with pytest.raises((UnformedLabClaim, ValueError)):
@@ -254,6 +256,7 @@ def _contested() -> Note:
                                   dissent=(_cite("30000002", "dissent"),)))
 
 
+@pytest.mark.req("CLAUDE-MEM-01")
 def test_an_override_keeps_the_call_and_the_dissent_together():
     store = _store(_contested())
     got = by_authority(store.about("unit|u=unit:c2", HERE).value)
@@ -276,6 +279,7 @@ def test_agreement_is_kept_too_and_is_not_listed_as_tension():
     assert agree.id not in store.get("lab:n0000000001").tension
 
 
+@pytest.mark.req("UI-2.9-03")
 def test_a_fabricated_citation_becomes_nothing():
     note = _note(tension=_tension(dissent=(_cite("99999999", "dissent", is_real=False),)))
     store = _store(note)
@@ -283,6 +287,7 @@ def test_a_fabricated_citation_becomes_nothing():
     assert store.get("lab:n0000000001").tension == ()
 
 
+@pytest.mark.req("ARCH-10.5-01")
 def test_only_the_lab_claim_is_committable(tmp_path: Path):
     """The agent may propose; only the biologist commits. Both halves, one note."""
     claims = note_to_claims(_contested(), _conditions())

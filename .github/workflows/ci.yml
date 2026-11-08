@@ -50,7 +50,21 @@ jobs:
           pip install -e ".[app,agent,export,dev]"
 
       - name: Run offline test suite
-        run: pytest -m "not live" -q
+        # Coverage floor = the first pytest-cov measurement (89%, line+branch,
+        # 2026-11-09); only ever raise it. Coverage is a floor, not strength.
+        run: >-
+          pytest -m "not live and not browser" -q
+          --cov=panoscope --cov-branch --cov-report=term:skip-covered
+          --cov-fail-under=89 --durations=20
+
+      - name: Run it again in reverse order (catches state leaking between tests)
+        run: PANOSCOPE_TEST_ORDER=reverse pytest -m "not live and not browser" -q -p no:cacheprovider
+
+      - name: Requirements traceability report (warn-only until test plan Stage 6b)
+        run: pytest --collect-only -q --trace-report traceability.md
+
+      - name: The committed golden output and study tree are untouched
+        run: git diff --exit-code tests/golden data/studies
 
   # ---------------------------------------------------------------------------
   # The lockfile, used the one way it is honest to use it. The matrix job above

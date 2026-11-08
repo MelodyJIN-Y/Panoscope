@@ -20,11 +20,9 @@ from panoscope.ui import data_access as da
 from panoscope.ui import summary
 
 
-@pytest.fixture(autouse=True)
-def _render_against_a_copy(app_tree):
-    """Every AppTest in this module renders a real study, and the app writes as it
-    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
-    committed tree stays the read-only input the suite says it is."""
+# Every AppTest here renders a real study and the app writes as it renders, so
+# render a per-test copy (conftest ``app_tree``); the committed tree stays read-only.
+pytestmark = pytest.mark.usefixtures("app_tree")
 
 
 def test_all_verdicts_returns_nine_complete_calls() -> None:
@@ -68,6 +66,7 @@ def test_exclude_note_flips_the_export_at_composition(monkeypatch) -> None:
     assert base_c9 != excl_c9 and "TRUE" in excl_c9.upper()
 
 
+@pytest.mark.req("ARCH-8.2-01", "CLAUDE-MEM-01", "UI-5.1-01")
 def test_celltype_override_reflects_at_composition(monkeypatch) -> None:
     """A confirmed celltype_override overlays the new call + lineage/category at
     composition (literature dissent never flips verify: rubric only), never mutating the

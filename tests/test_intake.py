@@ -54,11 +54,6 @@ def _store(root: Path, sid: str, **manifest) -> Study:
 
 
 @pytest.fixture
-def demo(demo_id: str, datasets_root: Path) -> Study:
-    return Study.open(demo_id, data_root=datasets_root.parent).require()
-
-
-@pytest.fixture
 def multi_sample(tmp_path: Path) -> Study:
     """Three samples, no declared mode: §6.3's fourth blocker, which is the kidney
     study's shape."""
@@ -87,6 +82,7 @@ def test_the_demo_study_asks_nothing_and_resolves(demo: Study) -> None:
 
 
 @pytest.mark.parametrize("damage", ["absent", "controls_only"])
+@pytest.mark.req("ARCH-6.3-02", "PLAN-P1.2-01")
 def test_a_study_with_no_measured_set_is_blocked_not_ticked(tmp_path, demo, damage):
     """§6.3's structural blocker has to be able to fire.
 
@@ -133,6 +129,7 @@ def test_a_study_with_no_measured_set_is_blocked_not_ticked(tmp_path, demo, dama
     assert MEASURED_SET not in healthy.missing
 
 
+@pytest.mark.req("ARCH-6.2-01")
 def test_everything_derived_is_read_never_inferred(demo: Study) -> None:
     """Step 1 may only write ``READ``: nobody has proposed or confirmed anything yet.
 
@@ -166,6 +163,7 @@ def test_the_checklist_shows_three_columns_and_nothing_else(demo: Study) -> None
     assert "BLOCKING" not in rendered, "a complete study must not show a blocking header"
 
 
+@pytest.mark.req("ARCH-5.1-01")
 def test_the_measured_set_line_is_derived_from_the_files(demo: Study) -> None:
     """Panel size is dynamic across studies; the checklist counts, never asserts.
 
@@ -235,6 +233,7 @@ def test_resolve_names_every_gap_at_once(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # §6.3's fourth blocker: a checklist item, not a traceback
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-5.3-01")
 def test_an_undeclared_clustering_mode_is_an_item_not_a_crash(multi_sample: Study) -> None:
     """The adapter raises; intake renders. A traceback is not a checklist.
 
@@ -279,6 +278,7 @@ def test_a_single_sample_study_is_not_asked(demo: Study) -> None:
 # --------------------------------------------------------------------------- #
 # A model guess is not a condition
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-6.2-02")
 def test_a_proposal_cannot_be_stored_as_a_condition(demo: Study) -> None:
     """``INFERRED`` means proposed AND confirmed. An unconfirmed guess is not a
     weaker condition -- it is not in the object at all.
@@ -298,6 +298,7 @@ def test_a_proposal_cannot_be_stored_as_a_condition(demo: Study) -> None:
         draft.confirm("UBERON:0000310")  # type: ignore[arg-type]
 
 
+@pytest.mark.req("ARCH-6.2-02")
 def test_confirmation_is_the_only_route_to_inferred() -> None:
     """One source line writes ``INFERRED``, and it is reached only through ``confirm``.
 
@@ -322,6 +323,7 @@ def test_a_confirmed_proposal_is_inferred_and_a_stated_one_is_not(demo: Study) -
 # Blocking means blocking; declared unknown names itself
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("field", BLOCKS_THE_STUDY)
+@pytest.mark.req("ARCH-6.3-02")
 def test_a_blocking_field_cannot_be_declared_unknown(demo: Study, field: str) -> None:
     """The decision §6.3 records, against the alternative of propagating it.
 
@@ -332,6 +334,7 @@ def test_a_blocking_field_cannot_be_declared_unknown(demo: Study, field: str) ->
         derive(ADAPTER, demo).declare_unknown(field)
 
 
+@pytest.mark.req("ARCH-5.3-01")
 def test_an_undeclared_clustering_mode_cannot_be_declared_unknown(
         multi_sample: Study) -> None:
     """The conditional blocker blocks the same way the unconditional ones do."""
@@ -340,6 +343,7 @@ def test_an_undeclared_clustering_mode_cannot_be_declared_unknown(
 
 
 @pytest.mark.parametrize("field", DECLARED_UNKNOWN_OK)
+@pytest.mark.req("ARCH-6.2-03")
 def test_a_declared_unknown_propagates_and_names_itself(demo: Study, field: str) -> None:
     """"segmentation unknown" is actionable; "insufficient information" is not."""
     draft = derive(ADAPTER, demo).declare_unknown(field)
@@ -393,6 +397,7 @@ def test_every_blocking_item_says_what_it_costs(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # Disease state and §6.4 background
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-6.3-03")
 def test_an_unknown_disease_state_resolves_and_treatment_takes_no_guess(demo: Study) -> None:
     """Undeclared disease state is the starting state; "unknown" is not a treatment value."""
     draft = derive(ADAPTER, demo)
@@ -402,6 +407,7 @@ def test_an_unknown_disease_state_resolves_and_treatment_takes_no_guess(demo: St
         draft.stated("disease_treatment", "unknown")
 
 
+@pytest.mark.req("ARCH-6.3-02", "CORP-A5")
 def test_an_unknown_tissue_blocks(tmp_path: Path) -> None:
     draft = derive(ADAPTER, _store(tmp_path, "no_tissue", platform="Xenium"))
     assert "tissue" in draft.missing
@@ -409,6 +415,7 @@ def test_an_unknown_tissue_blocks(tmp_path: Path) -> None:
         draft.resolve()
 
 
+@pytest.mark.req("PLAN-P1.2-02")
 def test_background_persists_with_provenance_and_papers_are_identifiers(
         tmp_path: Path) -> None:
     draft = derive(ADAPTER, _store(tmp_path, "s", platform="Xenium", tissue="t"))
@@ -422,6 +429,7 @@ def test_background_persists_with_provenance_and_papers_are_identifiers(
         draft.stated("papers_of_interest", "Smith et al. 2020, Nature")
 
 
+@pytest.mark.req("CORP-B3")
 def test_expected_cell_types_never_enter_the_label_space(tmp_path: Path) -> None:
     """A prior to test, not an input: it is in neither the frames nor the conditions."""
     stated = derive(ADAPTER, _store(tmp_path, "s0", platform="Xenium", tissue="t")
@@ -437,6 +445,7 @@ def test_expected_cell_types_never_enter_the_label_space(tmp_path: Path) -> None
     assert "Zeta cell" not in repr(draft.resolve())
 
 
+@pytest.mark.req("ARCH-6.2-01")
 def test_a_stated_answer_reads_back_stated_and_a_plain_key_still_reads_read(tmp_path: Path) -> None:
     """The manifest's ``stated`` list carries provenance; plain keys stay READ."""
     store = _store(tmp_path, "st", platform="Xenium", tissue="human kidney",

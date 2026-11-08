@@ -47,6 +47,7 @@ def _both_studies_present():
             pytest.skip(f"study {sid!r} is not on disk")
 
 
+@pytest.mark.req("ARCH-4-03")
 def test_both_studies_open_in_one_process():
     a, b = Study.open(DEMO), Study.open(MINI)
     assert len(a.units) == 9, a.units
@@ -72,6 +73,7 @@ def test_unit_order_follows_the_active_study():
     assert cfg.DATASET_ID == DEMO
 
 
+@pytest.mark.req("ARCH-4-03")
 def test_no_breast_marker_leak_into_another_study():
     """The most consequential leak: wrong-tissue curated knowledge moving a band.
 

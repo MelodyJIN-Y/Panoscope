@@ -100,6 +100,7 @@ def test_c2_offpanel_genes_never_carry_a_number():
 # --------------------------------------------------------------------------- #
 # THE GUARANTEE — every c1..c9 opening fallback passes the grounding floor
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-11.1-01")
 def test_every_opening_fallback_passes_grounding(checker):
     for cluster in cfg.CLUSTER_ORDER:
         resp = F.fallback_opening(cluster)
@@ -198,6 +199,7 @@ def test_offpanel_intent_on_cluster_without_notes_returns_none():
 # --------------------------------------------------------------------------- #
 # Generic fallback — always returns a grounded response for any cluster
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-11.1-01")
 def test_generic_fallback_grounded_for_every_cluster(checker):
     for cluster in cfg.CLUSTER_ORDER:
         resp = F.generic_fallback(cluster)
@@ -334,6 +336,7 @@ def test_a_rival_named_the_natural_way_is_actually_read():
     assert F._contrasted_rival("it is not the one") is None
 
 
+@pytest.mark.req("CORP-A20")
 def test_an_unrecognised_rival_is_declined_by_name_not_mistaken_for_the_call():
     """The honest answer exists in ``discriminate``; it just was not reachable.
 
@@ -369,6 +372,7 @@ def test_verify_is_never_read_off_the_models_prose():
     assert "_text_asks_verify" not in called, "the model's prose is back on the verify path"
 
 
+@pytest.mark.req("CLAUDE-HR-05")
 def test_verify_is_the_same_whatever_the_model_wrote():
     """The BEHAVIOURAL half of the rule above, which the name scan cannot cover.
 

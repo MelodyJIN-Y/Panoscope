@@ -481,6 +481,7 @@ def test_nothing_in_an_overridden_section_argues_the_replaced_call() -> None:
     )
 
 
+@pytest.mark.req("ARCH-11.1-02")
 def test_the_generator_line_describes_the_artifacts_not_the_shell(monkeypatch) -> None:
     """§14 provenance must not be a function of the exporting environment.
 
@@ -544,6 +545,7 @@ def test_an_overridden_call_does_not_inherit_the_old_calls_cited_biology() -> No
     assert R._celltype_note_for(legacy, NS(cluster="c3", cell_type="Dendritic"))
 
 
+@pytest.mark.req("ARCH-11.1-02")
 def test_the_header_carries_the_provenance_section_14_asks_for() -> None:
     """ARCHITECTURE §14: "header: study, dataset, platform, frames + hashes,
     reference releases, corpus version + staleness, generator model + version +

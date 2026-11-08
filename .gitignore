@@ -117,3 +117,8 @@ handoff/
 # Demo video source clips (~1.1 GB of .mov; one file is 94 MB, over GitHub's
 # 100 MB limit). The shipped demo is the YouTube embed + assets/demo_thumbnail.jpg.
 assets/Panoscope demo/
+
+# Hypothesis example database (the default profile writes none; a local run may)
+.hypothesis/
+# Requirements traceability report (pytest --trace-report); derived, never committed
+traceability.md

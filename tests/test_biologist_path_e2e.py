@@ -9,6 +9,8 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 import panoscope
 from panoscope.data.study import Study
 
@@ -47,6 +49,7 @@ def _docx_text(data: bytes) -> str:
                      + [c.text for t in doc.tables for r in t.rows for c in r.cells])
 
 
+@pytest.mark.req("ARCH-6.3-04", "PLAN-P4C-01", "UI-5.2-01", "UI-5.5-02")
 def test_a_labelless_folder_is_built_reviewed_called_and_exported(tmp_path, monkeypatch) -> None:
     from streamlit.testing.v1 import AppTest
 

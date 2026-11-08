@@ -1,0 +1,1859 @@
+# Spec requirements, one row each. Built / gap is NOT stored here: it is derived from
+# the tests (`@pytest.mark.req(id)` vs `@pytest.mark.req(id, gap=True)`).
+# `status` only for what no test can show: "decision" | "deferred" | "refused", with `reason`.
+# `aliases` are the read-only audit trace ids (trace_arch.json / trace_impl_ui.json).
+# Generated once from the audit matrices; edit by hand from here on.
+
+[[req]]
+id      = "CLAUDE-MS-01"
+source  = "CLAUDE.md Measurement status; ARCH 9.5"
+text    = "Four measurement states exist and are distinguishable (NEVER_MEASURED, UNDERPOWERED, TESTED_ABSENT, OBSERVED)"
+aliases = ["A01"]
+
+[[req]]
+id      = "CLAUDE-MS-02"
+source  = "CLAUDE.md Measurement status; ARCH 9.5"
+text    = "Only TESTED_ABSENT absence counts as evidence; NEVER_MEASURED and UNDERPOWERED absence is not evidence"
+aliases = ["A02"]
+
+[[req]]
+id      = "CLAUDE-MS-03"
+source  = "CLAUDE.md Measurement status | IMPLEMENTATION.md §2.2 / CLAUDE.md"
+text    = "statistic is None iff state is not OBSERVED (UNDERPOWERED withholds number); enforced at construction"
+aliases = ["A03", "IMPL-05"]
+
+[[req]]
+id      = "CLAUDE-MS-04"
+source  = "CLAUDE.md Measurement status"
+text    = "Number-carrying derived from Measured.carries_number, never a re-listed set of states"
+aliases = ["A04"]
+
+[[req]]
+id      = "ARCH-9.5-01"
+source  = "ARCH 9.5 | IMPLEMENTATION.md §2.2"
+text    = "Composite subject state is the meet over required roles and names the blocking constituents"
+aliases = ["A05", "IMPL-03"]
+
+[[req]]
+id      = "ARCH-9.5-02"
+source  = "ARCH 9.5 | IMPLEMENTATION.md §2.2"
+text    = "Coverage (K of N vs floor) demotes a testable subject to UNDERPOWERED and never promotes"
+aliases = ["A06", "IMPL-04"]
+
+[[req]]
+id      = "ARCH-9.5-03"
+source  = "ARCH 9.5; CLAUDE.md"
+text    = "One capability frame per entity kind; an undeclared frame reads NEVER_MEASURED"
+aliases = ["A07"]
+
+[[req]]
+id      = "ARCH-9.5-04"
+source  = "ARCH 9.5 / 7.5; CLAUDE.md Data | IMPLEMENTATION.md §2.2"
+text    = "Detectability is a second gene frame: on-panel gene with no usable signal is not admitted (49/280 demo)"
+aliases = ["A08", "IMPL-07"]
+
+[[req]]
+id      = "ARCH-6.3-01"
+source  = "ARCH 6.3; 9.5"
+text    = "Cell-type frame is the annotation label set; an uncalled cluster is not a cell type tested absent"
+aliases = ["A09"]
+
+[[req]]
+id      = "ARCH-9.5-05"
+source  = "ARCH 9.5 table"
+text    = "Ligand-receptor / co-localisation / niche composites: one partner off-frame => NEVER_MEASURED with partner named"
+aliases = ["A10"]
+
+[[req]]
+id      = "ARCH-9.5-06"
+source  = "ARCH 9.5 table"
+text    = "Differential abundance with n=2 is UNDERPOWERED at the UNIT level, not item"
+aliases = ["A11"]
+
+[[req]]
+id      = "CLAUDE-HR-01"
+source  = "CLAUDE.md Hard rules (panel-absence) | docs/interface-design.md §2.9 / R6 and CLAUDE.md"
+text    = "Absence of an out-of-frame entity is never used as evidence against anything (incl. in generated prose)"
+aliases = ["A12", "UI-72"]
+
+[[req]]
+id      = "CLAUDE-HR-02"
+source  = "CLAUDE.md Hard rules | skills/marker-interpretation/SKILL.md 3b"
+text    = "Measured absence IS evidence: a measured marker peaking elsewhere argues against a rival"
+aliases = ["A13", "SKM-02"]
+
+[[req]]
+id      = "CLAUDE-CP-01"
+source  = "CLAUDE.md Core principle (confident floor)"
+text    = "Every marker, number and citation in an answer traces to method output, frame, or stored claim; else fallback (fails closed)"
+aliases = ["A14"]
+
+[[req]]
+id      = "ARCH-11-01"
+source  = "ARCH 11 Grounding gate"
+text    = "A cited claim must have been in the packed context for that turn, not merely exist"
+aliases = ["A15"]
+
+[[req]]
+id      = "CLAUDE-HR-03"
+source  = "CLAUDE.md Hard rules; ARCH 11"
+text    = "Citations real, looked up from a real source, never from memory; fabricated PMID fails"
+aliases = ["A16"]
+
+[[req]]
+id      = "CLAUDE-HR-04"
+source  = "CLAUDE.md Hard rules"
+text    = "If literature lookup returns nothing, say the literature is thin"
+aliases = ["A17"]
+
+[[req]]
+id      = "CLAUDE-HR-05"
+source  = "CLAUDE.md Hard rules; ARCH 11.1"
+text    = "verify comes from deterministic rubric; model never chooses it"
+aliases = ["A18"]
+
+[[req]]
+id      = "ARCH-8.2-01"
+source  = "ARCH 8.2; 11.1 | implementation_plan.md D1 | corpus_requirements_final.md A1 / C#17"
+text    = "Literature dissent never sets verify; shown as a display flag only"
+aliases = ["A19", "CORP-A1", "PLAN-24"]
+
+[[req]]
+id      = "CLAUDE-RD-01"
+source  = "CLAUDE.md Reference rule; ARCH 2.1"
+text    = "Reference data may select/order evidence and generate rivals but never supply a value, count as agreement, or corroborate"
+aliases = ["A20"]
+
+[[req]]
+id      = "ARCH-2.2-01"
+source  = "ARCH 2.2; CLAUDE.md knowledge apparatus"
+text    = "Band is a function of one method's output; every other layer only subtracts or flags (only promote = second statistic from same measurement)"
+aliases = ["A21"]
+
+[[req]]
+id      = "CLAUDE-TK-01"
+source  = "CLAUDE.md Task kinds; ARCH 9.1"
+text    = "Exactly three frozen TaskKinds; no fourth reserved member"
+aliases = ["A22"]
+
+[[req]]
+id      = "CLAUDE-TK-02"
+source  = "CLAUDE.md Task kinds; ARCH 9.1/15"
+text    = "No unit-level band on CHARACTERISATION or COMPARISON"
+aliases = ["A23"]
+
+[[req]]
+id      = "CLAUDE-TK-03"
+source  = "CLAUDE.md Task kinds; ARCH 9.1"
+text    = "Task kind belongs to the method, not the use"
+aliases = ["A24"]
+
+[[req]]
+id      = "CLAUDE-TK-04"
+source  = "CLAUDE.md Task kinds | IMPLEMENTATION.md §4"
+text    = "Characterisation/comparison header is per-item counts (e.g. '4 enriched, 3 untestable, top z on k/N panel genes')"
+aliases = ["A25", "IMPL-25"]
+
+[[req]]
+id      = "ARCH-4-01"
+source  = "ARCH 4 | IMPLEMENTATION.md §9"
+text    = "Contract tests are parameterised over every registered member (workflows, methods, adapters, sources)"
+aliases = ["A26", "IMPL-51"]
+
+[[req]]
+id      = "CLAUDE-ST-01"
+source  = "CLAUDE.md Structure; ARCH 4.1/9.4 | IMPLEMENTATION.md §3 invariant"
+text    = "Every method declares does_not_measure and assumptions (mandatory, non-empty)"
+aliases = ["A27", "IMPL-23"]
+
+[[req]]
+id      = "ARCH-4-02"
+source  = "ARCH 4 / CLAUDE.md"
+text    = "A method cannot register into an undeclared workflow; duplicates raise; unknown names raise"
+aliases = ["A28"]
+
+[[req]]
+id      = "CLAUDE-ST-02"
+source  = "CLAUDE.md Structure"
+text    = "Each workflow has skills/<workflow>/SKILL.md: marker, enrichment, de-interpretation"
+aliases = ["A29"]
+
+[[req]]
+id      = "ARCH-9.4-01"
+source  = "ARCH 9.4 | IMPLEMENTATION.md §3 invariant"
+text    = "Rubric divergence invariant: spatial rubric and mean-expression rubric give different bands on high-FC/low-localisation case"
+aliases = ["A30", "IMPL-22"]
+
+[[req]]
+id      = "ARCH-9.2-01"
+source  = "ARCH 9.2 | IMPLEMENTATION.md §3"
+text    = "Unit read from result schema; unrecognised shape fails loudly"
+aliases = ["A31", "IMPL-21"]
+
+[[req]]
+id      = "ARCH-4.2-01"
+source  = "ARCH 4.2"
+text    = "Reference sources pluggable; a lab can register a tissue-specific source with its own conditions and licence"
+aliases = ["A32"]
+
+[[req]]
+id      = "ARCH-5.1-01"
+source  = "ARCH 5.1"
+text    = "Measured set is var_names / panel file; panel size derived from file, never constant"
+aliases = ["A33"]
+
+[[req]]
+id      = "ARCH-5.1-02"
+source  = "ARCH 5.1"
+text    = "SpatialData .zarr reader behind panoscope[spatial], validated against tidy adapter"
+aliases = ["A34"]
+
+[[req]]
+id      = "ARCH-5.2-01"
+source  = "ARCH 5.2"
+text    = "Method results never recomputed; evidence never rewritten"
+aliases = ["A35"]
+
+[[req]]
+id      = "ARCH-5.2-02"
+source  = "ARCH 5.2"
+text    = "Export exception: confirmed calls written back as obs column on export, never into the store"
+aliases = ["A36"]
+
+[[req]]
+id      = "ARCH-5.3-01"
+source  = "ARCH 5.3; 15 | IMPLEMENTATION.md §3"
+text    = "Clustering mode must be declared when multi-sample; undeclared is a validation failure; pooling across independent clustering refused"
+aliases = ["A37", "IMPL-18"]
+
+[[req]]
+id      = "ARCH-5.3-02"
+source  = "ARCH 5.3"
+text    = "Scope hierarchy sample<dataset<study<lab; transfer check not invoked for sample, fires for study, hard for lab"
+aliases = ["A38"]
+
+[[req]]
+id      = "ARCH-5.3-03"
+source  = "ARCH 5.3; 15"
+text    = "Never carry a call across datasets by label match"
+aliases = ["A39"]
+
+[[req]]
+id      = "ARCH-6.2-01"
+source  = "ARCH 6.2; CLAUDE.md Study intake"
+text    = "Every Conditions field carries provenance stated/read/inferred/unknown"
+aliases = ["A40"]
+
+[[req]]
+id      = "ARCH-6.2-02"
+source  = "ARCH 6.2"
+text    = "inferred only via biologist confirming a model proposal; a proposal cannot be stored as a condition"
+aliases = ["A41"]
+
+[[req]]
+id      = "ARCH-6.2-03"
+source  = "ARCH 6.2/6.3"
+text    = "unknown is first-class and propagates; a check reading unknown returns cannot-be-settled naming the field"
+aliases = ["A42"]
+
+[[req]]
+id      = "ARCH-6.3-02"
+source  = "ARCH 6.3; CLAUDE.md"
+text    = "Blocks: measured set, clustering mode (multi-sample), tissue, platform; fixation/segmentation/disease may be declared unknown"
+aliases = ["A43"]
+
+[[req]]
+id      = "ARCH-6.3-03"
+source  = "ARCH 6.3 | IMPLEMENTATION.md §2.7"
+text    = "Disease state = value + subtype/treatment/stage qualifiers each with provenance; none guessed"
+aliases = ["A44", "IMPL-15"]
+
+[[req]]
+id      = "ARCH-6.3-04"
+source  = "ARCH 6.3 | IMPLEMENTATION.md §2.2 (Phase 0 amendment)"
+text    = "Missing annotation label set is the starting state, not a blocker; review opens on annotation"
+aliases = ["A45", "IMPL-08"]
+
+[[req]]
+id      = "ARCH-6.4-01"
+source  = "ARCH 6.4; CLAUDE.md"
+text    = "Intake reads everything derivable first (zero questions for on-disk facts), then checklist, then chat only on ticked/blocking; stop early"
+aliases = ["A46"]
+
+[[req]]
+id      = "ARCH-6.4-02"
+source  = "ARCH 6.4"
+text    = "Expected cell types stored as a claim to test, never entering label or rival space; may widen literature scope only alongside reference view"
+aliases = ["A47"]
+
+[[req]]
+id      = "ARCH-6.4-03"
+source  = "ARCH 6.4"
+text    = "Lab conventions/caveats stored as lab-scoped claims at setup"
+aliases = ["A48"]
+
+[[req]]
+id      = "ARCH-6.5-01"
+source  = "ARCH 6.5"
+text    = "Skill path: grounding checker shipped as executable in skill folder; study artifact carries its verdicts + provider/route/model/queried_at"
+aliases = ["A49"]
+
+[[req]]
+id      = "ARCH-7-01"
+source  = "ARCH 7"
+text    = "Reference data resolves, does not retrieve; no fetch at question time"
+aliases = ["A50"]
+
+[[req]]
+id      = "ARCH-7.3-01"
+source  = "ARCH 7.3 | implementation_plan.md P2.3"
+text    = "Missing reference node reads 'not in reference data', never 'does not exist'"
+aliases = ["A51", "PLAN-10"]
+
+[[req]]
+id      = "ARCH-7.5-01"
+source  = "ARCH 7.5"
+text    = "evaluability applies to every claim class; transfer_check only to manifest-sourced claims; curated/literature get provenance stamp"
+aliases = ["A52"]
+
+[[req]]
+id      = "ARCH-7.5-02"
+source  = "ARCH 7.5; 10.3"
+text    = "Transfer returns named condition deltas, not a label; both functions pure, IO-free, clock-free"
+aliases = ["A53"]
+
+[[req]]
+id      = "ARCH-7.5-03"
+source  = "ARCH 7.5; 15; CLAUDE.md"
+text    = "Never report '% conditional' as a result; class-level constants rendered once as a banner"
+aliases = ["A54"]
+
+[[req]]
+id      = "ARCH-7.5-04"
+source  = "ARCH 7.5; 20.5"
+text    = "Demotion floor: show band stability as claim store grows (10/100/1000) or adopt one-demotion-per-condition-class"
+aliases = ["A55"]
+
+[[req]]
+id      = "ARCH-10.3-01"
+source  = "ARCH 10.3"
+text    = "Blocked claim is surfaced with its reason, never silently dropped"
+aliases = ["A56"]
+
+[[req]]
+id      = "ARCH-8.1-01"
+source  = "ARCH 8.1"
+text    = "Corpus join key is (gene, cell type, tissue) triple"
+aliases = ["A57"]
+
+[[req]]
+id      = "ARCH-8.1-02"
+source  = "ARCH 8.1 | implementation_plan.md P3.2 / D2"
+text    = "Scope = reference walk + each cluster's top ~10 markers; top-up writes a new corpus version"
+aliases = ["A58", "PLAN-15"]
+
+[[req]]
+id      = "ARCH-8.1-03"
+source  = "ARCH 8.1"
+text    = "Narrow window first W0..W5 per triple; widening labelled, never silent; W0* when disease undeclared"
+aliases = ["A59"]
+
+[[req]]
+id      = "ARCH-8.1-04"
+source  = "ARCH 8.1/15 | skills/corpus-building/SKILL.md rule 5 / B #33"
+text    = "Never ranked by citation count"
+aliases = ["A60", "SKC-03"]
+
+[[req]]
+id      = "ARCH-8.2-02"
+source  = "ARCH 8.2"
+text    = "Attached paper context displayed with tissue/modality mismatch visible (literature != validation)"
+aliases = ["A61"]
+
+[[req]]
+id      = "ARCH-8.3-01"
+source  = "ARCH 8.3"
+text    = "Corpus versioned (build date, tissue, model, query log, ref releases); stale corpus flagged in report header"
+aliases = ["A62"]
+
+[[req]]
+id      = "ARCH-18-01"
+source  = "ARCH 18 | corpus_requirements_final.md A13 / C#31"
+text    = "Corpus build resumable/checkpointed; rate limits back off rather than abort"
+aliases = ["A63", "CORP-A13"]
+
+[[req]]
+id      = "ARCH-9.6-01"
+source  = "ARCH 9.6"
+text    = "Rival test per task kind; comparison rivals come from the data; honest failure names what cannot be settled"
+aliases = ["A64"]
+
+[[req]]
+id      = "ARCH-9.7.1-01"
+source  = "ARCH 9.7.1"
+text    = "DE panel scoping: state K of N tested and name canonical genes never measured"
+aliases = ["A65"]
+
+[[req]]
+id      = "ARCH-9.7.2-01"
+source  = "ARCH 9.7.2"
+text    = "DE replicate confound: single replicate returns cannot-be-settled"
+aliases = ["A66"]
+
+[[req]]
+id      = "ARCH-9.7.3-01"
+source  = "ARCH 9.7.3"
+text    = "DE composition vs expression from cluster abundances"
+aliases = ["A67"]
+
+[[req]]
+id      = "ARCH-9.7.4-01"
+source  = "ARCH 9.7.4; 13.6"
+text    = "Cross-method coherence (FC vs spatial coef) and a cross-method plot"
+aliases = ["A68"]
+
+[[req]]
+id      = "ARCH-9.8-01"
+source  = "ARCH 9.8"
+text    = "Named failure modes computed (incoherent, region, bleed, mixed profile)"
+aliases = ["A69"]
+
+[[req]]
+id      = "ARCH-9.9-01"
+source  = "ARCH 9.9"
+text    = "Adjacency check: bleed candidate vs specificity problem; display flag only, not band input"
+aliases = ["A70"]
+
+[[req]]
+id      = "ARCH-9.10-01"
+source  = "ARCH 9.10"
+text    = "Replicate concordance under joint clustering; agreement never raises confidence; independent clustering raises"
+aliases = ["A71"]
+
+[[req]]
+id      = "ARCH-9.11-01"
+source  = "ARCH 9.11 | IMPLEMENTATION.md §6"
+text    = "Different-question reconciliation yields coherent/tension/not-comparable, never agree; derived results are not corroboration; reconciliation never raises confidence"
+aliases = ["A72", "IMPL-28"]
+
+[[req]]
+id      = "ARCH-9.11-02"
+source  = "ARCH 9.11"
+text    = "Output four buckets: checkable, agreed, disagreed unexpectedly, not checkable with results provided"
+aliases = ["A73"]
+
+[[req]]
+id      = "ARCH-9.12-01"
+source  = "ARCH 9.12"
+text    = "Downstream propagation: a flagged call carries its flag into every dependent result ('4 downstream results depend on a call I flagged')"
+aliases = ["A74"]
+
+[[req]]
+id      = "ARCH-10.1-01"
+source  = "ARCH 10.1"
+text    = "Claim carries subject, assertion, authority, source, conditions, depends_on, scope, valid, created/author/tension/licence/spans/spec_version"
+aliases = ["A75"]
+
+[[req]]
+id      = "ARCH-10.2-01"
+source  = "ARCH 10.2; CLAUDE.md Memory"
+text    = "Authority order measurement>lab>curated>literature; never merged; conflicts grouped not resolved; no recency resolution"
+aliases = ["A76"]
+
+[[req]]
+id      = "ARCH-10.2-02"
+source  = "ARCH 10.2; 13.5"
+text    = "Authority label visible in storage, prompt, UI and report"
+aliases = ["A77"]
+
+[[req]]
+id      = "ARCH-10.4-01"
+source  = "ARCH 10.4"
+text    = "Scope filters before retrieval; out-of-scope use raises"
+aliases = ["A78"]
+
+[[req]]
+id      = "ARCH-10.4-02"
+source  = "ARCH 10.4"
+text    = "Retrieval: traversal depth<=2, hybrid BM25+dense RRF, relevance floor ('no support found'), pack under budget, per-turn log"
+aliases = ["A79"]
+
+[[req]]
+id      = "ARCH-10.5-01"
+source  = "ARCH 10.5; CLAUDE.md Memory"
+text    = "Only biologist commits lab claims; agent may only propose; engine writes measurement claims"
+aliases = ["A80"]
+
+[[req]]
+id      = "ARCH-10.5-02"
+source  = "ARCH 10.5"
+text    = "No LLM dedupe, background consolidation or auto-editing; contradicted lab claims flagged, never auto-invalidated; supersession only by owner"
+aliases = ["A81"]
+
+[[req]]
+id      = "ARCH-10.6-01"
+source  = "ARCH 10.6"
+text    = "Lab claims one JSON file per claim in git; never rewritten"
+aliases = ["A82"]
+
+[[req]]
+id      = "ARCH-10.6-02"
+source  = "ARCH 10.6"
+text    = "Two append-only logs: usage and disagreement events"
+aliases = ["A83"]
+
+[[req]]
+id      = "CLAUDE-MEM-01"
+source  = "CLAUDE.md Memory | docs/interface-design.md §5.3 step 8 / CLAUDE.md memory"
+text    = "On override: use the call AND cross-check literature reporting agreement and dissent with real citations; keep call with tension visible; never bare 'got it' nor silent overrule"
+aliases = ["A84", "UI-62"]
+
+[[req]]
+id      = "CLAUDE-MEM-02"
+source  = "CLAUDE.md Memory | implementation_plan.md P4.3 / §5.3"
+text    = "Capture at override asks scope and basis in two taps, not a form"
+aliases = ["A85", "PLAN-22"]
+
+[[req]]
+id      = "CLAUDE-MEM-03"
+source  = "CLAUDE.md Memory; ARCH 13.8"
+text    = "The biologist decides, always; decision explicit and separate from figures; reopen possible"
+aliases = ["A86"]
+
+[[req]]
+id      = "ARCH-11-02"
+source  = "ARCH 11"
+text    = "Answer policy (strict/balanced/permissive) travels separately so same context can be replayed"
+aliases = ["A87"]
+
+[[req]]
+id      = "ARCH-11.1-01"
+source  = "ARCH 11.1"
+text    = "Fails safe: weaker generator yields fallback, never ungrounded output; fallback rate measurable"
+aliases = ["A88"]
+
+[[req]]
+id      = "ARCH-11.1-02"
+source  = "ARCH 11.1; 14"
+text    = "Report header carries generator model, version, access date, mode"
+aliases = ["A89"]
+
+[[req]]
+id      = "ARCH-11.2-01"
+source  = "ARCH 11.2; llm-access §5 P3"
+text    = "Tier A runs with no model: complete grounded citable answer per unit with no network"
+aliases = ["A90"]
+
+[[req]]
+id      = "ARCH-11.2-02"
+source  = "ARCH 11.2; llm-access §5 P0"
+text    = "Prompt caching mandatory (1h TTL elicitation, 5m autonomous) + usage receipt"
+aliases = ["A91"]
+
+[[req]]
+id      = "ARCH-11.2-03"
+source  = "ARCH 11.2; llm-access §5 P0/P1"
+text    = "Configurable client: ANTHROPIC_BASE_URL honoured + one OpenAI-compatible adapter behind PANOSCOPE_PROVIDER (anthropic|openai_compatible|vertex|bedrock|local)"
+aliases = ["A92"]
+
+[[req]]
+id      = "CLAUDE-CMP-01"
+source  = "CLAUDE.md Compliance; llm-access §1; ARCH 15"
+text    = "Never use consumer subscription auth; never collect/store/intermediate credentials"
+aliases = ["A93"]
+
+[[req]]
+id      = "LLM-5-01"
+source  = "llm-access §5 P1"
+text    = "Never ask a user to paste a cloud credential into .env; delegate to SDK default credential chain"
+aliases = ["A94"]
+
+[[req]]
+id      = "LLM-5-02"
+source  = "llm-access §5 'What not to do'"
+text    = "LiteLLM/OpenRouter not required dependencies"
+aliases = ["A95"]
+
+[[req]]
+id      = "LLM-3-01"
+source  = "llm-access §3"
+text    = "Skill install/run standalone, independent of app"
+aliases = ["A96"]
+
+[[req]]
+id      = "ARCH-12-01"
+source  = "ARCH 12; CLAUDE.md Compliance"
+text    = "Restrictively licensed sources fetched, never bundled; CI greps data/ for known marker-database filenames"
+aliases = ["A97"]
+
+[[req]]
+id      = "ARCH-12-02"
+source  = "ARCH 12"
+text    = "Source, version and licence per claim; --official-sources-only flag"
+aliases = ["A98"]
+
+[[req]]
+id      = "ARCH-13.1-01"
+source  = "ARCH 13.1"
+text    = "Fixed shell (unit rail, header, chat, claims drawer, report export); workflow-supplied panels"
+aliases = ["A99"]
+
+[[req]]
+id      = "ARCH-13.1-02"
+source  = "ARCH 13.1"
+text    = "Unregistered analysis type degrades gracefully to a generic surface that claims nothing"
+aliases = ["A100"]
+
+[[req]]
+id      = "ARCH-13.2-01"
+source  = "ARCH 13.2; CLAUDE.md Interface | docs/interface-design.md §2.4 R4"
+text    = "Every plot carries conditionality; a plot with no conditionality record refuses to draw; no plot routes around the gate"
+aliases = ["A101", "UI-11"]
+
+[[req]]
+id      = "ARCH-13.2-02"
+source  = "ARCH 13.2"
+text    = "Volcano says 'K of ~20,000 tested, panel-scoped'; enrichment bar K of N; hexbin bin size in µm + area-normalised; UMAP names embedding"
+aliases = ["A102"]
+
+[[req]]
+id      = "ARCH-13.3-01"
+source  = "ARCH 13.3; CLAUDE.md"
+text    = "Plots render, they do not derive any statistic not in evidence"
+aliases = ["A103"]
+
+[[req]]
+id      = "ARCH-13.4-01"
+source  = "ARCH 13.4; CLAUDE.md | docs/interface-design.md §2.3"
+text    = "Four states visibly distinct in evidence table; never-measured row named with reason, no number, not blank/zero"
+aliases = ["A104", "UI-04"]
+
+[[req]]
+id      = "ARCH-13.5-01"
+source  = "ARCH 13.5; CLAUDE.md | docs/interface-design.md §2.9 R6 / CLAUDE.md click-back"
+text    = "Click-back: every sentence resolves to its claim with authority and conditions; sentence with nothing to click not rendered"
+aliases = ["A105", "UI-28"]
+
+[[req]]
+id      = "ARCH-13.7-01"
+source  = "ARCH 13.7"
+text    = "Multi-sample: one primary plus asymmetric context strip, not equal small multiples"
+aliases = ["A106"]
+
+[[req]]
+id      = "CLAUDE-IF-01"
+source  = "CLAUDE.md Interface"
+text    = "Viewing controls (bin size, toggle, sample switcher) change the picture, never a value"
+aliases = ["A107"]
+
+[[req]]
+id      = "ARCH-13.8-01"
+source  = "ARCH 13.8"
+text    = "Argue then commit: commit records call with disagreement visible; argument preserved for report reader"
+aliases = ["A108"]
+
+[[req]]
+id      = "ARCH-17-01"
+source  = "ARCH 17"
+text    = "Interpretation record written by core at run time; factual layer deterministic (same inputs same bytes); generated layer separable and gated"
+aliases = ["A109"]
+
+[[req]]
+id      = "ARCH-17.1-01"
+source  = "ARCH 17.1"
+text    = "Record states how file was read: statistic/unit columns, unit detection evidence, dropped rows, out-of-frame entities, measured set size, clustering mode"
+aliases = ["A110"]
+
+[[req]]
+id      = "ARCH-18-02"
+source  = "ARCH 18; CLAUDE.md Grounding | IMPLEMENTATION.md §7 Phase A / CLAUDE.md"
+text    = "Golden-output test byte-stable"
+aliases = ["A111", "IMPL-41"]
+
+[[req]]
+id      = "ARCH-18-03"
+source  = "ARCH 18"
+text    = "spec_version on every artifact from day one"
+aliases = ["A112"]
+
+[[req]]
+id      = "ARCH-18-04"
+source  = "ARCH 18"
+text    = "panoscope explain, panoscope diff <run_a> <run_b>, panoscope doctor"
+aliases = ["A113"]
+
+[[req]]
+id      = "ARCH-18-05"
+source  = "ARCH 18"
+text    = "Structured logs with correlation id per turn"
+aliases = ["A114"]
+
+[[req]]
+id      = "ARCH-18-06"
+source  = "ARCH 18 | IMPLEMENTATION.md §9"
+text    = "Performance budgets declared and tested (retrieval <300ms, full run <5min, dataset load <10s)"
+aliases = ["A115", "IMPL-50"]
+
+[[req]]
+id      = "ARCH-18-07"
+source  = "ARCH 18"
+text    = "Per-intake cost receipt from provider usage figures"
+aliases = ["A116"]
+
+[[req]]
+id      = "ARCH-18-08"
+source  = "ARCH 18; CLAUDE.md"
+text    = "Property tests for stated universals (reconciliation never raises confidence)"
+aliases = ["A117"]
+
+[[req]]
+id      = "ARCH-4-03"
+source  = "ARCH 4 / 19 phase 4 | IMPLEMENTATION.md §7 Phase D gate"
+text    = "Two studies open in one process with no leakage"
+aliases = ["A118", "IMPL-43"]
+
+[[req]]
+id      = "ARCH-16.1-01"
+source  = "ARCH 16.1/16.4; CLAUDE.md"
+text    = "Seeded-error detection with FP rate on clean data; refusal rate reported next to accuracy"
+aliases = ["A119"]
+
+[[req]]
+id      = "ARCH-15-01"
+source  = "ARCH 15; CLAUDE.md"
+text    = "Refused: novelty verdict, SVG interpretation, ensemble voting, citation-count weighting"
+aliases = ["A120"]
+
+[[req]]
+id      = "IMPL-2.1-01"
+source  = "IMPLEMENTATION.md §2.1"
+text    = "subject() is the one constructor: validates against SHAPES and canonicalises symmetric roles"
+aliases = ["IMPL-01"]
+
+[[req]]
+id      = "IMPL-2.1-02"
+source  = "IMPLEMENTATION.md §2.1"
+text    = "Subject.key is injective over a shape"
+aliases = ["IMPL-02"]
+
+[[req]]
+id      = "IMPL-2.2-01"
+source  = "IMPLEMENTATION.md §2.2"
+text    = "Frame.digest is sha256 over sorted members, derived and asserted"
+aliases = ["IMPL-06"]
+
+[[req]]
+id      = "IMPL-0-01"
+source  = "IMPLEMENTATION.md §0 / §2.3"
+text    = "No dict fields on frozen contracts (corroborating, drop_reasons are sorted tuples)"
+aliases = ["IMPL-09"]
+
+[[req]]
+id      = "IMPL-2.3-01"
+source  = "IMPLEMENTATION.md §2.3"
+text    = "EvidenceItem.flags are registered ids, never prose; UI maps via a copy table"
+aliases = ["IMPL-10"]
+
+[[req]]
+id      = "IMPL-2.4-01"
+source  = "IMPLEMENTATION.md §2.4"
+text    = "Finding declares no band/confidence/confidence_score field"
+aliases = ["IMPL-11"]
+
+[[req]]
+id      = "IMPL-2.5-01"
+source  = "IMPLEMENTATION.md §2.5"
+text    = "Every core function returns Traced; no core function accepts a Trace"
+aliases = ["IMPL-12"]
+
+[[req]]
+id      = "IMPL-2.5-02"
+source  = "IMPLEMENTATION.md §2.5"
+text    = "Decision order is code order; no timestamps in because; one fixed-precision fmt_num"
+aliases = ["IMPL-13"]
+
+[[req]]
+id      = "IMPL-2.5-03"
+source  = "IMPLEMENTATION.md §2.5 / §9"
+text    = "Every decision rule is registered; an unregistered rule raises"
+aliases = ["IMPL-14"]
+
+[[req]]
+id      = "IMPL-2.7-01"
+source  = "IMPLEMENTATION.md §2.7"
+text    = "A LAB claim with no frame reference fails validation (unstorable)"
+aliases = ["IMPL-16"]
+
+[[req]]
+id      = "IMPL-2.7-02"
+source  = "IMPLEMENTATION.md §2.7"
+text    = "Claim.source is a URI of a known scheme; unresolvable source refused"
+aliases = ["IMPL-17"]
+
+[[req]]
+id      = "IMPL-3-01"
+source  = "IMPLEMENTATION.md §3"
+text    = "available_views derived from elements present (no points -> no density, never faked)"
+aliases = ["IMPL-19"]
+
+[[req]]
+id      = "IMPL-3-02"
+source  = "IMPLEMENTATION.md §3"
+text    = "Xenium frames: var_names minus negative controls; panel size never a constant"
+aliases = ["IMPL-20"]
+
+[[req]]
+id      = "IMPL-4-01"
+source  = "IMPLEMENTATION.md §4"
+text    = "Every PlotSpec has non-empty conditionality and its fields resolve to NormalisedEvidence fields"
+aliases = ["IMPL-24"]
+
+[[req]]
+id      = "IMPL-5-01"
+source  = "IMPLEMENTATION.md §5"
+text    = "Transfer: scope gate first, then evaluability, then deltas; pure; blocked surfaced; off-panel never penalises; unknown never silently applies; no verdict for database-curated"
+aliases = ["IMPL-26"]
+
+[[req]]
+id      = "IMPL-6-01"
+source  = "IMPLEMENTATION.md §6"
+text    = "Reconciled band never exceeds single-method band (PROPERTY test over random inputs)"
+aliases = ["IMPL-27"]
+
+[[req]]
+id      = "IMPL-6.1-01"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Corpus import: a schema error anywhere refuses the whole file with line-numbered errors and writes nothing"
+aliases = ["IMPL-29"]
+
+[[req]]
+id      = "IMPL-6.1-02"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Every imported id is resolved by code against Europe PMC; unresolved ids rejected, never kept"
+aliases = ["IMPL-30"]
+
+[[req]]
+id      = "IMPL-6.1-03"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "A retracted paper is closed RETRACTED with its statements rejected, whatever the client said"
+aliases = ["IMPL-31"]
+
+[[req]]
+id      = "IMPL-6.1-04"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Full text fetched only for cited papers; quoting unfetchable full text rejected as 'full text unavailable'"
+aliases = ["IMPL-32"]
+
+[[req]]
+id      = "IMPL-6.1-05"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Spans verified verbatim (read.verified), settings via read.verified_setting; mismatches rejected and listed"
+aliases = ["IMPL-33"]
+
+[[req]]
+id      = "IMPL-6.1-06"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Client rung, stance, species, grade ignored and recomputed"
+aliases = ["IMPL-34"]
+
+[[req]]
+id      = "IMPL-6.1-07"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Client OK with retrieved<total reads TRUNCATED; key complete only with OK vocab+C1+C3+C4 (+C0 when confirmed); complete-with-no-statements reads 'incomplete search', never thin"
+aliases = ["IMPL-35"]
+
+[[req]]
+id      = "IMPL-6.1-08"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "A brief_hash that is not the study's current one is warned and recorded in the query log"
+aliases = ["IMPL-36"]
+
+[[req]]
+id      = "IMPL-6.1-09"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Imported CorpusVersion stamped '<model> (<provider>) in <client>, built in user client, run <date>'"
+aliases = ["IMPL-37"]
+
+[[req]]
+id      = "IMPL-6.1-10"
+source  = "IMPLEMENTATION.md §6.1 / A12"
+text    = "Every version copied to versions/<hash>.sqlite, never overwritten; hash covers statements, settings, ledger and query log"
+aliases = ["IMPL-38"]
+
+[[req]]
+id      = "IMPL-6.1-11"
+source  = "IMPLEMENTATION.md §6.1"
+text    = "Import prints a receipt: accepted/rejected with reasons, unresolved ids, rung distribution"
+aliases = ["IMPL-39"]
+
+[[req]]
+id      = "IMPL-7-01"
+source  = "IMPLEMENTATION.md §7 Phase A"
+text    = "Autouse conftest fixture clears every process-global lru_cache"
+aliases = ["IMPL-40"]
+
+[[req]]
+id      = "IMPL-7-02"
+source  = "IMPLEMENTATION.md §7 Phase A"
+text    = "Import-surface test plus no-import-time-IO test"
+aliases = ["IMPL-42"]
+
+[[req]]
+id      = "IMPL-8-01"
+source  = "IMPLEMENTATION.md §8"
+text    = "requires-python>=3.11, every dependency upper-bounded, lockfile shipped"
+aliases = ["IMPL-44"]
+
+[[req]]
+id      = "IMPL-8-02"
+source  = "IMPLEMENTATION.md §8"
+text    = "Wheel excludes the study store and CI asserts the wheel is under 5 MB"
+aliases = ["IMPL-45"]
+
+[[req]]
+id      = "IMPL-9-01"
+source  = "IMPLEMENTATION.md §9"
+text    = "test_record_not_generated in two forms: AST walk that no core/ module imports a generation client AND subprocess check the client is absent from sys.modules after importing core"
+aliases = ["IMPL-46"]
+
+[[req]]
+id      = "IMPL-9-02"
+source  = "IMPLEMENTATION.md §9"
+text    = "test_record_*: deterministic bytes, every band has decisions, prose gated"
+aliases = ["IMPL-47"]
+
+[[req]]
+id      = "IMPL-9-03"
+source  = "IMPLEMENTATION.md §9"
+text    = "test_corpus_*: relevance floor, alias retrieval, staleness surfaced"
+aliases = ["IMPL-48"]
+
+[[req]]
+id      = "IMPL-9-04"
+source  = "IMPLEMENTATION.md §9"
+text    = "test_reference_*: determinism, no bundled restricted data, missing node reads as unknown"
+aliases = ["IMPL-49"]
+
+[[req]]
+id      = "IMPL-10-01"
+source  = "IMPLEMENTATION.md §10"
+text    = "Enrichment unit-level confidence deleted; header is '7 supported · 3 suggestive · 12 untestable'"
+aliases = ["IMPL-52"]
+
+[[req]]
+id      = "IMPL-10-02"
+source  = "IMPLEMENTATION.md §10"
+text    = "v3 records land at interp/records/<task_kind>/<unit>.json; committed v1 JSONs never mutated"
+aliases = ["IMPL-53"]
+
+[[req]]
+id      = "IMPL-10-03"
+source  = "IMPLEMENTATION.md §10"
+text    = "Verdict CSV frozen at 11 columns in EXACT order; V1_DROPPED is an explicit allowlist"
+aliases = ["IMPL-54"]
+
+[[req]]
+id      = "UI-2.1-01"
+source  = "docs/interface-design.md §2.1 R1"
+text    = "One shell, three fillings: unit rail | evidence stage | argument pane, same across workflows"
+aliases = ["UI-01"]
+
+[[req]]
+id      = "UI-2.1-02"
+source  = "docs/interface-design.md §2.1 R2 / §3"
+text    = "Label+band header only for ASSIGNMENT; census/checklist otherwise; renderer refuses otherwise"
+aliases = ["UI-02"]
+
+[[req]]
+id      = "UI-2.3-01"
+source  = "docs/interface-design.md §2.3 R3"
+text    = "Status vocabulary redundantly encoded: glyph + texture + literal word"
+aliases = ["UI-03"]
+
+[[req]]
+id      = "UI-2.3-02"
+source  = "docs/interface-design.md §2.3"
+text    = "jazzPanda status mapping: own cluster detected; other cluster / NoSig not supporting; off panel never measured; QC-failed probe qc_failed"
+aliases = ["UI-05"]
+
+[[req]]
+id      = "UI-2.1-03"
+source  = "docs/interface-design.md §2.1 R8"
+text    = "Evidence table is three blocks with counts in headers; block header renders even at zero"
+aliases = ["UI-06"]
+
+[[req]]
+id      = "UI-2.3-03"
+source  = "docs/interface-design.md §2.3"
+text    = "Sorting happens within a block, never across"
+aliases = ["UI-07"]
+
+[[req]]
+id      = "UI-2.3-04"
+source  = "docs/interface-design.md §2.3 / §3 BlockSpec"
+text    = "A never-measured row is reachable by SEARCH (typing COL1A1/HYPOXIA lands on its row with its reason)"
+aliases = ["UI-08"]
+
+[[req]]
+id      = "UI-2.3-05"
+source  = "docs/interface-design.md §2.3"
+text    = "A never-measured row can never be scrolled or filtered away by a top-N"
+aliases = ["UI-09"]
+
+[[req]]
+id      = "UI-2.3-06"
+source  = "docs/interface-design.md §2.3"
+text    = "Coverage ribbon: one stacked bar with the four counts labelled, against the unit total"
+aliases = ["UI-10"]
+
+[[req]]
+id      = "UI-2.4-01"
+source  = "docs/interface-design.md §2.4"
+text    = "Conditionality caption is two lines and carries the panel denominator from the file"
+aliases = ["UI-12"]
+
+[[req]]
+id      = "UI-2.5-01"
+source  = "docs/interface-design.md §2.5"
+text    = "Assignment header names the runner-up and the item that separated them (require_runner_up)"
+aliases = ["UI-13"]
+
+[[req]]
+id      = "UI-2.5-02"
+source  = "docs/interface-design.md §2.5"
+text    = "Band chip opens a rubric card: band edges, this unit's position, band_basis, full demotions trail"
+aliases = ["UI-14"]
+
+[[req]]
+id      = "UI-2.5-03"
+source  = "docs/interface-design.md §2.5"
+text    = "Band-position micro-bar and specificity pair (pearson vs max_gc_corr) columns"
+aliases = ["UI-15"]
+
+[[req]]
+id      = "UI-2.5-04"
+source  = "docs/interface-design.md §2.5"
+text    = "Cell map states 'centroids, not segmentation boundaries'"
+aliases = ["UI-16"]
+
+[[req]]
+id      = "UI-2.5-05"
+source  = "docs/interface-design.md §2.5"
+text    = "Detail plots: discrimination lollipop; cross-unit marker x cluster matrix with hatched never-measured cells; shared-evidence graph; decision ledger export"
+aliases = ["UI-17"]
+
+[[req]]
+id      = "UI-2.6-01"
+source  = "docs/interface-design.md §2.6"
+text    = "Characterisation header: census with denominators, imported cell-type call attributed, gates stated, no band slot"
+aliases = ["UI-18"]
+
+[[req]]
+id      = "UI-2.6-02"
+source  = "docs/interface-design.md §2.6"
+text    = "K/N promoted from tooltip to a coverage-bar mark"
+aliases = ["UI-19"]
+
+[[req]]
+id      = "UI-2.6-03"
+source  = "docs/interface-design.md §2.6"
+text    = "Primary plot is the testability plane (coverage vs z with K>=3 gate line and untestable band), not a -log10 q bar chart"
+aliases = ["UI-20"]
+
+[[req]]
+id      = "UI-2.6-04"
+source  = "docs/interface-design.md §2.6"
+text    = "Cross-unit overview is a categorical tier matrix (glyph per cell, size = z), never a continuous heatmap, with per-row recurrence count"
+aliases = ["UI-21"]
+
+[[req]]
+id      = "UI-2.7-01"
+source  = "docs/interface-design.md §2.7"
+text    = "COMPARISON surface: rail lists contrasts with design; confound-checklist header (panel scoping, replication, composition, cross-method) each ok/flagged/not assessable"
+aliases = ["UI-22"]
+
+[[req]]
+id      = "UI-2.7-02"
+source  = "docs/interface-design.md §2.7"
+text    = "DE table has four blocks incl. MEASURED, NOT TESTABLE (zero-count filtered genes)"
+aliases = ["UI-23"]
+
+[[req]]
+id      = "UI-2.7-03"
+source  = "docs/interface-design.md §2.7"
+text    = "Volcano with a gutter for not-testable and never-measured genes; replicate strip; paired arm maps on locked scale; never a difference map; composition bar"
+aliases = ["UI-24"]
+
+[[req]]
+id      = "UI-2.8-01"
+source  = "docs/interface-design.md §2.8"
+text    = "Density bin control attaches to the conditionality line so changing the bin changes the string"
+aliases = ["UI-25"]
+
+[[req]]
+id      = "UI-2.8-02"
+source  = "docs/interface-design.md §2.8"
+text    = "Scale lock: shared zmax across small multiples, line reads 'shared scale, max X from GENE' or 'independent scale - panels are NOT comparable'"
+aliases = ["UI-26"]
+
+[[req]]
+id      = "UI-2.8-03"
+source  = "docs/interface-design.md §2.8"
+text    = "Cell map states the downsample; UMAP carries 'a layout, not a measurement'"
+aliases = ["UI-27"]
+
+[[req]]
+id      = "UI-2.9-01"
+source  = "docs/interface-design.md §2.9"
+text    = "Five authorities with an authority spine (one gutter mark per sentence); inference requires non-empty premises"
+aliases = ["UI-29"]
+
+[[req]]
+id      = "UI-2.9-02"
+source  = "docs/interface-design.md §2.9"
+text    = "Lab authority must render its attached Tension whenever used"
+aliases = ["UI-30"]
+
+[[req]]
+id      = "UI-2.9-03"
+source  = "docs/interface-design.md §2.9"
+text    = "Literature resolves to a Citation with is_real=True and fetched_at"
+aliases = ["UI-31"]
+
+[[req]]
+id      = "UI-2.9-04"
+source  = "docs/interface-design.md §2.9"
+text    = "Enforcement split: falsified measurement rejects the turn and falls back; unresolvable PMID drops ONLY that sentence and shows a visible '1 sentence removed' stub"
+aliases = ["UI-32"]
+
+[[req]]
+id      = "UI-2.9-05"
+source  = "docs/interface-design.md §2.9 / known gap"
+text    = "Inline citations in chat link every real id, including PMCIDs"
+aliases = ["UI-33"]
+
+[[req]]
+id      = "UI-3-01"
+source  = "docs/interface-design.md §3 / §3.1"
+text    = "UISpec + registries: duplicate id refused; method naming an unregistered workflow refused"
+aliases = ["UI-34"]
+
+[[req]]
+id      = "UI-3.1-01"
+source  = "docs/interface-design.md §3.1"
+text    = "degraded_spec: provenance-only header, every row 'unknown', no plots, no pin, no sign-off/export, columns verbatim"
+aliases = ["UI-35"]
+
+[[req]]
+id      = "UI-3-02"
+source  = "docs/interface-design.md §3 PlotSpec / R7"
+text    = "Pin capability matrix with two distinct honest failures: unsupported kind vs missing artifact"
+aliases = ["UI-36"]
+
+[[req]]
+id      = "UI-3.2-01"
+source  = "docs/interface-design.md §3.2"
+text    = "Marker UISpec csv_columns = cluster,cell_type,cell_type_short,confidence,confidence_score,key_markers,notes,category,lineage,exclude,verify"
+aliases = ["UI-37"]
+
+[[req]]
+id      = "UI-1.3-01"
+source  = "docs/interface-design.md §1.3 Week 0 / §4.3"
+text    = "DEFAULT_BIN_UM is 50 µm"
+aliases = ["UI-38"]
+
+[[req]]
+id      = "UI-1.3-02"
+source  = "docs/interface-design.md §1.3 Week 0"
+text    = "Manifest artifact sha256 surfaced in a UI footer and in exported docx/PDF"
+aliases = ["UI-39"]
+
+[[req]]
+id      = "UI-1.2-01"
+source  = "docs/interface-design.md §1.2"
+text    = "Renderer does no arithmetic on glm_coef/pearson/z/log2FC (CI grep)"
+aliases = ["UI-40"]
+
+[[req]]
+id      = "UI-1.2-02"
+source  = "docs/interface-design.md §1.2"
+text    = "summary.py never calls pipeline.store.save_* directly (data seam)"
+aliases = ["UI-41"]
+
+[[req]]
+id      = "UI-4.1-01"
+source  = "docs/interface-design.md §4.1-4.4"
+text    = "Multi-sample: one primary + context strip (strip is the switcher), diverging thumbnail outlined"
+aliases = ["UI-42"]
+
+[[req]]
+id      = "UI-4.5-01"
+source  = "docs/interface-design.md §4.5"
+text    = "Concordance renders nothing when it does not fire; never a corroboration badge or sample-count chip"
+aliases = ["UI-43"]
+
+[[req]]
+id      = "UI-4.5-02"
+source  = "docs/interface-design.md §4.5"
+text    = "verify=TRUE when divergence fires on a marker the call depends on (affects_call)"
+aliases = ["UI-44"]
+
+[[req]]
+id      = "UI-4.5-03"
+source  = "docs/interface-design.md §4.5"
+text    = "Grounding test: agent may never claim corroboration from replicate agreement ('consistent across samples', 'confirmed in all four', 'reproducible')"
+aliases = ["UI-45"]
+
+[[req]]
+id      = "UI-4.6-01"
+source  = "docs/interface-design.md §4.6-4.7"
+text    = "Pin has no sample dimension; promoting a sample keeps the pin; shared colour scale; sample exclusion is a pipeline input; primary sample is a review-surface control"
+aliases = ["UI-46"]
+
+[[req]]
+id      = "UI-5.1-01"
+source  = "docs/interface-design.md §5.1"
+text    = "Claim layer immutable; the biologist's call shown beside a second deterministic assessment from the same band function"
+aliases = ["UI-47"]
+
+[[req]]
+id      = "UI-5.1-02"
+source  = "docs/interface-design.md §5.1"
+text    = "Layer 2 never writes layer 3 implicitly: no natural-language commit, no LLM parse in the state machine"
+aliases = ["UI-48"]
+
+[[req]]
+id      = "UI-5.2-01"
+source  = "docs/interface-design.md §5.2 / P4.2"
+text    = "States OPEN/ACCEPTED/OVERRIDDEN/DEFERRED; export refused unless every cluster terminal; DEFERRED is terminal; partial annotation allowed"
+aliases = ["UI-49"]
+
+[[req]]
+id      = "UI-5.2-02"
+source  = "docs/interface-design.md §5.2"
+text    = "Reopen a decided cluster in 1 tap (back to OPEN)"
+aliases = ["UI-50"]
+
+[[req]]
+id      = "UI-5.2-03"
+source  = "docs/interface-design.md §5.2 / §5.7"
+text    = "Defer = 1 tap + reason code auto-filled from discriminate (settleable_on_panel -> 'panel can settle it, gene X'; else 'needs another assay')"
+aliases = ["UI-51"]
+
+[[req]]
+id      = "UI-5.2-04"
+source  = "docs/interface-design.md §5.2 / §5.6 / §5.7"
+text    = "Accepting a FLAGGED (verify) call costs 2 taps + a drafted validation note + literature reconciliation; unflagged accept is 1 tap"
+aliases = ["UI-52"]
+
+[[req]]
+id      = "UI-5.2-05"
+source  = "docs/interface-design.md §5.2 / §5.7"
+text    = "Override: 2 taps (scope, basis) + confirm; +1 explicit confirm when scope is dataset/lab"
+aliases = ["UI-53"]
+
+[[req]]
+id      = "UI-5.2-06"
+source  = "docs/interface-design.md §5.2"
+text    = "Export freeze is 1 heavy confirm; reopen after export becomes an attributed ADDENDUM with a reason"
+aliases = ["UI-54"]
+
+[[req]]
+id      = "UI-5.2-07"
+source  = "docs/interface-design.md §5.2"
+text    = "STALE overlay: claim_sha changed under a committed decision flags (never auto-revokes); recommit gated by a forced diff"
+aliases = ["UI-55"]
+
+[[req]]
+id      = "UI-5.3-01"
+source  = "docs/interface-design.md §5.3 step 1 / P4.1"
+text    = "Every cluster opens evidence-first (markers with four states, reference canonical lists, corpus cards); proposal one tap away"
+aliases = ["UI-56"]
+
+[[req]]
+id      = "UI-5.3-02"
+source  = "docs/interface-design.md §5.3 step 3"
+text    = "Pinning a marker redraws views and changes no value"
+aliases = ["UI-57"]
+
+[[req]]
+id      = "UI-5.3-03"
+source  = "docs/interface-design.md §5.3 step 4"
+text    = "Attach an exhibit receipt {view, subject, bin_um, artifact_sha}"
+aliases = ["UI-58"]
+
+[[req]]
+id      = "UI-5.3-04"
+source  = "docs/interface-design.md §5.3 step 5"
+text    = "One-tap pressure test (skeptic) for flagged/contested clusters"
+aliases = ["UI-59"]
+
+[[req]]
+id      = "UI-5.3-05"
+source  = "docs/interface-design.md §5.3 step 6"
+text    = "Commit control disabled while an unconfirmed NoteDraft is open"
+aliases = ["UI-60"]
+
+[[req]]
+id      = "UI-5.3-06"
+source  = "docs/interface-design.md §5.3 step 7"
+text    = "Identical commit bar mounted on the unit page and the Summary board, one store"
+aliases = ["UI-61"]
+
+[[req]]
+id      = "UI-5.3-07"
+source  = "docs/interface-design.md §5.3 step 9 / §5.8.1"
+text    = "Every transition is appended to the decision ledger; review_state is a replayable projection"
+aliases = ["UI-63"]
+
+[[req]]
+id      = "UI-5.3-08"
+source  = "docs/interface-design.md §5.3 step 10"
+text    = "Holistic re-check recomputes after each commit (spillover, recurring programs, override dissent)"
+aliases = ["UI-64"]
+
+[[req]]
+id      = "UI-5.4-01"
+source  = "docs/interface-design.md §5.4"
+text    = "DecisionRecord fields: id, ts, actor, dataset, unit, workflow_id, claim_ref(sha), decision, final_call, reason_codes, note_ids, exhibits, argument_digest, supersedes"
+aliases = ["UI-65"]
+
+[[req]]
+id      = "UI-5.4-02"
+source  = "docs/interface-design.md §5.4"
+text    = "Closed reason-code vocabulary (OFFPANEL_CANON, TISSUE_CONTEXT, OWN_VALIDATION, LAB_CONVENTION, SPILLOVER, LIT_CONTRADICTS, THIN_EVIDENCE, NEEDS_ASSAY) each mapping to one report sentence"
+aliases = ["UI-66"]
+
+[[req]]
+id      = "UI-5.5-01"
+source  = "docs/interface-design.md §5.5"
+text    = "Argument digest of load-bearing moves, refs-unresolved moves dropped, frozen at commit"
+aliases = ["UI-67"]
+
+[[req]]
+id      = "UI-5.5-02"
+source  = "docs/interface-design.md §5.5 / §5.8.5"
+text    = "Report carries a 'Decision -' movement per cluster (AI call vs your call, why it differs, literature check, exhibit)"
+aliases = ["UI-68"]
+
+[[req]]
+id      = "UI-5.6-01"
+source  = "docs/interface-design.md §5.6"
+text    = "N accepts leave confidence_score byte-identical; agreement never aggregated as '8/9 confirmed'; accepting unflagged writes no note"
+aliases = ["UI-69"]
+
+[[req]]
+id      = "UI-5.8.6-01"
+source  = "docs/interface-design.md §5.8.6"
+text    = "CSV export appends decided_by, decided_at, decision, reason_codes, decision_id after the locked 11 columns; report stamped with report id + manifest sha"
+aliases = ["UI-70"]
+
+[[req]]
+id      = "UI-5.8.7-01"
+source  = "docs/interface-design.md §5.8.7"
+text    = "Seven decision grounding tests (terminal per exported unit; claim_sha resolves; decision never influences confidence_score; reason code maps to note/flag; override dissent in report; digest refs resolve)"
+aliases = ["UI-71"]
+
+[[req]]
+id      = "UI-5.3-09"
+source  = "docs/interface-design.md §5.3 / P4 known gap"
+text    = "Label picker offers reference candidates plus the biologist's expected cell types (expected shown beside, never alone)"
+aliases = ["UI-73"]
+
+[[req]]
+id      = "UI-7-01"
+source  = "docs/interface-design.md §7 known gap"
+text    = "Reference View.scope (what a source could not narrow) is shown in the UI"
+aliases = ["UI-74"]
+
+[[req]]
+id      = "SKM-3b-01"
+source  = "skills/marker-interpretation/SKILL.md 3b / 3d"
+text    = "Off-panel canonical marker never lowers confidence or touches verify"
+aliases = ["SKM-01"]
+
+[[req]]
+id      = "SKM-3d-01"
+source  = "skills/marker-interpretation/SKILL.md 3d"
+text    = "Confidence labels fixed set {Very High, High, Medium-High, Medium, Low}; edges live in config, tuned on calibration set"
+aliases = ["SKM-03"]
+
+[[req]]
+id      = "SKM-3d-02"
+source  = "skills/marker-interpretation/SKILL.md 3d"
+text    = "1-2 marker clusters are capped and verify=TRUE regardless of coefficient"
+aliases = ["SKM-04"]
+
+[[req]]
+id      = "SKM-3d-03"
+source  = "skills/marker-interpretation/SKILL.md 3d"
+text    = "Low or no canonical support sets verify=TRUE; verify comes only from the rubric"
+aliases = ["SKM-05"]
+
+[[req]]
+id      = "SKM-3d-04"
+source  = "skills/marker-interpretation/SKILL.md 3d"
+text    = "Corroboration modifiers: low pearson, max_gc_corr>pearson, max_gg_corr~1 demote one band"
+aliases = ["SKM-06"]
+
+[[req]]
+id      = "SKM-3c-01"
+source  = "skills/marker-interpretation/SKILL.md 3c row 2 / A28"
+text    = "Multiple genes from one pathway, no single canonical marker -> Medium (needs gene-to-pathway Membership)"
+aliases = ["SKM-07"]
+
+[[req]]
+id      = "SKM-3e-01"
+source  = "skills/marker-interpretation/SKILL.md 3e"
+text    = "discriminate_call returns support / alt_here / alt_elsewhere (no number attached here) / alt_offpanel (named, no bench assay suggested)"
+aliases = ["SKM-08"]
+
+[[req]]
+id      = "SKM-3e-02"
+source  = "skills/marker-interpretation/SKILL.md 3e"
+text    = "Never quote a jazzPanda number for a gene that is not one of this cluster's own top markers"
+aliases = ["SKM-09"]
+
+[[req]]
+id      = "SKM-S4-01"
+source  = "skills/marker-interpretation/SKILL.md Step 4"
+text    = "Holistic review over the whole set: composition, proportions, redundancy, refinements documented; no tissue plausibility verdict"
+aliases = ["SKM-10"]
+
+[[req]]
+id      = "SKM-O2-01"
+source  = "skills/marker-interpretation/SKILL.md Output 2"
+text    = "CSV columns in exact order cluster..verify; confidence_score 0-1; exclude TRUE for off-target"
+aliases = ["SKM-11"]
+
+[[req]]
+id      = "SKM-O4-01"
+source  = "skills/marker-interpretation/SKILL.md Output 4"
+text    = "Per-marker note: one crisp sentence, exactly one real looked-up citation or 'thin', no jazzPanda numbers restated, no em dash"
+aliases = ["SKM-12"]
+
+[[req]]
+id      = "SKM-S5-01"
+source  = "skills/marker-interpretation/SKILL.md Step 5 / A15"
+text    = "Split literature reports consensus AND dissent, both cited"
+aliases = ["SKM-13"]
+
+[[req]]
+id      = "SKM-S6-01"
+source  = "skills/marker-interpretation/SKILL.md Step 6"
+text    = "Override capture note {claim, scope: cluster|dataset|lab, basis, status, tension}, dated and attributed, two taps"
+aliases = ["SKM-14"]
+
+[[req]]
+id      = "SKM-S6-02"
+source  = "skills/marker-interpretation/SKILL.md Step 6"
+text    = "Scope enforced: a cluster/dataset-scoped note never fires elsewhere; an unrecognised scope fires nowhere"
+aliases = ["SKM-15"]
+
+[[req]]
+id      = "SKM-3c-02"
+source  = "skills/marker-interpretation/SKILL.md 3c rows 4-5"
+text    = "Stress/proliferation overlays still sit on an underlying lineage: label 'Stressed/Proliferating [Lineage]'"
+aliases = ["SKM-16"]
+
+[[req]]
+id      = "SKE-S1-01"
+source  = "skills/enrichment-interpretation/SKILL.md Step 1"
+text    = "Tiers: enriched q<0.05, >=3 leading-edge, >=3 set genes on panel; suggestive q in [0.05,0.25] with verify; else untestable"
+aliases = ["SKE-01"]
+
+[[req]]
+id      = "SKE-S1-02"
+source  = "skills/enrichment-interpretation/SKILL.md Step 1 / checklist"
+text    = "Untestable sets are never surfaced as a program (but listed as untestable rows) and force verify"
+aliases = ["SKE-02"]
+
+[[req]]
+id      = "SKE-S2-01"
+source  = "skills/enrichment-interpretation/SKILL.md Step 2"
+text    = "Every program states K of N on panel and 'panel-scoped, not genome-wide'"
+aliases = ["SKE-03"]
+
+[[req]]
+id      = "SKE-S4-01"
+source  = "skills/enrichment-interpretation/SKILL.md Step 4"
+text    = "rubric raises NoBandForThisTaskKind; no confidence word anywhere"
+aliases = ["SKE-04"]
+
+[[req]]
+id      = "SKE-S3-01"
+source  = "skills/enrichment-interpretation/SKILL.md Step 3"
+text    = "Cross-lineage programs flagged as a tension, never a re-typing; concordant never 'reinforces' the call"
+aliases = ["SKE-05"]
+
+[[req]]
+id      = "SKE-S5-01"
+source  = "skills/enrichment-interpretation/SKILL.md Step 5"
+text    = "Recurrence across clusters stated as a count, never a stronger per-cluster claim"
+aliases = ["SKE-06"]
+
+[[req]]
+id      = "SKE-O-01"
+source  = "skills/enrichment-interpretation/SKILL.md Outputs"
+text    = "Per-pathway note: one citation or thin, no score/q restated, no em dash"
+aliases = ["SKE-07"]
+
+[[req]]
+id      = "PLAN-P4.4-01"
+source  = "implementation_plan.md P4.4"
+text    = "Pathways (and DE) unlock per cluster only once that cluster has a call; read the biologist's label"
+aliases = ["SKE-08"]
+
+[[req]]
+id      = "SKC-IN-01"
+source  = "skills/corpus-building/SKILL.md Inputs"
+text    = "Restricted aliases (<=3 chars, English word, common acronym, bare CD number) used only in proximity to a cell-type term"
+aliases = ["SKC-01"]
+
+[[req]]
+id      = "SKC-R8-01"
+source  = "skills/corpus-building/SKILL.md rule 8"
+text    = "Every query has an anchor (tissue, cell type or CITES:); never a gene alone"
+aliases = ["SKC-02"]
+
+[[req]]
+id      = "SKC-R6-01"
+source  = "skills/corpus-building/SKILL.md rule 6 / A4"
+text    = "No novelty phrasing; NONE_FOUND/thin never reads 'novel' or 'not previously reported'"
+aliases = ["SKC-04"]
+
+[[req]]
+id      = "SKC-R10-01"
+source  = "skills/corpus-building/SKILL.md rule 10"
+text    = "Every returned id ends with exactly one paper line and disposition from the closed vocabulary"
+aliases = ["SKC-05"]
+
+[[req]]
+id      = "SKC-PAGE-01"
+source  = "skills/corpus-building/SKILL.md Paging"
+text    = "Page to end or 200; narrow by M, title-only, 36 months, logging each step; still over -> TRUNCATED"
+aliases = ["SKC-06"]
+
+[[req]]
+id      = "SKC-REF-01"
+source  = "skills/corpus-building/SKILL.md Refused queries"
+text    = "A refused/erroring query is split (alias by alias, tissue block by block), every part logged"
+aliases = ["SKC-07"]
+
+[[req]]
+id      = "SKC-C0-01"
+source  = "skills/corpus-building/SKILL.md C0"
+text    = "Unresolved release paper logs one FAILED C0 line; unpublished has no C0"
+aliases = ["SKC-08"]
+
+[[req]]
+id      = "SKC-WIN-01"
+source  = "skills/corpus-building/SKILL.md The window"
+text    = "Widen one rung at a time only when the narrow window gave <2 papers with a statement; wider papers never crowd out narrow"
+aliases = ["SKC-09"]
+
+[[req]]
+id      = "SKC-WIN-02"
+source  = "skills/corpus-building/SKILL.md The window"
+text    = "Same-dataset papers get SAME_DATASET_READ, shown apart and never counted"
+aliases = ["SKC-10"]
+
+[[req]]
+id      = "SKC-READ-01"
+source  = "skills/corpus-building/SKILL.md Reading"
+text    = "The span's cell type must be the expressing cell, not a neighbour/region"
+aliases = ["SKC-11"]
+
+[[req]]
+id      = "SKC-R3-01"
+source  = "skills/corpus-building/SKILL.md rule 3"
+text    = "Spans <=300 chars, one passage, verbatim; normalisation of thin/no-break spaces and superscript +/-"
+aliases = ["SKC-12"]
+
+[[req]]
+id      = "PLAN-P1.1-01"
+source  = "implementation_plan.md P1.1"
+text    = "Path box reads a folder, recognises each file by matching every registered method's required columns, picks the adapter; unrecognised files listed, never guessed"
+aliases = ["PLAN-01"]
+
+[[req]]
+id      = "PLAN-P1.2-01"
+source  = "implementation_plan.md P1.2 / CLAUDE.md intake"
+text    = "Checklist with provenance per item; blockers = measured set, tissue, platform, clustering mode when multi-sample; fixation/segmentation declared-unknown OK"
+aliases = ["PLAN-02"]
+
+[[req]]
+id      = "PLAN-P1.2-02"
+source  = "implementation_plan.md P1.2"
+text    = "Optional background: research background, papers of interest, lab conventions, expected cell types, disease state; expected types never enter the label space"
+aliases = ["PLAN-03"]
+
+[[req]]
+id      = "PLAN-P1.3-01"
+source  = "implementation_plan.md P1.3"
+text    = "Build no longer asks the LLM for labels or canonical markers from memory"
+aliases = ["PLAN-04"]
+
+[[req]]
+id      = "PLAN-P1.4-01"
+source  = "implementation_plan.md P1.4"
+text    = "Study and data root live in session state; caches keyed by study tree"
+aliases = ["PLAN-05"]
+
+[[req]]
+id      = "PLAN-P1.5-01"
+source  = "implementation_plan.md P1.5"
+text    = "Seurat DE reads its statistic column from its declaration; every de_*.csv loaded; marker inputs optional"
+aliases = ["PLAN-06"]
+
+[[req]]
+id      = "PLAN-P1C-01"
+source  = "implementation_plan.md P1 Check"
+text    = "Temp folder with no labels builds; every cluster opens OPEN / not yet called; demo golden unchanged"
+aliases = ["PLAN-07"]
+
+[[req]]
+id      = "PLAN-P2.1-01"
+source  = "implementation_plan.md P2.1"
+text    = "Sources CL (is_a, synonyms), CellMarker 2.0, PanglaoDB, lab list; fetched into user cache never bundled; licence carried"
+aliases = ["PLAN-08"]
+
+[[req]]
+id      = "PLAN-P2.2-01"
+source  = "implementation_plan.md P2.2 / A6-A7"
+text    = "Tissue (ontology id) maps to each source's organ key; species filtered; unmapped tissue borrows nothing"
+aliases = ["PLAN-09"]
+
+[[req]]
+id      = "PLAN-P2.4-01"
+source  = "implementation_plan.md P2.4"
+text    = "Canonical lists come from the reference view; demo breast list registered as the demo's lab source so the demo band is byte-identical"
+aliases = ["PLAN-11"]
+
+[[req]]
+id      = "PLAN-P2.5-01"
+source  = "implementation_plan.md P2.5 / A3"
+text    = "Reference release enters the factual-layer hash; the corpus does not"
+aliases = ["PLAN-12"]
+
+[[req]]
+id      = "PLAN-P2C-01"
+source  = "implementation_plan.md P2 Check / A18-A19"
+text    = "Calibration and evals pin the reference release"
+aliases = ["PLAN-13"]
+
+[[req]]
+id      = "PLAN-P3.1-01"
+source  = "implementation_plan.md P3.1"
+text    = "Corpus build after the reference view, before review: CLI and intake step with progress; resumable, checkpointed, rate-limited; user's own API key"
+aliases = ["PLAN-14"]
+
+[[req]]
+id      = "PLAN-P3.3-01"
+source  = "implementation_plan.md P3.3"
+text    = "Code builds window/vocabulary/queries/ledger/rung/modality/species; model only reads (P1 setting, P2 statements bound to verbatim spans)"
+aliases = ["PLAN-16"]
+
+[[req]]
+id      = "PLAN-P3.4-01"
+source  = "implementation_plan.md P3.4"
+text    = "Study SQLite outside repo: SourceRecord, Statement, CorpusVersion, QueryLog; built_at outside content hash"
+aliases = ["PLAN-17"]
+
+[[req]]
+id      = "PLAN-P3.4-02"
+source  = "implementation_plan.md P3.4"
+text    = "Every key resolves FOUND / NONE_FOUND / NOT_BUILT; NOT_BUILT reads 'cannot settle'; NONE_FOUND reads 'thin' only when the search was complete"
+aliases = ["PLAN-18"]
+
+[[req]]
+id      = "PLAN-P3.5-01"
+source  = "implementation_plan.md P3.5"
+text    = "notes.py one-PMID harness replaced: gene and cell-type notes drawn from corpus cards (one citation, consensus+dissent, or thin)"
+aliases = ["PLAN-19"]
+
+[[req]]
+id      = "PLAN-P3.6-01"
+source  = "implementation_plan.md P3.6"
+text    = "Re-pilot POSTN/breast, ERBB2/breast, CXCL13/kidney vs v1 judge: recall >=7/10 each, grounding >=8"
+aliases = ["PLAN-20"]
+
+[[req]]
+id      = "PLAN-P3C-01"
+source  = "implementation_plan.md P3 Check"
+text    = "A literature-off run is byte-identical"
+aliases = ["PLAN-21"]
+
+[[req]]
+id      = "PLAN-P4C-01"
+source  = "implementation_plan.md P4 Check"
+text    = "AppTest run of full biologist path on a temp study: path, checklist, build, annotate two, defer one, export"
+aliases = ["PLAN-23"]
+
+[[req]]
+id      = "PLAN-MINOR-01"
+source  = "implementation_plan.md Minor"
+text    = "jazzPanda gives a cluster's own measurement OBSERVED, not TESTED_ABSENT"
+aliases = ["PLAN-25"]
+
+[[req]]
+id      = "CORP-A2"
+source  = "corpus_requirements_final.md A2 / C#16"
+text    = "agree/dissent derived deterministically at read time by joining the note anchor to Statements; maps to Citation.stance vocabulary"
+aliases = ["CORP-A2"]
+
+[[req]]
+id      = "CORP-A3"
+source  = "corpus_requirements_final.md A3 / C#23"
+text    = "Corpus out of factual hash; Tier A identical across model families; store clock-free"
+aliases = ["CORP-A3"]
+
+[[req]]
+id      = "CORP-A5"
+source  = "corpus_requirements_final.md A5 / C#25"
+text    = "Tissue unknown -> build refuses, never runs tissue-agnostic"
+aliases = ["CORP-A5"]
+
+[[req]]
+id      = "CORP-A8"
+source  = "corpus_requirements_final.md A8 / C#28"
+text    = "Per-source formation conditions drive the §7.5 class banner, shown once, never per claim"
+aliases = ["CORP-A8"]
+
+[[req]]
+id      = "CORP-A9"
+source  = "corpus_requirements_final.md A9 / C#24"
+text    = "Licence on Marks edges; non-redistributable edges only in untracked store; CI greps for marker DB files; exports emit edge id + citation only"
+aliases = ["CORP-A9"]
+
+[[req]]
+id      = "CORP-A10"
+source  = "corpus_requirements_final.md A10"
+text    = "--official-sources-only flag backed by a source column"
+aliases = ["CORP-A10"]
+
+[[req]]
+id      = "CORP-A11"
+source  = "corpus_requirements_final.md A11 / C#29"
+text    = "Append-only disagreement-event log (biologist vs literature, per corpus version)"
+aliases = ["CORP-A11"]
+
+[[req]]
+id      = "CORP-A12"
+source  = "corpus_requirements_final.md A12 / C#30"
+text    = "A claim tied to an old corpus version resolves against it or says it cannot; Tension stores URI+stance+metadata"
+aliases = ["CORP-A12"]
+
+[[req]]
+id      = "CORP-A14"
+source  = "corpus_requirements_final.md A14 / C#20"
+text    = "SourceRecord display fields incl. title, authors, journal, year, Author-Year label, abstract (store only), fetched_at, connector, is_real, publication_type, retracted, licence"
+aliases = ["CORP-A14"]
+
+[[req]]
+id      = "CORP-A16"
+source  = "corpus_requirements_final.md A16 / C#32"
+text    = "Utterance-named keys (note types #4/#5, out-of-set rivals) return NOT_BUILT plus an optional dated top-up writing a NEW version"
+aliases = ["CORP-A16"]
+
+[[req]]
+id      = "CORP-A17"
+source  = "corpus_requirements_final.md A17"
+text    = "Background is a build input recorded only as a hash in CorpusVersion; text never exported; ordering only"
+aliases = ["CORP-A17"]
+
+[[req]]
+id      = "CORP-A19"
+source  = "corpus_requirements_final.md A19 / C#40"
+text    = "Eval harnesses pin reference and corpus versions so coverage changes cannot silently flip expected outcomes"
+aliases = ["CORP-A19"]
+
+[[req]]
+id      = "CORP-A20"
+source  = "corpus_requirements_final.md A20"
+text    = "A rival outside the tissue's candidate set reads NOT_BUILT / 'cannot settle'; 'not expected in this tissue' never refutes it"
+aliases = ["CORP-A20"]
+
+[[req]]
+id      = "CORP-A21"
+source  = "corpus_requirements_final.md A21 / C#27"
+text    = "Client-built corpus stamped with path, provider, route, model, query date; generator stamp on cards"
+aliases = ["CORP-A21"]
+
+[[req]]
+id      = "CORP-A22"
+source  = "corpus_requirements_final.md A22 / C#22"
+text    = "CorpusVersion records retrieval 'BM25+aliases' and embedding 'none'"
+aliases = ["CORP-A22"]
+
+[[req]]
+id      = "CORP-A23"
+source  = "corpus_requirements_final.md A23 / C#41"
+text    = "Planned modules corpus/fetch.py, spans.py, version.py and test_corpus_* (floor, alias, staleness)"
+aliases = ["CORP-A23"]
+
+[[req]]
+id      = "CORP-A24"
+source  = "corpus_requirements_final.md A24"
+text    = "Canonical markers for a shared label empty in the second study; no fallback across tissues"
+aliases = ["CORP-A24"]
+
+[[req]]
+id      = "CORP-A25"
+source  = "corpus_requirements_final.md A25 / D3"
+text    = "'Live citation' wording replaced everywhere by 'looked up from a real source at build or top-up, never from memory'"
+aliases = ["CORP-A25"]
+
+[[req]]
+id      = "CORP-A26"
+source  = "corpus_requirements_final.md A26"
+text    = "Remaining live paths removed: memory.render_citation(refresh=) and the draft's live literature-check line"
+aliases = ["CORP-A26"]
+
+[[req]]
+id      = "CORP-A27"
+source  = "corpus_requirements_final.md A27 / C#3"
+text    = "Seed's off_panel field never carried into Marks edges; panel status resolved at read time"
+aliases = ["CORP-A27"]
+
+[[req]]
+id      = "CORP-B1"
+source  = "corpus_requirements_final.md B #5"
+text    = "Support grade is display only: never touches driver pool, role or N; set by curated/lab source, never extractor"
+aliases = ["CORP-B1"]
+
+[[req]]
+id      = "CORP-B2"
+source  = "corpus_requirements_final.md B #4"
+text    = "N in K/N coverage fixed by list membership (reference + committed claims), independent of grade"
+aliases = ["CORP-B2"]
+
+[[req]]
+id      = "CORP-B3"
+source  = "corpus_requirements_final.md B #1"
+text    = "CellType origin reference or lab only; expected types enter label/rival space only if the reference view holds them"
+aliases = ["CORP-B3"]
+
+[[req]]
+id      = "CORP-B4"
+source  = "corpus_requirements_final.md B #2"
+text    = "is_a and synonyms imported from an ontology, registered as structure only; never extracted"
+aliases = ["CORP-B4"]
+
+[[req]]
+id      = "CORP-B5"
+source  = "corpus_requirements_final.md B #8 / #27-28"
+text    = "Discriminating genes chosen from reference lists; model-written co_occurs/tissue_profile display only and never refute"
+aliases = ["CORP-B5"]
+
+[[req]]
+id      = "CORP-B6"
+source  = "corpus_requirements_final.md B #21"
+text    = "Corpus version goes in the interpretive layer, report header and each Tension, not record hashes"
+aliases = ["CORP-B6"]
+
+[[req]]
+id      = "CORP-B7"
+source  = "corpus_requirements_final.md §C #19"
+text    = "tissue_match computed at read time for ordering only; never fed to transfer or verify"
+aliases = ["CORP-B7"]

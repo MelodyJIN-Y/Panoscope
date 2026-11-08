@@ -318,6 +318,7 @@ def test_a_citation_must_resolve():
 # =========================================================================== #
 # 2. A missing node reads as "not in reference data", never "does not exist"
 # =========================================================================== #
+@pytest.mark.req("ARCH-7.3-01")
 def test_a_missing_node_reads_as_not_in_reference_data():
     g = Graph(nodes=(Node(gene("ERBB2"), "src"),), consulted=("src",))
     out = lookup(g, gene("FAP"))
@@ -328,6 +329,7 @@ def test_a_missing_node_reads_as_not_in_reference_data():
         assert forbidden not in said, f"the sentence reads as non-existence: {said!r}"
 
 
+@pytest.mark.req("CORP-A20")
 def test_reference_silence_never_argues_in_any_state():
     """The mirror of ``Measured.absence_is_evidence``, and the difference is the
     point: a *measured* absence is the productive half of the lattice and does argue.
@@ -526,6 +528,7 @@ def test_no_reference_data_is_bundled_in_the_repo():
     assert not hits, f"bundled reference data in the repo: {hits}"
 
 
+@pytest.mark.req("PLAN-P2.1-01")
 def test_the_cache_destination_is_outside_the_repo(cache):
     """``fetch`` resolves its destination through the gate, so the licence check runs
     before any directory is created."""
@@ -537,6 +540,7 @@ def test_the_cache_destination_is_outside_the_repo(cache):
 # =========================================================================== #
 # 5. Reading the real schema (synthetic rows), and determinism
 # =========================================================================== #
+@pytest.mark.req("PLAN-P2.2-01")
 def test_rows_are_scoped_to_organ_and_species(cache):
     _write_markers(cache)
     breast = {(e.subject.id, e.object.id) for e in PanglaoDB("Breast").edges()}
@@ -585,6 +589,7 @@ def test_the_curation_flag_travels_and_the_statistics_do_not(cache):
         "canonical", "germ_layer", "organ", "species"}
 
 
+@pytest.mark.req("IMPL-9-04")
 def test_the_built_graph_is_deterministic(cache, registry):
     """These bytes are hashed into the record; two builds must not differ by the
     order a reader happened to walk a file."""

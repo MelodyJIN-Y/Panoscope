@@ -67,6 +67,7 @@ def projection() -> dict:
 # --------------------------------------------------------------------------- #
 # The golden check
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-18-02")
 def test_interpretation_projection_is_unchanged(projection, tmp_path) -> None:
     """Every byte of the normalised interpretation projection is as committed."""
     expected = G.load_fixture()
@@ -119,6 +120,7 @@ def test_committed_hash_matches_committed_fixture() -> None:
     )
 
 
+@pytest.mark.req("ARCH-18-02")
 def test_fixture_bytes_are_canonical() -> None:
     """The committed fixture is byte-for-byte the canonical rendering.
 

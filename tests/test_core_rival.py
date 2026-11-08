@@ -159,6 +159,7 @@ def test_the_buckets_match_the_v1_discriminator(cluster: str, world) -> None:
 
 
 @pytest.mark.parametrize("cluster", ["c3", "c4", "c7"])
+@pytest.mark.req("SKM-3e-01")
 def test_the_numbers_still_come_only_from_this_units_own_markers(cluster: str, world) -> None:
     """v1's hard rule, now structural rather than conventional: a jazzPanda number is
     attached only to a gene that is a top marker of the cluster in question.
@@ -181,6 +182,7 @@ def test_the_numbers_still_come_only_from_this_units_own_markers(cluster: str, w
         assert item.corroborating == ()
 
 
+@pytest.mark.req("CLAUDE-HR-02")
 def test_a_rival_with_no_signal_here_is_argued_against(world) -> None:
     """The productive half. c1 is Tumor; every canonical T-cell marker on the panel
     was measured and peaked in another cluster, so the absence here *is* evidence and
@@ -246,6 +248,7 @@ def nk_is_a_known_type(monkeypatch):
     return merged
 
 
+@pytest.mark.req("ARCH-9.5-04")
 def test_an_undetectable_rival_no_longer_argues(world, nk_is_a_known_type) -> None:
     """**The reason this module exists.**
 

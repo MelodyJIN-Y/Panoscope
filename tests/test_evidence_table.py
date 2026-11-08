@@ -21,11 +21,9 @@ from types import SimpleNamespace
 from panoscope.ui import evidence_table as et
 
 
-@pytest.fixture(autouse=True)
-def _render_against_a_copy(app_tree):
-    """Every AppTest in this module renders a real study, and the app writes as it
-    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
-    committed tree stays the read-only input the suite says it is."""
+# Every AppTest here renders a real study and the app writes as it renders, so
+# render a per-test copy (conftest ``app_tree``); the committed tree stays read-only.
+pytestmark = pytest.mark.usefixtures("app_tree")
 
 _FLAG = "specificity:localises_elsewhere"
 _COPY = et.FLAG_COPY[_FLAG]
@@ -43,6 +41,7 @@ def test_the_chip_is_present_for_a_flagged_item_and_absent_otherwise():
     assert _COPY not in et._chips(_item(("specificity:low",)), frozenset())
 
 
+@pytest.mark.req("IMPL-2.3-01")
 def test_every_registered_flag_has_copy_so_no_id_leaks_to_the_screen():
     """``_chips`` falls back to the raw id, which would put ``specificity:low`` on a
     biologist's screen. This table is the one home for that English."""
@@ -219,6 +218,7 @@ def test_a_single_sample_study_says_why_there_is_no_replicate_read():
     assert "one sample" in html and lines[0].claim in html
 
 
+@pytest.mark.req("ARCH-13.5-01")
 def test_every_line_resolves_to_a_claim_and_an_unanchored_one_refuses_to_render(
         fixture_builds):
     """Click-back. A sentence with nothing to click should not have been rendered."""

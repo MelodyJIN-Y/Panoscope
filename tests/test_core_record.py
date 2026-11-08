@@ -250,6 +250,7 @@ def test_every_load_decision_lands_in_exactly_one_unit_s_record(study_id: str) -
 # --------------------------------------------------------------------------- #
 # The generated layer
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-17-01")
 def test_the_generated_layer_is_separable_without_naming_it(monkeypatch) -> None:
     """The gate reads ``GENERATED_FIELDS`` off the type.
 
@@ -285,11 +286,6 @@ def test_the_generated_layer_is_separable_without_naming_it(monkeypatch) -> None
 # --------------------------------------------------------------------------- #
 # The real study: determinism, the committed files, and the band
 # --------------------------------------------------------------------------- #
-@pytest.fixture
-def demo(demo_id: str, datasets_root: Path) -> Study:
-    return Study.open(demo_id, data_root=datasets_root.parent).require()
-
-
 def _committed(demo: Study, unit: str = UNIT) -> dict:
     return json.loads((demo.interp / "clusters" / f"{unit}.json").read_text("utf-8"))
 
@@ -300,6 +296,7 @@ def _clusters_digest(demo: Study) -> dict[str, str]:
             for p in sorted((demo.interp / "clusters").glob("*.json"))}
 
 
+@pytest.mark.req("ARCH-17-01", "IMPL-9-02")
 def test_the_record_is_deterministic(demo: Study) -> None:
     """Same hashed inputs, same record. §10's gate compares bytes; without this it
     would be comparing two guesses."""
@@ -311,6 +308,7 @@ def test_the_record_is_deterministic(demo: Study) -> None:
             == json.dumps(core_record.to_dict(two).value, indent=2))
 
 
+@pytest.mark.req("ARCH-5.2-01")
 def test_a_record_build_does_not_touch_the_committed_per_unit_jsons(
         demo: Study, tmp_path: Path) -> None:
     """§10, verbatim: "Never mutate the committed per-unit JSONs."
@@ -331,6 +329,7 @@ def test_a_record_build_does_not_touch_the_committed_per_unit_jsons(
     )
 
 
+@pytest.mark.req("IMPL-10-02")
 def test_the_record_lands_under_interp_records_task_kind_unit(
         demo: Study, tmp_path: Path) -> None:
     rec = records.build(demo, UNIT).record
@@ -449,6 +448,7 @@ def test_explain_renders_from_the_record_not_from_the_committed_json(
 # --------------------------------------------------------------------------- #
 # ARCHITECTURE §9.8's named modes reach the record
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.8-01")
 def test_the_record_names_the_failure_modes_its_own_decisions_raised(
         demo: Study) -> None:
     """§9.8 asks for the modes to be "named, computed, more actionable than a low
@@ -483,6 +483,7 @@ def test_the_record_names_the_failure_modes_its_own_decisions_raised(
             )
 
 
+@pytest.mark.req("ARCH-9.8-01")
 def test_failure_modes_discriminate_between_units(demo: Study) -> None:
     """A field that said the same thing everywhere would pass the test above and
     be worth nothing. The demo's thinnest unit must differ from a rich one."""

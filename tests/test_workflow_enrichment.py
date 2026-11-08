@@ -158,6 +158,7 @@ def test_task_kind_belongs_to_the_method_not_the_use():
 # --------------------------------------------------------------------------- #
 # The no-band rule, four gates, each tried
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("IMPL-2.4-01")
 def test_the_characterisation_output_has_no_band_field():
     """A field-name guard, not a behavioural one: it fails when the field is
     DECLARED, which is when the mistake still costs nothing to undo."""
@@ -176,6 +177,7 @@ def test_a_band_header_on_this_surface_is_unconstructable():
         dataclasses.replace(spec, header=LabelBandHeader(label_space="nope"))
 
 
+@pytest.mark.req("SKE-S4-01")
 def test_asking_a_characterisation_method_for_a_band_raises(c1):
     with pytest.raises(jazzpanda_cgst.NoBandForThisTaskKind, match="undefined"):
         jazzpanda_cgst.MODULE.rubric(c1)
@@ -215,6 +217,7 @@ def test_panel_coverage_is_counted_against_the_frame_not_read_off_the_table(c1):
     assert not panel.ok
 
 
+@pytest.mark.req("ARCH-9.5-02")
 def test_a_below_floor_set_is_underpowered_and_therefore_non_arguing(c1, loaded):
     """The headline rule. Below the floor the set is UNDERPOWERED: no statistic
     survives, no corroborator survives with it, and its absence argues nothing --

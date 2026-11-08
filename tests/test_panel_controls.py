@@ -163,6 +163,7 @@ def control_store(request, store: Study, tmp_path) -> tuple[Study, str]:
     return _store_with_a_measured_control(store, tmp_path, names=(request.param,)), request.param
 
 
+@pytest.mark.req("IMPL-3-02")
 def test_a_control_is_excluded_from_every_gene_frame_in_any_case(
     control_store: tuple[Study, str],
 ) -> None:

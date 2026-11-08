@@ -37,6 +37,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.browser
+
 pytest.importorskip("playwright.sync_api",
                     reason="pip install playwright && playwright install chromium")
 

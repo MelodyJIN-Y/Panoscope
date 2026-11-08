@@ -58,6 +58,7 @@ def _inputs(cluster: str):
 # --------------------------------------------------------------------------- #
 # The demo exercises the ladder
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("SKM-3d-04")
 def test_demotes_are_recorded_in_rule_order():
     """Each demote is one rung, so the band survives a reordering while the record --
     and the badges it draws -- do not. Swapping two demote branches once left a
@@ -157,6 +158,7 @@ def test_the_v1_coverage_sentence_is_pinned():
     ) == "canonical coverage 1/6 below floor 2 -> -1 band"
 
 
+@pytest.mark.req("CORP-B2")
 def test_coverage_counts_the_frame_and_not_this_unit_s_result():
     """K is a fact about the APPARATUS. A canonical marker that was in frame, tested
     and not reported here still counts: the panel could have reported it. Counting
@@ -237,6 +239,7 @@ def test_no_canonical_driver_does_not_also_take_a_coverage_demote():
     assert v.coverage is not None and (v.coverage.k, v.coverage.n) == (0, 6)
 
 
+@pytest.mark.req("SKM-3b-01")
 def test_an_empty_canonical_list_never_demotes():
     """A study whose annotation lists no canonical markers for a label says nothing
     about coverage, and silence is not a floor failure. ``0/0`` must not read as the
@@ -250,6 +253,7 @@ def test_an_empty_canonical_list_never_demotes():
 # --------------------------------------------------------------------------- #
 # verify comes from the rubric, never from a caller
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-HR-05")
 def test_verify_is_not_an_input_anywhere_in_the_module():
     """"``verify`` comes from the deterministic rubric -- never offer the model the
     choice." A parameter is how the choice gets offered: nobody adds a required one,
@@ -264,6 +268,7 @@ def test_verify_is_not_an_input_anywhere_in_the_module():
     assert not offenders, "verify is settable from outside: " + "; ".join(offenders)
 
 
+@pytest.mark.req("CLAUDE-HR-05", "SKM-3d-03")
 def test_verify_fires_on_each_of_its_five_conditions():
     canonical = frozenset({"ERBB2", "KRT7", "EPCAM", "FOXA1"})
     strong = tuple(_item(g, 20.0, 0.5) for g in ("ERBB2", "KRT7", "EPCAM", "FOXA1"))
@@ -296,6 +301,7 @@ def test_no_canonical_driver_reads_low_with_its_rule():
     assert v.driver is None
 
 
+@pytest.mark.req("CLAUDE-HR-02")
 def test_a_tested_absent_canonical_marker_is_the_nosig_branch():
     """NoSig means in-panel, tested, not assigned here -- which is TESTED_ABSENT. It
     reads Low like 'no canonical driver', but it is a different answer: the marker WAS
@@ -335,6 +341,7 @@ def test_a_low_pearson_canonical_marker_is_disqualified_not_demoted():
     assert v.demotions == ("band:no_canonical_driver",)
 
 
+@pytest.mark.req("SKM-3d-02")
 def test_the_fragile_cap_and_the_floor_are_mutually_exclusive():
     """Both key on 'fragile', but the cap pulls a high band down to Medium-High and
     the floor lifts a Low up to Medium, so one call can only ever take one of them."""

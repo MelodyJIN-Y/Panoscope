@@ -144,6 +144,7 @@ def test_low_coverage_forces_verify_without_inventing_a_band():
     assert well.census == (1, 0, 0) and thin.census == (1, 0, 0)
 
 
+@pytest.mark.req("IMPL-10-01")
 def test_a_cluster_enrichment_has_nowhere_to_put_a_band():
     """The no-band invariant, pinned on the type rather than on one value.
 
@@ -160,6 +161,7 @@ def test_a_cluster_enrichment_has_nowhere_to_put_a_band():
     assert "confidence" not in dataclasses.asdict(ce)
 
 
+@pytest.mark.req("UI-2.6-01")
 def test_the_census_counts_every_scored_set_exactly_once():
     """supported + suggestive + untestable == everything scored. No set goes missing.
 
@@ -223,6 +225,7 @@ def test_leading_edge_gate_is_independent_of_panel_hits():
     assert thin_edge.tier == "untestable"
 
 
+@pytest.mark.req("SKE-S1-01")
 def test_q_value_tiers_at_both_thresholds():
     """enriched < ENRICH_Q_MAX <= suggestive <= SUGGESTIVE_Q_MAX < untestable.
 
@@ -252,6 +255,7 @@ def test_missing_q_value_is_untestable_never_assumed_significant():
     assert pe.tier == "untestable"
 
 
+@pytest.mark.req("SKE-S1-02")
 def test_untestable_sets_are_never_surfaced_and_force_verify():
     """A cluster whose only sets are untestable: nothing surfaced, verify TRUE.
 
@@ -329,6 +333,7 @@ def test_frame_rejection_can_push_a_set_under_the_leading_edge_floor():
     assert "tiny leading edge" in pe.caveats
 
 
+@pytest.mark.req("SKE-S2-01")
 def test_the_denominator_travels_into_the_chat_bubble_too(monkeypatch) -> None:
     """The same claim, the same authority, one surface carrying its conditionality.
 

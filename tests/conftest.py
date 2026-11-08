@@ -22,9 +22,15 @@ did not take.
 from __future__ import annotations
 
 import hashlib
+import os
+import shutil
+import socket
 import subprocess
 import sys
+import tomllib
+from collections import defaultdict
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -128,9 +134,36 @@ def mini_id() -> str:
     return MINI_ID
 
 
+@pytest.fixture
+def demo(demo_id: str, datasets_root: Path):
+    """The committed demo study, opened read-only."""
+    from panoscope.data.study import Study
+
+    return Study.open(demo_id, data_root=datasets_root.parent).require()
+
+
+def copy_studies(dest: Path) -> Path:
+    """Copy ``data/studies/`` to ``dest``, symlinking only each study's ``viz/``.
+
+    ``viz/`` is 50 MB of precomputed frames nothing writes; everything else (~1.5 MB)
+    is copied, because a symlinked ``inputs/`` or ``interp/`` is writable through the
+    link and a write would land in the repo.
+    """
+    for study in DATASETS_ROOT.iterdir():
+        if not study.is_dir():
+            continue
+        shutil.copytree(study, dest / study.name, ignore=shutil.ignore_patterns("viz"))
+        if (study / "viz").is_dir():
+            (dest / study.name / "viz").symlink_to(study / "viz", target_is_directory=True)
+    return dest
+
+
 @pytest.fixture(scope="session")
 def _studies_copy(tmp_path_factory) -> Path:
     """A writable copy of ``data/studies/``, made once for the whole session.
+
+    Only the browser server uses this now (one process for a whole module); every
+    in-process test gets its own tree from :func:`app_tree`.
 
     Some tests drive the real app through ``streamlit.testing.v1.AppTest``, and the
     app PERSISTS as it renders: ``ui/state._persist_threads`` writes
@@ -155,8 +188,13 @@ def _studies_copy(tmp_path_factory) -> Path:
 
 
 @pytest.fixture
-def app_tree(_studies_copy: Path, monkeypatch) -> Path:
-    """Point the whole stack at :func:`_studies_copy` for the duration of one test.
+def app_tree(tmp_path: Path, monkeypatch) -> Path:
+    """Point the whole stack at a per-test copy of ``data/studies/`` (:func:`copy_studies`).
+
+    Per test, not per session: the app persists as it renders (decisions, sign-offs,
+    chat threads), and a session-shared tree let one test's decision leak into the
+    next -- ``test_interactive_journey.py`` before
+    ``test_decisions.py::test_the_bundled_demo_opens_with_every_cluster_open`` failed.
 
     ``layout.clear_cache()`` AFTER the setenv, never before: ``resolve_data_root``
     is an ``lru_cache`` keyed on the environment as it stood at its first call, and
@@ -165,11 +203,168 @@ def app_tree(_studies_copy: Path, monkeypatch) -> Path:
     """
     from panoscope.data import layout
 
-    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(_studies_copy))
+    root = tmp_path / "data_root"
+    copy_studies(root / "studies")
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(root))
     layout.clear_cache()
     clear_all_caches()
-    yield _studies_copy / "studies"
+    yield root / "studies"
     layout.clear_cache()
+
+
+@pytest.fixture
+def isolated(app_tree: Path, tmp_path: Path, monkeypatch):
+    """The journey-walk harness: a per-test data tree, HOME, no model key, and Europe
+    PMC id lookups answered from ``.ids`` (a dict the test fills: pid -> SourceRecord).
+
+    The context and reference dirs are already per-test (autouse ``_isolate_context``).
+    """
+    from panoscope.agent import loop
+    from panoscope.corpus import exchange
+
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("PANOSCOPE_DATASET", raising=False)
+    monkeypatch.setattr(loop, "has_model_key", lambda: False)
+    ids: dict = {}
+    monkeypatch.setattr(exchange, "resolve_id", lambda pid, retrieved: ids.get(pid))
+    return SimpleNamespace(root=app_tree, ids=ids)
+
+
+@pytest.fixture
+def study_builder(tmp_path: Path, monkeypatch):
+    """``make_study`` bound to a fresh data root the whole stack points at.
+
+    ``study_builder("s", labels=False)`` writes ``<root>/studies/s`` and returns it;
+    ``study_builder.root`` is the data root. See tests/fixtures/studies.py.
+    """
+    from functools import partial
+
+    from panoscope.data import layout
+    from tests.fixtures.studies import make_study
+
+    root = tmp_path / "built_root"
+    monkeypatch.setenv("PANOSCOPE_DATA_ROOT", str(root))
+    layout.clear_cache()
+    clear_all_caches()
+    build = partial(make_study, root)
+    build.root = root
+    yield build
+    layout.clear_cache()
+
+
+@pytest.fixture
+def fake_model(monkeypatch):
+    """A scripted Anthropic client behind the REAL agent loop (tests/fixtures/fake_model.py)."""
+    from tests.fixtures.fake_model import install
+
+    return install(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def no_network(request, monkeypatch) -> list:
+    """Block AF_INET/AF_INET6 connects in every test not marked ``live`` or ``browser``.
+
+    A blocked connect raises ``OSError``, exactly what an offline laptop gives, so
+    fail-soft code degrades as it would there. AF_UNIX stays open for subprocess
+    tests. Request this fixture by name to assert on the attempted addresses.
+    """
+    attempts: list = []
+    if request.node.get_closest_marker("live") or request.node.get_closest_marker("browser"):
+        return attempts
+    real, real_ex = socket.socket.connect, socket.socket.connect_ex
+
+    def _guard(fn):
+        def connect(self, address, *a):
+            if self.family in (socket.AF_INET, socket.AF_INET6):
+                attempts.append(address)
+                raise OSError(f"network blocked in the offline suite: {address!r}")
+            return fn(self, address, *a)
+        return connect
+
+    monkeypatch.setattr(socket.socket, "connect", _guard(real))
+    monkeypatch.setattr(socket.socket, "connect_ex", _guard(real_ex))
+    return attempts
+
+
+# --------------------------------------------------------------------------- #
+# Requirements traceability (tests/requirements.toml).
+#
+# ``@pytest.mark.req("ARCH-9.5-01")`` names the spec rows a test covers; an id not
+# in the registry is a usage error at collection. ``gap=True`` makes the test a
+# strict xfail that must fail on an AssertionError: it turns red the day the gap is
+# built, and a fixture error or typo cannot hide inside it. Built / gap is derived
+# from the tests, never stored in the registry.
+# --------------------------------------------------------------------------- #
+REQS_PATH = Path(__file__).with_name("requirements.toml")
+_DEFAULT_OFF = ("browser", "budget")  # deselected unless -m names them
+
+
+def load_requirements() -> dict[str, dict]:
+    with REQS_PATH.open("rb") as f:
+        return {r["id"]: r for r in tomllib.load(f)["req"]}
+
+
+def pytest_addoption(parser):
+    parser.addoption("--trace-report", metavar="PATH",
+                     help="write a requirement -> tests table (markdown) to PATH")
+    parser.addoption("--trace-strict", action="store_true",
+                     help="fail when a requirement has no test and no deferred/decision status")
+
+
+def pytest_collection_modifyitems(config, items):
+    reqs = load_requirements()
+    bad = []
+    for item in items:
+        for m in item.iter_markers("req"):
+            if unknown := [i for i in m.args if i not in reqs]:
+                bad.append(f"  {item.nodeid}: {unknown}")
+            if m.kwargs.get("gap"):
+                item.add_marker(pytest.mark.xfail(
+                    strict=True, raises=AssertionError, reason=f"{', '.join(m.args)}: not built"))
+    if bad:
+        raise pytest.UsageError("requirement ids not in tests/requirements.toml:\n" + "\n".join(bad))
+    markexpr = config.getoption("markexpr") or ""
+    off = [n for n in _DEFAULT_OFF if n not in markexpr]
+    keep = [i for i in items if not any(i.get_closest_marker(n) for n in off)]
+    if len(keep) < len(items):
+        config.hook.pytest_deselected(items=[i for i in items if i not in keep])
+        items[:] = keep
+    if os.environ.get("PANOSCOPE_TEST_ORDER") == "reverse":
+        items.reverse()
+
+
+def pytest_collection_finish(session):
+    path, strict = (session.config.getoption("--trace-report"),
+                    session.config.getoption("--trace-strict"))
+    if not (path or strict):
+        return
+    reqs = load_requirements()
+    tests, built = defaultdict(set), set()
+    for item in session.items:
+        for m in item.iter_markers("req"):
+            for i in m.args:
+                tests[i].add(item.nodeid.split("[")[0])
+                if not m.kwargs.get("gap"):
+                    built.add(i)
+
+    def state(i):
+        return "built" if i in built else "gap" if i in tests else reqs[i].get("status", "none")
+
+    counts = defaultdict(int)
+    for i in reqs:
+        counts[state(i)] += 1
+    if path:
+        out = [f"# Traceability: {len(reqs)} requirements",
+               "", ", ".join(f"{k}: {v}" for k, v in sorted(counts.items())), "",
+               "| id | state | requirement | tests |", "|---|---|---|---|"]
+        for i, r in reqs.items():
+            cell = "<br>".join(sorted(tests.get(i, ()))) or r.get("reason", "")
+            out.append(f"| {i} | {state(i)} | {r['text'].replace('|', '/')} | {cell} |")
+        Path(path).write_text("\n".join(out) + "\n")
+    untested = [i for i in reqs if state(i) not in ("built", "gap", "deferred", "decision")]
+    if strict and untested:
+        raise pytest.UsageError(f"{len(untested)} requirements have no test: {', '.join(untested)}")
 
 
 @pytest.fixture

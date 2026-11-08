@@ -123,6 +123,7 @@ def test_a_damaged_study_renders_a_message_not_a_traceback(tmp_path, monkeypatch
     )
 
 
+@pytest.mark.req("IMPL-3-01")
 def test_a_view_declared_false_is_named_and_a_declared_true_one_draws(tmp_path):
     with cfg.use_study(_unprepped(tmp_path, {"cell_map": False, "umap": True})):
         assert stage._unavailable("cell_map") == "cell_map"

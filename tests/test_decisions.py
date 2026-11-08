@@ -42,6 +42,7 @@ def _build():
                                           Coverage("replicates", 1, 4, 3)).value)
 
 
+@pytest.mark.req("UI-5.2-01")
 def test_every_cluster_starts_open_and_export_names_the_open_ones(tmp_path) -> None:
     for c in ("c1", "c2", "c3"):
         assert D.state(store.load_decisions("fresh", tmp_path), c) == D.OPEN
@@ -77,6 +78,7 @@ def test_override_commits_a_lab_note_and_keeps_the_sign_offs(tmp_path) -> None:
     assert [e["kind"] for e in memory.read_decisions()][-1] == "decision_overridden"
 
 
+@pytest.mark.req("UI-5.1-01")
 def test_the_biologist_label_gets_the_same_band_function_beside_the_proposal() -> None:
     b = _build()
     a = D.assessments(b, "Stromal", _view())

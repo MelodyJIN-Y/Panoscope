@@ -99,6 +99,7 @@ def _missing_optional(exc: BaseException) -> str | None:
     return None
 
 
+@pytest.mark.req("IMPL-7-02")
 def test_every_first_party_module_imports_cleanly() -> None:
     """Every module under agent/, ui/ and pipeline/ imports without raising.
 

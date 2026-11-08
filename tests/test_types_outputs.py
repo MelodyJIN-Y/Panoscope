@@ -100,6 +100,7 @@ def test_an_unaskable_question_is_untestable_and_never_argues_against(measured):
                     tier=Tier.NOT_SUPPORTED, verify=False)
 
 
+@pytest.mark.req("CLAUDE-MS-03")
 def test_the_tier_tracks_the_measured_lattice_for_every_state_and_tier():
     """The drift guard: the correspondence has ONE source, ``permitted_tiers``.
 
@@ -132,6 +133,7 @@ def test_the_tier_tracks_the_measured_lattice_for_every_state_and_tier():
     )
 
 
+@pytest.mark.req("CLAUDE-MS-04")
 def test_permitted_tiers_is_derived_from_the_measured_properties():
     """Not a second list of states. ``evidence.py`` learned this the hard way.
 

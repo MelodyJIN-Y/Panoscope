@@ -98,6 +98,7 @@ def test_offpanel_map_asserts_all_off_panel():
 # --------------------------------------------------------------------------- #
 # c9 Mast — fragile (<=2 markers) -> verify=True
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("SKM-3d-02")
 def test_c9_mast_fragile_verify_true():
     v = V.verdict_for("c9")
     assert v.cell_type == "Mast_Cells"
@@ -116,6 +117,7 @@ def test_c9_mast_fragile_verify_true():
 # --------------------------------------------------------------------------- #
 # Panel-absence invariant — off-panel notes NEVER change the confidence band
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("SKM-3b-01")
 def test_offpanel_notes_never_change_band():
     """Take the never-measured items away entirely; nothing about the number may move.
 

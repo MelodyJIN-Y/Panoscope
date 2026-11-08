@@ -70,6 +70,7 @@ def test_parse_rejects_a_present_but_unusable_label(payload):
 # --------------------------------------------------------------------------- #
 # The canonical slot: reference data only
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("PLAN-P1.3-01")
 def test_the_models_canonical_markers_never_reach_the_record():
     """§15: canonical lists are reference data. A proposal names a label, nothing more."""
     rec = annotate._record("c1", annotate._parse(_GOOD))

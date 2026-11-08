@@ -152,6 +152,7 @@ def test_the_frames_are_derived_from_the_files_not_the_manifest(store: Study) ->
 # --------------------------------------------------------------------------- #
 # 2. Multi-sample with NO declared mode -> blocker, as a checklist line
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-5.3-01")
 def test_undeclared_clustering_fires_on_a_real_store(store, tmp_path) -> None:
     """§6.3's fourth blocker, against a store on disk rather than a dict literal."""
     blind = _copy(store, tmp_path, drop_key="clustering_mode")
@@ -260,6 +261,7 @@ def test_a_cell_type_can_have_no_canonical_support_at_all(store: Study) -> None:
     assert v.demotions[0].endswith("nothing could have supported it")
 
 
+@pytest.mark.req("CORP-A24")
 def test_no_breast_knowledge_reaches_a_study_that_is_not_breast(store: Study) -> None:
     """``test_study_plurality`` notes both studies on disk are breast-derived, so
     tissue is deliberately not a discriminator there. Here it is one."""

@@ -98,6 +98,7 @@ def _pathway_header():
 # --------------------------------------------------------------------------- #
 # 1. Degradation goes DOWN -- the bug the design doc names, caught
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-TK-02", "UI-2.1-02")
 def test_a_characterisation_surface_cannot_render_an_assignment_header():
     """THE defect. ``ui/enrichment_table.py`` imported the assignment header and
     inherited a confidence band on a task with no label space. Reaching for it from
@@ -112,6 +113,7 @@ def test_a_comparison_surface_cannot_render_an_assignment_header_either():
         surface.label_band_html(CONTRASTS, {"confidence": "High"})
 
 
+@pytest.mark.req("ARCH-13.1-02")
 def test_the_degraded_surface_cannot_render_an_assignment_header():
     """An unregistered analysis type degrades toward making NO claim -- it may not
     borrow the one task kind that has a band."""
@@ -127,6 +129,7 @@ def test_the_assignment_surface_does_render_its_band():
     assert 'class="cf ' in html and "Tumor" in html and "ERBB2" in html
 
 
+@pytest.mark.req("IMPL-10-01")
 def test_the_pathways_header_carries_no_band_anywhere():
     """Rendered end to end from the real declaration: counts, not a band."""
     html = surface.header_html(PATHWAYS, _pathway_header())
@@ -142,6 +145,7 @@ def test_a_registered_workflow_cannot_degrade_to_the_provenance_header():
         surface.provenance_html(PATHWAYS, {})
 
 
+@pytest.mark.req("ARCH-13.1-02")
 def test_the_degraded_surface_claims_nothing():
     html = surface.header_html(DEGRADED, {"provenance": ("sha256 9f3a",)})
     assert "Unregistered analysis type" in html
@@ -155,6 +159,7 @@ def test_the_degraded_surface_claims_nothing():
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("state", [MeasuredState.NEVER_MEASURED,
                                    MeasuredState.TESTED_ABSENT])
+@pytest.mark.req("ARCH-13.4-01")
 def test_a_cell_with_no_number_hatches(state):
     """The headline rule, at the one place a pixel can carry it."""
     col = ColumnSpec("statistic", "glm_coef", ColumnKind.NUMBER)
@@ -188,6 +193,7 @@ def test_a_number_on_a_row_with_no_measurement_is_refused():
         surface.cell_html(col, _row(MeasuredState.NEVER_MEASURED, statistic=4.2))
 
 
+@pytest.mark.req("ARCH-13.4-01")
 def test_an_observed_zero_is_a_zero_and_not_a_hatch():
     """The other half. A measured zero is a result and must read as one."""
     col = ColumnSpec("statistic", "z", ColumnKind.NUMBER)
@@ -195,6 +201,7 @@ def test_an_observed_zero_is_a_zero_and_not_a_hatch():
     assert "0.00" in cell and "pano-sf-hatch" not in cell
 
 
+@pytest.mark.req("UI-2.1-03")
 def test_the_never_measured_block_renders_its_header_at_zero():
     """A block that disappears at zero is the panel-absence rule disappearing at
     the moment it had something to say."""
@@ -207,6 +214,7 @@ def test_the_never_measured_block_renders_its_header_at_zero():
 
 @pytest.mark.parametrize("spec", [MARKER, PATHWAYS, CONTRASTS],
                          ids=lambda s: s.workflow_id)
+@pytest.mark.req("ARCH-13.4-01")
 def test_every_declared_surface_can_show_a_never_measured_row(spec):
     """R8 with pixels: the row exists, says so, and carries no number."""
     rows = [surface.SurfaceRow(key="gene|g=SLC1A3",
@@ -216,6 +224,7 @@ def test_every_declared_surface_can_show_a_never_measured_row(spec):
     assert "pano-sf-hatch" in html and "not on this panel" in html
 
 
+@pytest.mark.req("UI-2.3-06")
 def test_the_coverage_ribbon_labels_every_count():
     """What stops twelve supporting rows from reading as twelve of twelve."""
     rows = [_row(MeasuredState.OBSERVED, gene="A"),
@@ -225,6 +234,7 @@ def test_the_coverage_ribbon_labels_every_count():
     assert "2 observed" in html and "1 never measured" in html and "of 3" in html
 
 
+@pytest.mark.req("UI-2.3-03")
 def test_sorting_happens_within_a_block_never_across_one():
     """Sorting across blocks is how a top-N hides every absence at the bottom."""
     block = next(b for b in MARKER.blocks if b.sort_by == "statistic")
@@ -238,6 +248,7 @@ def test_sorting_happens_within_a_block_never_across_one():
 # --------------------------------------------------------------------------- #
 # 3. Click-back
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-13.5-01")
 def test_a_row_with_nothing_to_click_is_not_rendered():
     row = surface.SurfaceRow(key="", state=MeasuredState.OBSERVED,
                              values={"gene": "ERBB2", "statistic": 4.2})
@@ -366,6 +377,7 @@ def test_the_adapter_withholds_a_number_where_the_state_forbids_one():
         assert rows[gs].values["coverage"]
 
 
+@pytest.mark.req("SKE-S1-02")
 def test_the_pathways_page_renders_untestable_programs_as_rows():
     """They used to not render at all, which is indistinguishable from a set that
     was tested and found nothing."""
@@ -388,6 +400,7 @@ def test_the_pathways_page_no_longer_imports_the_assignment_header():
     assert "confidence_chip" not in src
 
 
+@pytest.mark.req("UI-2.6-01")
 def test_the_pathways_header_attributes_the_imported_cell_type():
     """The marker workflow's call, shown as context and never re-derived here."""
     html = surface.header_html(PATHWAYS, _pathway_header())

@@ -6,6 +6,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+import pytest
+
 from panoscope.data.study import Study
 
 APP = str(Path(__file__).resolve().parents[1] / "panoscope" / "app.py")
@@ -23,6 +25,7 @@ def _md(at) -> str:
     return "\n".join(m.value for m in at.markdown)
 
 
+@pytest.mark.req("ARCH-6.3-04", "UI-5.3-01")
 def test_a_fresh_study_is_reviewed_evidence_first_and_exports_once_decided(
         tmp_path, monkeypatch) -> None:
     from streamlit.testing.v1 import AppTest
@@ -104,6 +107,7 @@ def test_a_shipped_label_stays_one_tap_away_in_the_rail_and_the_chat(
     assert "HER2+" not in at.button(key="rail_c2").label
 
 
+@pytest.mark.req("PLAN-P4.4-01")
 def test_pathways_unlock_per_cluster_on_a_call_and_read_the_biologists_label(app_tree) -> None:
     """OPEN and DEFERRED say why and link back; ACCEPTED and OVERRIDDEN open on the call."""
     from streamlit.testing.v1 import AppTest

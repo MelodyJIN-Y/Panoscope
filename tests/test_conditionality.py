@@ -23,11 +23,9 @@ from panoscope.types.uispec import Conditionality, UndrawableFigure
 from panoscope.ui import conditionality as cnd
 
 
-@pytest.fixture(autouse=True)
-def _render_against_a_copy(app_tree):
-    """Every AppTest in this module renders a real study, and the app writes as it
-    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
-    committed tree stays the read-only input the suite says it is."""
+# Every AppTest here renders a real study and the app writes as it renders, so
+# render a per-test copy (conftest ``app_tree``); the committed tree stays read-only.
+pytestmark = pytest.mark.usefixtures("app_tree")
 
 
 def _hb():
@@ -43,6 +41,7 @@ def _hb():
 # 1. The gate
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("cond", [None, "", {}, 0, ("drawn", "denominator")])
+@pytest.mark.req("ARCH-13.2-01")
 def test_a_figure_with_no_conditionality_refuses_to_draw(cond):
     """The headline claim. Nothing that is not a Conditionality gets drawn."""
     with pytest.raises(UndrawableFigure):
@@ -109,6 +108,7 @@ def test_a_record_missing_a_required_field_cannot_exist(field):
         Conditionality(**kw)
 
 
+@pytest.mark.req("ARCH-13.2-01")
 def test_no_plot_routes_around_the_gate():
     """Every figure on both spatial stages draws through ``render_panel``.
 
@@ -166,6 +166,7 @@ def test_every_real_record_is_drawable_and_captions(key):
 
 
 @pytest.mark.parametrize("key", sorted(_records()))
+@pytest.mark.req("ARCH-13.2-02", "UI-2.4-01")
 def test_every_real_record_carries_the_panel_denominator(key):
     """The denominator always left out. Derived from the panel file, so the
     assertion is on the shape, not on 280 — panel size is dynamic across studies.
@@ -177,6 +178,7 @@ def test_every_real_record_carries_the_panel_denominator(key):
     assert f"a {n}-gene targeted panel" in line2 and "NOT whole-transcriptome" in line2
 
 
+@pytest.mark.req("ARCH-5.1-01", "IMPL-3-02")
 def test_panel_denominator_follows_the_file_not_a_constant(monkeypatch):
     """Point the panel reader at a 7-gene panel and the caption says 7."""
     from panoscope.ui import data_access as da
@@ -186,6 +188,7 @@ def test_panel_denominator_follows_the_file_not_a_constant(monkeypatch):
     assert "280" not in cnd.gene_density_cond(gene="X", hb=_hb(), bin_um=50).denominator
 
 
+@pytest.mark.req("UI-2.8-03")
 def test_the_downsample_is_stated_rather_than_deleted():
     """_MAX_BG_POINTS silently thinned the cell map and the UMAP. It is now a
     sentence under the panel (docs/interface-design.md §1.3)."""
@@ -202,17 +205,20 @@ def test_nothing_is_claimed_when_nothing_was_thinned():
     assert rec.rendering == ""
 
 
+@pytest.mark.req("UI-2.5-04")
 def test_the_cell_map_says_centroids_not_boundaries():
     """Every reader assumes segmentation boundaries unless told otherwise."""
     assert "NOT segmentation boundaries" in _records()["cell_map"].not_this
 
 
+@pytest.mark.req("ARCH-13.2-02")
 def test_the_umap_says_it_is_a_layout_not_a_measurement():
     """The Row-1 caption that was deleted for a cleaner grid, as a record."""
     not_this = _records()["cluster_umap"].not_this
     assert "layout" in not_this and "distances are not" in not_this
 
 
+@pytest.mark.req("ARCH-13.2-02")
 def test_the_density_panel_states_the_bin_and_the_normalisation():
     rec = _records()["density"]
     assert "50 um square bins" in rec.transform and "area-normalised" in rec.transform

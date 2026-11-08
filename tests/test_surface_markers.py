@@ -46,6 +46,7 @@ def rows():
 # --------------------------------------------------------------------------- #
 # The never-measured rows: the thing that previously did not render at all
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-13.4-01")
 def test_a_never_measured_marker_is_a_row_not_a_blank_and_not_a_zero(rows):
     never = [r for r in rows if r.state is MeasuredState.NEVER_MEASURED]
     assert never, "c2's off-panel canonical markers must reach the surface as rows"
@@ -57,6 +58,7 @@ def test_a_never_measured_marker_is_a_row_not_a_blank_and_not_a_zero(rows):
         assert row.values["pearson"] is None
 
 
+@pytest.mark.req("UI-2.1-03")
 def test_every_row_lands_in_exactly_one_block(rows):
     """The blocks partition the rows. Nothing is shown twice, nothing disappears.
 
@@ -72,6 +74,7 @@ def test_every_row_lands_in_exactly_one_block(rows):
     )
 
 
+@pytest.mark.req("UI-2.3-02")
 def test_off_panel_and_undetected_are_different_blocks_and_say_so(rows):
     """NEVER_MEASURED is two different sentences, and one header must not pick one.
 
@@ -231,6 +234,7 @@ def test_an_empty_canonical_list_never_claims_every_canonical_marker_is_on_panel
     assert "not in reference data for this tissue" in html
 
 
+@pytest.mark.req("UI-2.3-06")
 def test_the_ribbon_counts_every_state_against_the_unit_total(rows):
     html = surface.ribbon_html(MARKERS, rows)
     n_never = sum(1 for r in rows if r.state is MeasuredState.NEVER_MEASURED)

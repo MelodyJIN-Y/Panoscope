@@ -246,6 +246,7 @@ def test_the_method_cannot_register_before_its_question_exists(isolated_registri
 
 
 @pytest.mark.parametrize("field", ["does_not_measure", "assumptions"])
+@pytest.mark.req("CLAUDE-ST-01")
 def test_the_de_method_declares_its_limits(isolated_registries, field):
     empty = "" if field == "does_not_measure" else ()
     with pytest.raises(methods.UndeclaredLimits, match=field):
@@ -328,6 +329,7 @@ def test_absence_reads_as_keeps_the_four_states_apart_in_de_terms():
 # --------------------------------------------------------------------------- #
 # ARCHITECTURE 9.4: the rubrics must disagree on the same number
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.4-01")
 def test_the_two_rubrics_disagree_on_the_same_number():
     """The invariant ARCHITECTURE §9.4 calls the single most important test in the DE
     work. High effect size, low spatial localisation: the same float 3.0 read through
@@ -362,6 +364,7 @@ def test_the_de_ladder_is_an_effect_size_and_never_reaches_a_unit():
 # --------------------------------------------------------------------------- #
 # The no-band guard, for COMPARISON
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-TK-02")
 def test_no_band_on_a_comparison():
     """Four ways round, because three of them are the ways someone would try.
 
@@ -417,6 +420,7 @@ def test_the_statistic_column_is_labelled_by_the_matched_method():
 # --------------------------------------------------------------------------- #
 # Check 1: panel scoping
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.7.1-01")
 def test_panel_scoping_states_k_of_n_and_names_what_was_never_measured(loaded):
     ev = loaded.value["c1"]
     r = de.panel_scoping(ev, de.DEAudit(
@@ -451,6 +455,7 @@ def test_panel_scoping_passes_when_every_canonical_gene_is_on_the_panel(loaded):
 # --------------------------------------------------------------------------- #
 # Check 2: the replicate refusal -- ARCHITECTURE 9.7's headline behaviour
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.7.2-01")
 def test_a_single_replicate_cannot_settle_a_condition_level_claim(loaded):
     """§9.7's headline: the honest output is *cannot be settled*, naming what is
     missing. Not a low band -- there is no band -- and not a quiet pass."""
@@ -493,6 +498,7 @@ def test_the_replicate_check_cannot_pass_from_a_result_table_alone(tmp_path):
 # --------------------------------------------------------------------------- #
 # Check 3: composition versus expression
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.7.3-01")
 def test_composition_is_confounded_when_the_units_share_of_cells_moves(loaded):
     ev = _segmented(loaded.value["c1"])
     moved = de.composition_vs_expression(ev, de.DEAudit(
@@ -558,6 +564,7 @@ def test_coherence_refuses_when_there_is_no_second_method(loaded):
     assert "not the same as checked and coherent" in r.missing[0]
 
 
+@pytest.mark.req("CLAUDE-RD-01")
 def test_reference_authority_can_never_make_a_de_result_coherent(loaded):
     """The rule about reference data, reached through the workflow: a curated side
     lands on NOT_COMPARABLE before any number is read."""
@@ -610,6 +617,7 @@ def test_a_tested_absence_is_answered_and_not_flagged_for_recheck():
 # --------------------------------------------------------------------------- #
 # The rival test: for a COMPARISON the rival is a CONFOUND, from the data
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.6-01")
 def test_the_rival_space_is_the_data_and_an_unknown_confound_is_reported_unasked(
         loaded):
     assert seurat_de.MODULE.rival_space == "data"
@@ -714,6 +722,7 @@ def test_coherence_demonstration(loaded, capsys):
 # --------------------------------------------------------------------------- #
 # The condition gate: a declared unknown finally propagates into a check
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-6.2-03")
 def test_an_unknown_segmentation_stops_the_composition_check(loaded):
     """CLAUDE.md's rule, implemented at last: a check reading an unknown field
     returns *cannot be settled* and NAMES what is missing.

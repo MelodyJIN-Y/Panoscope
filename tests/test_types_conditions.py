@@ -147,6 +147,7 @@ def test_contracts_are_frozen_and_hashable():
             setattr(obj, next(iter(type(obj).__slots__)), "mutated")
 
 
+@pytest.mark.req("IMPL-0-01")
 def test_no_mutable_fields_in_contracts():
     """dict/list/set fields break byte-determinism: they are unhashable and their
     iteration order flows through asdict() into the serialised bytes. Same scan

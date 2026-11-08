@@ -278,6 +278,7 @@ def test_both_tested_absent_is_agreement_not_silence() -> None:
 # --------------------------------------------------------------------------- #
 # Same question or different question (ARCHITECTURE §9.11)
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.11-01")
 def test_different_question_never_agrees(marker_side, de_side) -> None:
     """An enrichment result does not corroborate a cell-type call.
 
@@ -318,6 +319,7 @@ def test_same_workflow_different_task_kind_is_a_different_question(
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("authority", [Authority.CURATED, Authority.LITERATURE,
                                        Authority.LAB])
+@pytest.mark.req("CLAUDE-RD-01")
 def test_reference_data_never_counts_as_agreement(marker_side, de_side,
                                                   authority) -> None:
     """The rule about reference data, enforced before any number is read.
@@ -342,6 +344,7 @@ def test_authority_has_no_default() -> None:
     assert fields["authority"].default_factory is dataclasses.MISSING
 
 
+@pytest.mark.req("ARCH-9.11-01")
 def test_derived_is_not_corroboration(marker_side, de_side) -> None:
     """Enrichment computed from the marker result agreeing with its parent is the
     same result twice. The outcome stands -- it is true that they agree -- and the
@@ -365,6 +368,7 @@ def test_corroboration_requires_an_independent_measurement(marker_side,
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("cls", [ReconcileResult, Reconciliation, Concordance,
                                  Adjacency])
+@pytest.mark.req("ARCH-9.11-01", "IMPL-2.4-01")
 def test_no_reconciliation_type_declares_a_confidence_field(cls) -> None:
     """A field guard, not a behavioural one.
 
@@ -379,6 +383,7 @@ def test_no_reconciliation_type_declares_a_confidence_field(cls) -> None:
     assert not (names & banned), f"{cls.__name__} declares {sorted(names & banned)}"
 
 
+@pytest.mark.req("ARCH-9.9-01")
 def test_adjacency_is_not_a_band_input() -> None:
     """§9.9: display flag, until its firing rate is measured. Source scan, because a
     behavioural test cannot see an import that has not been used yet."""
@@ -438,6 +443,7 @@ def test_no_decision_ref_carries_a_number(marker_side, de_side) -> None:
 # --------------------------------------------------------------------------- #
 # adjacency (§9.9)
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.9-01")
 def test_adjacency_reads_bleed_and_specificity_apart() -> None:
     """Same statistic, different readings, and only spatial data separates them.
 
@@ -488,6 +494,7 @@ def _replicate(sample: str, rows) -> Replicate:
     return Replicate(sample, _items(_world("panel:a", PANEL_A), "glm_coef", rows))
 
 
+@pytest.mark.req("ARCH-9.10-01")
 def test_concordance_requires_joint_clustering() -> None:
     """Cluster 3 in two independently clustered samples is two units sharing a label.
     There is no honest output, so it raises rather than returning one."""

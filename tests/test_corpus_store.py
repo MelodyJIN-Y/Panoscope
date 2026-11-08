@@ -36,6 +36,7 @@ VERSION = CorpusVersion(study="s1", conditions=(("tissue", "breast"),),
                         query_log_hash=log_hash((RUN,)), built_at="2026-11-08")
 
 
+@pytest.mark.req("PLAN-P3.4-01")
 def test_the_store_round_trips_every_table_through_sqlite(tmp_path):
     c = Corpus(records=(REC,), statements=(STMT,), queries=(CENSUS, RUN),
                ledger=(Disposition(REC.uri, "READ:1:0"),), version=VERSION, built="x")
@@ -49,6 +50,7 @@ def test_a_statement_not_verbatim_at_its_offsets_is_refused():
         Corpus(statements=(STMT,))            # no record held
 
 
+@pytest.mark.req("SKC-R10-01")
 def test_the_ledger_names_every_returned_id_without_a_disposition():
     assert Corpus(records=(REC,), queries=(RUN,)).unclosed == (REC.uri,)
     assert Corpus(queries=(RUN,), ledger=(Disposition(REC.uri, "PREFILTER_NO_ALIAS"),)
@@ -79,6 +81,7 @@ def test_full_text_is_licence_bearing_and_retraction_comes_from_publication_type
     assert dataclasses.replace(meta, publication_type=("Retracted Publication",)).retracted
 
 
+@pytest.mark.req("SKC-R6-01")
 def test_each_key_resolves_to_one_of_three_states_and_reads_without_novelty():
     built = Corpus(records=(REC,), queries=(CENSUS, RUN), statements=(STMT,))
     found = key_state(built, "GENEX", "Fibroblasts")

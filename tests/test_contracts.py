@@ -53,6 +53,7 @@ def _public_functions(mod):
 # --------------------------------------------------------------------------- #
 # The direction rule
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("IMPL-2.5-01")
 def test_every_core_function_returns_traced():
     """A core function that returns a bare value has dropped its reasoning on the
     floor, and the record cannot be reconstructed afterwards."""
@@ -79,6 +80,7 @@ def _mentions_trace(t) -> bool:
     return any(_mentions_trace(a) for a in typing.get_args(t))
 
 
+@pytest.mark.req("IMPL-2.5-01")
 def test_no_core_function_accepts_a_trace():
     """The whole design. A Trace parameter is an injection seam: a caller could pass
     in a recorder that narrates, and ``test_record_not_generated`` would then rest on
@@ -122,6 +124,7 @@ def test_the_core_scan_is_wired():
 # --------------------------------------------------------------------------- #
 # The rule registry
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("IMPL-2.5-03")
 def test_every_decision_rule_is_registered():
     """Static scan: every literal rule id passed to ``.note(...)`` anywhere in the
     package is in RULES. An unregistered id means the record carries a decision that
@@ -160,6 +163,7 @@ def test_an_unregistered_rule_raises():
 # --------------------------------------------------------------------------- #
 # Determinism -- these strings are hashed into the golden record
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("IMPL-2.5-02")
 def test_decision_order_is_code_order():
     """Append, splice on absorb, never sort. A caller's own decisions made before a
     call must precede the callee's, and the callee's must precede what follows."""

@@ -59,6 +59,7 @@ def _import(study, path):
     return X.import_file(study, path, today=TODAY, resolver=_resolver)
 
 
+@pytest.mark.req("CORP-A21", "IMPL-6.1-09")
 def test_an_import_verifies_and_stamps_a_version_built_in_the_users_client(study, tmp_path):
     corpus, receipt = _import(study, _file(tmp_path, study))
     assert [s.span for s in corpus.statements] == [SPAN]
@@ -69,6 +70,7 @@ def test_an_import_verifies_and_stamps_a_version_built_in_the_users_client(study
     assert receipt[0] == "accepted 1 statement(s), rejected 0" and load(corpus_path(DEMO_ID)) == corpus
 
 
+@pytest.mark.req("IMPL-6.1-02")
 def test_a_fabricated_pmid_is_rejected_and_never_kept(study, tmp_path):
     corpus, receipt = _import(study, _file(
         tmp_path, study,
@@ -80,6 +82,7 @@ def test_a_fabricated_pmid_is_rejected_and_never_kept(study, tmp_path):
     assert "  rejected pmid:999 POSTN: paper unresolved" in receipt
 
 
+@pytest.mark.req("IMPL-6.1-03")
 def test_a_retracted_paper_is_closed_whatever_the_client_said(study, tmp_path, monkeypatch):
     gone = replace(REC, publication_type=("Retracted Publication",))
     monkeypatch.setattr(X, "resolve_id", lambda pid, r: gone)
@@ -88,6 +91,7 @@ def test_a_retracted_paper_is_closed_whatever_the_client_said(study, tmp_path, m
     assert "  rejected pmid:1 POSTN: paper retracted" in receipt
 
 
+@pytest.mark.req("IMPL-6.1-05")
 def test_an_altered_span_is_rejected(study, tmp_path):
     corpus, receipt = _import(study, _file(
         tmp_path, study,
@@ -98,6 +102,7 @@ def test_an_altered_span_is_rejected(study, tmp_path):
     assert any("not verbatim in abstract" in line for line in receipt)
 
 
+@pytest.mark.req("IMPL-6.1-06")
 def test_a_client_supplied_rung_and_stance_are_ignored_and_recomputed(study, tmp_path):
     paper = {"kind": "paper", "id": "pmid:1", "channel": "C1", "disposition": "READ:1:0"}
     claimed = {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "",
@@ -134,6 +139,7 @@ FULL_LOG = ("vocab", "C1", "C3", "C4")
     ("vocab", None, "vocab:hgnc not run"),
     (None, "C1", "client:C1:Europe PMC truncated"),     # OK with retrieved < total
 ])
+@pytest.mark.req("IMPL-6.1-07")
 def test_a_key_reads_complete_only_when_every_brief_line_is_logged_ok(
         study, tmp_path, drop, short, gap):
     rows = [_logged(c, total=2 if c == short else 1) for c in FULL_LOG if c != drop]
@@ -155,6 +161,7 @@ def test_a_confirmed_release_paper_requires_a_c0_line(study, tmp_path, monkeypat
     assert key_state(corpus, "POSTN", "Fibroblasts").gaps == ()
 
 
+@pytest.mark.req("IMPL-6.1-10")
 def test_earlier_versions_are_kept_never_overwritten(study, tmp_path):
     built = Corpus(version=CorpusVersion(DEMO_ID, (), (), "in-app", "h"))
     save(built, corpus_path(DEMO_ID))
@@ -191,6 +198,7 @@ def test_a_setting_line_is_checked_verbatim_and_feeds_the_rung(study, tmp_path):
     assert (bare.statements[0].rung, corpus.statements[0].rung) == ("W3", "W0*")
 
 
+@pytest.mark.req("IMPL-6.1-04")
 def test_full_text_is_fetched_only_for_cited_papers_and_a_failed_fetch_is_named(
         study, tmp_path, monkeypatch):
     oa = {u: replace(REC, uri=u, full_text="", open_access=True, pmcid="PMC1" + u[-1])
@@ -208,6 +216,7 @@ def test_full_text_is_fetched_only_for_cited_papers_and_a_failed_fetch_is_named(
     assert [q.status.value for q in corpus.queries if q.channel == "fulltext"] == ["failed"]
 
 
+@pytest.mark.req("IMPL-6.1-08")
 def test_a_stale_brief_warns_and_is_recorded(study, tmp_path):
     corpus, receipt = _import(study, _file(tmp_path, study, brief="0" * 16))
     assert any(line.startswith("WARNING: stale brief 0000") for line in receipt)
@@ -215,6 +224,7 @@ def test_a_stale_brief_warns_and_is_recorded(study, tmp_path):
         "import:brief", "degraded")
 
 
+@pytest.mark.req("IMPL-6.1-01")
 def test_a_schema_error_fails_closed_by_line_and_writes_nothing(study, tmp_path):
     bad = _file(tmp_path, study,
                 {"kind": "paper", "id": "12345", "channel": "C1", "disposition": "READ:1:0"},
@@ -238,6 +248,7 @@ def test_a_schema_error_fails_closed_by_line_and_writes_nothing(study, tmp_path)
         _import(study, bad)
 
 
+@pytest.mark.req("SKC-R10-01")
 def test_the_schema_vocabularies_match_the_code():
     defs = json.loads(X.SCHEMA.read_text())["$defs"]
     assert set(defs["statement"]["properties"]["predicate"]["enum"]) == set(RELATIONS)

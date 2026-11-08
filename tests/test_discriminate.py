@@ -49,6 +49,7 @@ def test_named_alt_buckets_markers_for_c1_vs_myoepithelial():
     assert d.settleable_on_panel is True
 
 
+@pytest.mark.req("SKM-3e-01")
 def test_offpanel_and_elsewhere_invariants():
     d = dsc.discriminate("c1", "Myoepithelial")
     assert all(not data.panel_contains(m.gene) for m in d.offpanel_absent)
@@ -57,6 +58,7 @@ def test_offpanel_and_elsewhere_invariants():
     assert all(m.top_cluster not in (None, "c1") for m in d.b_elsewhere)
 
 
+@pytest.mark.req("SKM-3e-02")
 def test_source_trace_quotes_numbers_only_for_own_top_markers():
     """The grounding guarantee: no glm_coef/pearson is ever attributed to a gene
     that is not one of THIS cluster's own top markers."""
@@ -192,6 +194,7 @@ def test_the_synonym_table_does_not_follow_the_demo_into_another_study():
     assert D._normalize_cell_type("Stromal") == "Stromal"
 
 
+@pytest.mark.req("CORP-B4")
 def test_an_ontology_synonym_never_shadows_the_labs_own(monkeypatch):
     """With the Cell Ontology cached, "T-cell" (a CL exact synonym of "T cell") shares
     "T cell"'s comparison key; the lab's synonym for the demo's own label must still win."""

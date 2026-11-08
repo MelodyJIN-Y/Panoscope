@@ -203,6 +203,7 @@ def test_a_second_method_registers_into_the_same_workflow(isolated_registries):
     assert workflows.get(WORKFLOW_ID).task_kind is TaskKind.ASSIGNMENT
 
 
+@pytest.mark.req("CLAUDE-TK-03")
 def test_task_kind_belongs_to_the_method_not_the_use():
     """Both methods answer an ASSIGNMENT because they register into an ASSIGNMENT
     workflow. There is no per-call override, and that absence is the point: a reader
@@ -215,6 +216,7 @@ def test_task_kind_belongs_to_the_method_not_the_use():
 # The checks that must bite
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("field", ["does_not_measure", "assumptions"])
+@pytest.mark.req("CLAUDE-ST-01")
 def test_a_method_must_declare_its_limits(isolated_registries, field):
     """The whole point of the design. The Protocol makes these present; emptiness is
     what a Protocol cannot see, so the registry refuses it."""
@@ -225,16 +227,19 @@ def test_a_method_must_declare_its_limits(isolated_registries, field):
     assert "broken_method" not in methods.METHODS
 
 
+@pytest.mark.req("ARCH-4-02", "UI-3-01")
 def test_duplicate_method_registration_raises(isolated_registries):
     with pytest.raises(DuplicateRegistration, match="jazzpanda_spatial_glm"):
         methods.register(jazzpanda.MODULE)
 
 
+@pytest.mark.req("ARCH-4-02")
 def test_duplicate_workflow_registration_raises(isolated_registries):
     with pytest.raises(DuplicateRegistration, match=WORKFLOW_ID):
         workflows.register(marker.WORKFLOW)
 
 
+@pytest.mark.req("ARCH-4-02")
 def test_a_method_cannot_register_into_a_workflow_nobody_declared(isolated_registries):
     """An orphan method is worse than a missing one: it produces evidence with no
     question to answer, which then surfaces under whichever surface a caller picks."""
@@ -257,6 +262,7 @@ def test_unknown_names_raise_rather_than_defaulting():
 # --------------------------------------------------------------------------- #
 # §9.4: the rubrics must disagree
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-9.4-01")
 def test_two_rubrics_disagree_on_the_same_number():
     """High effect size, low spatial localisation -- the constructed case §9.4 names.
 
@@ -296,6 +302,7 @@ def test_the_method_declares_the_rubric_and_core_applies_the_policy():
     assert out.value.verify is True
 
 
+@pytest.mark.req("SKM-3d-01")
 def test_the_declared_edges_match_the_live_policy_ladder():
     """A duplicated constant with a test is a smaller problem than an inverted
     layering -- the same trade ``core/verdict.py`` makes against ``agent/config``.
@@ -317,6 +324,7 @@ def test_jazzpanda_declares_what_it_does_not_measure():
     assert m.statistic_name == "glm_coef"
 
 
+@pytest.mark.req("ARCH-9.2-01")
 def test_detect_unit_reads_the_schema_and_refuses_what_it_cannot():
     rows = [{"gene": "ERBB2", "top_cluster": "c1", "glm_coef": 12.0},
             {"gene": "LUM", "top_cluster": "c2", "glm_coef": 3.0},
@@ -356,6 +364,7 @@ def test_a_misspelled_sentinel_does_not_become_a_unit():
     assert spec.units == ("c1", "c2"), spec.units
 
 
+@pytest.mark.req("UI-2.3-02")
 def test_absence_reads_as_keeps_the_four_states_apart():
     g = subject("gene", g=gene("TP63"))
     never = jazzpanda.MODULE.absence_reads_as(
@@ -459,6 +468,7 @@ def test_interpret_partitions_by_whether_a_number_exists():
     assert any(d.rule.startswith("band:") for d in out.decisions)
 
 
+@pytest.mark.req("ARCH-9.6-01", "CORP-A20")
 def test_rival_test_reports_an_uncurated_rival_rather_than_settling_it():
     ev = _evidence(_item("ERBB2", 12.0, MeasuredState.OBSERVED))
     ref = marker.MarkerReference(label="Tumor", canonical=("ERBB2",), world=WORLD)
@@ -467,6 +477,7 @@ def test_rival_test_reports_an_uncurated_rival_rather_than_settling_it():
     assert "no canonical marker list" in out.value.undecidable[0]
 
 
+@pytest.mark.req("CLAUDE-HR-02")
 def test_rival_test_separates_on_a_measured_absence():
     """ACTA2 is on the panel and was not reported for c1 -- a tested absence, which
     is the half of the lattice that argues. An off-panel rival marker must land in

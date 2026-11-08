@@ -75,6 +75,7 @@ def test_override_fires_in_the_study_it_was_made_in() -> None:
     assert _calls(STUDY_A)["c2"] == "CAF"
 
 
+@pytest.mark.req("ARCH-5.3-03")
 def test_override_does_not_cross_into_another_study() -> None:
     """The defect: study A's c2 call appearing on study B's c2."""
     _override(STUDY_A, "c2", "CAF")

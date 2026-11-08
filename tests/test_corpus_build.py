@@ -86,6 +86,7 @@ def test_the_tissue_block_carries_the_intake_uberon_label_not_only_the_prose(stu
     assert seen == [("breast", "human breast cancer")]
 
 
+@pytest.mark.req("PLAN-P3.1-01")
 def test_resume_keeps_what_is_built_and_a_fresh_build_starts_over(stubbed):
     save(Corpus(queries=(QueryRun("old", "C1", "OLD", "Fibroblasts"),)), corpus_path(DEMO_ID))
     resumed, _ = _build(resume=True)
@@ -94,6 +95,7 @@ def test_resume_keeps_what_is_built_and_a_fresh_build_starts_over(stubbed):
     assert not any(q.gene == "OLD" for q in fresh.queries)
 
 
+@pytest.mark.req("ARCH-8.1-02")
 def test_top_up_writes_a_new_version_and_refuses_without_a_built_corpus(stubbed):
     with pytest.raises(CorpusUnavailable, match="top-up refused"):
         _build(genes=("ACTA2",))
@@ -115,6 +117,7 @@ def test_no_model_key_refuses_before_any_lookup(stubbed, monkeypatch):
     assert stubbed == [] and not corpus_path(DEMO_ID).exists()
 
 
+@pytest.mark.req("ARCH-8.3-01")
 def test_the_header_says_not_built_incomplete_current_or_stale():
     assert B.header(DEMO_ID) == B.NOT_BUILT
     p = corpus_path(DEMO_ID)
@@ -135,6 +138,7 @@ def test_doctor_reports_each_studys_corpus(capsys):
     assert B.NOT_BUILT in capsys.readouterr().out
 
 
+@pytest.mark.req("ARCH-8.1-01", "ARCH-8.1-02")
 def test_scope_is_the_canonical_markers_plus_each_clusters_top_ten():
     import pandas as pd
 
@@ -151,6 +155,7 @@ def test_scope_is_the_canonical_markers_plus_each_clusters_top_ten():
     assert set(c1[:10]) <= set(genes) and not (set(c1[10:]) - canon) & set(genes)
 
 
+@pytest.mark.req("ARCH-11.2-01", "CORP-A3", "PLAN-P3C-01")
 def test_a_literature_off_build_is_byte_identical_with_a_corpus_present(tmp_path):
     from panoscope.pipeline import run as pipeline_run
 
@@ -178,6 +183,7 @@ def test_a_summary_cell_with_no_note_says_cannot_settle_until_a_corpus_is_built(
     assert summary._biology_cell(v, {}, "") == '<span class="bio-dim">—</span>'
 
 
+@pytest.mark.req("ARCH-8.3-01")
 def test_the_export_header_carries_the_corpus_staleness():
     from panoscope.ui import report
 

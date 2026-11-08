@@ -74,6 +74,7 @@ def test_a_claim_built_with_no_scope_is_refused() -> None:
 # --------------------------------------------------------------------------- #
 # Authority: ordered, never merged
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-10.2-01")
 def test_authority_orders_measurement_above_everything():
     """ARCHITECTURE §10.2, and the reason this is an IntEnum.
 
@@ -101,6 +102,7 @@ def test_by_authority_groups_and_is_stable():
     assert [c.id for c in out] == ["m", "a", "b"]
 
 
+@pytest.mark.req("ARCH-10.2-01")
 def test_nothing_merges_two_claims():
     """There is deliberately no combiner. Conflicts are grouped and displayed.
 
@@ -116,6 +118,7 @@ def test_nothing_merges_two_claims():
 # --------------------------------------------------------------------------- #
 # The LAB invariant (IMPLEMENTATION §2.7)
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("IMPL-2.7-01")
 def test_lab_claim_without_conditions_is_unstorable():
     """The invariant §2.7 states outright.
 
@@ -175,6 +178,7 @@ def test_known_source_schemes_are_accepted(uri):
     "arxiv:2301.00001",           # plausible, unknown, and silently unresolvable
     "",
 ])
+@pytest.mark.req("IMPL-2.7-02")
 def test_unresolvable_source_is_refused(uri):
     """A fabricated citation is the worst failure this project can produce, and an
     unresolvable one is indistinguishable from it once it is in the report."""
@@ -277,6 +281,7 @@ def test_no_clock_or_io_in_the_claim_module():
     assert _claim().created == ""
 
 
+@pytest.mark.req("IMPL-0-01")
 def test_no_mutable_fields_in_contracts():
     """dict/list/set fields break byte-determinism: they are unhashable and their
     iteration order flows through asdict() into the serialised bytes. The record

@@ -224,6 +224,7 @@ def test_two_clusters_sharing_a_cell_type_is_reported_not_raised(
     assert "Synthetic Type A" in joined
 
 
+@pytest.mark.req("SKM-S4-01")
 def test_set_is_coherent_is_computed_not_asserted(
     shared_call_review: HolisticReview,
 ) -> None:

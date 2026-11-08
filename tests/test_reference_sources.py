@@ -55,6 +55,7 @@ def cache(tmp_path, monkeypatch):
     return root
 
 
+@pytest.mark.req("CORP-B4", "PLAN-P2.1-01")
 def test_cell_ontology_reads_live_cl_terms_with_is_a_and_exact_synonyms(cache):
     p = CellOntology().path
     p.parent.mkdir(parents=True)
@@ -153,6 +154,7 @@ def test_lab_list_scopes_to_tissue_and_cites_the_file_when_the_row_does_not(tmp_
     assert src.release != before                         # an edited list is a new release
 
 
+@pytest.mark.req("PLAN-P2.2-01")
 def test_an_unmapped_tissue_has_no_key_and_never_borrows_another():
     assert S.organ_key("UBERON:0000310", "panglaodb") == "Mammary gland"
     assert S.organ_key("UBERON:0002113", "panglaodb") == "Kidney"

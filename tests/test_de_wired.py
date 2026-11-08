@@ -87,6 +87,7 @@ def test_the_root_writes_one_comparison_record_per_unit(built) -> None:
         assert rec["task_kind"] == TaskKind.COMPARISON.value
 
 
+@pytest.mark.req("CLAUDE-TK-02")
 def test_no_comparison_record_carries_a_band(built) -> None:
     """Checked as a FIELD NAME, not as a value.
 
@@ -124,6 +125,7 @@ def test_the_method_is_chosen_by_schema_not_by_filename(tmp_path: Path) -> None:
     assert (seurat.name, seurat.statistic_name) == ("seurat_de", "avg_log2FC")
 
 
+@pytest.mark.req("ARCH-9.2-01")
 def test_a_table_no_method_can_read_is_unrecognised_never_guessed(
         tmp_path: Path) -> None:
     """The registry answers None; a DE file it cannot place (or that another
@@ -187,6 +189,7 @@ def test_every_de_decision_in_a_record_is_a_registered_rule(built) -> None:
             assert d["rule"] in RULES, f"{unit}: unregistered rule {d['rule']!r}"
 
 
+@pytest.mark.req("PLAN-P1.5-01")
 def test_every_de_table_loads_each_on_its_own_methods_statistic(tmp_path: Path) -> None:
     """Two DE tables, two methods: both build, and seurat's avg_log2FC is read."""
     from panoscope.pipeline import records
@@ -213,6 +216,7 @@ def test_every_de_table_loads_each_on_its_own_methods_statistic(tmp_path: Path) 
     assert "avg_log2FC" in json.dumps(rec) and "seurat_de" in json.dumps(rec)
 
 
+@pytest.mark.req("PLAN-P1.1-01")
 def test_a_de_table_is_found_by_its_columns_not_only_its_name(tmp_path: Path) -> None:
     """A recognised Seurat table not named de_*.csv is still built, never skipped."""
     from types import SimpleNamespace

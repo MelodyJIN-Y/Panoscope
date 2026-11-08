@@ -31,11 +31,9 @@ from panoscope.data.study import Study
 from panoscope.ui import data_access as da
 
 
-@pytest.fixture(autouse=True)
-def _render_against_a_copy(app_tree):
-    """Every AppTest in this module renders a real study, and the app writes as it
-    renders (``chat_threads.json``, ``review_state.json``). Render a copy, so the
-    committed tree stays the read-only input the suite says it is."""
+# Every AppTest here renders a real study and the app writes as it renders, so
+# render a per-test copy (conftest ``app_tree``); the committed tree stays read-only.
+pytestmark = pytest.mark.usefixtures("app_tree")
 
 DEMO = "xenium_hbreast_sample1"
 FIXTURE = "synthetic_multisample_fixture"
@@ -75,6 +73,7 @@ def test_verdict_for_is_not_keyed_on_the_cluster_id_alone() -> None:
         assert da.verdict_for("c1").cell_type == a
 
 
+@pytest.mark.req("PLAN-P1.4-01")
 def test_cache_shim_keys_on_the_study_tree_not_its_id(tmp_path) -> None:
     """The key is the study's DIRECTORY: two stores can hold the same study id under
     different data roots (the pipeline's own copy-to-tmp tests do exactly that), and

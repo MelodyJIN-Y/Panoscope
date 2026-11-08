@@ -120,6 +120,7 @@ def test_panel_absence_headline_is_what_the_readme_quotes(panel_absence):
     assert call_rate("panel_rule") == (0, 135)    # 0.0%
 
 
+@pytest.mark.req("ARCH-9.5-04")
 def test_supplying_the_panel_inverts_on_the_detectability_frame(panel_absence):
     """The result the headline is blind to, and the reason it needs this column.
 

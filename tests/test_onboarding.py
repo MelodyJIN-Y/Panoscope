@@ -152,6 +152,7 @@ def test_one_unreadable_file_costs_only_its_own_half_of_the_sentence(tmp_path: P
     assert _ready_for(store) == "Interpretation ready. 3 clusters."
 
 
+@pytest.mark.req("ARCH-6.3-04", "PLAN-P1.1-01")
 def test_a_folder_path_builds_a_study_this_session_opens_not_yet_called(tmp_path, monkeypatch) -> None:
     """Path box -> checklist -> platform and tissue -> build -> the session's study."""
     from streamlit.testing.v1 import AppTest
@@ -246,6 +247,7 @@ def test_the_corpus_step_states_the_builds_own_refusal_before_offering_it(monkey
     assert "tissue_id missing" in onboarding._corpus_refusal(store)
 
 
+@pytest.mark.req("PLAN-P1.4-01")
 def test_opening_a_study_drops_the_last_studys_ui_state(monkeypatch) -> None:
     """A demo chat thread must not follow the biologist into their own study."""
     from types import SimpleNamespace

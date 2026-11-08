@@ -53,6 +53,7 @@ def test_all_clusters_produce_enrichment():
         assert ce.method == "jazzpanda_enrichment"
 
 
+@pytest.mark.req("SKE-S2-01")
 def test_panel_scope_caveat_on_every_pathway():
     for ce in E.all_enrichments():
         for p in ce.all_tested:
@@ -84,6 +85,7 @@ def test_enriched_sets_clear_the_full_gate():
         assert scores == sorted(scores, reverse=True)
 
 
+@pytest.mark.req("SKE-S1-01")
 def test_suggestive_sets_are_verify_and_below_enriched():
     for ce in E.all_enrichments():
         for p in ce.suggestive:

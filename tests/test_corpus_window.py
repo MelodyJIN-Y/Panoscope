@@ -56,6 +56,7 @@ def test_the_frame_is_labels_plus_candidates_joined_by_key_with_synonyms():
     assert frame[0].synonyms == (("fibroblast", "cell-ontology"),)
 
 
+@pytest.mark.req("CORP-A5")
 def test_the_demo_context_reads_its_frame_and_refuses_without_a_tissue_id():
     demo = Study.open(DEMO)
     assert demo.manifest["tissue_id"] == "UBERON:0000310"   # stated: breast, OLS4-checked
@@ -74,6 +75,7 @@ def test_the_demo_context_reads_its_frame_and_refuses_without_a_tissue_id():
 # --------------------------------------------------------------------------- #
 # §3 vocabulary
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("SKC-IN-01")
 def test_the_restriction_rule():
     for t in ("AR", "CD4", "cd105", "REST", "SARS"):
         assert W.restricted(t), t
@@ -106,6 +108,7 @@ def test_gene_terms_keep_origin_and_never_invent_without_hgnc():
     (Facets(True, True, True, True, biofluid=True), True, None),
     (Facets(None, None, None, True), True, None),
 ])
+@pytest.mark.req("PLAN-P3.3-01")
 def test_each_rung(facets, declared, want):
     assert rung(facets, disease_declared=declared) is want
 

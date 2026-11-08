@@ -76,11 +76,6 @@ def _conditions(world: MeasuredWorld) -> Conditions:
     )
 
 
-@pytest.fixture
-def demo(demo_id: str, datasets_root: Path) -> Study:
-    return Study.open(demo_id, data_root=datasets_root.parent).require()
-
-
 # --------------------------------------------------------------------------- #
 # The contract
 # --------------------------------------------------------------------------- #
@@ -291,6 +286,7 @@ def test_the_single_sample_demo_is_not_blocked(demo: Study) -> None:
     assert ADAPTER.clustering_mode(demo) == "independent"
 
 
+@pytest.mark.req("ARCH-5.3-01")
 def test_an_unrecognised_mode_is_not_a_declaration() -> None:
     """``"batch-corrected"`` is a word someone hoped would be understood. Accepting it
     lets an undeclared study past the blocker by typo."""

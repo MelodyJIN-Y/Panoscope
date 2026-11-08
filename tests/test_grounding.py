@@ -114,6 +114,7 @@ def test_poisoned_prose_fails_even_with_no_sidecar(checker_real_lit):
 # --------------------------------------------------------------------------- #
 # (c) A fabricated PMID (verifier returns False) -> ok = False
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-HR-03", "UI-2.9-03")
 def test_fabricated_pmid_fails():
     checker = GroundingChecker(literature_verifier=_resolver_none_real)
     answer = (
@@ -127,6 +128,7 @@ def test_fabricated_pmid_fails():
     assert citation_violations[0].ref == "99999999"
 
 
+@pytest.mark.req("CLAUDE-HR-03")
 def test_a_pmcid_resolves_through_the_gate_and_a_fabricated_one_fails(checker_real_lit):
     answer = "LUM glm_coef 17.998 anchors the Stromal call (pmcid:PMC1234567)."
     assert checker_real_lit.check(answer, None, "c2").ok is True
@@ -168,6 +170,7 @@ def test_wrong_pearson_fails(checker_real_lit):
     assert any(v.kind == "number" and v.ref == "LUM" for v in result.violations)
 
 
+@pytest.mark.req("SKM-3e-02")
 def test_statistic_on_offpanel_gene_fails(checker_real_lit):
     """COL1A1 is off-panel (no marker row). Stating a jazzPanda number for it is
     fabrication — off-panel absence is never a number."""
@@ -204,6 +207,7 @@ def test_existing_note_in_scope_passes():
     assert result.ok is True, result.summary()
 
 
+@pytest.mark.req("SKM-S6-02")
 def test_out_of_scope_note_fails():
     """An existing note referenced outside its allowed scope is a violation."""
     checker = GroundingChecker(
@@ -263,6 +267,7 @@ def test_no_false_positive_on_english_prose(checker_real_lit):
 # MEASURED absence argues, and a gate that collapsed them would be worse than
 # no gate at all.
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-HR-01")
 def test_off_panel_absence_used_as_evidence_fails(checker_real_lit):
     """The probe that used to walk straight through."""
     assert not SourceIndex().is_on_panel("COL1A1")
@@ -363,6 +368,7 @@ def test_a_cell_type_abbreviation_is_not_an_unmeasured_gene(checker_real_lit):
     ).ok is False
 
 
+@pytest.mark.req("ARCH-9.5-04")
 def test_an_undetectable_genes_absence_is_gated_too(checker_real_lit):
     """ON the panel and still never measured -- the half the gate used to exempt.
 
@@ -410,6 +416,7 @@ def test_no_statistic_is_served_for_a_gene_that_produced_no_signal():
     assert src.stat_value("ERBB2", "glm_coef") is not None
 
 
+@pytest.mark.req("CLAUDE-HR-01")
 def test_off_panel_absence_passes_when_the_sentence_says_it_was_never_measured(
     checker_real_lit,
 ):
@@ -529,6 +536,7 @@ def test_tested_and_not_reported_still_passes(checker_real_lit):
     assert checker_real_lit.check(answer, None, "c5").ok is True
 
 
+@pytest.mark.req("ARCH-9.5-04")
 def test_failed_detectability_is_a_real_frame_and_passes(checker_real_lit):
     """The second gene frame. 49 of the demo's 280 panel genes carry NoSig and
     genuinely WERE unmeasurable here, so a sentence saying so is true. A gate
@@ -833,6 +841,7 @@ def test_record_with_no_prose_passes(checker_real_lit):
     assert checker_real_lit.check_record(_record()).ok is True
 
 
+@pytest.mark.req("ARCH-17-01", "IMPL-9-02")
 def test_record_prose_is_gated(checker_real_lit):
     result = checker_real_lit.check_record(
         _record("c2 is Stromal, driven by LUM glm 99.9.")

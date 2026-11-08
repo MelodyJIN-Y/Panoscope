@@ -187,6 +187,7 @@ def _no_band_anywhere(cluster: str) -> None:
     assert not sk.challenges and "no band" in sk.verdict_line, sk.verdict_line
 
 
+@pytest.mark.req("ARCH-6.3-04", "PLAN-P1C-01")
 def test_a_study_with_no_labels_builds_with_every_cluster_not_yet_called(tmp_path, monkeypatch):
     """No label set is the starting state: the build passes and the biologist calls."""
     from panoscope.agent import loop as agent_loop
@@ -243,6 +244,7 @@ def test_a_proposal_written_during_the_build_is_what_that_build_reads(tmp_path, 
     assert {store.load_verdict(c, "fresh").cell_type for c in clusters} == {"T cell"}
 
 
+@pytest.mark.req("PLAN-P1.3-01")
 def test_with_no_model_key_the_build_asks_nothing_until_a_key_exists(tmp_path, monkeypatch):
     """No key: no proposal call, and nothing written that would stop a later build asking."""
     from panoscope.agent import loop as agent_loop
@@ -258,6 +260,7 @@ def test_with_no_model_key_the_build_asks_nothing_until_a_key_exists(tmp_path, m
     assert len(asked) == 9
 
 
+@pytest.mark.req("PLAN-P1.5-01")
 def test_a_de_only_folder_builds_without_marker_inputs(tmp_path, monkeypatch):
     """No marker table: only the DE workflow is available, and only it builds."""
     import shutil

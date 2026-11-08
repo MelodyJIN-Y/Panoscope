@@ -94,6 +94,7 @@ def test_a_frame_label_matches_its_marker_plus_and_singular_spellings_but_not_a_
     assert not cells.search("CD8 T") and not C.matcher((Term("PSORS", "x", True),)).search("PSOR")
 
 
+@pytest.mark.req("SKC-R8-01")
 def test_a_gene_only_or_gene_plus_generic_query_cannot_be_built():
     g = '("POSTN")'
     for bad in (dict(), dict(extra=(C._or(C.M_CELL),))):
@@ -114,6 +115,7 @@ def test_every_logged_search_carries_a_tissue_cell_or_cites_anchor(monkeypatch, 
                 or '"fibroblast"' in q.query or '"basal cell"' in q.query)
 
 
+@pytest.mark.req("SKC-IN-01")
 def test_restricted_aliases_are_proximity_only_in_c1(monkeypatch, tmp_path):
     c = _run(monkeypatch, tmp_path, World(),
              aliases=(*POSTN, Term("OSF", "hgnc_alias", True)))
@@ -134,6 +136,7 @@ def test_epmc_pages_to_exhaustion_newest_first(monkeypatch, tmp_path):
     assert len(set(c3.ids)) == 150
 
 
+@pytest.mark.req("SKC-PAGE-01")
 def test_over_the_cap_narrows_and_logs_each_step(monkeypatch, tmp_path):
     w = World(pubmed=[(lambda q: "Xenium" in q and "Fibroblast" in q, 3, ["1", "2", "3"]),
                       (lambda q: "Fibroblast" in q, 500, [])],
@@ -233,6 +236,7 @@ def test_a_failed_full_text_is_logged_and_the_abstract_stays(monkeypatch, tmp_pa
     assert {r.uri: r for r in c.records}["pmid:20"].abstract == "POSTN."
 
 
+@pytest.mark.req("PLAN-P3.1-01")
 def test_resume_reruns_nothing_done_and_retries_what_failed(monkeypatch, tmp_path):
     hits = [_hit(pmid="30", abstract="POSTN", oa="Y", pmcid="PMC30")]
     first = World(epmc=[(_c3, hits)], fail={"Myoepithelial"})
@@ -247,6 +251,7 @@ def test_resume_reruns_nothing_done_and_retries_what_failed(monkeypatch, tmp_pat
     assert len({(q.request_hash, q.cell_type) for q in c.queries}) == len(c.queries)
 
 
+@pytest.mark.req("SKC-C0-01")
 def test_an_unresolved_release_paper_degrades_c0(monkeypatch, tmp_path):
     c = _run(monkeypatch, tmp_path, World(), ctx=_ctx(release_status="unresolved"))
     assert "C0 degraded" in key_state(c, "POSTN", "Fibroblasts").gaps

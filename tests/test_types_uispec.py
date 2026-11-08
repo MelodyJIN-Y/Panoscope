@@ -64,6 +64,7 @@ def _spec(**kw) -> UISpec:
 # R4: no conditionality record, no plot
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("missing", _REQUIRED_COND)
+@pytest.mark.req("ARCH-13.2-01")
 def test_conditionality_refuses_to_omit_a_required_field(missing):
     """A volcano on a 280-gene panel is pixel-identical to a genome-wide one, and
     the reader assumes genome-wide. Each of the four answers a question the pixels
@@ -81,6 +82,7 @@ def test_whitespace_is_not_a_conditionality(missing):
         Conditionality(**{**COND, missing: "   "})
 
 
+@pytest.mark.req("UI-2.4-01")
 def test_caption_carries_the_denominator():
     """The denominator is the field that matters most and the one that gets
     truncated when the caption shares a line with the transform."""
@@ -131,6 +133,7 @@ def test_no_spec_type_can_carry_a_computation():
 # R2: degradation goes DOWN
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("kind", [TaskKind.CHARACTERISATION, TaskKind.COMPARISON])
+@pytest.mark.req("CLAUDE-TK-04")
 def test_a_no_label_space_surface_cannot_take_an_assignment_header(kind):
     """THE bug: ``ui/enrichment_table.py`` imported the assignment header into a
     characterisation surface and inherited a confidence band it had no right to.
@@ -282,6 +285,7 @@ def test_the_degraded_surface_still_says_rows_exist():
 # --------------------------------------------------------------------------- #
 # Structural
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("IMPL-0-01")
 def test_no_mutable_fields_in_contracts():
     """dict/list/set fields break byte-determinism: they are unhashable and their
     iteration order flows through asdict() into the serialised bytes. The record

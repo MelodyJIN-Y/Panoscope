@@ -318,6 +318,7 @@ def test_a_corpus_cannot_resolve_a_path_inside_the_repository(monkeypatch):
         corpus_path("xenium_hbreast_sample1")
 
 
+@pytest.mark.req("PLAN-P3.4-01")
 def test_the_default_corpus_path_is_outside_the_repository(monkeypatch):
     monkeypatch.delenv("PANOSCOPE_REFERENCE_DIR", raising=False)
     p = corpus_path("xenium_hbreast_sample1")
@@ -511,6 +512,7 @@ def test_a_corpus_never_merges_two_records_for_one_uri():
     assert len(twice.find("pmid:38631570")) == 2
 
 
+@pytest.mark.req("CORP-A3")
 def test_the_store_is_clock_free():
     """``retrieved`` and ``built`` are strings the caller minted. A now() here would
     put a timestamp into bytes that are hashed into the golden record."""

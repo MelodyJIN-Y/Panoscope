@@ -111,6 +111,7 @@ def _lab(**over) -> Claim:
 # --------------------------------------------------------------------------- #
 # 1. Scope is fail-closed: retrieval filters WITH A REASON, use RAISES
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-10.4-01")
 def test_using_a_claim_out_of_scope_raises():
     """CLAUDE.md: "Scope is enforced fail-closed." An error, not a warning.
 
@@ -125,6 +126,7 @@ def test_using_a_claim_out_of_scope_raises():
         assess(_lab(), WORLD, HERE, "dataset:other")
 
 
+@pytest.mark.req("ARCH-10.4-01", "IMPL-5-01")
 def test_the_scope_gate_runs_before_anything_else():
     """IMPLEMENTATION §5: "scope gate first (a filter, not a downgrade)".
 
@@ -137,6 +139,7 @@ def test_the_scope_gate_runs_before_anything_else():
         assess(off_and_out, WORLD, HERE, "dataset:demo")
 
 
+@pytest.mark.req("ARCH-10.3-01")
 def test_retrieval_filters_but_never_silently():
     """§10.3: "silent dropping is the failure mode, not a safe default."
 
@@ -164,6 +167,7 @@ def test_a_retracted_claim_is_shown_but_cannot_be_cited():
 # --------------------------------------------------------------------------- #
 # 2. Never merged
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-10.2-01")
 def test_two_authorities_about_one_subject_both_survive_ordered():
     """§10.2: conflicts are grouped and displayed, never resolved.
 
@@ -209,6 +213,7 @@ def test_an_in_frame_claim_is_evaluable():
     assert [d.rule for d in got.decisions] == ["claims:evaluable"]
 
 
+@pytest.mark.req("ARCH-9.5-04")
 def test_panel_absence_and_undetectability_are_different_answers():
     """§7.5's addition, and the reason it is worth adding.
 
@@ -225,6 +230,7 @@ def test_panel_absence_and_undetectability_are_different_answers():
     assert not off.usable and not dead.usable
 
 
+@pytest.mark.req("ARCH-6.3-01")
 def test_a_claim_about_an_unassigned_cell_type_is_blocked_by_the_label_frame():
     """``depends_on`` is gated against ITS OWN kind's frame, not the panel.
 
@@ -238,6 +244,7 @@ def test_a_claim_about_an_unassigned_cell_type_is_blocked_by_the_label_frame():
     assert [str(e) for e in got.blocked_by] == ["cell_type:Mast_Cells"]
 
 
+@pytest.mark.req("ARCH-9.5-03")
 def test_no_frame_is_not_the_same_as_absent():
     """A study that declared no cell-type frame has not *refused* the cell type."""
     got = evaluability(_curated(), MeasuredWorld(frames=(PANEL,)))
@@ -254,6 +261,7 @@ def test_rests_on_is_subject_plus_depends_on_and_not_the_object():
     assert [str(e) for e in rests_on(_curated())] == ["gene:ERBB2", "cell_type:Tumor"]
 
 
+@pytest.mark.req("ARCH-7.5-01")
 def test_evaluability_applies_to_every_authority_class():
     """§7.5: the capability gate "applies to every claim in every class"."""
     states = {
@@ -277,6 +285,7 @@ def test_evaluability_applies_to_every_authority_class():
 # --------------------------------------------------------------------------- #
 # 4. Transfer: the verdict-bearing half, and who never gets a verdict
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-7.5-01")
 def test_no_verdict_for_database_curated():
     """§7.5, and the direct consequence of §7.4's 0.000 bits.
 
@@ -292,6 +301,7 @@ def test_no_verdict_for_database_curated():
     assert [d.rule for d in got.decisions] == ["transfer:no_verdict"]
 
 
+@pytest.mark.req("ARCH-7.5-01")
 def test_no_verdict_for_literature_either():
     lit = Claim(id="l:2", subject=ERBB2, predicate="marks", object="Tumor",
                 authority=Authority.LITERATURE, source="pmid:00000004", scope="study")
@@ -299,6 +309,7 @@ def test_no_verdict_for_literature_either():
     assert transfer_check(lit, HERE).value.stamp
 
 
+@pytest.mark.req("ARCH-7.5-02")
 def test_a_lab_claim_gets_named_deltas_not_a_label():
     """The half that actually varies: §7.4 measured 1.561 bits on lab notes."""
     formed = _conditions(tissue=Condition("UBERON:0002113", Provenance.STATED),
@@ -330,6 +341,7 @@ def test_the_split_behaves_differently_on_curated_and_lab():
         == evaluability(_lab(conditions=formed), WORLD).value.state
 
 
+@pytest.mark.req("ARCH-7.5-01")
 def test_a_dataset_scoped_curated_set_does_get_a_verdict():
     """§7.5 names "dataset-scoped curated sets such as a vendor panel annotation".
 
@@ -360,6 +372,7 @@ def test_unknown_condition_never_silently_applies():
     assert [d.rule for d in got.decisions] == ["transfer:cannot_be_settled"]
 
 
+@pytest.mark.req("ARCH-6.3-03")
 def test_an_undeclared_disease_state_is_one_delta_not_four():
     """The qualifiers are subordinate to the value: an unknown value is one unsettled delta."""
     formed = _conditions(**{f: UNKNOWN for f in DISEASE_STATE})
@@ -367,6 +380,7 @@ def test_an_undeclared_disease_state_is_one_delta_not_four():
     assert named == {"disease_state": CANNOT_BE_SETTLED}
 
 
+@pytest.mark.req("ARCH-10.3-01")
 def test_blocked_is_surfaced_with_its_reason():
     """§10.3. A blocked claim still comes back, carrying what blocked it."""
     formed = _conditions(assay=Condition("cosmx", Provenance.READ))
@@ -604,6 +618,7 @@ def test_the_real_seed_loads_and_every_claim_carries_a_source():
 # --------------------------------------------------------------------------- #
 # 8. The write path and round-trip
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("ARCH-10.5-01")
 def test_only_the_biologist_commits(tmp_path):
     """§10.5: two writers, and only one of them uses this path.
 
@@ -616,6 +631,7 @@ def test_only_the_biologist_commits(tmp_path):
     assert write_claim(_lab(), tmp_path).name == "note-0001.json"
 
 
+@pytest.mark.req("ARCH-10.1-01")
 def test_a_written_claim_round_trips(tmp_path):
     original = _lab(tension=("curated:marks:ERBB2:Tumor",), spans=("s1",))
     write_claim(original, tmp_path)
@@ -630,6 +646,7 @@ def test_an_undeclared_disease_state_round_trips_without_new_keys():
     assert from_dict(d) == c
 
 
+@pytest.mark.req("ARCH-8.1-01")
 def test_round_trip_preserves_the_join_key():
     """``Subject.key`` is what reconciliation joins on across task kinds."""
     c = _lab()
@@ -683,6 +700,7 @@ def test_thin_literature_only_speaks_about_knowledge_claims():
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("mod", ["panoscope.claims.evaluability",
                                  "panoscope.claims.transfer"])
+@pytest.mark.req("ARCH-7.5-02")
 def test_the_decision_halves_are_pure(mod):
     """``test_transfer_pure`` (§5): both halves run at retrieval time, on every
     claim, in a process whose output is hashed. Neither may touch a disk or a clock."""

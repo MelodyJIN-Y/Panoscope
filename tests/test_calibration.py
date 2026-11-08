@@ -126,6 +126,7 @@ def test_calibration_set_is_meaningful() -> None:
     assert len(bands) >= 2, "set must span more than one confidence band"
 
 
+@pytest.mark.req("SKM-3d-01")
 def test_calibration_expectations_match_live_engine() -> None:
     """Every hard-coded expectation still matches the live engine output.
 
