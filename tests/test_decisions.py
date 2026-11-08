@@ -119,3 +119,16 @@ def test_a_summary_sign_off_is_a_reviewed_mark_never_a_call(monkeypatch) -> None
     assert da.effective_call("c1") is None and da.effective_call("c2") is None
     assert D.export_refusal(["c1", "c2", "c3"], decs).endswith("still OPEN: c1, c2")
     assert decs["c3"] == {"state": D.OVERRIDDEN, "label": "Fooblast", "note_id": "n3"}
+
+
+def test_the_bundled_demo_opens_with_every_cluster_open(app_tree, tmp_path, monkeypatch) -> None:
+    """The demo is a real study: its shipped labels are proposals, never decisions."""
+    from panoscope.agent import config as cfg
+    from panoscope.ui import data_access as da
+
+    monkeypatch.setenv("HOME", str(tmp_path))  # no lab notes from the machine running this
+    assert cfg.DATASET_ID == cfg.BUNDLED_DEMO_ID and len(cfg.CLUSTER_ORDER) == 9
+    assert da.decisions() == {}
+    assert all(da.effective_call(c) is None for c in cfg.CLUSTER_ORDER)
+    assert D.export_refusal(cfg.CLUSTER_ORDER, da.decisions()).endswith(
+        "still OPEN: c1, c2, c3, c4, c5, c6, c7, c8, c9")
