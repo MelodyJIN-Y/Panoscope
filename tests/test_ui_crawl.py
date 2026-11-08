@@ -41,12 +41,21 @@ APP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 KINDS = ("button", "checkbox", "selectbox", "radio", "slider", "multiselect",
          "toggle", "text_input", "text_area", "number_input", "select_slider")
 
-#: Interactions per page in the default suite. The marker pane carries ~100
-#: widgets, ~90 of them homogeneous ``sfsel_gene|...`` evidence rows, so a sample
-#: buys nearly the same coverage for a fraction of the time. The cap is REPORTED
-#: rather than silent -- a bounded sweep that reads as exhaustive is how a gap
-#: hides. Set PANOSCOPE_UI_CRAWL_FULL=1 for every widget.
-MAX_PER_PAGE = 10
+#: One widget per control FAMILY in the default suite. The marker pane carries ~100
+#: widgets, ~90 of them homogeneous ``sfsel_gene|...`` evidence rows; the first 10
+#: in tree order were all nav and rail buttons, so the crawl never touched a review
+#: control, a pin row, the bin radio or the chat form. A family is the key with its
+#: per-instance suffix removed (the gene after ``|``, the ``_cN`` cluster, a nonce).
+#: The sample is REPORTED rather than silent -- a bounded sweep that reads as
+#: exhaustive is how a gap hides. Set PANOSCOPE_UI_CRAWL_FULL=1 for every widget.
+_INSTANCE = (re.compile(r"\|.*$"), re.compile(r"_c\d+(?=$|[_-])"), re.compile(r"_+\d+$"))
+
+
+def _family(kind: str, key: str | None) -> str:
+    fam = key or ""
+    for pat in _INSTANCE:
+        fam = pat.sub("", fam)
+    return f"{kind}:{fam}"
 
 TAG = re.compile(r"<[^>]*>")
 STYLE = re.compile(r"<style[^>]*>.*?</style>", re.S | re.I)
@@ -55,6 +64,7 @@ LEAK = re.compile(r"\bNone\b|\bnan\b|\bNaN\b|Traceback|object at 0x|<built-in|\{
 CONTROL = re.compile(r"NegControl|Blank ?Codeword|Unassigned ?Codeword", re.I)
 VIEW_CONTROL = re.compile(r"bin|view|toggle|sample|scale|zoom|size|mode|layer")
 NUM = re.compile(r"-?\d+\.\d{2,4}")
+BIN_SCALE = re.compile(r"max -?\d+\.\d+ tx/um2")
 #: "None of the resolved papers support..." is English, not a leaked value.
 PROSE_NONE = re.compile(r"\bNone of\b")
 
@@ -73,11 +83,22 @@ def _isolated_context(tmp_path_factory, monkeypatch):
                        str(tmp_path_factory.mktemp("context")))
 
 
+#: Page states a clean load cannot reach: the Summary drill-down (with its sign-off
+#: and editor widgets) and the Markers stage after a pin (the bin radio).
+_VARIANTS = {"drill": {"sum_active_section": "c9"}, "pinned": {}}
+
+
 def _at(page: str):
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_file(APP, default_timeout=300)
+    page, _, variant = page.partition("#")
     at.session_state["active_page"] = page
+    for k, v in _VARIANTS.get(variant, {}).items():
+        at.session_state[k] = v
+    if variant == "pinned":
+        at.query_params["cluster"] = "c1"
+        at.query_params["m"] = "ERBB2"
     at.run()
     return at
 
@@ -100,6 +121,16 @@ def _widgets(at) -> list[tuple[str, object]]:
     return [(k, w) for k in KINDS for w in getattr(at, k, [])]
 
 
+def _numbers(tok: str) -> tuple:
+    out = []
+    for cast in (int, float):
+        try:
+            out.append(cast(tok))
+        except ValueError:
+            pass
+    return tuple(out)
+
+
 def _drive(kind: str, w) -> bool:
     """Interact the way a user would. False when the widget offers no change."""
     if getattr(w, "disabled", False):   # a browser user cannot press it either
@@ -109,11 +140,19 @@ def _drive(kind: str, w) -> bool:
     if kind in ("checkbox", "toggle"):
         w.set_value(not w.value); return True
     if kind in ("selectbox", "radio", "select_slider"):
+        # ``options`` are the DISPLAYED labels; set_value takes the raw value and
+        # formats it, so a label from format_func ("50 µm") is mapped back first.
+        fmt = getattr(w, "format_func", None) or str
         opts = list(getattr(w, "options", []) or [])
-        nxt = next((o for o in opts if o != getattr(w, "value", None)), None)
+        cur = fmt(w.value) if getattr(w, "value", None) is not None else None
+        nxt = next((o for o in opts if o != cur), None)
         if nxt is None:
             return False
-        w.set_value(nxt); return True
+        tok = str(nxt).split()[0] if str(nxt).split() else nxt
+        raw = next((c for c in (nxt, *_numbers(tok)) if fmt(c) == nxt), None)
+        if raw is None:
+            return False
+        w.set_value(raw); return True
     if kind == "multiselect":
         opts = list(getattr(w, "options", []) or [])
         if not opts:
@@ -161,7 +200,9 @@ def _violations(at, key: str, before: str) -> list[str]:
 
     # CLAUDE.md: a viewing control changes the picture, never a value.
     if VIEW_CONTROL.search(key):
-        b, a = set(NUM.findall(before)), set(NUM.findall(txt))
+        # The colour scale's "max X tx/um2 in this panel" is the density OF THE BIN: it is
+        # the picture, and it must move with the bin (a dead control would keep it).
+        b, a = (set(NUM.findall(BIN_SCALE.sub(" ", t))) for t in (before, txt))
         gone = b - a
         if gone and (b & a):
             out.append(f"a viewing control moved values: {sorted(gone)[:4]} vanished")
@@ -179,11 +220,24 @@ def _pages() -> list[str]:
     from panoscope import workflows
     from panoscope.ui import nav
 
-    return (list(nav.ONBOARDING_PAGES) + [nav.SUMMARY_PAGE]
-            + sorted(w.uispec().workflow_id for w in workflows.WORKFLOWS.values()))
+    return (list(nav.ONBOARDING_PAGES) + [nav.SUMMARY_PAGE, f"{nav.SUMMARY_PAGE}#drill"]
+            + sorted(w.uispec().workflow_id for w in workflows.WORKFLOWS.values())
+            + ["markers#pinned"])
+
+
+def _reset(studies) -> None:
+    """A fresh copy of the study tree, so one crawled click cannot hide the next widget."""
+    import shutil
+
+    from tests.conftest import clear_all_caches, copy_studies
+
+    shutil.rmtree(studies)
+    copy_studies(studies)
+    clear_all_caches()
 
 
 # --------------------------------------------------------------------------- #
+@pytest.mark.req("CLAUDE-IF-01", "ARCH-13.4-01", "PLAN-T5-01")
 @pytest.mark.parametrize("page", _pages())
 def test_every_widget_holds_the_invariants(page: str, app_tree, capsys) -> None:
     """Click each widget from a clean page; the rules must survive all of them."""
@@ -193,7 +247,10 @@ def test_every_widget_holds_the_invariants(page: str, app_tree, capsys) -> None:
 
     ws = _widgets(base)
     full = os.getenv("PANOSCOPE_UI_CRAWL_FULL") == "1"
-    chosen = ws if full else ws[:MAX_PER_PAGE]
+    families: dict[str, tuple] = {}
+    for kind, w in ws:
+        families.setdefault(_family(kind, getattr(w, "key", None)), (kind, w))
+    chosen = ws if full else list(families.values())
     if len(chosen) < len(ws):
         with capsys.disabled():
             print(f"\n  [{page}] {len(chosen)} of {len(ws)} widgets "
@@ -202,11 +259,14 @@ def test_every_widget_holds_the_invariants(page: str, app_tree, capsys) -> None:
     broken: list[str] = []
     for kind, w in chosen:
         key = getattr(w, "key", None) or f"<{kind}>"
+        fam = _family(kind, getattr(w, "key", None))
+        _reset(app_tree)        # a Defer or a sign-off persists; the next click starts clean
         at = _at(page)
+        # By family, not key: a nonce-keyed widget (a draft card) gets a new key per load.
         target = next((x for k2, x in _widgets(at)
-                       if k2 == kind and (getattr(x, "key", None) or f"<{k2}>") == key),
-                      None)
-        if target is None:
+                       if _family(k2, getattr(x, "key", None)) == fam), None)
+        if target is None:      # a widget that vanished on reload was never crawled
+            broken.append(f"{key}: not on a fresh load of {page}")
             continue
         try:
             if not _drive(kind, target):

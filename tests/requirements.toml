@@ -1857,3 +1857,9 @@ id      = "CORP-B7"
 source  = "corpus_requirements_final.md §C #19"
 text    = "tissue_match computed at read time for ordering only; never fed to transfer or verify"
 aliases = ["CORP-B7"]
+
+[[req]]
+id      = "PLAN-T5-01"
+source  = "TEST_PLAN.md §3 5.25; ui_inventory (refusal and state messages never asserted)"
+text    = "Every refusal and empty state says what is missing in plain words on the screen: never blank, never a traceback"
+aliases = []
