@@ -44,7 +44,9 @@ exact quotation, not judgment.
 3. Every span is copied character for character from the paper's title, abstract or Europe
    PMC / PubMed Central full text: at most 300 characters, one passage, no ellipses, no
    stitching, no corrections. A span from a publisher PDF or HTML page that is not in
-   Europe PMC will fail Panoscope's check and be dropped.
+   Europe PMC will fail Panoscope's check and be dropped. Panoscope checks against Europe
+   PMC's own text: where your tool renders a character differently (PubMed's superscript
+   "⁺" where Europe PMC has "+"), copy Europe PMC's rendering.
 4. Never compute a rung, a grade, a species state or a modality label. Fields with those
    names are ignored on import.
 5. Never rank or filter by citation count. Never call a citation-metrics tool.
@@ -79,7 +81,7 @@ C_x is cell type x's terms ORed. T is the tissue block.
 
 - **C0 dataset citers** (only when `release_paper.status` is `confirmed`). First fetch the
   release paper itself and read it in full for the gene: a paper line with channel
-  `C0:release`. Then Europe PMC: `CITES:<pmid>_MED AND (G)`, newest first, paged with the
+  `C0:release` and disposition `SAME_DATASET_READ`. Then Europe PMC: `CITES:<pmid>_MED AND (G)`, newest first, paged with the
   cursor to the end. If the status is not `confirmed`, log one `FAILED` query line saying
   the release paper is unresolved.
 - **C3 body sections**, for each cell type x: Europe PMC
@@ -100,8 +102,8 @@ Refused queries, in every channel: if a source refuses or errors (HTTP 400, 414,
 one `tissue.blocks` chunk at a time. Log every part.
 
 Paging: page every query to the end or to 200 results. Over 200: narrow once by adding
-`AND (M)`, then by putting C_x in the title only, then to the last 36 months, logging each
-step. Still over 200: keep the newest 200 and mark the query `TRUNCATED`. A query line's
+`AND (M)`, then by putting C_x in the title only, then to the last 36 months, each step
+keeping the ones before it, logging each step. Still over 200: keep the newest 200 and mark the query `TRUNCATED`. A query line's
 `total` is the hit count the tool reported, `retrieved` the number you actually screened.
 
 ## Screening and dispositions
@@ -131,7 +133,8 @@ frame label if the span also names that label's term; do not add search terms, a
 state label in your closing reply so the biologist can add it as a synonym at intake.
 
 Predicates: `MARKS` (marker, specific, identifies, defines, restricted, exclusive,
-distinguishes) | `ENRICHED_VS` (a comparator in the span) | `SUBSET_MARKER` | `EXPRESSED_IN` |
+distinguishes) | `ENRICHED_VS` (a comparator in the span; copy its words from the span,
+verbatim, into `comparator`, or it reads as `EXPRESSED_IN`) | `SUBSET_MARKER` | `EXPRESSED_IN` |
 `NOT_EXPRESSED_IN` (not, no, absent, negative, lacks, undetectable, low) | `COLOCALISED`
 (signal in a region containing the cell, not attributed to it) | `STATE_ASSOCIATED` (the
 alias is followed by status, signaling, pathway, signature, score, program, axis,
