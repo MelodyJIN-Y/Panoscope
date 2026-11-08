@@ -221,10 +221,39 @@ def save_review_state(
     string) so this stays free of clock calls. A record is never a computed value —
     only which calls the biologist has reviewed.
     """
+    return _save_review_key("reviewed", reviewed, dataset_id, root, saved_at)
+
+
+def load_decisions(
+    dataset_id: str | None = None,
+    root: Optional[Path] = None,
+) -> dict:
+    """The per-cluster annotation decisions ``{cluster: {state, label, by, at, ...}}``, or {}.
+
+    Kept apart from ``reviewed``: a sign-off clears ``verify`` at composition, a decision does not."""
+    dataset_id = dataset_id or cfg.DATASET_ID
+    p = paths.review_state_json(dataset_id, root)
+    return _read(p, lambda d: _dict(_dict(d).get("decisions")), {})
+
+
+def save_decisions(
+    decisions: dict,
+    dataset_id: str | None = None,
+    root: Optional[Path] = None,
+    saved_at: str = "",
+) -> Path:
+    """Persist the decisions map beside the sign-offs in ``review_state.json``."""
+    return _save_review_key("decisions", decisions, dataset_id, root, saved_at)
+
+
+def _save_review_key(key: str, value: dict, dataset_id: str | None,
+                     root: Optional[Path], saved_at: str) -> Path:
+    """Rewrite one key of ``review_state.json``, keeping the others."""
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.review_state_json(dataset_id, root)
     p.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"dataset": dataset_id, "saved_at": saved_at, "reviewed": reviewed}
+    payload = _read(p, _dict, {})
+    payload.update({"dataset": dataset_id, "saved_at": saved_at, key: value})
     with p.open("w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, ensure_ascii=False, sort_keys=True)
         fh.write("\n")
