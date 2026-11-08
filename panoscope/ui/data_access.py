@@ -530,10 +530,14 @@ def enrichment_available() -> bool:
 
 @_cache_data(show_spinner=False)
 def pathway_notes() -> dict:
-    """Live-cited per-pathway biology notes ``{cluster: {gene_set: note}}`` ({} if none)."""
+    """Live-cited per-pathway biology notes ``{cluster: {gene_set: note}}`` ({} if none).
+    Prose that says a program reinforces the call never reaches a screen or export."""
     from panoscope.pipeline import store
+    from panoscope.pipeline.stages.notes import without_lift
 
-    return store.load_pathway_notes()
+    return {c: {g: without_lift(n) if isinstance(n, dict) else n for g, n in sets.items()}
+            if isinstance(sets, dict) else sets
+            for c, sets in store.load_pathway_notes().items()}
 
 
 def pathway_note(cluster: str, gene_set: str) -> Optional[dict]:

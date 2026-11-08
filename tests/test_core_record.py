@@ -498,3 +498,63 @@ def test_failure_modes_discriminate_between_units(demo: Study) -> None:
     # c9 is the demo's smallest cluster (167 cells) and its call rests on few
     # markers, so the thin-profile mode is the one that must be there.
     assert "unit:thin_profile" in by_unit["c9"], by_unit["c9"]
+
+
+@pytest.mark.req("ARCH-17.1-01")
+def test_the_record_states_each_element_of_how_the_file_was_read(demo: Study) -> None:
+    """ARCH §17.1 "how the file was read", element by element, against the input files
+    themselves: the statistic and unit columns, the unit-detection evidence, the rows
+    dropped and why, the out-of-frame entities, the measured set's size, and the
+    clustering mode as declared (a joint two-sample study must say joint)."""
+    import pandas as pd
+
+    raw = pd.read_csv(demo.inputs / "markers_top.csv")
+    panel = pd.read_parquet(demo.inputs / "panel.parquet")
+    nosig = set(raw.loc[raw["top_cluster"].astype(str).str.casefold() == "nosig", "gene"])
+    assert nosig, "the demo's unassigned rows are what makes the drop check bite"
+
+    for unit, built in records.build_all(demo).items():
+        r = built.record.reading
+        assert (r.statistic_column, r.unit_column) == ("glm_coef", "top_cluster"), unit
+        assert r.unit_detection_because and "top_cluster" in r.unit_detection_because[0]
+        assert r.rows_in == len(raw)
+        assert r.rows_dropped == len(nosig) == sum(n for _, n in r.drop_reasons)
+        assert all(why for why, _ in r.drop_reasons)
+        assert set(r.entities_outside_frame) == nosig
+        sizes = {f.name.split(":")[0]: f.size for f in r.frames}
+        assert sizes["panel"] == panel["gene"].nunique()          # measured set, from file
+        assert sizes["detect"] == len(raw) - len(nosig)
+
+    joint = Study.open("synthetic_multisample_fixture")
+    assert joint.manifest["clustering_mode"] == "joint"
+    assert {b.record.reading.clustering_mode
+            for b in records.build_all(joint).values()} == {"joint"}
+
+
+@pytest.mark.req("ARCH-18-03")
+def test_spec_version_is_stamped_on_every_artifact_not_only_the_record(tmp_path) -> None:
+    """ARCH §18: spec_version on every artifact from day one -- claims, corpus versions,
+    the decisions file and the exported report, not only the interpretation record."""
+    from panoscope.claims.store import from_dict, to_dict
+    from panoscope.corpus.store import Corpus, CorpusVersion, load, read_version, save
+    from panoscope.pipeline import decisions as D
+    from panoscope.pipeline import paths
+    from panoscope.ui import report
+    from tests.test_claims import _lab
+
+    claim = to_dict(_lab())
+    assert claim["spec_version"] and from_dict(claim).spec_version == claim["spec_version"]
+
+    v = CorpusVersion(study="s", conditions=(), reference=(), generator="stub",
+                      query_log_hash="0")
+    p = save(Corpus(built="2026-11-09", version=v), tmp_path / "corpus.sqlite")
+    assert load(p).spec_version and read_version(p).spec_version
+
+    D.defer("c1", by="you", at="2026-11-09T00:00:00", dataset_id="s", root=tmp_path,
+            base_dir=tmp_path / "ctx")
+    stamped = json.loads(paths.review_state_json("s", tmp_path).read_text("utf-8"))
+    assert stamped["spec_version"] == core_record.SPEC_VERSION
+
+    # The exported report's provenance block (rendered as "spec version ..." in the
+    # docx/pdf header, tests/test_report.py).
+    assert report._provenance("s")["spec_version"] == core_record.SPEC_VERSION

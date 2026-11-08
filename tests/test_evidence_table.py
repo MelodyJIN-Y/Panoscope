@@ -190,20 +190,28 @@ def test_the_hedge_is_in_the_sentence_not_only_in_the_hover(fixture_builds):
     assert seen, "the fixture must carry a not-comparable subject for this to prove anything"
 
 
-def test_agreement_is_summarised_with_its_denominator_and_never_as_a_lift(
-        fixture_builds):
-    """§9.10: agreement never raises confidence. It is one line carrying the count,
-    because a check that compared one subject and a check that compared forty both
-    render as *no divergence* without it."""
+@pytest.mark.req("UI-4.5-01")
+def test_agreement_renders_nothing_no_count_no_badge(fixture_builds):
+    """interface-design §4.5: when concordance does not fire it renders NOTHING --
+    no tick, no "concordant in n/n" badge, no sample-count chip. Each consistent
+    subject on c3 must leave no line and no count on the page."""
     built = fixture_builds["c3"]                      # the unit the samples agree on
-    n = len(_rules(built.record, "concordance:consistent"))
-    assert n, "c3 is the agreement control; it must carry consistent decisions"
+    consistent = _rules(built.record, "concordance:consistent")
+    assert consistent, "c3 is the agreement control; it must carry consistent decisions"
 
     lines = et.concordance_lines("c3", built)
-    same = [ln for ln in lines if ln.cls == "same"]
-    assert len(same) == 1 and f"{n} subject(s)" in same[0].text
-    assert "NEVER raises confidence" in same[0].text
-    assert not [ln for ln in lines if ln.cls == "diverg"]
+    flagged = {d.outcome for d in built.record.decisions
+               if d.rule in ("concordance:divergent", "concordance:not_comparable")}
+    # Only flags and the record's own undecidable sentences may render.
+    assert {ln.claim for ln in lines if ln.cls in ("diverg", "blocked")} == flagged
+    assert [ln.text for ln in lines if ln.cls == "undecidable"] == list(
+        built.record.undecidable)
+    assert len(lines) == len(flagged) + len(built.record.undecidable)
+    html = et.concordance_html(lines, _anchors("c3", built))
+    # The record's coverage sentence ("compared 9 of 12 subject(s)") may stay: it is
+    # how much was compared, not how much agreed.
+    for word in ("same way", "concordant", "confirmed", "consistent", "agree"):
+        assert word not in html.lower(), word
 
 
 def test_a_single_sample_study_says_why_there_is_no_replicate_read():

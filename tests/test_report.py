@@ -708,3 +708,30 @@ def test_the_pdf_overview_table_fits_its_columns() -> None:
 
     # A value that already fits is untouched -- no gratuitous ellipsis.
     assert R._fit_cell(pdf, "Tumor", max(R._PDF_COL_W)) == "Tumor"
+
+
+@pytest.mark.req("SKE-S3-01")
+def test_an_enriched_program_never_raises_or_reinforces_the_cell_type_call() -> None:
+    """enrichment skill Step 3: a concordant program never 'reinforces' the call, and a
+    cross-lineage one is a tension, never a re-typing. The same report built with and
+    without the enrichment slice carries the same call, band and verify per cluster."""
+    import re
+
+    from panoscope.ui import data_access as _da
+
+    enrichments = {ce.cluster: ce for ce in _da.all_enrichments()}
+    assert any(ce.enriched for ce in enrichments.values()), "no enriched program to test"
+    kw = dict(verdicts=list(v1_verdicts.verdicts().values()), celltype_notes={}, notes=[],
+              holistic=None, panel_size=280, generated_at="2026-11-09")
+    without = R.build_report(**kw)
+    with_ = R.build_report(**kw, enrichments=enrichments, pathway_notes=_da.pathway_notes())
+
+    def call(rep):
+        return [(s.cluster, s.cell_type, s.confidence, s.verify) for s in rep.sections]
+
+    assert call(with_) == call(without)
+    assert any(s.enrichment for s in with_.sections), "the enrichment block never rendered"
+    lift = re.compile(r"reinforc|confirms? the call|supports? the call|strengthen|re-?typ(?:e|ed) as",
+                      re.IGNORECASE)
+    for s in with_.sections:
+        assert not lift.search(s.enrichment + " " + s.enrichment_census), (s.cluster, s.enrichment)

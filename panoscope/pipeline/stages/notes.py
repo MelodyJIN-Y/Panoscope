@@ -123,6 +123,28 @@ def _looks_meta(summary: str) -> bool:
     return any(m in low for m in _META_MARKERS)
 
 
+# A restated statistic (marker skill Output 4, enrichment Outputs): a decimal number,
+# or a score / q / p named with its value. Gene names with digits (CD8, p53) pass.
+_STAT = re.compile(r"(?<![\w.])-?\d+\.\d+|\b(?:q|p|fdr|nes|z|score)\s*[=<>:]\s*-?\d"
+                   r"|\b[qp]-?values?\b", re.IGNORECASE)
+
+
+# enrichment skill Step 3: a concordant program never "reinforces" the call. Prose
+# that lifts the call is unusable, like meta-commentary: it falls back, citation dropped.
+_LIFT = re.compile(r"\breinforc\w*|\bstrengthen\w*|\b(?:confirm|support)s? the (?:\w+ )?call\b",
+                   re.IGNORECASE)
+
+
+def without_lift(note: dict) -> dict:
+    """A stored pathway note, with prose that lifts the call replaced by the grounded
+    fallback and its citation dropped (notes written before the guard existed)."""
+    if not _LIFT.search(str(note.get("summary") or "")):
+        return note
+    fb = _pathway_fallback(str(note.get("gene_set") or ""), str(note.get("cell_type") or ""),
+                           list(note.get("leading_edge") or []))
+    return {**note, "summary": fb, "pmid": None, "citation": None}
+
+
 def _fallback_summary(cell_type: str, markers: list[str]) -> str:
     """A clean deterministic TWO-sentence description when the model's text is unusable.
 
@@ -144,12 +166,13 @@ def _resolve_note(
 ):
     """Turn the model's answer + its top citation into (summary, pmid, citation, used_fallback).
 
-    If the model's text is unusable (empty or meta-commentary), use the
+    If the model's text is unusable (empty, meta-commentary or a restated statistic), use the
     deterministic fallback AND DROP the citation: a PMID is kept only on the model's
     own prose. ``max_words``/``max_sentences`` cap the summary length.
     """
     summary = _shorten(model_text, max_words, max_sentences)
-    used_fallback = (not summary) or _looks_meta(summary)
+    used_fallback = ((not summary) or _looks_meta(summary) or bool(_STAT.search(summary))
+                     or bool(_LIFT.search(summary)))
     if used_fallback:
         summary = fallback_summary
         cite = None

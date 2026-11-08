@@ -253,7 +253,10 @@ def _save_review_key(key: str, value: dict, dataset_id: str | None,
     p = paths.review_state_json(dataset_id, root)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = _read(p, _dict, {})
-    payload.update({"dataset": dataset_id, "saved_at": saved_at, key: value})
+    from panoscope.core.record import SPEC_VERSION   # ARCH §18: on every artifact
+
+    payload.update({"dataset": dataset_id, "saved_at": saved_at,
+                    "spec_version": SPEC_VERSION, key: value})
     with p.open("w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, ensure_ascii=False, sort_keys=True)
         fh.write("\n")

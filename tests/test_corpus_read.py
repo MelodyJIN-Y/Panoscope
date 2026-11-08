@@ -436,3 +436,18 @@ def test_a_verbatim_span_that_never_names_the_gene_is_rejected(tmp_path):
                                     for r in src.records)), p)
     corpus, receipt = _read(p, Stub([{**MARK, "span": other}]))
     assert corpus.statements == () and receipt.rejected == 1
+
+
+@pytest.mark.req("SKC-R3-01")
+def test_a_span_of_301_characters_is_refused_and_300_is_kept():
+    """corpus-building rule 3: a span is at most 300 characters. A verbatim, otherwise
+    valid sentence one character over is refused by code, not by the prompt's wording."""
+    head = "POSTN marks fibroblasts in human breast cancer tissue"
+    ok = head + " " + "x" * (300 - len(head) - 2) + "."
+    assert len(ok) == 300
+    long = ok[:-1] + "x."
+    assert len(long) == 301
+    kept = _verify(_ctx(), ok + " " + long, ok)
+    assert not isinstance(kept, str) and kept.span == ok
+    refused = _verify(_ctx(), ok + " " + long, long)
+    assert isinstance(refused, str) and "longer than 300" in refused

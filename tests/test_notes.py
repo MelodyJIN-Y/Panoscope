@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from panoscope.pipeline import run as pipeline_run
 from panoscope.pipeline.stages.notes import (
     _balance_parens,
@@ -170,3 +172,51 @@ def test_manifest_cell_count_reads_the_built_tree():
         (cfg.DATA_DIR_PATH / "studies" / cfg.BUNDLED_DEMO_ID / "manifest.json").read_text()
     )
     assert manifest["n_cells"] == len(data.load_cells())
+
+
+@pytest.mark.req("SKM-O4-01", "SKE-O-01")
+def test_a_note_restating_a_number_score_or_q_is_refused():
+    """marker Output 4 / enrichment Outputs: no jazzPanda number, score or q restated.
+    Such prose falls back, and its citation goes with it."""
+    for prose, sentences in (
+        ("ERBB2 marks HER2-amplified tumour cells here (glm 21.4).", 1),
+        ("ERBB2 is a tumour marker with coefficient 21.40 in this cluster.", 1),
+        ("Hypoxia response in tumour cells, q = 0.003. It reflects low oxygen.", 2),
+        ("Interferon signalling in T cells with NES: 2 across the set.", 2),
+        ("Angiogenesis program; its q-value marks it as strong.", 2),
+    ):
+        summary, pmid, citation, used_fb = _resolve_note(
+            prose, _cite("33416175"), "Fallback.", max_sentences=sentences)
+        assert used_fb and summary == "Fallback." and pmid is None and citation is None, prose
+    # Narrow: gene names carrying digits are biology, not statistics.
+    summary, pmid, _, used_fb = _resolve_note(
+        "CD8A and p53 signalling mark cytotoxic T cells.", _cite("33416175"), "Fallback.")
+    assert not used_fb and pmid == "33416175" and summary.startswith("CD8A")
+
+
+@pytest.mark.req("SKM-O4-01", "SKE-O-01")
+def test_a_note_never_carries_an_em_or_en_dash():
+    for prose in ("KRT7 — a luminal keratin — marks glandular epithelium.",
+                  "KRT7 – a luminal keratin – marks glandular epithelium."):
+        summary, pmid, _, used_fb = _resolve_note(prose, _cite("1"), "Fallback.")
+        assert not used_fb and pmid == "1"
+        assert "—" not in summary and "–" not in summary and summary.startswith("KRT7")
+
+
+@pytest.mark.req("SKE-S3-01")
+def test_a_pathway_note_that_reinforces_the_call_falls_back():
+    """enrichment Step 3: concordant never 'reinforces' the call, in a new note or in
+    one written before the guard existed (the read-side ``without_lift``)."""
+    from panoscope.pipeline.stages.notes import without_lift
+
+    prose = "KIT is concordant with mast cell identity, reinforcing the c9 call."
+    summary, pmid, _, used_fb = _resolve_note(prose, _cite("1"), "Fallback.", max_sentences=2)
+    assert used_fb and summary == "Fallback." and pmid is None
+    stored = {"gene_set": "HALLMARK_UV_RESPONSE_DN", "cell_type": "Mast_Cells",
+              "leading_edge": ["CAV1", "KIT"], "summary": prose, "pmid": "1",
+              "citation": {"pmid": "1"}}
+    got = without_lift(stored)
+    assert "reinforc" not in got["summary"] and "KIT" in got["summary"]
+    assert got["pmid"] is None and got["citation"] is None
+    plain = {**stored, "summary": "KIT sustains mast cell survival."}
+    assert without_lift(plain) is plain

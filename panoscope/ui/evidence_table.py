@@ -266,8 +266,9 @@ def _subject_name(key: str) -> str:
 def concordance_lines(cluster: str, built: Any) -> list[ConcLine]:
     """This unit's replicate read, as lines. Pure: no Streamlit, nothing derived.
 
-    Divergence first, then blocked, then one summarised agreement count (agreement
-    never raises confidence), then the record's ``undecidable`` sentences verbatim.
+    Divergence first, then blocked, then the record's ``undecidable`` sentences
+    verbatim. Agreement renders nothing (interface-design §4.5): a count beside the
+    band would read as corroboration, and replicates are not independent witnesses.
     """
     rec = built.record
     unit_key = _unit_key(cluster)
@@ -275,11 +276,8 @@ def concordance_lines(cluster: str, built: Any) -> list[ConcLine]:
     display = {i.subject.key: i.subject.display() for i in built.evidence.items}
 
     subjects: list[ConcLine] = []
-    consistent = 0
     for d in rec.decisions:
-        if d.rule == "concordance:consistent":
-            consistent += 1
-        elif d.rule in _CONC_COPY:
+        if d.rule in _CONC_COPY:
             cls, glyph, sentence = _CONC_COPY[d.rule]
             # No row on the page: anchor on the unit and say so.
             on_page = d.outcome in display
@@ -293,14 +291,6 @@ def concordance_lines(cluster: str, built: Any) -> list[ConcLine]:
             ))
     subjects.sort(key=lambda ln: ln.cls != "diverg")   # stable: divergence first
 
-    if consistent:
-        subjects.append(ConcLine(
-            "same", "&middot;",
-            f"{consistent} subject(s) read the same way across the samples — "
-            "agreement NEVER raises confidence: replicates are not independent "
-            "witnesses (§9.10)",
-            unit_key,
-        ))
     subjects.extend(ConcLine("undecidable", "&#8226;", u, unit_key)
                     for u in rec.undecidable)
     return subjects

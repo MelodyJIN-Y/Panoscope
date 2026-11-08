@@ -45,6 +45,8 @@ RELATIONS: Final = {
 _CLOSED: Final = ("DEDUP_OF:", "RETRACTED", "REVIEW_CHASE_ONLY", "P1_EXCLUDED:", "NON_TISSUE",
                   "PREFILTER_NO_ALIAS")
 
+MAX_SPAN: Final = 300        # skill corpus-building rule 3: a span is at most 300 chars
+
 PREAMBLE: Final = (
     "You read one paper's text for Panoscope. Use only the text given. Never write a PMID, "
     "DOI or any identifier. Never use what you remember. Every quote and span is copied "
@@ -340,6 +342,8 @@ def verified(ctx: StudyContext, corpus: Corpus, rec: SourceRecord, gene: str,
              ) -> Statement | str:
     """A claimed statement checked by code (verbatim in ``sec[a:b]``, gene, relation, cell
     named) and its facets computed; a str is why it was rejected."""
+    if len(span) > MAX_SPAN:                     # skill rule 3; the prompt alone is a hope
+        return f"span longer than {MAX_SPAN} characters ({len(span)}): {span[:120]!r}"
     at = _find(rec.text(sec), span, a, b) if sec and span else -1
     if at < 0:
         return f"span not verbatim in {sec or 'its passage'}: {span[:120]!r}"
