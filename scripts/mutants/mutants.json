@@ -1037,8 +1037,8 @@
  {
   "id": "U5",
   "file": "panoscope/ui/data_access.py",
-  "old": "    return (effective_call(cluster) or compose.override_call(cluster)\n            or verdict_for(cluster).cell_type)",
-  "new": "    return (verdict_for(cluster).cell_type or effective_call(cluster) or compose.override_call(cluster))",
+  "old": "    return (effective_call(cluster) or compose.override_call(cluster)\n            or (verdict_for(cluster).cell_type if all_verdicts() else NOT_YET_CALLED))",
+  "new": "    return ((verdict_for(cluster).cell_type if all_verdicts() else NOT_YET_CALLED)\n            or effective_call(cluster) or compose.override_call(cluster))",
   "tests": [
    "tests/test_review_surface.py",
    "tests/test_biologist_path_e2e.py",
@@ -1055,7 +1055,7 @@
  {
   "id": "U6",
   "file": "panoscope/ui/cluster_rail.py",
-  "old": "            label = f\"{name}  ⚑\" if verdicts[cluster].verify else name",
+  "old": "            label = f\"{name}  ⚑\" if v is not None and v.verify else name",
   "new": "            label = name",
   "tests": [
    "tests/test_review_surface.py",
