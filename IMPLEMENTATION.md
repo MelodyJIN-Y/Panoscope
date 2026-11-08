@@ -635,7 +635,8 @@ whatever literature tools it has, and the client writes one JSONL file in the fo
 `panoscope corpus import --study <id> <file>` (`corpus/exchange.py`) **trusts nothing the client
 computed**. A schema error anywhere refuses the file with line-numbered errors, and nothing is
 written. Every id is resolved by code against Europe PMC, and an id that does not resolve is
-rejected, never kept. Text is fetched by code. Each span is checked verbatim with the in-app
+rejected, never kept, and one code finds retracted is closed `RETRACTED` with its statements
+rejected, whatever the client's disposition. Text is fetched by code. Each span is checked verbatim with the in-app
 build's verifier (`read.verified`), and a mismatch is rejected and listed. Rung, modality,
 species and stance are recomputed, so any client `rung`, `stance`, `species` or `grade` is
 ignored. A client `OK` with `retrieved < total` reads `TRUNCATED`, and a key with an incomplete

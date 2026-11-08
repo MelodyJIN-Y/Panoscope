@@ -53,14 +53,15 @@ def parse(path: Path | str) -> list[dict[str, Any]]:
         if kind not in defs:
             errors.append(f"line {n}: kind must be one of {sorted(defs)}")
             continue
-        v = Draft202012Validator({"$ref": f"#/$defs/{kind}", "$defs": defs})
+        v = Draft202012Validator({"$ref": f"#/$defs/{kind}", "$defs": defs},
+                                  format_checker=Draft202012Validator.FORMAT_CHECKER)
         errors += [f"line {n}: {'/'.join(map(str, e.path)) or kind}: {e.message}"
                    for e in v.iter_errors(row)]
         rows.append((n, row))
     if [r["kind"] for _, r in rows[:1]] != ["header"] or \
             sum(r["kind"] == "header" for _, r in rows) != 1:
         errors.append("line 1: the first line must be the file's only header")
-    papers = {r["id"] for _, r in rows if r["kind"] == "paper"}
+    papers = {r.get("id") for _, r in rows if r["kind"] == "paper"}
     errors += [f"line {n}: paper {r['paper']!r} has no paper line" for n, r in rows
                if r["kind"] == "statement" and r.get("paper") not in papers]
     if errors:
@@ -127,8 +128,8 @@ def import_file(study: Any, path: Path | str, *, today: date,
     for s in (s for s in rows if s["kind"] == "statement"):
         g = s["gene"]
         rec = held.get(s["paper"])
-        if rec is None:
-            rejected.append(f"{s['paper']} {g}: paper unresolved")
+        if rec is None or rec.retracted:                 # code's check, as in-app
+            rejected.append(f"{s['paper']} {g}: paper {'retracted' if rec else 'unresolved'}")
             continue
         if g not in aliases:
             try:
@@ -153,8 +154,8 @@ def import_file(study: Any, path: Path | str, *, today: date,
             status = QueryStatus.TRUNCATED          # the client's OK is recomputed too
         queries.append(QueryRun(q["query"], f"client:{q['source']}", q["gene"],
                                 q.get("cell_type", ""), q["total"], q["retrieved"], status))
-    ledger = {held[r["id"]].uri: r["disposition"] for r in rows
-              if r["kind"] == "paper" and r["id"] in held}
+    ledger = {held[r["id"]].uri: "RETRACTED" if held[r["id"]].retracted else r["disposition"]
+              for r in rows if r["kind"] == "paper" and r["id"] in held}
     corpus = replace(corpus, statements=tuple(statements), queries=tuple(queries),
                      ledger=tuple(Disposition(i, d) for i, d in ledger.items()), built=stamp)
     corpus = replace(corpus, version=B.version_for(

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -79,6 +80,14 @@ def test_a_fabricated_pmid_is_rejected_and_never_kept(study, tmp_path):
     assert "  rejected pmid:999 POSTN: paper unresolved" in receipt
 
 
+def test_a_retracted_paper_is_closed_whatever_the_client_said(study, tmp_path, monkeypatch):
+    gone = replace(REC, publication_type=("Retracted Publication",))
+    monkeypatch.setattr(X, "resolve_id", lambda pid, r: gone)
+    corpus, receipt = X.import_file(study, _file(tmp_path, study), today=TODAY)
+    assert not corpus.statements and corpus.ledger[0].disposition == "RETRACTED"
+    assert "  rejected pmid:1 POSTN: paper retracted" in receipt
+
+
 def test_an_altered_span_is_rejected(study, tmp_path):
     corpus, receipt = _import(study, _file(
         tmp_path, study,
@@ -131,14 +140,21 @@ def test_a_stale_brief_warns_and_is_recorded(study, tmp_path):
 def test_a_schema_error_fails_closed_by_line_and_writes_nothing(study, tmp_path):
     bad = _file(tmp_path, study,
                 {"kind": "paper", "id": "12345", "channel": "C1", "disposition": "READ:1:0"},
+                {"kind": "paper", "channel": "C1", "disposition": "READ:1:0"},
                 {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "",
                  "predicate": "LOVES", "span": SPAN, "section": "abstract"})
     with pytest.raises(CorpusUnavailable) as err:
         _import(study, bad)
     msg = str(err.value)
-    assert "line 2: id:" in msg and "line 3: predicate:" in msg
-    assert "line 3: paper 'pmid:1' has no paper line" in msg
+    assert "line 2: id:" in msg and "line 4: predicate:" in msg
+    assert "line 3: paper: 'id' is a required property" in msg
+    assert "line 4: paper 'pmid:1' has no paper line" in msg
     assert not corpus_path(DEMO_ID).exists()
+    for wrong in ('"run_date": "2026-11-07"', f'"study_id": "{DEMO_ID}"'):
+        good = _file(tmp_path, study, name="g.jsonl")
+        good.write_text(good.read_text().replace(wrong, wrong[:-4] + '99"', 1))
+        with pytest.raises(CorpusUnavailable, match="run_date|is for"):
+            _import(study, good)
     bad.write_text(bad.read_text().split("\n", 1)[1])
     with pytest.raises(CorpusUnavailable, match="line 1: the first line"):
         _import(study, bad)
