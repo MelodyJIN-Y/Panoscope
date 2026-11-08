@@ -80,9 +80,12 @@ def hgnc(symbol: str) -> dict[str, Any] | None:
     return doc
 
 
-def mesh_terms(term: str) -> tuple[str, ...]:
-    """Entry terms of the MeSH records naming ``term`` as a word; non-human SCRs skipped."""
-    ids = _get(EUTILS + "esearch.fcgi", {"db": "mesh", "term": f'"{term}"'}) \
+def mesh_terms(term: str, *, heading: bool = False) -> tuple[str, ...]:
+    """Entry terms of the MeSH records naming ``term`` as a word; non-human SCRs skipped.
+    ``heading``: only the heading ``term`` maps to ("breast cancer" -> Breast Neoplasms), not
+    every record whose notes say it (live 2026-11-08: NCOA3, BRCA1, megestrol)."""
+    q = f'"{term}"[mh]' if heading else f'"{term}"'
+    ids = _get(EUTILS + "esearch.fcgi", {"db": "mesh", "term": q}) \
         .get("esearchresult", {}).get("idlist", [])
     if not ids:
         return ()

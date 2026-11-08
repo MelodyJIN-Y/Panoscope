@@ -250,10 +250,22 @@ def test_disease_matches_the_disease_blocks_mesh_entry_terms(monkeypatch):
     from panoscope.corpus import build as B
 
     monkeypatch.setattr(B, "_context", lambda s: _ctx(disease_state="breast cancer"))
-    monkeypatch.setattr(B.vocab, "mesh_terms", lambda t: ("Breast Carcinoma",))
+    records = {"D": ["Breast Neoplasms", "Breast Cancer", "Breast Carcinoma"],     # the heading
+               "P": ["Nuclear Receptor Coactivator 3", "Amplified in Breast Cancer-1 Protein"]}
+
+    def get(url, params, **_):          # live shape: a bare phrase hits proteins, not the heading
+        if "esearch" in url:
+            return {"esearchresult": {"idlist": ["D"] if "[mh]" in params["term"] else ["P"]}}
+        ids = params["id"].split(",")
+        return {"result": {"uids": ids, **{u: {"ds_meshterms": records[u]} for u in ids}}}
+
+    monkeypatch.setattr(B.vocab, "_get", get)
+    ctx = B.context_for(None)
     span = "POSTN marks fibroblasts in human breast carcinoma samples."
-    assert _verify(B.context_for(None), span, span).rung == "W0"
+    assert _verify(ctx, span, span).rung == "W0"
     assert _verify(_ctx(disease_state="breast cancer"), span, span).rung == "W2"
+    protein = "POSTN marks fibroblasts with nuclear receptor coactivator 3 in human breast."
+    assert _verify(ctx, protein, protein).rung != "W0"        # a protein is not the disease
 
 
 def test_a_paper_whose_methods_name_this_dataset_is_same_dataset():

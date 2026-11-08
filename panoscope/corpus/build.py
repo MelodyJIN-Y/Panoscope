@@ -58,7 +58,7 @@ def context_for(study: Any) -> StudyContext:
     mesh: list[str] = []
     for t in ctx.disease_terms:
         try:
-            mesh += vocab.mesh_terms(t)
+            mesh += vocab.mesh_terms(t, heading=True)
         except SourceUnavailable:
             pass        # ponytail: fewer disease matches (wider rung), never more; not logged
     return replace(ctx, disease_mesh=tuple(dict.fromkeys(mesh)))
