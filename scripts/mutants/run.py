@@ -84,6 +84,12 @@ def main(argv: list[str]) -> int:
             # Only a FAILED test is a kill; an ERROR (collection, import) is a broken run.
             status = ("SURVIVED" if r.returncode == 0 else "KILLED" if killer.startswith("FAILED")
                       else f"ERROR rc={r.returncode}")
+            # A killer that also fails on the unmutated copy was broken already, not killed.
+            if status == "KILLED" and subprocess.run(
+                    [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                     killer.removeprefix("FAILED ").split(" - ")[0]],
+                    cwd=work, env=env, capture_output=True, timeout=1800).returncode != 0:
+                status = "ERROR baseline"
             rows.append({**m, "status": status, "secs": round(time.time() - t0), "killer": killer})
             if status != "KILLED":
                 survivors.append(m["id"])
