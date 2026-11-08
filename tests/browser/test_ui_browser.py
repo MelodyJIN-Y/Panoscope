@@ -16,105 +16,22 @@ So three things were structurally invisible to every test in this repo:
    could not catch it; the failure was in the browser, not in Python.
 3. **Layout.** Horizontal overflow at a narrower viewport.
 
-Skipped unless ``playwright`` is importable, so a normal ``pytest`` run is
-unaffected. To enable::
-
-    pip install playwright && playwright install chromium
-
-It starts its OWN Streamlit on a free ephemeral port and tears it down, so it
-never collides with a server the biologist is already running.
+Marker ``browser``, deselected by default; see tests/browser/conftest.py to run it.
+Each server starts on a free ephemeral port, so it never collides with a server the
+biologist is already running.
 """
 
 from __future__ import annotations
 
-import os
 import re
-import socket
-import subprocess
-import sys
-import time
-from pathlib import Path
 
 import pytest
 
+from tests.browser.conftest import app_env, seed, serve
+from tests.browser.conftest import settle as _settle
+
 pytestmark = pytest.mark.browser
-
-pytest.importorskip("playwright.sync_api",
-                    reason="pip install playwright && playwright install chromium")
-
-REPO = Path(__file__).resolve().parents[1]
-APP = REPO / "panoscope" / "app.py"
 PAGES = ("summary", "markers", "pathways", "contrasts")
-
-
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-@pytest.fixture(scope="module")
-def server(tmp_path_factory, _studies_copy):
-    """Our own app on an ephemeral port, against a COPY of the study tree.
-
-    The copy is not optional. This app PERSISTS as it renders -- opening a chat
-    writes ``interp/chat_threads.json``, signing off writes
-    ``interp/review_state.json`` -- and a browser run clicks sign-off for real.
-    Pointed at ``data/`` it leaves runtime files in the committed store, which is
-    what ``_studies_copy`` exists to prevent and what the tree guard catches.
-    """
-    port = _free_port()
-    env = {**os.environ,
-           "PANOSCOPE_DATA_ROOT": str(_studies_copy),
-           "PANOSCOPE_DATASET": "xenium_hbreast_sample1",
-           # Onboarding's "Analyze my data" writes the research profile; keep a
-           # browser run away from the biologist's own context/ for the same
-           # reason test_ui_crawl.py does.
-           "PANOSCOPE_CONTEXT_DIR": str(tmp_path_factory.mktemp("ctx"))}
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "streamlit", "run", str(APP),
-         "--server.port", str(port), "--server.headless", "true",
-         "--browser.gatherUsageStats", "false"],
-        env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    base = f"http://127.0.0.1:{port}"
-    try:
-        for _ in range(120):
-            if proc.poll() is not None:
-                pytest.fail("the app exited while starting")
-            try:
-                with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                    break
-            except OSError:
-                time.sleep(0.5)
-        else:
-            pytest.fail(f"the app never listened on {port}")
-        time.sleep(3)   # streamlit accepts connections before it can serve
-        yield base
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-
-
-def _settle(page, timeout: int = 45_000) -> None:
-    """Streamlit streams over a websocket -- ``load`` fires long before content."""
-    page.wait_for_selector("[data-testid='stAppViewContainer']", timeout=timeout)
-    page.wait_for_function(
-        "() => document.body.innerText.replace(/\\s+/g,' ').trim().length > 300",
-        timeout=timeout)
-    page.wait_for_timeout(2500)
-
-
-@pytest.fixture(scope="module")
-def browser():
-    from playwright.sync_api import sync_playwright
-
-    with sync_playwright() as pw:
-        b = pw.chromium.launch()
-        yield b
-        b.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -219,7 +136,9 @@ def test_a_gene_in_the_url_never_takes_the_page_down(server, browser, gene: str)
       exc: [...document.querySelectorAll("[data-testid='stException']")]
              .map(e => e.innerText.split('\\n').slice(0, 2).join(' ')),
       charts: document.querySelectorAll('.js-plotly-plot').length,
-      ask: !!document.querySelector("textarea, input[type='text']"),
+      // The chat pane: its evidence-first hint until the proposal is shown, then
+      // the ask box (conversation.render_conversation renders one or the other).
+      ask: !!document.querySelector(".conv-hint, [class*='st-key-conv_ask']"),
     })""")
     ctx.close()
 
@@ -388,56 +307,15 @@ def server_with_override(tmp_path_factory):
     alone and fail in a full run, reading a transcript written before the
     override existed.
     """
-    import shutil
-
-    from tests.conftest import DATASETS_ROOT
-
-    # The data ROOT is the parent that CONTAINS ``studies/``, exactly as
-    # ``conftest._studies_copy`` builds it. Pointing at the studies directory
-    # itself leaves the app with no study to resolve.
-    data_root = tmp_path_factory.mktemp("data_root_override")
-    shutil.copytree(DATASETS_ROOT, data_root / "studies")
-    ctx = tmp_path_factory.mktemp("ctx_override")
-    env = {**os.environ,
-           "PANOSCOPE_DATA_ROOT": str(data_root),
-           "PANOSCOPE_DATASET": "xenium_hbreast_sample1",
-           "PANOSCOPE_CONTEXT_DIR": str(ctx)}
-    subprocess.run(
-        [sys.executable, "-c",
-         "from panoscope.agent import memory;"
-         "memory.create_note(claim='c2 is CAF here', scope='cluster',"
-         " basis='own_validation', cluster='c2', subject_cell_type='CAF',"
-         " subject_lineage='Stromal', subject_category='Mesenchymal',"
-         " note_type='celltype_override', dataset='xenium_hbreast_sample1',"
-         " literature_search=lambda q: ())"],
-        env=env, check=True, capture_output=True)
-
-    port = _free_port()
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "streamlit", "run", str(APP),
-         "--server.port", str(port), "--server.headless", "true",
-         "--browser.gatherUsageStats", "false"],
-        env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    base = f"http://127.0.0.1:{port}"
-    try:
-        for _ in range(120):
-            if proc.poll() is not None:
-                pytest.fail("the app exited while starting")
-            try:
-                with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                    break
-            except OSError:
-                time.sleep(0.5)
-        else:
-            pytest.fail(f"the app never listened on {port}")
-        time.sleep(3)
+    env = app_env(tmp_path_factory.mktemp("app_override"))
+    seed(env, "from panoscope.agent import memory;"
+              "memory.create_note(claim='c2 is CAF here', scope='cluster',"
+              " basis='own_validation', cluster='c2', subject_cell_type='CAF',"
+              " subject_lineage='Stromal', subject_category='Mesenchymal',"
+              " note_type='celltype_override', dataset='xenium_hbreast_sample1',"
+              " literature_search=lambda q: ())")
+    with serve(env) as base:
         yield base
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            proc.kill()
 
 
 def test_the_whole_page_agrees_about_an_overridden_call(

@@ -147,7 +147,7 @@ def test_the_header_and_the_rows_use_the_same_grid(rows):
     resolved to three different track sets, because a bare ``1fr`` is
     ``minmax(auto, 1fr)`` and never shrinks below its own content. Alignment is a
     rendered property; only a browser settles it, and
-    ``tests/test_ui_browser.py::test_the_column_headings_sit_over_their_columns``
+    ``tests/browser/test_ui_browser.py::test_the_column_headings_sit_over_their_columns``
     measures it at 1440 and 1024.
 
     What IS checkable here is the shape the renderer asks for, and both halves of

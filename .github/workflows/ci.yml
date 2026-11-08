@@ -71,6 +71,33 @@ jobs:
         run: git diff --exit-code tests/golden data/studies
 
   # ---------------------------------------------------------------------------
+  # Browser E2E (tests/browser, marker `browser`): real clicks, reloads, inline
+  # JS, downloads and layout in headless Chromium. Non-blocking at first (test
+  # plan Stage 7); the default job above deselects these tests.
+  # ---------------------------------------------------------------------------
+  browser:
+    name: Browser E2E (Playwright, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install the package, the browser extra and Chromium
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[app,agent,export,dev,browser]"
+          playwright install --with-deps chromium
+      - name: Run the browser tests
+        run: pytest -m browser -q -p no:cacheprovider
+      - name: The committed golden output and study tree are untouched
+        run: git diff --exit-code tests/golden data/studies
+
+  # ---------------------------------------------------------------------------
   # The lockfile, used the one way it is honest to use it. The matrix job above
   # installs from pyproject.toml, which tests that the declared BOUNDS resolve on
   # three interpreters. This job installs the one recorded set, which tests that

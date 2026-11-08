@@ -17,7 +17,7 @@ survived long enough to be found by hand against real data.
    ``summary._handle_table_actions`` dispatches five names, but only THREE are
    ever emitted: ``?sign=``, ``?undo=`` and ``?drill=``. No generator in
    ``panoscope/ui/`` produces ``?confirm=`` or ``?accept=`` -- observed in a real
-   browser by ``tests/test_ui_browser.py``, not argued from reading the source.
+   browser by ``tests/browser/test_ui_browser.py``, not argued from reading the source.
    Those two branches and their CSS are live code with no caller.
 
 Keys are read off the running app rather than hardcoded: a renamed key should fail
