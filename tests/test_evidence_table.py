@@ -63,6 +63,14 @@ def test_the_chip_comes_off_the_record_not_off_the_biology_note():
         assert _FLAG in items[row.values["gene"]].flags
 
 
+def test_a_corpus_note_with_no_pmid_never_reads_thin(monkeypatch):
+    """'thin' needs a saturated search, which no corpus path has yet; its card says why."""
+    notes = {"A": {"summary": "incomplete search", "card": []}, "B": {"summary": "live"}}
+    monkeypatch.setattr(et.da, "gene_note", lambda c, g: notes[g])
+    assert "thin" not in et._cite_value("c1", "A", {})[0]
+    assert "(literature thin)" in et._cite_value("c1", "B", {})[0]
+
+
 def test_canonical_membership_is_a_chip_and_selects_nothing_else():
     """Reference data may select which rows matter; it may never supply a value."""
     assert et._chips(_item(gene="ERBB2"), frozenset({"ERBB2"})) == ("canonical",)

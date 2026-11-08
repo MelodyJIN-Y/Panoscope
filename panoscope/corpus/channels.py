@@ -110,7 +110,7 @@ def _uri(hit: dict) -> str:
     return f"epmc:{hit.get('source', '')}/{hit.get('id', '')}"
 
 
-_TAG = re.compile(r"<[^>]+>")
+_TAG = re.compile(r"</?[A-Za-z][^>]*>")   # a tag, never "p<0.001 ... >8"
 
 
 def _record(hit: dict, retrieved: str) -> SourceRecord | None:

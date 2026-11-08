@@ -80,7 +80,7 @@ def brief_hash(study: Any) -> str:
 
 def version_for(study: Any, ctx: StudyContext, corpus: Corpus, generator: str, cost: str,
                 day: date) -> CorpusVersion:
-    """The version a build or an import writes: conditions, reference releases, log hash."""
+    """The version a build or an import writes: conditions, releases, log and evidence hashes."""
     from panoscope.reference import view as ref_view
 
     bg = study.manifest.get("background") or {}
@@ -93,6 +93,8 @@ def version_for(study: Any, ctx: StudyContext, corpus: Corpus, generator: str, c
         generator=generator,
         query_log_hash=log_hash(corpus.queries),
         background_hash=hashlib.sha256(json.dumps(bg, sort_keys=True).encode()).hexdigest()[:16],
+        evidence_hash=hashlib.sha256(repr((corpus.statements, corpus.settings, corpus.ledger))
+                                     .encode()).hexdigest()[:16],
         cost=cost, built_at=day.isoformat(),
         stale_after=(day + timedelta(days=STALE_DAYS)).isoformat())
 

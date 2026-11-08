@@ -151,15 +151,16 @@ def methods(rec: SourceRecord, heading: re.Pattern[str] = _METHODS) -> str:
     return "\n".join(out)
 
 
-_SPACES: Final = str.maketrans(dict.fromkeys("\xa0\u2002\u2003\u2004\u2005\u2006\u2007"
-                                             "\u2008\u2009\u200a\u202f", " "))
+_FOLD: Final = str.maketrans({**dict.fromkeys("\xa0\u2002\u2003\u2004\u2005\u2006\u2007"
+                                              "\u2008\u2009\u200a\u202f", " "),
+                               "\u207a": "+", "\u207b": "-", "\u2212": "-"})
 
 
 def _find(text: str, quote: str, start: int = 0, end: int | None = None) -> int:
-    """``str.find``, but a no-break or thin space in the source matches a plain one; one
-    character for one, so the offset still slices the source's own characters."""
-    return text.translate(_SPACES).find(quote.translate(_SPACES), start,
-                                        len(text) if end is None else end)
+    """``str.find``, but a no-break or thin space, a superscript sign or a minus matches its
+    plain form; one character for one, so the offset still slices the source's own text."""
+    return text.translate(_FOLD).find(quote.translate(_FOLD), start,
+                                      len(text) if end is None else end)
 
 
 def _locate(rec: SourceRecord, quote: str) -> tuple[str, int] | None:
@@ -167,6 +168,14 @@ def _locate(rec: SourceRecord, quote: str) -> tuple[str, int] | None:
         if quote and (i := _find(rec.text(sec), quote)) >= 0:
             return sec, i
     return None
+
+
+def verified_setting(rec: SourceRecord, field: str, quote: str) -> Setting | None:
+    """A setting quote located verbatim in the record, sliced from its own text; else None."""
+    if (at := _locate(rec, quote)) is None:
+        return None
+    return Setting(rec.uri, field, rec.text(at[0])[at[1]:at[1] + len(quote)], at[1],
+                   at[1] + len(quote), at[0])
 
 
 def _setting(corpus: Corpus, uri: str, field: str) -> str:
@@ -232,12 +241,11 @@ def _p1(run: _Run, rec: SourceRecord, reader: Reader, receipt: Receipt) -> str:
         quote = got.get(f)
         if not isinstance(quote, str) or not quote:
             continue
-        if (at := _locate(rec, quote)) is None:
+        if (got_f := verified_setting(rec, f, quote)) is None:
             receipt.rejected += 1
             log.warning("P1 %s quote for %s not verbatim, dropped: %r", f, rec.uri, quote)
             continue
-        src = rec.text(at[0])[at[1]:at[1] + len(quote)]
-        settings.append(Setting(rec.uri, f, src, at[1], at[1] + len(quote), at[0]))
+        settings.append(got_f)
     run.commit(settings=tuple(settings))
     ex = got.get("exclude")
     closed = ""

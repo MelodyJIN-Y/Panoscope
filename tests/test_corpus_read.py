@@ -118,6 +118,10 @@ def test_a_quote_typed_with_plain_spaces_binds_to_a_source_with_thin_or_no_break
                                                                          "cancer\xa0tissue"]
 
 
+def test_a_superscript_plus_or_minus_matches_its_plain_form_one_for_one():
+    assert R._find("CDK16+ cells and POSTN\u2212 CAFs", "POSTN\u207b CAFs") == 17
+
+
 def test_relation_gates_are_code_not_model():
     rx = R.matcher(POSTN)
     assert R.relation("POSTN signaling in fibroblasts", "MARKS", "", rx) == "STATE_ASSOCIATED"

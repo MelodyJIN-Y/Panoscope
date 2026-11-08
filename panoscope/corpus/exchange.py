@@ -18,8 +18,8 @@ from typing import Any, Callable, Final
 
 from panoscope.corpus import build as B
 from panoscope.corpus import vocab
-from panoscope.corpus.channels import _record, _search, full_text, matcher
-from panoscope.corpus.read import verified
+from panoscope.corpus.channels import EPMC, _record, _search, full_text, matcher
+from panoscope.corpus.read import verified, verified_setting
 from panoscope.corpus.store import (
     Corpus, CorpusUnavailable, Disposition, QueryRun, QueryStatus, SourceRecord, corpus_path,
     read_version, save,
@@ -62,23 +62,20 @@ def parse(path: Path | str) -> list[dict[str, Any]]:
             sum(r["kind"] == "header" for _, r in rows) != 1:
         errors.append("line 1: the first line must be the file's only header")
     papers = {r.get("id") for _, r in rows if r["kind"] == "paper"}
-    errors += [f"line {n}: paper {r['paper']!r} has no paper line" for n, r in rows
-               if r["kind"] == "statement" and r.get("paper") not in papers]
+    errors += [f"line {n}: paper {r.get('paper')!r} has no paper line" for n, r in rows
+               if r["kind"] in ("statement", "setting") and r.get("paper") not in papers]
     if errors:
         raise CorpusUnavailable("import refused, nothing written:\n" + "\n".join(errors))
     return [r for _, r in rows]
 
 
 def resolve_id(pid: str, retrieved: str) -> SourceRecord | None:
-    """The Europe PMC record ``pid`` names, with OA full text; None when no record is that id."""
+    """The Europe PMC record ``pid`` names; None when no record is that id."""
     scheme, _, v = pid.partition(":")
     _, hits = _search(_QUERY[scheme].format(v), pubmed=False, cap=5, probe=False)
     same = {"pmid": lambda r: r.uri == pid, "pmcid": lambda r: r.pmcid.upper() == v.upper(),
             "doi": lambda r: r.doi.casefold() == v.casefold()}[scheme]
-    rec = next((r for h in hits if (r := _record(h, retrieved)) and same(r)), None)
-    if rec is not None and rec.open_access and rec.pmcid:
-        rec = replace(rec, full_text=full_text(rec))
-    return rec
+    return next((r for h in hits if (r := _record(h, retrieved)) and same(r)), None)
 
 
 def _archive(p: Path) -> None:
@@ -121,7 +118,27 @@ def import_file(study: Any, path: Path | str, *, today: date,
             unresolved.append(f"{r['id']}: {why}")
         else:
             held[r["id"]] = rec
-    corpus = Corpus(records=tuple({r.uri: r for r in held.values()}.values()))
+    fetches = []                        # full text only for papers something cites
+    for pid in dict.fromkeys(r["paper"] for r in rows if r["kind"] in ("statement", "setting")):
+        rec = held.get(pid)
+        if rec and rec.open_access and rec.pmcid and not rec.full_text:
+            held[pid] = rec = replace(rec, full_text=full_text(rec))
+            fetches.append(QueryRun(f"{EPMC}{rec.pmcid}/fullTextXML", "fulltext", "", total=1,
+                                    retrieved=int(bool(rec.full_text)),
+                                    status=QueryStatus.OK if rec.full_text else QueryStatus.FAILED))
+    settings, set_rejected = [], []
+    for r in (r for r in rows if r["kind"] == "setting"):
+        rec = held.get(r["paper"])
+        got = verified_setting(rec, r["field"], r["span"]) if rec and not rec.retracted else None
+        if got is None:
+            set_rejected.append(f"{r['paper']} {r['field']}: " + (
+                "paper retracted or unresolved" if not rec or rec.retracted else
+                "not verbatim" + ("" if rec.full_text else " in title or abstract; full text "
+                                  "unavailable")))
+        else:
+            settings.append(got)
+    corpus = Corpus(records=tuple({r.uri: r for r in held.values()}.values()),
+                    settings=tuple(settings))
 
     aliases: dict[str, Any] = {}
     statements, rejected = [], []
@@ -130,6 +147,10 @@ def import_file(study: Any, path: Path | str, *, today: date,
         rec = held.get(s["paper"])
         if rec is None or rec.retracted:                 # code's check, as in-app
             rejected.append(f"{s['paper']} {g}: paper {'retracted' if rec else 'unresolved'}")
+            continue
+        if s["section"] == "full_text" and not rec.full_text:
+            rejected.append(f"{s['paper']} {g}: full text unavailable (not open access, or "
+                            "its fetch failed; import again to retry)")
             continue
         if g not in aliases:
             try:
@@ -147,7 +168,8 @@ def import_file(study: Any, path: Path | str, *, today: date,
 
     brief_ok = head["brief_hash"] == current
     queries = [QueryRun(f"brief {head['brief_hash']} against current {current}", "import:brief",
-                        "", status=QueryStatus.OK if brief_ok else QueryStatus.DEGRADED)]
+                        "", status=QueryStatus.OK if brief_ok else QueryStatus.DEGRADED),
+               *fetches]
     for q in (q for q in rows if q["kind"] == "query"):
         status = QueryStatus(q["status"].lower())
         if status is QueryStatus.OK and q["retrieved"] < q["total"]:
@@ -170,6 +192,8 @@ def import_file(study: Any, path: Path | str, *, today: date,
     return corpus, [
         f"accepted {len(statements)} statement(s), rejected {len(rejected)}",
         *(f"  rejected {x}" for x in rejected),
+        f"settings: accepted {len(settings)}, rejected {len(set_rejected)}",
+        *(f"  rejected {x}" for x in set_rejected),
         f"unresolved id(s): {len(unresolved)}", *(f"  {x}" for x in unresolved),
         "rungs: " + (", ".join(f"{k} {n}" for k, n in sorted(rungs.items())) or "none"),
         "brief matches the study's current brief" if brief_ok else

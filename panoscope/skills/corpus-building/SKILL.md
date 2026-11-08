@@ -132,6 +132,12 @@ in its terms (for example "Tph" or "CXCL13-producing"), record the statement aga
 frame label if the span also names that label's term; do not add search terms, and list the
 state label in your closing reply so the biologist can add it as a synonym at intake.
 
+For each paper you take a statement from, also quote where the paper states its own setting,
+one `setting` line per field it states (`species`, `specimen`, `tissue`, `disease`, `subtype`,
+`treatment`, `stage`, `assay`, `system`, `data_source`), verbatim from the title, abstract or
+Methods. A span rarely names the tissue or disease itself; without the setting lines
+Panoscope cannot tell the paper studied this tissue, and ranks it further from the study.
+
 Predicates: `MARKS` (marker, specific, identifies, defines, restricted, exclusive,
 distinguishes) | `ENRICHED_VS` (a comparator in the span; copy its words from the span,
 verbatim, into `comparator`, or it reads as `EXPRESSED_IN`) | `SUBSET_MARKER` | `EXPRESSED_IN` |
@@ -144,7 +150,7 @@ amplification, copy number or mutation) | `FUNCTIONAL`.
 
 One JSON object per line, valid against `format.schema.json`. The first line is the only
 header. Then one `paper` line per screened id, one `statement` line per statement, one
-`query` line per call. `client`, `provider` and `model` are what the biologist ran you in
+`setting` line per stated setting field, one `query` line per call. `client`, `provider` and `model` are what the biologist ran you in
 (ask if you do not know; never guess), `run_date` is today. An illustrative file (the id is
 deliberately fake; never copy it):
 
@@ -153,6 +159,7 @@ deliberately fake; never copy it):
 {"kind": "query", "query": "(\"POSTN\"[tiab]) AND (\"breast\"[tiab]) AND (\"fibroblasts\"[tiab])", "source": "PubMed", "gene": "POSTN", "cell_type": "Fibroblasts", "total": 1, "retrieved": 1, "status": "OK"}
 {"kind": "paper", "id": "pmid:00000000", "title": "As the tool returned it", "channel": "C1", "disposition": "READ:1"}
 {"kind": "statement", "paper": "pmid:00000000", "gene": "POSTN", "cell_type_as_written": "cancer-associated fibroblasts", "cell_type": "Fibroblasts", "predicate": "MARKS", "span": "Copied character for character from the abstract.", "section": "abstract"}
+{"kind": "setting", "paper": "pmid:00000000", "field": "tissue", "span": "Copied character for character from the Methods."}
 ```
 
 Before you finish: re-check every span against the saved tool output and drop any that is

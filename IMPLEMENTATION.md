@@ -630,14 +630,18 @@ whatever literature tools it has, and the client writes one JSONL file in the fo
 | `header` (first line, once) | `format_version`, `study_id`, `brief_hash` (from the brief), `client`, `provider`, `model`, `run_date`, `operator_note` |
 | `paper` | `id` (`pmid:` / `pmcid:` / `doi:`), `title`, `channel` (why screened), `disposition` (the ledger vocabulary) |
 | `statement` | `paper`, `gene`, `cell_type_as_written`, `cell_type` (frame label or `""`), `tissue_as_written`, `disease_as_written`, `predicate` (the P2 relations), `comparator`, `span` (verbatim), `section` |
+| `setting` | `paper`, `field` (the P1 setting fields), `span` (verbatim): where the paper states its tissue, disease, species, system ... |
 | `query` | `query` (exact string), `source`, `gene`, `cell_type`, `total`, `retrieved`, `status` (`OK` / `TRUNCATED` / `FAILED`) |
 
 `panoscope corpus import --study <id> <file>` (`corpus/exchange.py`) **trusts nothing the client
 computed**. A schema error anywhere refuses the file with line-numbered errors, and nothing is
 written. Every id is resolved by code against Europe PMC, and an id that does not resolve is
 rejected, never kept, and one code finds retracted is closed `RETRACTED` with its statements
-rejected, whatever the client's disposition. Text is fetched by code. Each span is checked verbatim with the in-app
-build's verifier (`read.verified`), and a mismatch is rejected and listed. Rung, modality,
+rejected, whatever the client's disposition. Full text is fetched by code, only for papers a
+statement or setting cites; a statement quoting full text that could not be fetched is rejected
+as "full text unavailable", never "not verbatim". Each span is checked verbatim with the in-app
+build's verifier (`read.verified`), and each setting quote with P1's (`read.verified_setting`);
+a mismatch is rejected and listed. Settings feed the facets as P1's do, so an import can reach W0. Rung, modality,
 species and stance are recomputed, so any client `rung`, `stance`, `species` or `grade` is
 ignored. A client `OK` with `retrieved < total` reads `TRUNCATED`, and a key with an incomplete
 log reads "incomplete search".
@@ -645,7 +649,8 @@ log reads "incomplete search".
 A `brief_hash` that is not the study's current one is warned and recorded in the query log. The
 new `CorpusVersion` is stamped `<model> (<provider>) in <client>, built in user client, run
 <date>` as the user stated it. Every version is also copied to `versions/<hash>.sqlite` beside
-the store, so earlier versions are kept and never overwritten (A12). The import prints a receipt
+the store, so earlier versions are kept and never overwritten (A12); the version hash covers
+the statements, settings and ledger as well as the query log, so two different reads never share one. The import prints a receipt
 listing accepted and rejected statements with reasons, unresolved ids and the rung distribution.
 The in-app API build (`panoscope corpus build`) remains the secondary path.
 

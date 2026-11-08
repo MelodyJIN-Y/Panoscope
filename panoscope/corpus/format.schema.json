@@ -58,6 +58,18 @@
         "grade": {"description": "ignored: recomputed by code"}
       }
     },
+    "setting": {
+      "type": "object",
+      "required": ["kind", "paper", "field", "span"],
+      "additionalProperties": false,
+      "description": "where the paper states its own setting (the in-app P1 fields); checked verbatim by code like a span, and feeds the tissue, disease, species and system facets",
+      "properties": {
+        "kind": {"const": "setting"},
+        "paper": {"type": "string", "description": "a paper line's id"},
+        "field": {"enum": ["species", "specimen", "tissue", "disease", "subtype", "treatment", "stage", "assay", "system", "data_source"]},
+        "span": {"type": "string", "minLength": 1, "description": "verbatim from the paper's title, abstract or full text"}
+      }
+    },
     "query": {
       "type": "object",
       "required": ["kind", "query", "source", "gene", "total", "retrieved", "status"],

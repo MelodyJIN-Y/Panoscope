@@ -175,6 +175,11 @@ def test_dedupe_by_pmid_then_doi_and_preprints_collapse(monkeypatch, tmp_path):
     assert "pmid:1" not in led and "pmid:2" not in led       # open: awaiting a read
 
 
+def test_tag_stripping_keeps_a_less_than_in_the_text():
+    rec = C._record(_hit(pmid="1", abstract="<i>POSTN</i> higher (p<0.0001), >8 points."), "d")
+    assert rec.abstract == "POSTN higher (p<0.0001), >8 points."
+
+
 def test_the_gate(monkeypatch, tmp_path):
     w = World(epmc=[(_c3, [_hit(pmid="10", abstract="no alias here")])],
               pubmed=[(lambda q: "Fibroblast" in q and "Xenium" not in q, 4,

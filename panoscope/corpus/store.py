@@ -324,6 +324,7 @@ class CorpusVersion:
     generator: str                              # model + route
     query_log_hash: str
     background_hash: str = ""
+    evidence_hash: str = ""                     # statements, settings and ledger: two reads differ
     cost: str = ""                              # the build's receipt, as written
     retrieval: str = "BM25+aliases"
     embedding: str = "none"

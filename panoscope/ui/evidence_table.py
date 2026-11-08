@@ -108,7 +108,7 @@ def _cite_value(cluster: str, gene: str, anchored: dict) -> tuple[str, str] | st
     pmid = note.get("pmid")
     bits: list[str] = []
     if summary:
-        bits.append(summary + ("" if pmid else "  (literature thin)"))
+        bits.append(summary + ("" if pmid or "card" in note else "  (literature thin)"))
     for n in (anchored.get(gene) or [])[:2]:
         t = n.tension
         tension = (f" · {len(t.dissent)} lit. dissent" if t.dissent

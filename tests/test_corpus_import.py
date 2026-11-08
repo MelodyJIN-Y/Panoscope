@@ -13,7 +13,7 @@ import pytest
 
 from panoscope.corpus import build as B
 from panoscope.corpus import exchange as X
-from panoscope.corpus.read import RELATIONS
+from panoscope.corpus.read import RELATIONS, SETTING_FIELDS
 from panoscope.corpus.retrieve import key_state
 from panoscope.corpus.store import (
     DISPOSITIONS, Corpus, CorpusUnavailable, CorpusVersion, SourceRecord, corpus_path, load, save,
@@ -130,6 +130,48 @@ def test_earlier_versions_are_kept_never_overwritten(study, tmp_path):
     assert load(corpus_path(DEMO_ID)).version == second.version
 
 
+def test_two_imports_that_differ_only_in_statements_are_two_versions(study, tmp_path):
+    first, _ = _import(study, _file(tmp_path, study))
+    paper, _, query = json.loads("[" + _file(tmp_path, study).read_text().replace(
+        "\n", ",").rstrip(",") + "]")[1:]
+    second, _ = _import(study, _file(tmp_path, study, paper, query, name="d.jsonl"))
+    assert first.version.query_log_hash == second.version.query_log_hash
+    assert first.version.content_hash != second.version.content_hash
+
+
+def test_a_setting_line_is_checked_verbatim_and_feeds_the_rung(study, tmp_path):
+    paper = {"kind": "paper", "id": "pmid:1", "channel": "C1", "disposition": "READ:1:0"}
+    st = {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "Myoepithelial",
+          "predicate": "NOT_EXPRESSED_IN", "span": "Basal cells lacked POSTN expression.",
+          "section": "abstract"}
+    tissue = {"kind": "setting", "paper": "pmid:1", "field": "tissue",
+              "span": "breast tumour samples"}
+    bare, _ = _import(study, _file(tmp_path, study, paper, st))
+    corpus, receipt = _import(study, _file(tmp_path, study, paper, st, tissue,
+                                           {**tissue, "field": "species", "span": "mice"},
+                                           name="s.jsonl"))
+    assert [(x.field, x.quote) for x in corpus.settings] == [("tissue", "breast tumour samples")]
+    assert "settings: accepted 1, rejected 1" in receipt
+    assert (bare.statements[0].rung, corpus.statements[0].rung) == ("W3", "W0*")
+
+
+def test_full_text_is_fetched_only_for_cited_papers_and_a_failed_fetch_is_named(
+        study, tmp_path, monkeypatch):
+    oa = {u: replace(REC, uri=u, full_text="", open_access=True, pmcid="PMC1" + u[-1])
+          for u in ("pmid:1", "pmid:2")}
+    fetched = []
+    monkeypatch.setattr(X, "full_text", lambda r: fetched.append(r.uri) or "")
+    corpus, receipt = X.import_file(study, _file(
+        tmp_path, study,
+        *({"kind": "paper", "id": u, "channel": "C1", "disposition": "READ:1:0"} for u in oa),
+        {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "Fibroblasts",
+         "predicate": "MARKS", "span": "POSTN was a specific marker of fibroblasts",
+         "section": "full_text"}), today=TODAY, resolver=lambda pid, d: oa.get(pid))
+    assert fetched == ["pmid:1"]
+    assert any("full text unavailable" in line for line in receipt)
+    assert [q.status.value for q in corpus.queries if q.channel == "fulltext"] == ["failed"]
+
+
 def test_a_stale_brief_warns_and_is_recorded(study, tmp_path):
     corpus, receipt = _import(study, _file(tmp_path, study, brief="0" * 16))
     assert any(line.startswith("WARNING: stale brief 0000") for line in receipt)
@@ -163,6 +205,7 @@ def test_a_schema_error_fails_closed_by_line_and_writes_nothing(study, tmp_path)
 def test_the_schema_vocabularies_match_the_code():
     defs = json.loads(X.SCHEMA.read_text())["$defs"]
     assert set(defs["statement"]["properties"]["predicate"]["enum"]) == set(RELATIONS)
+    assert tuple(defs["setting"]["properties"]["field"]["enum"]) == SETTING_FIELDS
     rx = re.compile(defs["paper"]["properties"]["disposition"]["pattern"])
     assert all(rx.match(d + ("x" if d.endswith(":") else "")) for d in DISPOSITIONS)
 
