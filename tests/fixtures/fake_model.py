@@ -61,4 +61,13 @@ def install(monkeypatch) -> FakeClient:
     monkeypatch.setattr(loop, "_default_literature_verifier",
                         lambda ident: str(ident).strip() in client.real_ids)
     monkeypatch.setattr(loop, "_DEFAULT_AGENT", None)  # rebuilt against the fake
+    forget_agent()
     return client
+
+
+def forget_agent() -> None:
+    """Drop the app's ``st.cache_resource`` agent, which outlives tests (it is no
+    ``lru_cache``), so the next app run rebuilds it against this test's client."""
+    from panoscope.ui import data_access
+
+    data_access.get_agent.clear()
