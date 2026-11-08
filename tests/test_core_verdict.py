@@ -564,8 +564,9 @@ def test_a_frame_still_refuses_a_gene_that_is_genuinely_absent() -> None:
 # Edges are the configured ones (SKILL.md: "exact band edges live in config");
 # the expectations below are the spec's -- an edge belongs to the band it opens.
 # --------------------------------------------------------------------------- #
-_EDGES = (("Very High", 10.0), ("High", 5.0), ("Medium-High", 2.5), ("Medium", 1.0))
-_BELOW = {"Very High": "High", "High": "Medium-High", "Medium-High": "Medium", "Medium": "Low"}
+_LADDER = ("Very High", "High", "Medium-High", "Medium", "Low")    # SKILL.md 3d: the fixed set
+_EDGES = tuple((b, C.CONFIDENCE_BANDS[b]) for b in _LADDER[:-1])  # tunable: read, never pinned
+_BELOW = dict(zip(_LADDER, _LADDER[1:]))
 
 
 def _band(coef: float, pearson: float = 0.5) -> str:
@@ -576,7 +577,6 @@ def _band(coef: float, pearson: float = 0.5) -> str:
 @pytest.mark.req("SKM-3d-01")
 @pytest.mark.parametrize("band,edge", _EDGES)
 def test_each_band_edge_belongs_to_the_band_it_opens(band, edge):
-    assert C.CONFIDENCE_BANDS[band] == edge
     assert _band(edge) == band
     assert _band(edge - 1e-6) == _BELOW[band]
 
@@ -591,6 +591,7 @@ def test_a_strongly_negative_driver_is_banded_by_its_magnitude(band, edge):
 
 @pytest.mark.req("SKM-3d-04", "ARCH-2.2-01")
 def test_pearson_exactly_at_the_promote_line_promotes_one_band():
-    assert C.PROMOTE_PEARSON == 0.85
-    assert _band(6.0, pearson=0.85) == "Very High"
-    assert _band(6.0, pearson=0.85 - 1e-6) == "High"
+    line = C.PROMOTE_PEARSON                                    # tunable: read, never pinned
+    high = (C.CONFIDENCE_BANDS["High"] + C.CONFIDENCE_BANDS["Very High"]) / 2
+    assert _band(high, pearson=line) == "Very High"
+    assert _band(high, pearson=line - 1e-6) == "High"
