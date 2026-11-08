@@ -44,6 +44,20 @@ DATASETS_ROOT = PROJECT_ROOT / "data" / "studies"
 DEMO_ID = "xenium_hbreast_sample1"
 MINI_ID = "demo_mini"
 
+# Property tests (tests/test_properties.py). Per commit: derandomised, 200 examples,
+# no example database, so the suite is reproducible and writes no .hypothesis/.
+# Nightly: HYPOTHESIS_PROFILE=deep, random, 2000 examples; a failure it finds
+# becomes an @example in the commit suite.
+try:
+    from hypothesis import settings as _hyp
+
+    _hyp.register_profile("commit", derandomize=True, max_examples=200,
+                          database=None, deadline=None)
+    _hyp.register_profile("deep", max_examples=2000, database=None, deadline=None)
+    _hyp.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "commit"))
+except ImportError:  # dev extra not installed; test_properties.py skips itself
+    pass
+
 
 def _owned_modules():
     for name, mod in list(sys.modules.items()):

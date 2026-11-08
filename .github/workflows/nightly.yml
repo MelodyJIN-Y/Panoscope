@@ -1,0 +1,29 @@
+name: Nightly
+
+# What is too slow for every commit (TEST_PLAN §2.10): random 2000-example property
+# runs and the curated mutant run. A failure the deep run finds becomes an @example
+# in tests/test_properties.py, which the commit suite then runs deterministically.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  deep:
+    name: Deep properties + mutants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[app,agent,export,dev]"
+      - name: Properties, 2000 random examples each
+        run: HYPOTHESIS_PROFILE=deep pytest tests/test_properties.py -q -p no:cacheprovider
+      - name: Curated mutants (on a temp copy; fails on any non-equivalent survivor)
+        run: python scripts/mutants/run.py
