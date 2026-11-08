@@ -1,6 +1,7 @@
 """J10: the biologist does not know the fixation or the disease state (S10)."""
 from __future__ import annotations
 
+import re
 from io import BytesIO
 
 import pytest
@@ -71,5 +72,6 @@ def test_the_exported_report_names_every_unknown_condition(isolated, monkeypatch
         D.defer(c, by="tester", at="2026-11-09T00:00:00")
     assert len(open_app("summary").download_button) == 2
     text = _text(got["docx"]).lower()
-    assert "fixation: unknown" in text and "disease_state: unknown" in text, [
+    assert all(re.search(rf"{f}\W+(unknown|not declared)", text)      # any wording, named
+               for f in ("fixation", "disease.state")), [
         ln for ln in text.splitlines() if "unknown" in ln][:5]

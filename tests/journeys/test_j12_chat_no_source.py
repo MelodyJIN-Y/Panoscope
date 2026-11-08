@@ -48,3 +48,21 @@ def test_an_invented_ic50_and_pmid_never_reach_the_page_and_the_reply_says_withh
     turn = _last_turn(at)
     assert "withheld" in turn and "Nothing in this study's results answers" in turn, turn
     assert f"called {da.verdict_for('c1').cell_type}" not in turn, turn
+
+
+@pytest.mark.req("CLAUDE-HR-05", "ARCH-11.1-01")
+def test_a_withheld_answer_keeps_the_rubric_verify_flag(isolated):
+    """A withheld answer, canned or not, carries the rubric's verify for its cluster:
+    c9 (the rubric's only verify=TRUE call) stays flagged, c1 stays unflagged."""
+    import csv
+
+    from panoscope.agent import fallback as fb
+    from tests.conftest import DEMO_ID
+
+    with (isolated.root / DEMO_ID / "interp" / "verdicts.csv").open() as f:
+        rubric = {r["cluster"]: r["verify"] == "TRUE" for r in csv.DictReader(f)}
+    assert (rubric["c9"], rubric["c1"]) == (True, False)
+    for c in ("c1", "c9"):
+        for q in (Q, "could this be a doublet?"):
+            r = fb.withheld(q, c)
+            assert r.text.startswith(fb.WITHHELD) and r.verify is rubric[c], (c, q)

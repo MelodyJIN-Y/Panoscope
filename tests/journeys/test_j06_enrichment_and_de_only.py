@@ -52,8 +52,8 @@ def test_a_de_only_folder_builds_and_opens_summary_with_the_stray_tsv_listed(
         isolated, tmp_path):
     """Given a folder with only edgeR output, the panel, and a stray copy saved as .tsv,
     When the collaborator pastes it, declares the tissue, builds and starts,
-    Then the .tsv is listed as not recognised, and Summary and Markers open without an
-    exception, each saying what is missing in plain words."""
+    Then the .tsv is listed as not recognised, and Summary, Markers and Pathways open
+    without an exception (the DE screen itself is the 5.22 gap in tests/ui/test_shell.py)."""
     folder = folder_with(tmp_path, "de_only", {"de_edger.csv": SYNTH / "de_edger.csv",
                                                "panel.parquet": SYNTH / "panel.parquet",
                                                "de_seurat.tsv": SYNTH / "de_edger.csv"})
