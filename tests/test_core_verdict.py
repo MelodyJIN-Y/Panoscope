@@ -557,3 +557,40 @@ def test_a_frame_still_refuses_a_gene_that_is_genuinely_absent() -> None:
     frame = Frame(kind=EntityKind.GENE, name="panel:t", members=frozenset({"CD68"}))
     for other in ("CD69", "CD8A", "CD6", "CD688", "C D68"):
         assert frame.contains(Entity(EntityKind.GENE, other)) is False, other
+
+
+# --------------------------------------------------------------------------- #
+# The ladder as a table: each edge exactly, just below it, and its negative.
+# Edges are the configured ones (SKILL.md: "exact band edges live in config");
+# the expectations below are the spec's -- an edge belongs to the band it opens.
+# --------------------------------------------------------------------------- #
+_EDGES = (("Very High", 10.0), ("High", 5.0), ("Medium-High", 2.5), ("Medium", 1.0))
+_BELOW = {"Very High": "High", "High": "Medium-High", "Medium-High": "Medium", "Medium": "Low"}
+
+
+def _band(coef: float, pearson: float = 0.5) -> str:
+    filler = tuple(_item(f"G{i}", 0.5, 0.5) for i in range(4))     # not fragile
+    return C.assess((_item("ERBB2", coef, pearson), *filler), frozenset({"ERBB2"})).value.band
+
+
+@pytest.mark.req("SKM-3d-01")
+@pytest.mark.parametrize("band,edge", _EDGES)
+def test_each_band_edge_belongs_to_the_band_it_opens(band, edge):
+    assert C.CONFIDENCE_BANDS[band] == edge
+    assert _band(edge) == band
+    assert _band(edge - 1e-6) == _BELOW[band]
+
+
+@pytest.mark.req("SKM-3d-01")
+@pytest.mark.parametrize("band,edge", _EDGES)
+def test_a_strongly_negative_driver_is_banded_by_its_magnitude(band, edge):
+    """The sign lives in ``direction``; a coefficient of -edge is as strong as +edge."""
+    assert _band(-edge) == band
+    assert _band(-(edge - 1e-6)) == _BELOW[band]
+
+
+@pytest.mark.req("SKM-3d-04", "ARCH-2.2-01")
+def test_pearson_exactly_at_the_promote_line_promotes_one_band():
+    assert C.PROMOTE_PEARSON == 0.85
+    assert _band(6.0, pearson=0.85) == "Very High"
+    assert _band(6.0, pearson=0.85 - 1e-6) == "High"

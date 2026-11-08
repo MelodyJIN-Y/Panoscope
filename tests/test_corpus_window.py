@@ -245,3 +245,14 @@ def test_eutils_requests_name_the_tool_and_send_email_only_from_env(monkeypatch)
     monkeypatch.setenv("NCBI_EMAIL", "lab@example.org")
     F.count('"GENEX"[tiab]')
     assert "email=lab%40example.org" in seen[-1]
+
+
+@pytest.mark.req("ARCH-8.1-03")
+@pytest.mark.parametrize("declared", [True, False])
+def test_a_non_human_statement_with_no_tissue_or_cell_match_has_no_rung(declared):
+    """W4 is non-human evidence in this tissue or cell type; with neither it is beyond
+    the ladder, not a labelled rung."""
+    bare = Facets(in_vivo=True, species=Species.NON_HUMAN)
+    assert rung(bare, disease_declared=declared) is None
+    assert rung(dataclasses.replace(bare, tissue=True), disease_declared=declared) is Rung.W4
+    assert rung(dataclasses.replace(bare, cell_type=True), disease_declared=declared) is Rung.W4

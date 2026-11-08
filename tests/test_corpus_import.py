@@ -281,3 +281,38 @@ def test_the_cli_imports_and_prints_the_receipt(study, tmp_path, monkeypatch, ca
     cli.main(["corpus", "import", "--study", DEMO_ID, str(_file(tmp_path, study))])
     out = capsys.readouterr().out
     assert "accepted 1 statement(s)" in out and "built 2026-11-07" in out
+
+
+@pytest.mark.req("IMPL-6.1-05", "PLAN-P3.3-01")
+def test_an_imported_span_that_never_names_the_gene_is_rejected(study, tmp_path):
+    other = "VIM marks fibroblasts in human breast cancer tissue."
+    rec = replace(REC, abstract=f"{ABSTRACT} {other}")
+    corpus, receipt = X.import_file(study, _file(
+        tmp_path, study,
+        {"kind": "paper", "id": "pmid:1", "channel": "C1", "disposition": "READ:1:0"},
+        {"kind": "statement", "paper": "pmid:1", "gene": "POSTN", "cell_type": "Fibroblasts",
+         "predicate": "MARKS", "span": other, "section": "abstract"}),
+        today=TODAY, resolver=lambda pid, r: rec if pid == "pmid:1" else None)
+    assert not corpus.statements
+    assert any("does not name POSTN" in line for line in receipt), receipt
+
+
+@pytest.mark.req("IMPL-6.1-02", "CLAUDE-HR-03")
+def test_a_doi_whose_lookup_returns_a_different_paper_is_rejected(monkeypatch):
+    """Europe PMC's first hit for a DOI query is not the DOI's paper by default."""
+    hits = [{"doi": "10.1000/other", "pmid": "7", "title": "Wrong paper", "pubYear": "2020"},
+            {"doi": "10.1000/ABC", "pmid": "8", "title": "Right paper", "pubYear": "2021"}]
+    monkeypatch.setattr(X, "_search", lambda q, **k: (2, hits))
+    assert X.resolve_id("doi:10.1000/abc", "2026-11-08").title == "Right paper"
+    monkeypatch.setattr(X, "_search", lambda q, **k: (1, hits[:1]))
+    assert X.resolve_id("doi:10.1000/abc", "2026-11-08") is None
+
+
+@pytest.mark.req("IMPL-6.1-01")
+def test_a_file_with_two_header_lines_is_refused_by_line(study, tmp_path):
+    p = _file(tmp_path, study)
+    head = p.read_text().splitlines()[0]
+    p.write_text(p.read_text() + head + "\n")
+    with pytest.raises(CorpusUnavailable, match="line 1: the first line must be the file's only header"):
+        _import(study, p)
+    assert not corpus_path(DEMO_ID).exists()

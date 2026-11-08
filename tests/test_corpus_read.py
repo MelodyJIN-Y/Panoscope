@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 
 import pytest
 
@@ -421,3 +422,17 @@ def test_reconcile_stamps_a_lookup_only_when_the_search_was_complete():
             cfg.DATASET_ID, (), (), "stub", "h", built_at="B")), corpus_path(cfg.DATASET_ID))
         stamp.append(memory.reconcile(note).looked_up_at)
     assert stamp == ["B", ""]       # complete and empty is thin; a gap is no lookup at all
+
+
+@pytest.mark.req("IMPL-6.1-05", "PLAN-P3.3-01")
+def test_a_verbatim_span_that_never_names_the_gene_is_rejected(tmp_path):
+    """Verbatim, a marker relation, the right cell type -- about another gene. Read as
+    POSTN evidence it would put literature on the wrong gene."""
+    other = "VIM marks fibroblasts in human breast cancer tissue."
+    assert isinstance(_verify(_ctx(), other, other), str)
+    p = _corpus(tmp_path)
+    src = load(p)
+    save(replace(src, records=tuple(replace(r, abstract=f"{ABSTRACT} {other}")
+                                    for r in src.records)), p)
+    corpus, receipt = _read(p, Stub([{**MARK, "span": other}]))
+    assert corpus.statements == () and receipt.rejected == 1

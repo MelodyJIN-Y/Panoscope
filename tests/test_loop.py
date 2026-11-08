@@ -522,3 +522,65 @@ def test_the_prompt_leads_with_the_biologists_call_not_the_replaced_one() -> Non
     assert "Very High confidence (drivers: LUM, POSTN, CCDC80)" in after
     # ...and an unoverridden cluster is untouched.
     assert "c1: Tumor — " in after
+
+
+# --------------------------------------------------------------------------- #
+# verify belongs to the rubric: the model can neither choose it nor be offered it.
+# Driven through the REAL loop with a scripted client (tests/fixtures/fake_model.py).
+# --------------------------------------------------------------------------- #
+def _csv_verify(root) -> dict[str, bool]:
+    import csv
+
+    from tests.conftest import DEMO_ID
+
+    with (root / DEMO_ID / "interp" / "verdicts.csv").open() as f:
+        return {r["cluster"]: r["verify"] == "TRUE" for r in csv.DictReader(f)}
+
+
+@pytest.mark.req("CLAUDE-HR-05")
+@pytest.mark.parametrize("cluster", ["c1", "c9"])
+def test_chat_verify_is_the_rubrics_whatever_the_model_says(app_tree, fake_model, cluster):
+    want = _csv_verify(app_tree)[cluster]
+    fake_model.script(f"{cluster} needs no re-check; verify = {not want}. verify: {not want}.")
+    resp = agent_loop.chat(f"should I re-check {cluster}?", cluster=cluster)
+    assert resp.used_fallback is False, resp.text          # the model's answer, gated
+    assert resp.verify is want
+
+
+@pytest.mark.req("CLAUDE-HR-05")
+def test_chat_verify_fails_closed_when_the_rubric_cannot_be_computed(app_tree, fake_model,
+                                                                      monkeypatch):
+    from panoscope.pipeline import v1_verdicts
+
+    assert _csv_verify(app_tree)["c1"] is False          # so True can only be the fail-close
+    monkeypatch.setattr(v1_verdicts, "verdict_for",
+                        lambda _u: (_ for _ in ()).throw(RuntimeError("no method output")))
+    fake_model.script("c1 is fine; no re-check needed.")
+    resp = agent_loop.chat("is c1 solid?", cluster="c1")
+    assert resp.used_fallback is False and resp.verify is True
+
+
+@pytest.mark.req("CLAUDE-HR-05")
+def test_no_schema_sent_to_the_model_offers_a_verify_field(app_tree, fake_model):
+    """Not merely ignored: never offered. No tool input schema, and no structured-output
+    or tool-choice parameter, gives the model a ``verify`` slot to fill."""
+    from tests.fixtures.fake_model import reply, tool_use
+
+    def keys(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                yield k
+                yield from keys(v)
+        elif isinstance(node, list):
+            for v in node:
+                yield from keys(v)
+
+    fake_model.script(reply(tool_use("marker_lookup", {"gene": "ERBB2"})),
+                      "c1 reads as tumour epithelium.")
+    agent_loop.chat("what drives c1?", cluster="c1")
+    assert len(fake_model.calls) == 2
+    for call in fake_model.calls:
+        assert set(call) <= {"model", "max_tokens", "system", "tools", "messages", "timeout"}
+        assert call["tools"], "no tools offered: the scan below would be vacuous"
+        offered = {k.casefold() for t in call["tools"] for k in keys(t["input_schema"])}
+        assert not {k for k in offered if "verify" in k}, offered
