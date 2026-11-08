@@ -65,11 +65,13 @@ def test_every_figure_carries_a_caption_whose_hover_is_the_full_record(c1) -> No
 @pytest.mark.req("ARCH-13.5-01")
 def test_every_claim_anchor_is_on_screen(c1) -> None:
     """The half of click-back that is built: each ``data-claim`` anchor is a real,
-    laid-out element (none hidden or zero-sized), so there is something to click. A
-    gene row's anchor is an empty marker span, so its row is what must be laid out."""
+    laid-out element that holds what it claims (none empty, hidden or zero-sized), so
+    there is something to click. An empty anchor beside its row is the bug fixed in
+    38f3b6a, so the anchor itself is measured, never its parent."""
     boxes = c1.evaluate("""() => [...document.querySelectorAll('[data-claim]')]
-        .map(e => { const r = (e.innerText.trim() ? e : e.parentElement).getBoundingClientRect();
-                    return {claim: e.dataset.claim, w: r.width, h: r.height}; })""")
+        .map(e => { const r = e.getBoundingClientRect();
+                    return {claim: e.dataset.claim, w: r.width,
+                            h: e.innerText.trim() ? r.height : 0}; })""")
     assert len(boxes) > 50, len(boxes)
     flat = [b["claim"] for b in boxes if b["w"] < 1 or b["h"] < 1]
     assert not flat, f"{len(flat)} claim anchors take no space: {flat[:5]}"

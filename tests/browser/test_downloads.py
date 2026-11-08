@@ -37,7 +37,7 @@ for c, label in {calls!r}.items():
 @pytest.fixture(scope="module")
 def decided_server(tmp_path_factory):
     env = app_env(tmp_path_factory.mktemp("decided"))
-    seed(env, _SEED.format(calls=_CALLS, demo=DEMO_ID))
+    seed(env, _SEED.format(calls=_CALLS))
     with serve(env) as base:
         yield base
 
