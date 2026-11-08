@@ -183,7 +183,12 @@ def test_a_deferral_shows_in_the_cross_cluster_check(app_tree) -> None:
 # --------------------------------------------------------------------------- #
 @pytest.mark.req("ARCH-10.6-02", "CORP-A11", gap=True)
 def test_an_override_against_the_literature_appends_a_disagreement_event(app_tree) -> None:
-    _override("c3", "T_Cells")
+    """The biologist overrides while the literature dissents: that disagreement is an event."""
+    from panoscope.agent.types import Citation
+
+    dissent = Citation(pmid="101", title="c3-like cells are macrophages", authors="Smith J",
+                       year=2020, journal="J Test", stance="dissent")
+    _override("c3", "T_Cells", dissent=(dissent,))
     names = [p.name for p in Path(os.environ["PANOSCOPE_CONTEXT_DIR"]).rglob("*")]
     assert names, "the override wrote nothing at all"
     assert any("disagree" in n for n in names), names
