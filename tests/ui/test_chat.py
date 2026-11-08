@@ -18,6 +18,8 @@ from tests.fixtures.fake_model import forget_agent, reply, tool_use
 from tests.ui.screen import open_app, plain, raw_markdown, run, screen_text, widget_keys
 
 _FALLBACK = "fallback: the computed reading, not a model answer"
+# The verify flag line (resp.verify), distinct from fallback prose that says "re-check".
+_VERIFY_FLAG = "\u2691 re-check this"
 
 
 def _csv_verify(root, name: str) -> dict[str, bool]:
@@ -228,7 +230,7 @@ def test_a_failed_model_call_shows_a_labelled_fallback_and_writes_nothing(
     at = _ask(at, "c9", "what is c9?")
     turn = plain(_last_agent_turn(at))
     assert _FALLBACK in turn and turn.strip() != _FALLBACK, turn
-    assert "re-check this" in turn
+    assert _VERIFY_FLAG in turn, turn                         # the flag, not just prose
     assert _notes() == [] and _decisions() == before
     assert not any(k.startswith("dsave_") for k in widget_keys(at))
 
@@ -246,7 +248,7 @@ def test_the_pathway_chat_fallback_is_labelled_and_keeps_the_enrichment_rubric(
     before, n_notes = _decisions(), len(_notes())
     at = _ask(at, "c2", "what does EMT mean here?", form="pwask_form", box="pwconv_ask_input")
     turn = plain(_last_agent_turn(at))
-    assert _FALLBACK in turn and "re-check this" in turn, turn
+    assert _FALLBACK in turn and _VERIFY_FLAG in turn, turn
     assert _decisions() == before and len(_notes()) == n_notes
 
 
