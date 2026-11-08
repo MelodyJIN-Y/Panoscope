@@ -119,24 +119,19 @@ def test_review_state_roundtrip(tmp_path) -> None:
     assert got["c9"]["note_id"] == "abc123"
 
 
-def test_sign_off_clears_verify_at_composition(monkeypatch) -> None:
-    """Signing off a flagged call clears its ``verify`` at composition (and in the CSV),
-    WITHOUT mutating the deterministic verdict on disk."""
-    assert da.verdict_for("c9").verify is True  # c9 ships flagged for re-check
-    # baseline: c9 still flagged in the composed view + CSV
-    monkeypatch.setattr(da, "_signed_off_clusters", lambda: set())
-    assert {v.cluster: v for v in da.composed_verdicts()}["c9"].verify is True
+def test_sign_off_never_clears_verify(monkeypatch) -> None:
+    """A reviewed tick is a mark, not a verdict: a signed-off cluster whose rubric
+    ``verify`` is True still reads True composed, in the marker header, and in the CSV."""
+    from panoscope.pipeline import store
 
-    # sign off c9 -> the re-check flag clears in the composed view
-    monkeypatch.setattr(da, "_signed_off_clusters", lambda: {"c9"})
-    comp = {v.cluster: v for v in da.composed_verdicts()}
-    assert comp["c9"].verify is False
-    assert comp["c1"].verify is False  # other clusters untouched
-    # the cached deterministic verdict is never mutated
-    assert da.verdict_for("c9").verify is True
-    # and the CSV row for c9 now reads verify=FALSE
+    assert da.verdict_for("c9").verify is True  # c9 ships flagged for re-check
+    monkeypatch.setattr(store, "load_review_state",
+                        lambda *a, **k: {"c9": {"at": "2026-07-11T12:00:00", "note_id": None}})
+    assert "c9" in da.signed_off()
+    assert {v.cluster: v for v in da.composed_verdicts()}["c9"].verify is True
+    assert da.display_verdict_for("c9").verify is True
     c9_row = [ln for ln in da.verdict_csv().splitlines() if ln.startswith("c9,")][0]
-    assert c9_row.strip().upper().endswith("FALSE")
+    assert c9_row.strip().upper().endswith("TRUE")
 
 
 def test_triage_bucket_routing() -> None:

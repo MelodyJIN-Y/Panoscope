@@ -21,7 +21,7 @@ def render_rail() -> Optional[str]:
 
     st.markdown('<p class="pano-eyebrow">Clusters</p>', unsafe_allow_html=True)
 
-    # Composed, not raw: a sign-off clears ⚑ here as on the board.
+    # Composed, not raw: an override's own band and verify show here as on the board.
     verdicts = {v.cluster: v for v in data_access.composed_verdicts()}
     decs = data_access.decisions()
     selected = state.get_selected_cluster()

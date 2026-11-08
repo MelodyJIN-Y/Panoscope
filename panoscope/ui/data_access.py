@@ -301,17 +301,6 @@ def _excluded_clusters() -> set:
         return set()
 
 
-def _signed_off_clusters() -> set:
-    """Clusters signed off on the Summary board (fresh read, never cached). Their
-    ``verify`` clears at composition only; the verdict on disk is never mutated."""
-    from panoscope.pipeline import store
-
-    try:
-        return set(store.load_review_state().keys())
-    except Exception:  # noqa: BLE001 - a missing/bad review file never breaks composition
-        return set()
-
-
 def _biologist_assessment(cluster: str, label: str):
     """``decisions.assessments`` on ``label`` (a core Verdict), or None with no build."""
     from panoscope.pipeline import decisions as D
@@ -326,11 +315,11 @@ def _biologist_assessment(cluster: str, label: str):
 
 def composed_verdicts() -> list[ClusterVerdict]:
     """``all_verdicts()`` with exclude notes, cell-type overrides (with the band and
-    verify of the biologist's label) and sign-offs applied. Returns new objects (the cached verdicts are never mutated); not cached."""
+    verify of the biologist's label) applied. A sign-off never clears ``verify``: that
+    comes only from the rubric. Returns new objects (the cached verdicts are never mutated); not cached."""
     excluded = _excluded_clusters()
     overrides = compose.override_notes()
-    signed_off = _signed_off_clusters()
-    if not excluded and not overrides and not signed_off:
+    if not excluded and not overrides:
         return all_verdicts()
     import dataclasses
 
@@ -348,9 +337,6 @@ def composed_verdicts() -> list[ClusterVerdict]:
                                verify=b.verify)
         if v.cluster in excluded:
             changes["exclude"] = True
-        # Sign-off clears verify.
-        if v.cluster in signed_off:
-            changes["verify"] = False
         out.append(dataclasses.replace(v, **changes) if changes else v)
     return out
 
@@ -379,14 +365,10 @@ def display_verdict_for(cluster: str) -> ClusterVerdict:
     ov = compose.override_notes().get(cluster)
     call = (getattr(ov, "subject_cell_type", "") or "").strip() if ov else ""
 
-    # Sign-off clears verify, as in ``composed_verdicts``.
-    signed = cluster in _signed_off_clusters()
     if not call:
-        return dataclasses.replace(v, verify=False) if (signed and v.verify) else v
+        return v
 
     changes = {"cell_type": call, "cell_type_short": call}
-    if signed:
-        changes["verify"] = False
     if getattr(ov, "subject_lineage", "").strip():
         changes["lineage"] = ov.subject_lineage.strip()
     if getattr(ov, "subject_category", "").strip():

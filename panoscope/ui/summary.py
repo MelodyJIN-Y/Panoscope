@@ -432,7 +432,7 @@ def _render_signoff_card(st, cluster: str) -> None:
     nonce = convo._draft_nonce(draft)
     with st.container(key=f"sofcard_{cluster}"):
         st.markdown(
-            '<div class="sof-eyebrow">Mark reviewed &amp; clear flag · confirm basis</div>'
+            '<div class="sof-eyebrow">Mark reviewed · confirm basis</div>'
             f'<div class="sof-claim">{html.escape(draft.claim)}</div>',
             unsafe_allow_html=True,
         )
@@ -864,7 +864,7 @@ def render_summary_page() -> None:
     refinements = _refinements_by_cluster()
     # Dispatch a table click before reading sign-off state.
     _handle_table_actions(st, verdicts, overrides, refinements)
-    # Re-read: a sign/undo click changes ``verify`` on the composed verdicts.
+    # Re-read after a sign/undo click (it never changes ``verify``).
     verdicts = da.composed_verdicts()
     sec_by_id = {v.cluster: v for v in verdicts}
     # Sign-off state drives the board triage AND the header finish line.

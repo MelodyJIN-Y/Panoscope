@@ -230,7 +230,7 @@ def load_decisions(
 ) -> dict:
     """The per-cluster annotation decisions ``{cluster: {state, label, by, at, ...}}``, or {}.
 
-    Kept apart from ``reviewed``: a sign-off clears ``verify`` at composition, a decision does not."""
+    Kept apart from ``reviewed``: a sign-off is a reviewed mark only and never clears ``verify``."""
     dataset_id = dataset_id or cfg.DATASET_ID
     p = paths.review_state_json(dataset_id, root)
     return _read(p, lambda d: _dict(_dict(d).get("decisions")), {})
