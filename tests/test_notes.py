@@ -204,14 +204,24 @@ def test_a_note_never_carries_an_em_or_en_dash():
 
 
 @pytest.mark.req("SKE-S3-01")
-def test_a_pathway_note_that_reinforces_the_call_falls_back():
-    """enrichment Step 3: concordant never 'reinforces' the call, in a new note or in
-    one written before the guard existed (the read-side ``without_lift``)."""
+def test_a_pathway_note_that_reinforces_the_call_falls_back(tmp_path, monkeypatch):
+    """enrichment Step 3: concordant never 'reinforces' the call, in a new note (the
+    pathway stage, model faked at its boundary) or in one written before the guard
+    existed (the read-side ``without_lift``). A marker note is not a program: its
+    biology may say a gene reinforces tissue and keep its citation."""
+    from panoscope.pipeline.stages import notes as N
     from panoscope.pipeline.stages.notes import without_lift
 
     prose = "KIT is concordant with mast cell identity, reinforcing the c9 call."
-    summary, pmid, _, used_fb = _resolve_note(prose, _cite("1"), "Fallback.", max_sentences=2)
-    assert used_fb and summary == "Fallback." and pmid is None
+    monkeypatch.setattr(N.agent_loop, "chat", lambda *a, **k: SimpleNamespace(
+        text=prose, citations=[_cite("1")], verify=False))
+    written = [n for sets in N.run_pathway_notes(root=tmp_path).values() for n in sets.values()]
+    assert written, "the demo surfaces programs; nothing was generated"
+    for n in written:
+        assert "reinforc" not in n["summary"] and n["pmid"] is None and n["citation"] is None
+    marker = "POSTN encodes a matrix protein that reinforces connective tissue architecture."
+    summary, pmid, _, used_fb = _resolve_note(marker, _cite("1"), "Fallback.")
+    assert not used_fb and pmid == "1" and summary == marker
     stored = {"gene_set": "HALLMARK_UV_RESPONSE_DN", "cell_type": "Mast_Cells",
               "leading_edge": ["CAV1", "KIT"], "summary": prose, "pmid": "1",
               "citation": {"pmid": "1"}}

@@ -131,6 +131,7 @@ _STAT = re.compile(r"(?<![\w.])-?\d+\.\d+|\b(?:q|p|fdr|nes|z|score)\s*[=<>:]\s*-
 
 # enrichment skill Step 3: a concordant program never "reinforces" the call. Prose
 # that lifts the call is unusable, like meta-commentary: it falls back, citation dropped.
+# Pathway notes only: a marker note's job is the marker's relevance to the identity.
 _LIFT = re.compile(r"\breinforc\w*|\bstrengthen\w*|\b(?:confirm|support)s? the (?:\w+ )?call\b",
                    re.IGNORECASE)
 
@@ -171,8 +172,7 @@ def _resolve_note(
     own prose. ``max_words``/``max_sentences`` cap the summary length.
     """
     summary = _shorten(model_text, max_words, max_sentences)
-    used_fallback = ((not summary) or _looks_meta(summary) or bool(_STAT.search(summary))
-                     or bool(_LIFT.search(summary)))
+    used_fallback = (not summary) or _looks_meta(summary) or bool(_STAT.search(summary))
     if used_fallback:
         summary = fallback_summary
         cite = None
@@ -440,7 +440,7 @@ def run_pathway_notes(
             summary, pmid, citation, _ = _resolve_note(
                 resp.text, cite, fb, max_words=42, max_sentences=2
             )
-            notes[cluster][p.gene_set] = {
+            notes[cluster][p.gene_set] = note = without_lift({
                 "gene_set": p.gene_set,
                 "cluster": cluster,
                 "cell_type": ce.cell_type,
@@ -457,9 +457,10 @@ def run_pathway_notes(
                 "pmid": pmid,
                 "citation": citation,
                 "verify": p.tier == "suggestive",
-            }
+            })
             _save(out_path, notes)
-            print(f"  {cluster}/{pretty_gene_set(p.gene_set)}: PMID {pmid or 'no-cite'}", flush=True)
+            print(f"  {cluster}/{pretty_gene_set(p.gene_set)}: PMID {note['pmid'] or 'no-cite'}",
+                  flush=True)
 
     _save(out_path, notes)
     return notes
